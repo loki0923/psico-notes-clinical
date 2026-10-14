@@ -63,6 +63,24 @@ async function startAppForCurrentUser() {
     updatePatientSelects();
     checkPortalCrisisAlerts();
     setInterval(checkPortalCrisisAlerts, 20000);
+
+    // Sincronizar en segundo plano todos los pacientes a la base de datos PostgreSQL
+    if (AppState.patients && AppState.patients.length > 0) {
+        AppState.patients.forEach(p => {
+            if (typeof ensurePatientPortalToken === 'function') ensurePatientPortalToken(p);
+            if (typeof syncPatientToPortalStorage === 'function') syncPatientToPortalStorage(p);
+        });
+    }
+
+    // Si el expediente de un paciente está abierto en pantalla, refrescar su portal cada 15 segundos
+    setInterval(() => {
+        const portalTab = document.getElementById('tab-portal');
+        if (portalTab && portalTab.classList.contains('active') && AppState.selectedPatientId) {
+            if (typeof refreshPortalTabContent === 'function') {
+                refreshPortalTabContent(AppState.selectedPatientId, false);
+            }
+        }
+    }, 15000);
 }
 
 // ============================================
@@ -1040,6 +1058,10 @@ function handlePatientSubmit(e) {
         showToast('Expediente creado', 'success'); 
     }
     saveData();
+    // Asegurar token de portal y sincronizar inmediatamente con PostgreSQL
+    if (typeof ensurePatientPortalToken === 'function') ensurePatientPortalToken(patient);
+    if (typeof syncPatientToPortalStorage === 'function') syncPatientToPortalStorage(patient);
+
     closeModal('patientModal');
     renderPatients();
     updateCounts();
@@ -1108,6 +1130,7 @@ function deletePatient(id) {
 }
 
 function viewPatient(id) {
+    AppState.selectedPatientId = id;
     const patient = AppState.patients.find(p => p.id === id);
     if (!patient) return;
     const cat = getPatientCategory(patient);
@@ -1120,8 +1143,8 @@ function viewPatient(id) {
     const emotionalProfile = calculateEmotionalProfile(id);
     const clinicalInsights = generateClinicalInsights(id);
     const sessionPrep = generateSessionPrep(id);
-    const { results: portalResults, moods: portalMoods } = getPortalResults(id);
-    const portalCount = portalResults.length + portalMoods.length;
+    const { results: portalResults, moods: portalMoods, cbt: portalCbt } = getPortalResults(id);
+    const portalCount = portalResults.length + portalMoods.length + (portalCbt ? portalCbt.length : 0);
     const detail = document.getElementById('patientDetail');
 
     const cleanName = formatDisplayName(patient.name);
@@ -1211,7 +1234,7 @@ function viewPatient(id) {
             <button class="patient-tab" onclick="switchPatientTab('apoyo', this)"><i class="fas fa-hands-helping"></i> Red de Apoyo</button>
             <button class="patient-tab" onclick="switchPatientTab('portal', this)">
                 <i class="fas fa-mobile-alt"></i> Portal Paciente
-                ${portalCount > 0 ? `<span style="background: var(--accent-success); color: white; padding: 2px 6px; border-radius: 10px; font-size: 10px; margin-left: 4px;">${portalCount}</span>` : ''}
+                <span id="portalTabBadgeCount" style="background: var(--accent-success); color: white; padding: 2px 6px; border-radius: 10px; font-size: 10px; margin-left: 4px; ${portalCount > 0 ? '' : 'display: none;'}">${portalCount}</span>
             </button>
         </div>
         <div id="tab-resumen" class="patient-tab-content active">${renderTabResumen(id, wellbeing)}</div>
@@ -1223,13 +1246,22 @@ function viewPatient(id) {
         <div id="tab-portal" class="patient-tab-content">${renderPortalTab(id)}</div>
     `;
     openModal('patientDetailModal');
+    // Sincronizar de forma reactiva en segundo plano desde PostgreSQL
+    if (typeof refreshPortalTabContent === 'function') {
+        refreshPortalTabContent(id);
+    }
 }
 
 function switchPatientTab(tabName, btn) {
     document.querySelectorAll('.patient-tab').forEach(t => t.classList.remove('active'));
     document.querySelectorAll('.patient-tab-content').forEach(c => c.classList.remove('active'));
     btn.classList.add('active');
-    document.getElementById('tab-' + tabName).classList.add('active');
+    const target = document.getElementById('tab-' + tabName);
+    if (target) target.classList.add('active');
+
+    if (tabName === 'portal' && AppState.selectedPatientId && typeof refreshPortalTabContent === 'function') {
+        refreshPortalTabContent(AppState.selectedPatientId);
+    }
 }
 
 function calculateTreatmentDuration(createdAt) {
@@ -1486,70 +1518,31 @@ async function openPortalAccessModal(patientId) {
 
     const token = ensurePatientPortalToken(patient);
 
-    // Intentar refrescar en vivo desde base de datos PostgreSQL
-    try {
-        const res = await fetch(`/api/v1/portal/data/${patientId}`);
-        if (res.ok) {
-            const remote = await res.json();
-            if (remote.data) {
-                if (remote.data.moodLogs && remote.data.moodLogs.length > 0) {
-                    localStorage.setItem(`psico_portal_mood_${patientId}`, JSON.stringify(remote.data.moodLogs.map(m => ({
-                        id: m.id,
-                        value: m.mood_score || m.value,
-                        date: m.created_at || m.date
-                    }))));
-                }
-                if (remote.data.evaluations && remote.data.evaluations.length > 0) {
-                    localStorage.setItem(`psico_portal_results_${patientId}`, JSON.stringify(remote.data.evaluations));
-                }
-                if (remote.data.cbtRecords && remote.data.cbtRecords.length > 0) {
-                    localStorage.setItem(`psico_portal_cbt_${patientId}`, JSON.stringify(remote.data.cbtRecords));
-                }
-                if (remote.data.tasks && remote.data.tasks.length > 0) {
-                    const localData = JSON.parse(localStorage.getItem(`psico_portal_data_${patientId}`) || '{}');
-                    localData.tasks = remote.data.tasks;
-                    localStorage.setItem(`psico_portal_data_${patientId}`, JSON.stringify(localData));
-                }
-            }
-        }
-    } catch (e) {}
+    // Sincronizar en vivo desde la base de datos PostgreSQL
+    if (typeof syncPortalDataForPatient === 'function') {
+        await syncPortalDataForPatient(patientId);
+    }
+
     const modalBody = document.getElementById('portalAccessModalBody');
     if (!modalBody) return;
 
-    // Métricas y datos clínicos del portal en localStorage
-    const portalResults = getPortalResults(patientId);
+    // Métricas y datos clínicos normalizados del portal
+    const { results: evals, moods, cbt: cbtRecords, tasks: patientTasks } = getPortalResults(patientId);
     let portalData = {};
     try {
         const raw = localStorage.getItem(`psico_portal_data_${patientId}`);
         if (raw) portalData = JSON.parse(raw);
     } catch (e) {}
 
-    let cbtRecords = [];
-    try {
-        const rawCbt = localStorage.getItem(`psico_portal_cbt_${patientId}`);
-        if (rawCbt) cbtRecords = JSON.parse(rawCbt);
-    } catch (e) {}
-
-    let tasksBridge = {};
-    try {
-        tasksBridge = JSON.parse(localStorage.getItem('psico_portal_tasks_bridge') || '{}');
-    } catch (e) {}
-
-    const patientTasks = (portalData.tasks && portalData.tasks.length > 0) 
-        ? portalData.tasks 
-        : (tasksBridge[patientId] || []);
-    
     const pendingTasks = patientTasks.filter(t => !t.completed).length;
     const totalTasks = patientTasks.length;
 
-    const moods = portalResults.moods || [];
     const latestMood = moods.length > 0 ? moods[moods.length - 1] : null;
     const moodEmojis = { 1: '😞', 2: '😔', 3: '😐', 4: '🙂', 5: '😊' };
     const moodLabels = { 1: 'Muy mal', 2: 'Mal', 3: 'Neutral', 4: 'Bien', 5: 'Muy bien' };
 
-    const evals = portalResults.results || [];
-    const latestPhq = evals.filter(e => e.type === 'phq9').slice(-1)[0];
-    const latestGad = evals.filter(e => e.type === 'gad7').slice(-1)[0];
+    const latestPhq = evals.filter(e => e.type === 'phq9' || e.scaleType === 'phq9').slice(-1)[0];
+    const latestGad = evals.filter(e => e.type === 'gad7' || e.scaleType === 'gad7').slice(-1)[0];
 
     const hasCrisis = portalData.activeCrisisAlert || false;
 
@@ -1832,22 +1825,138 @@ function generatePortalToken(patientId) {
     openPortalAccessModal(patientId);
 }
 
+async function syncPortalDataForPatient(patientId) {
+    if (!patientId) return null;
+    try {
+        const res = await fetch(`/api/v1/portal/data/${patientId}`);
+        if (!res.ok) return null;
+        const json = await res.json();
+        const remote = json.data;
+        if (!remote) return null;
+
+        // Normalizar y persistir estados de ánimo
+        const normalizedMoods = (remote.moodLogs || []).map(m => ({
+            id: m.id,
+            value: Number(m.mood_score ?? m.value ?? m.mood) || 3,
+            mood: Number(m.mood_score ?? m.value ?? m.mood) || 3,
+            sleep: Number(m.sleep_score ?? m.sleep) || 3,
+            energy: Number(m.energy_score ?? m.energy) || 3,
+            note: m.note || '',
+            date: m.created_at || m.date || new Date().toISOString()
+        }));
+        localStorage.setItem(`psico_portal_mood_${patientId}`, JSON.stringify(normalizedMoods));
+
+        // Normalizar y persistir evaluaciones psicométricas (PHQ-9, GAD-7)
+        const normalizedEvals = (remote.evaluations || []).map(e => ({
+            id: e.id,
+            type: e.scale_type || e.type || 'phq9',
+            scaleType: e.scale_type || e.type || 'phq9',
+            score: Number(e.score) || 0,
+            maxScore: Number(e.max_score || e.maxScore) || ( (e.scale_type || e.type) === 'gad7' ? 21 : 27 ),
+            severity: e.severity || 'Normal',
+            alertRisk: Boolean(e.alert_risk ?? e.alertRisk),
+            riskReason: e.risk_reason || e.riskReason || '',
+            date: e.created_at || e.date || new Date().toISOString()
+        }));
+        localStorage.setItem(`psico_portal_results_${patientId}`, JSON.stringify(normalizedEvals));
+
+        // Normalizar y persistir autoregistros ABC (TCC)
+        const normalizedCbt = (remote.cbtRecords || []).map(c => ({
+            id: c.id,
+            situation: c.situation || '',
+            thought: c.thought || '',
+            distortion: c.distortion || 'Generalización excesiva',
+            emotion: c.emotion || 'Ansiedad',
+            initialIntensity: Number(c.initial_intensity ?? c.initialIntensity) || 50,
+            rationalThought: c.rational_thought || c.rationalThought || '',
+            finalIntensity: Number(c.final_intensity ?? c.finalIntensity) || 30,
+            behavioralReaction: c.behavioral_reaction || c.behavioralReaction || '',
+            date: c.created_at || c.date || new Date().toISOString()
+        }));
+        localStorage.setItem(`psico_portal_cbt_${patientId}`, JSON.stringify(normalizedCbt));
+
+        // Normalizar tareas
+        const localData = JSON.parse(localStorage.getItem(`psico_portal_data_${patientId}`) || '{}');
+        localData.tasks = remote.tasks || [];
+        localData.activeCrisisAlert = Boolean(remote.hasActiveCrisisAlert);
+        localStorage.setItem(`psico_portal_data_${patientId}`, JSON.stringify(localData));
+
+        return {
+            moods: normalizedMoods,
+            evaluations: normalizedEvals,
+            cbt: normalizedCbt,
+            tasks: remote.tasks || []
+        };
+    } catch (e) {
+        console.warn('⚠️ No se pudo sincronizar datos del portal en este momento:', e);
+        return null;
+    }
+}
+
+async function refreshPortalTabContent(patientId, showNotification = false) {
+    if (!patientId) return;
+    const tabEl = document.getElementById('tab-portal');
+    const badgeEl = document.getElementById('portalTabBadgeCount');
+
+    if (showNotification && tabEl) {
+        tabEl.style.opacity = '0.6';
+    }
+
+    const synced = await syncPortalDataForPatient(patientId);
+
+    if (tabEl) {
+        tabEl.style.opacity = '1';
+        tabEl.innerHTML = renderPortalTab(patientId);
+    }
+
+    const { results, moods, cbt } = getPortalResults(patientId);
+    const totalCount = results.length + moods.length + cbt.length;
+    if (badgeEl) {
+        badgeEl.textContent = totalCount;
+        badgeEl.style.display = totalCount > 0 ? 'inline-block' : 'none';
+    }
+
+    if (showNotification) {
+        showToast('Portal sincronizado con PostgreSQL', 'success');
+    }
+}
+
 function getPortalResults(patientId) {
     const key = `psico_portal_results_${patientId}`;
     const keyMood = `psico_portal_mood_${patientId}`;
-    const results = JSON.parse(localStorage.getItem(key) || '[]');
-    const moods = JSON.parse(localStorage.getItem(keyMood) || '[]');
-    return { results, moods };
+    const keyCbt = `psico_portal_cbt_${patientId}`;
+    const keyData = `psico_portal_data_${patientId}`;
+
+    let results = [];
+    let moods = [];
+    let cbt = [];
+    let tasks = [];
+
+    try { results = JSON.parse(localStorage.getItem(key) || '[]'); } catch (e) {}
+    try { moods = JSON.parse(localStorage.getItem(keyMood) || '[]'); } catch (e) {}
+    try { cbt = JSON.parse(localStorage.getItem(keyCbt) || '[]'); } catch (e) {}
+    try {
+        const raw = localStorage.getItem(keyData);
+        if (raw) tasks = JSON.parse(raw).tasks || [];
+    } catch (e) {}
+
+    return { results, moods, cbt, tasks };
 }
 
 function renderPortalTab(patientId) {
-    const { results, moods } = getPortalResults(patientId);
-    if (results.length === 0 && moods.length === 0) {
-        return `<div class="empty-state"><div class="empty-icon">🌱</div><p>El paciente aún no ha registrado datos desde su portal</p><small>Comparte el código de acceso para activar el seguimiento</small></div>`;
-    }
-    const lastPhq = results.filter(r => r.type === 'phq9').slice(-1)[0];
-    const lastGad = results.filter(r => r.type === 'gad7').slice(-1)[0];
-    const recentMoods = moods.slice(-7);
+    const { results, moods, cbt, tasks } = getPortalResults(patientId);
+    const totalCount = results.length + moods.length + cbt.length;
+
+    const lastPhq = results.filter(r => r.type === 'phq9' || r.scaleType === 'phq9').slice(-1)[0];
+    const lastGad = results.filter(r => r.type === 'gad7' || r.scaleType === 'gad7').slice(-1)[0];
+    const latestMood = moods.length > 0 ? moods[moods.length - 1] : null;
+
+    const moodEmojis = { 1: '😞', 2: '😔', 3: '😐', 4: '🙂', 5: '😊' };
+    const moodLabels = { 1: 'Muy mal', 2: 'Mal', 3: 'Neutral', 4: 'Bien', 5: 'Muy bien' };
+
+    const completedTasks = (tasks || []).filter(t => t.completed).length;
+    const totalTasks = (tasks || []).length;
+
     const interpretPhq = (s) => {
         if (s <= 4) return { level: 'Mínima', color: '#4dab87' };
         if (s <= 9) return { level: 'Leve', color: '#7cb342' };
@@ -1855,23 +1964,227 @@ function renderPortalTab(patientId) {
         if (s <= 19) return { level: 'Mod. Severa', color: '#e67e22' };
         return { level: 'Severa', color: '#e16259' };
     };
+
     const interpretGad = (s) => {
         if (s <= 4) return { level: 'Mínima', color: '#4dab87' };
         if (s <= 9) return { level: 'Leve', color: '#7cb342' };
         if (s <= 14) return { level: 'Moderada', color: '#fdcb6e' };
         return { level: 'Severa', color: '#e16259' };
     };
+
     const formatDateSafe = (dateStr) => {
         if (!dateStr) return 'Fecha no disponible';
         try {
             const date = new Date(dateStr);
             if (isNaN(date.getTime())) return 'Fecha no disponible';
-            return date.toLocaleDateString('es-ES', { day: 'numeric', month: 'short', year: 'numeric' });
+            return date.toLocaleDateString('es-ES', { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' });
         } catch (e) {
             return 'Fecha no disponible';
         }
     };
-    return `<div style="padding: 8px 0;"><div class="summary-grid" style="margin-bottom: 20px;"><div class="summary-mini-card"><div class="summary-mini-icon">📊</div><div class="summary-mini-info"><div class="summary-mini-label">Tests realizados</div><div class="summary-mini-value">${results.length}</div></div></div><div class="summary-mini-card"><div class="summary-mini-icon">💭</div><div class="summary-mini-info"><div class="summary-mini-label">Registros de ánimo</div><div class="summary-mini-value">${moods.length}</div></div></div></div>${lastPhq || lastGad ? `<div class="clinical-history-section"><h4>📊 Últimas Evaluaciones del Paciente</h4>${lastPhq ? `<div class="alert-item ${lastPhq.score >= 15 ? 'critical' : lastPhq.score >= 10 ? 'warning' : 'success'}"><div class="alert-item-icon">🌧️</div><div class="alert-item-text"><strong>Estado de Ánimo (PHQ-9): ${lastPhq.score}/${lastPhq.maxScore || 27}</strong><small>Nivel: ${interpretPhq(lastPhq.score).level} · ${formatDateSafe(lastPhq.date)}</small></div></div>` : ''}${lastGad ? `<div class="alert-item ${lastGad.score >= 15 ? 'critical' : lastGad.score >= 10 ? 'warning' : 'success'}"><div class="alert-item-icon">🌊</div><div class="alert-item-text"><strong>Ansiedad (GAD-7): ${lastGad.score}/${lastGad.maxScore || 21}</strong><small>Nivel: ${interpretGad(lastGad.score).level} · ${formatDateSafe(lastGad.date)}</small></div></div>` : ''}</div>` : ''}</div>`;
+
+    return `
+        <div class="portal-clinical-tab-wrap" style="padding: 12px 0;">
+            <!-- CABECERA DE CONTROL DE SINCRONIZACIÓN -->
+            <div style="display: flex; justify-content: space-between; align-items: center; background: var(--bg-secondary); padding: 14px 18px; border-radius: 12px; margin-bottom: 20px; border: 1px solid var(--border-color); flex-wrap: wrap; gap: 12px;">
+                <div style="display: flex; align-items: center; gap: 10px;">
+                    <span style="display: inline-flex; align-items: center; gap: 6px; background: rgba(16, 185, 129, 0.15); color: #10b981; font-weight: 600; font-size: 12px; padding: 4px 10px; border-radius: 20px;">
+                        <i class="fas fa-database"></i> Sincronizado en Vivo (PostgreSQL)
+                    </span>
+                    <span style="font-size: 13px; color: var(--text-secondary);">
+                        Total de actividades registradas: <strong>${totalCount}</strong>
+                    </span>
+                </div>
+                <div style="display: flex; gap: 8px;">
+                    <button class="btn-sm btn-primary" onclick="refreshPortalTabContent('${patientId}', true)" title="Consultar PostgreSQL para obtener registros recién enviados desde el teléfono">
+                        <i class="fas fa-arrows-rotate"></i> Actualizar Datos
+                    </button>
+                    <button class="btn-sm btn-secondary" onclick="openPortalAccessModal('${patientId}')" title="Ver código PIN, código QR y credenciales de acceso">
+                        <i class="fas fa-qrcode"></i> Credenciales / PIN
+                    </button>
+                </div>
+            </div>
+
+            <!-- BENTO DE 4 MÉTRICAS PRINCIPALES -->
+            <div class="summary-grid" style="margin-bottom: 24px;">
+                <div class="summary-mini-card">
+                    <div class="summary-mini-icon">💭</div>
+                    <div class="summary-mini-info">
+                        <div class="summary-mini-label">Check-ins de Ánimo</div>
+                        <div class="summary-mini-value">${moods.length}</div>
+                        <small style="color: var(--text-secondary); font-size: 11px;">
+                            ${latestMood ? `${moodEmojis[latestMood.mood] || '🙂'} Último: ${latestMood.mood}/5` : 'Sin registros'}
+                        </small>
+                    </div>
+                </div>
+
+                <div class="summary-mini-card">
+                    <div class="summary-mini-icon">🧠</div>
+                    <div class="summary-mini-info">
+                        <div class="summary-mini-label">Autoregistros ABC</div>
+                        <div class="summary-mini-value">${cbt.length}</div>
+                        <small style="color: var(--text-secondary); font-size: 11px;">Reestructuración TCC</small>
+                    </div>
+                </div>
+
+                <div class="summary-mini-card">
+                    <div class="summary-mini-icon">📊</div>
+                    <div class="summary-mini-info">
+                        <div class="summary-mini-label">Tests Clínicos</div>
+                        <div class="summary-mini-value">${results.length}</div>
+                        <small style="color: var(--text-secondary); font-size: 11px;">
+                            ${lastPhq ? `PHQ: ${lastPhq.score}` : (lastGad ? `GAD: ${lastGad.score}` : 'Al día')}
+                        </small>
+                    </div>
+                </div>
+
+                <div class="summary-mini-card">
+                    <div class="summary-mini-icon">✅</div>
+                    <div class="summary-mini-info">
+                        <div class="summary-mini-label">Tareas Intersesión</div>
+                        <div class="summary-mini-value">${completedTasks}/${totalTasks}</div>
+                        <small style="color: var(--text-secondary); font-size: 11px;">
+                            ${totalTasks - completedTasks > 0 ? `${totalTasks - completedTasks} pendientes` : 'Completas'}
+                        </small>
+                    </div>
+                </div>
+            </div>
+
+            ${totalCount === 0 ? `
+                <div class="empty-state" style="padding: 40px 20px; text-align: center; background: var(--bg-secondary); border-radius: 12px; border: 1px dashed var(--border-color);">
+                    <div class="empty-icon" style="font-size: 42px; margin-bottom: 12px;">🌱</div>
+                    <h4 style="margin: 0 0 8px 0; color: var(--text-primary);">Aún no hay registros enviados por el paciente</h4>
+                    <p style="color: var(--text-secondary); font-size: 14px; max-width: 480px; margin: 0 auto 16px auto;">
+                        Cuando el paciente ingrese desde su teléfono celular al portal y complete un test, un autoregistro ABC o su check-in diario, aparecerá aquí automáticamente.
+                    </p>
+                    <button class="btn-primary" onclick="openPortalAccessModal('${patientId}')">
+                        <i class="fas fa-share-nodes"></i> Compartir Acceso con el Paciente
+                    </button>
+                </div>
+            ` : ''}
+
+            <!-- 1. AUTOREGISTROS COGNITIVOS ABC (TCC) -->
+            ${cbt.length > 0 ? `
+                <div class="clinical-history-section" style="margin-bottom: 24px;">
+                    <h4 style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 14px;">
+                        <span><i class="fas fa-brain" style="color: #6366f1;"></i> Autoregistros Cognitivos ABC del Paciente (${cbt.length})</span>
+                    </h4>
+                    <div style="display: flex; flex-direction: column; gap: 14px;">
+                        ${cbt.slice().reverse().map(record => `
+                            <div style="background: var(--bg-card); border: 1px solid var(--border-color); border-radius: 12px; padding: 16px; box-shadow: 0 2px 6px rgba(0,0,0,0.04);">
+                                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; border-bottom: 1px solid var(--border-color); padding-bottom: 8px;">
+                                    <span style="font-size: 12px; color: var(--text-secondary);">
+                                        <i class="far fa-clock"></i> ${formatDateSafe(record.date)}
+                                    </span>
+                                    <span style="background: rgba(99, 102, 241, 0.12); color: #6366f1; padding: 3px 10px; border-radius: 12px; font-size: 11px; font-weight: 600;">
+                                        Distorsión: ${record.distortion || 'Identificada'}
+                                    </span>
+                                </div>
+                                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 14px;">
+                                    <div style="background: rgba(239, 68, 68, 0.05); padding: 10px 12px; border-radius: 8px; border-left: 3px solid #ef4444;">
+                                        <div style="font-size: 11px; text-transform: uppercase; font-weight: 700; color: #ef4444; margin-bottom: 4px;">A) Situación Activadora</div>
+                                        <div style="font-size: 13px; color: var(--text-primary); margin-bottom: 6px;">${record.situation}</div>
+                                        <div style="font-size: 11px; text-transform: uppercase; font-weight: 700; color: #ef4444; margin-bottom: 4px;">B) Pensamiento Automático</div>
+                                        <div style="font-size: 13px; font-style: italic; color: var(--text-primary); margin-bottom: 6px;">"${record.thought}"</div>
+                                        <div style="font-size: 12px; color: var(--text-secondary);">
+                                            Emoción: <strong>${record.emotion}</strong> (Intensidad inicial: <strong>${record.initialIntensity}%</strong>)
+                                        </div>
+                                    </div>
+
+                                    <div style="background: rgba(16, 185, 129, 0.05); padding: 10px 12px; border-radius: 8px; border-left: 3px solid #10b981;">
+                                        <div style="font-size: 11px; text-transform: uppercase; font-weight: 700; color: #10b981; margin-bottom: 4px;">C) Pensamiento Racional Alternativo</div>
+                                        <div style="font-size: 13px; color: var(--text-primary); margin-bottom: 8px;">${record.rationalThought}</div>
+                                        <div style="display: flex; justify-content: space-between; align-items: center; background: var(--bg-primary); padding: 6px 10px; border-radius: 6px;">
+                                            <span style="font-size: 12px; color: var(--text-secondary);">Intensidad final: <strong>${record.finalIntensity}%</strong></span>
+                                            <span style="font-size: 12px; font-weight: 700; color: ${record.finalIntensity < record.initialIntensity ? '#10b981' : '#f59e0b'};">
+                                                ${record.finalIntensity < record.initialIntensity ? `Alivio: -${record.initialIntensity - record.finalIntensity}%` : 'Sin cambio'}
+                                            </span>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        `).join('')}
+                    </div>
+                </div>
+            ` : ''}
+
+            <!-- 2. REGISTROS DIARIOS DE BIENESTAR Y ESTADO DE ÁNIMO -->
+            ${moods.length > 0 ? `
+                <div class="clinical-history-section" style="margin-bottom: 24px;">
+                    <h4 style="margin-bottom: 14px;"><i class="fas fa-smile" style="color: #f59e0b;"></i> Check-ins de Bienestar y Estado de Ánimo (${moods.length})</h4>
+                    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 12px;">
+                        ${moods.slice(-6).reverse().map(m => `
+                            <div style="background: var(--bg-card); border: 1px solid var(--border-color); border-radius: 10px; padding: 14px;">
+                                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+                                    <span style="font-size: 24px;">${moodEmojis[m.mood] || '🙂'}</span>
+                                    <span style="font-size: 11px; color: var(--text-secondary);">${formatDateSafe(m.date)}</span>
+                                </div>
+                                <div style="font-size: 14px; font-weight: 600; color: var(--text-primary); margin-bottom: 6px;">
+                                    ${moodLabels[m.mood] || 'Registrado'} (${m.mood}/5)
+                                </div>
+                                <div style="font-size: 12px; color: var(--text-secondary); display: flex; gap: 10px; margin-bottom: 6px;">
+                                    <span>😴 Sueño: <strong>${m.sleep}/5</strong></span>
+                                    <span>⚡ Energía: <strong>${m.energy}/5</strong></span>
+                                </div>
+                                ${m.note ? `<div style="font-size: 12px; color: var(--text-primary); font-style: italic; background: var(--bg-secondary); padding: 6px 8px; border-radius: 6px;">"${m.note}"</div>` : ''}
+                            </div>
+                        `).join('')}
+                    </div>
+                </div>
+            ` : ''}
+
+            <!-- 3. EVALUACIONES PSICOMÉTRICAS (PHQ-9 / GAD-7) -->
+            ${results.length > 0 ? `
+                <div class="clinical-history-section" style="margin-bottom: 24px;">
+                    <h4 style="margin-bottom: 14px;"><i class="fas fa-chart-line" style="color: #0d9488;"></i> Evaluaciones Psicométricas Realizadas por el Paciente (${results.length})</h4>
+                    <div style="display: flex; flex-direction: column; gap: 10px;">
+                        ${results.slice().reverse().map(evalItem => {
+                            const isPhq = (evalItem.type === 'phq9' || evalItem.scaleType === 'phq9');
+                            const interp = isPhq ? interpretPhq(evalItem.score) : interpretGad(evalItem.score);
+                            const scaleTitle = isPhq ? 'Cuestionario de Salud del Paciente (PHQ-9 - Depresión)' : 'Escala de Ansiedad Generalizada (GAD-7)';
+                            return `
+                                <div class="alert-item ${evalItem.score >= 15 ? 'critical' : evalItem.score >= 10 ? 'warning' : 'success'}" style="margin: 0;">
+                                    <div class="alert-item-icon">${isPhq ? '🌧️' : '🌊'}</div>
+                                    <div class="alert-item-text" style="flex: 1;">
+                                        <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap;">
+                                            <strong>${scaleTitle}: ${evalItem.score}/${evalItem.maxScore || (isPhq ? 27 : 21)}</strong>
+                                            <small style="color: var(--text-secondary);">${formatDateSafe(evalItem.date)}</small>
+                                        </div>
+                                        <div style="font-size: 12px; margin-top: 4px;">
+                                            Nivel Clínico: <strong style="color: ${interp.color};">${interp.level}</strong>
+                                            ${evalItem.alertRisk ? `<span style="background: #ef4444; color: white; padding: 2px 6px; border-radius: 4px; font-size: 10px; margin-left: 8px;">⚠️ ALERTA DE RIESGO</span>` : ''}
+                                        </div>
+                                    </div>
+                                </div>
+                            `;
+                        }).join('')}
+                    </div>
+                </div>
+            ` : ''}
+
+            <!-- 4. TAREAS INTERSESIÓN DEL PACIENTE -->
+            ${tasks && tasks.length > 0 ? `
+                <div class="clinical-history-section">
+                    <h4 style="margin-bottom: 14px;"><i class="fas fa-list-check" style="color: #10b981;"></i> Seguimiento de Tareas Intersesión</h4>
+                    <div style="display: flex; flex-direction: column; gap: 8px;">
+                        ${tasks.map(t => `
+                            <div style="display: flex; align-items: center; justify-content: space-between; background: var(--bg-card); border: 1px solid var(--border-color); padding: 10px 14px; border-radius: 8px;">
+                                <div style="display: flex; align-items: center; gap: 10px;">
+                                    <i class="fas ${t.completed ? 'fa-circle-check' : 'fa-circle'}" style="color: ${t.completed ? '#10b981' : '#9ca3af'}; font-size: 18px;"></i>
+                                    <span style="font-size: 13px; text-decoration: ${t.completed ? 'line-through' : 'none'}; color: ${t.completed ? 'var(--text-secondary)' : 'var(--text-primary)'};">
+                                        ${t.title || t.text || 'Tarea asignada'}
+                                    </span>
+                                </div>
+                                <span style="font-size: 11px; padding: 2px 8px; border-radius: 12px; background: ${t.completed ? 'rgba(16, 185, 129, 0.12)' : 'rgba(245, 158, 11, 0.12)'}; color: ${t.completed ? '#10b981' : '#f59e0b'}; font-weight: 600;">
+                                    ${t.completed ? 'Completada' : 'Pendiente'}
+                                </span>
+                            </div>
+                        `).join('')}
+                    </div>
+                </div>
+            ` : ''}
+        </div>
+    `;
 }
 
 // ============================================
