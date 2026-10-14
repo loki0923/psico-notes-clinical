@@ -1457,4 +1457,52 @@ MODAL DE ANCLAJE GROUNDING 5-4-3-2-1
     50% { transform: scale(1.2); opacity: 0.6; }
 }
 
+/* ============================================
+   TARJETA Y MODAL DE CONSENTIMIENTO INFORMADO
+   ============================================ */
+.portal-consent-card {
+    background: linear-gradient(135deg, rgba(99, 102, 241, 0.08), rgba(13, 148, 136, 0.08));
+    border: 1px solid rgba(99, 102, 241, 0.25);
+    border-radius: var(--radius-md);
+    padding: 14px 16px;
+    margin-bottom: 18px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+}
+.portal-consent-card.signed {
+    background: rgba(16, 185, 129, 0.08);
+    border-color: rgba(16, 185, 129, 0.3);
+}
+.consent-card-left {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+.consent-badge-icon {
+    font-size: 24px;
+    flex-shrink: 0;
+}
+.btn-consent-action {
+    background: #6366f1;
+    color: white;
+    border: none;
+    border-radius: var(--radius-sm);
+    padding: 8px 14px;
+    font-size: 12px;
+    font-weight: 600;
+    cursor: pointer;
+    white-space: nowrap;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    transition: all 0.2s ease;
+}
+.btn-consent-action:hover {
+    background: #4f46e5;
+    transform: translateY(-1px);
+}
+
+
 

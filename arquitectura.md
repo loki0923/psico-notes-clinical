@@ -893,7 +893,66 @@ Se sumaron 3 casos de prueba exhaustivos en `tests.js`:
 - **`TC-SEC-03`**: Políticas de Seguridad OWASP y Bloqueo de Archivos Sensibles de Servidor.
 - **`TC-SYNC-01`**: Cola de Sincronización Fuera de Línea (`PortalOfflineQueue` y Resiliencia PWA).
 - **`TC-PRIV-01`**: Sistema de Bloqueo por Inactividad Médica y Confidencialidad PHI (HIPAA).
-- **Resultado Global**: **29 de 29 pruebas aprobadas exitosamente (100% PASS, 0 fallos)**.
+- **Resultado de la Suite Fase 7**: **29 de 29 pruebas aprobadas exitosamente (100% PASS)**.
+
+---
+
+## 16. Fase 8 — Acreditación Legal, Firma Digitalizada en Cascada y Analytics Clínico Epidemiológico
+
+Esta fase introduce el marco legal y analítico de máxima categoría para consultorios individuales, clínicas de salud mental e instituciones prestadoras de servicios de salud:
+
+```mermaid
+flowchart TD
+    subgraph Terapeuta["Firma Profesional & Documentación Oficial"]
+        T1["Perfil Profesional (therapistProfileModal)"] --> T2["Signature Pad Canvas"]
+        T2 --> T3["Persistencia de Firma Digitalizada"]
+        T3 --> T4["reports.js: Motor de Epicrisis & Justificativos"]
+        T4 --> T5["Estampado de Firma + Código de Verificación Criptográfico PNC-XXXX"]
+        T4 --> T6["Sello QR de Autenticidad Clínica Imprimible"]
+    end
+
+    subgraph PacientePortal["Consentimiento Informado Móvil (Portal del Paciente)"]
+        P1["viewHome: Tarjeta de Acuerdo Terapéutico"] --> P2["Modal Táctil de Consentimiento"]
+        P2 --> P3["Firma con Dedo en Dispositivo Móvil"]
+        P3 --> P4["Trazabilidad con Timestamp Legal"]
+        P4 --> P5["Sincronización Silenciosa hacia PostgreSQL y Expediente del Terapeuta"]
+    end
+
+    subgraph Analytics["Dashboard de Salud Mental de la Consulta (statsView)"]
+        A1["updateStats() + renderClinicalAnalytics()"]
+        A1 --> A2["Distribución Diagnóstica en Tiempo Real (DSM-5 / CIE-10)"]
+        A1 --> A3["Índice Global de Remisión Sintomática (Delta % Promedio)"]
+        A1 --> A4["Radar de Deserción & Pacientes con Riesgo Activo (>21 días)"]
+    end
+```
+
+### 16.1. Firma Digitalizada del Terapeuta y Membrete Oficial Dinámico
+- **Canvas de Captura Vectorial**: Integrado en el modal de perfil del terapeuta (`#therapistSignatureCanvas`), permitiendo trazar firmas manuscritas con ratón, touchpad o lápiz digital.
+- **Estampado Automático en Cascada**: La firma digitalizada se incrusta automáticamente en todos los informes de derivación psiquiátrica, epicrisis de alta, justificativos laborales y hojas de evolución oficial SOAP.
+- **Sello de Certificación QR**: Cada documento impreso o exportado genera un código criptográfico único (`PNC-XXXX-TIMESTAMP`) y un código QR que enlaza a la validación oficial del expediente, asegurando validez jurídica ante aseguradoras, empleadores e instituciones judiciales.
+
+### 16.2. Generador Oficial de Epicrisis Clínica y Justificativos Médicos (`reports.js`)
+- **Epicrisis de Cierre / Alta Terapéutica**: Documento formal que resume la anamnesis de ingreso, número de sesiones efectuadas, técnicas de reestructuración cognitiva aplicadas, comparativo numérico de escalas de gravedad sintomática (PHQ-9/GAD-7) y pronóstico clínico.
+- **Justificativo de Asistencia y Atención Psicológica**: Constancia formal con fecha, membrete legal, RUT/colegiatura profesional y código de autenticidad.
+
+### 16.3. Firma Digital Móvil del Consentimiento Informado en el Portal (`portal.html`, `portal.js`, `portal.css`)
+- **Tarjeta Reactiva de Encuadre**: Si el consultante no ha firmado el marco ético, se presenta una tarjeta destacada en su pantalla principal.
+- **Firma Táctil Optimizada para Móviles**: Canvas interactivo con soporte de eventos táctiles (`touch-action: none`) para firmar fluidamente con el dedo desde teléfonos Android o iOS.
+- **Trazabilidad y Respaldo Legal**: Al firmar, se almacena la firma digitalizada, fecha y hora exacta, y se envía automáticamente a la base de datos PostgreSQL, actualizando el estado del expediente en la consulta del psicólogo.
+
+### 16.4. Tablero Epidemiológico y Analytics Clínico de Eficacia (`app.js`, `index.html`)
+- **Distribución Diagnóstica de la Consulta**: Visualización en barras de progreso de las patologías más prevalentes atendidas en la consulta (Trastornos de Ansiedad, Episodios Depresivos, TDAH, Duelo, etc.).
+- **Índice Global de Remisión Sintomática ($\Delta\%$ Promedio)**: Mide el porcentaje agregado de reducción de síntomas de todos los consultantes evaluados longitudinalmente:
+  $$\Delta\%_{\text{Global}} = \frac{1}{N} \sum_{i=1}^N \frac{\text{PHQ9}_{\text{inicial}, i} - \text{PHQ9}_{\text{actual}, i}}{\text{PHQ9}_{\text{inicial}, i}} \times 100$$
+- **Radar de Alertas y Deserción Terapéutica**: Monitoreo proactivo que detecta pacientes con indicadores de riesgo elevado (ítem 9 suicidio en PHQ-9) o con más de 21 días sin agendar sesión, facilitando el rescate oportuno de la alianza terapéutica.
+
+### 16.5. Matriz de Validación Automatizada (32/32 Pruebas PASS)
+Se agregaron 3 nuevos casos de prueba integrales en `tests.js`:
+- **`TC-REP-01`**: Generación de Epicrisis Oficial y Código Criptográfico de Autenticidad QR.
+- **`TC-CON-01`**: Consentimiento Informado Digital en Portal (Firma Táctil y Trazabilidad).
+- **`TC-STAT-01`**: Analítica Clínica Agregada (Distribución Diagnóstica, Remisión Sintomática y Radar de Deserción).
+- **Resultado Global**: **32 de 32 pruebas aprobadas con éxito (100% PASS, 0 fallos)**.
+
 
 
 

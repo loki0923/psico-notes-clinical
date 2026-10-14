@@ -127,6 +127,20 @@
                 </div>
             </div>
 
+            <!-- TARJETA DE CONSENTIMIENTO INFORMADO -->
+            <div id="consentCardPortal" class="portal-consent-card" style="display: none;">
+                <div class="consent-card-left">
+                    <span class="consent-badge-icon">📜</span>
+                    <div>
+                        <strong id="consentCardTitle">Acuerdo Terapéutico y Confidencialidad</strong>
+                        <p id="consentCardDesc" style="margin:2px 0 0 0;font-size:12px;color:var(--text-secondary);">Revisa y firma digitalmente el marco de confidencialidad.</p>
+                    </div>
+                </div>
+                <button class="btn-sm btn-consent-action" id="btnConsentAction" onclick="openPortalConsentModal()">
+                    <i class="fas fa-signature"></i> Firmar
+                </button>
+            </div>
+
             <div class="quick-stats">
                 <div class="quick-stat">
                     <div class="stat-icon">📋</div>
@@ -467,6 +481,34 @@
         </div>
         <div class="modal-body grounding-modal-body" id="groundingModalBody">
             <!-- Paso dinámico renderizado por JS -->
+        </div>
+    </div>
+</div>
+
+<!-- MODAL DE FIRMA DIGITAL DE CONSENTIMIENTO EN EL PORTAL -->
+<div class="modal" id="consentModalPortal" style="display: none;">
+    <div class="modal-overlay" onclick="closePortalConsentModal()"></div>
+    <div class="modal-content" style="max-width: 440px;">
+        <div class="modal-header">
+            <h3>📜 Acuerdo Terapéutico y Secreto Profesional</h3>
+            <button class="btn-icon" onclick="closePortalConsentModal()">✕</button>
+        </div>
+        <div class="modal-body" style="padding: 16px;">
+            <div style="background:var(--bg-secondary); padding:12px; border-radius:var(--radius-sm); font-size:12px; line-height:1.5; max-height:150px; overflow-y:auto; margin-bottom:14px; border:1px solid var(--border-secondary);">
+                <p><strong>1. Secreto Profesional:</strong> Toda la información compartida durante nuestras sesiones está amparada por la confidencialidad médica y psicológica, salvo riesgo inminente para tu integridad o la de terceros.</p>
+                <p><strong>2. Compromiso:</strong> Las sesiones tienen una duración de 50 minutos. Si necesitas reagendar, por favor avisa con al menos 24 horas de antelación.</p>
+                <p><strong>3. Voluntariedad:</strong> Participas libremente en tu proceso y puedes revisar o acordar nuevos objetivos de cambio con tu terapeuta.</p>
+            </div>
+            <label style="font-size:12px; font-weight:700; color:var(--text-primary); display:flex; justify-content:space-between; margin-bottom:6px;">
+                <span>✍️ Firma con tu dedo en la pantalla:</span>
+                <button type="button" class="btn-sm btn-secondary" onclick="clearPortalSignaturePad()">Limpiar</button>
+            </label>
+            <div style="border: 2px dashed #6366f1; border-radius: var(--radius-sm); background: white; overflow: hidden; margin-bottom: 14px;">
+                <canvas id="portalConsentSignaturePad" width="380" height="130" style="width: 100%; height: 130px; display: block; cursor: crosshair; touch-action: none;"></canvas>
+            </div>
+            <button class="btn-primary" style="width:100%; justify-content:center; padding:12px;" onclick="confirmPortalConsentSignature()">
+                <i class="fas fa-check"></i> Confirmar y Firmar Acuerdo
+            </button>
         </div>
     </div>
 </div>

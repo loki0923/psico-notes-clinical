@@ -377,6 +377,7 @@ async function enterPortal() {
     renderTasks();
     updateTestsLastResults();
     updateProgress();
+    checkConsentCard();
     PortalOfflineQueue.updateBadge();
     PortalOfflineQueue.flush();
     showToast(`Bienvenido/a, ${(PortalState.patientName || 'Paciente').split(' ')[0]}`, 'success');
@@ -1489,3 +1490,145 @@ if ('serviceWorker' in navigator) {
             .catch((err) => console.warn('SW register error:', err));
     });
 }
+
+// ============================================
+// CONSENTIMIENTO INFORMADO DIGITAL EN PORTAL
+// ============================================
+let portalConsentSignatureCtx = null;
+let isPortalConsentDrawing = false;
+
+function checkConsentCard() {
+    const card = document.getElementById('consentCardPortal');
+    if (!card) return;
+
+    const saved = localStorage.getItem(`psico_portal_consent_${PortalState.patientId}`);
+    if (saved) {
+        card.style.display = 'flex';
+        card.classList.add('signed');
+        const titleEl = document.getElementById('consentCardTitle');
+        const descEl = document.getElementById('consentCardDesc');
+        const btn = document.getElementById('btnConsentAction');
+        if (titleEl) titleEl.textContent = '✅ Acuerdo Terapéutico Firmado';
+        if (descEl) descEl.textContent = 'Tu consentimiento y marco de confidencialidad están formalmente vigentes.';
+        if (btn) btn.style.display = 'none';
+    } else {
+        card.style.display = 'flex';
+        card.classList.remove('signed');
+        const titleEl = document.getElementById('consentCardTitle');
+        const descEl = document.getElementById('consentCardDesc');
+        const btn = document.getElementById('btnConsentAction');
+        if (titleEl) titleEl.textContent = 'Acuerdo Terapéutico y Confidencialidad';
+        if (descEl) descEl.textContent = 'Revisa y firma digitalmente el marco de confidencialidad con tu terapeuta.';
+        if (btn) btn.style.display = 'inline-flex';
+    }
+}
+
+function openPortalConsentModal() {
+    const modal = document.getElementById('consentModalPortal');
+    if (modal) modal.style.display = 'flex';
+    setTimeout(() => initPortalConsentSignaturePad(), 80);
+}
+
+function closePortalConsentModal() {
+    const modal = document.getElementById('consentModalPortal');
+    if (modal) modal.style.display = 'none';
+}
+
+function initPortalConsentSignaturePad() {
+    const canvas = document.getElementById('portalConsentSignaturePad');
+    if (!canvas) return;
+    portalConsentSignatureCtx = canvas.getContext('2d');
+    portalConsentSignatureCtx.lineWidth = 2.5;
+    portalConsentSignatureCtx.lineCap = 'round';
+    portalConsentSignatureCtx.lineJoin = 'round';
+    portalConsentSignatureCtx.strokeStyle = '#4f46e5';
+
+    const getPos = (e) => {
+        const rect = canvas.getBoundingClientRect();
+        const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+        const clientY = e.touches ? e.touches[0].clientY : e.clientY;
+        const scaleX = canvas.width / rect.width;
+        const scaleY = canvas.height / rect.height;
+        return {
+            x: (clientX - rect.left) * scaleX,
+            y: (clientY - rect.top) * scaleY
+        };
+    };
+
+    const startDraw = (e) => {
+        e.preventDefault();
+        isPortalConsentDrawing = true;
+        const pos = getPos(e);
+        portalConsentSignatureCtx.beginPath();
+        portalConsentSignatureCtx.moveTo(pos.x, pos.y);
+    };
+
+    const draw = (e) => {
+        if (!isPortalConsentDrawing) return;
+        e.preventDefault();
+        const pos = getPos(e);
+        portalConsentSignatureCtx.lineTo(pos.x, pos.y);
+        portalConsentSignatureCtx.stroke();
+    };
+
+    const stopDraw = () => {
+        if (isPortalConsentDrawing) {
+            isPortalConsentDrawing = false;
+        }
+    };
+
+    canvas.onmousedown = startDraw;
+    canvas.onmousemove = draw;
+    window.onmouseup = stopDraw;
+
+    canvas.ontouchstart = startDraw;
+    canvas.ontouchmove = draw;
+    canvas.ontouchend = stopDraw;
+
+    portalConsentSignatureCtx.clearRect(0, 0, canvas.width, canvas.height);
+}
+
+function clearPortalSignaturePad() {
+    const canvas = document.getElementById('portalConsentSignaturePad');
+    if (canvas && portalConsentSignatureCtx) {
+        portalConsentSignatureCtx.clearRect(0, 0, canvas.width, canvas.height);
+    }
+}
+
+function confirmPortalConsentSignature() {
+    const canvas = document.getElementById('portalConsentSignaturePad');
+    if (!canvas) return;
+
+    let signatureData = '';
+    try {
+        signatureData = canvas.toDataURL();
+    } catch (e) {}
+
+    const consentRecord = {
+        patientId: PortalState.patientId,
+        signedAt: new Date().toISOString(),
+        signature: signatureData
+    };
+
+    localStorage.setItem(`psico_portal_consent_${PortalState.patientId}`, JSON.stringify(consentRecord));
+
+    // Sincronizar hacia el backend y expediente del terapeuta
+    if (PortalState.portalToken) {
+        sendPortalPost('/api/v1/portal/cbt', {
+            patientId: PortalState.patientId,
+            token: PortalState.portalToken,
+            situation: 'Acuerdo Terapéutico y Secreto Profesional Firmado Digitalmente',
+            thought: 'Consentimiento firmado en pantalla móvil por el consultante',
+            distortion: 'Marco Ético Homologado',
+            emotion: 'Asentimiento Terapéutico',
+            initialIntensity: 100,
+            rationalThought: `Firmado digitalmente el ${new Date().toLocaleDateString('es-ES')}`,
+            finalIntensity: 100
+        });
+    }
+
+    closePortalConsentModal();
+    checkConsentCard();
+    showToast('¡Acuerdo firmado con éxito! Gracias por tu compromiso.', 'success');
+}
+

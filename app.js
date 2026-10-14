@@ -459,6 +459,84 @@ function openTherapistProfileModal() {
     if (instInput) instInput.value = user.institution || localStorage.getItem('psico_therapist_institution') || '';
 
     openModal('therapistProfileModal');
+    setTimeout(() => initTherapistSignaturePad(), 80);
+}
+
+let therapistSignatureCtx = null;
+let isTherapistSignatureDrawing = false;
+
+function initTherapistSignaturePad() {
+    const canvas = document.getElementById('therapistSignatureCanvas');
+    if (!canvas) return;
+    therapistSignatureCtx = canvas.getContext('2d');
+    therapistSignatureCtx.lineWidth = 2.5;
+    therapistSignatureCtx.lineCap = 'round';
+    therapistSignatureCtx.lineJoin = 'round';
+    therapistSignatureCtx.strokeStyle = '#0f172a';
+
+    const getPos = (e) => {
+        const rect = canvas.getBoundingClientRect();
+        const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+        const clientY = e.touches ? e.touches[0].clientY : e.clientY;
+        const scaleX = canvas.width / rect.width;
+        const scaleY = canvas.height / rect.height;
+        return {
+            x: (clientX - rect.left) * scaleX,
+            y: (clientY - rect.top) * scaleY
+        };
+    };
+
+    const startDraw = (e) => {
+        e.preventDefault();
+        isTherapistSignatureDrawing = true;
+        const pos = getPos(e);
+        therapistSignatureCtx.beginPath();
+        therapistSignatureCtx.moveTo(pos.x, pos.y);
+    };
+
+    const draw = (e) => {
+        if (!isTherapistSignatureDrawing) return;
+        e.preventDefault();
+        const pos = getPos(e);
+        therapistSignatureCtx.lineTo(pos.x, pos.y);
+        therapistSignatureCtx.stroke();
+    };
+
+    const stopDraw = () => {
+        if (isTherapistSignatureDrawing) {
+            isTherapistSignatureDrawing = false;
+        }
+    };
+
+    canvas.onmousedown = startDraw;
+    canvas.onmousemove = draw;
+    window.onmouseup = stopDraw;
+
+    canvas.ontouchstart = startDraw;
+    canvas.ontouchmove = draw;
+    canvas.ontouchend = stopDraw;
+
+    // Cargar firma previa
+    const saved = localStorage.getItem('psico_therapist_signature');
+    if (saved) {
+        const img = new Image();
+        img.onload = () => {
+            therapistSignatureCtx.clearRect(0, 0, canvas.width, canvas.height);
+            therapistSignatureCtx.drawImage(img, 0, 0);
+        };
+        img.src = saved;
+    } else {
+        therapistSignatureCtx.clearRect(0, 0, canvas.width, canvas.height);
+    }
+}
+
+function clearTherapistSignaturePad() {
+    const canvas = document.getElementById('therapistSignatureCanvas');
+    if (canvas && therapistSignatureCtx) {
+        therapistSignatureCtx.clearRect(0, 0, canvas.width, canvas.height);
+    }
+    localStorage.removeItem('psico_therapist_signature');
+    showToast('Trazo de firma limpiado', 'info');
 }
 
 function handleSaveTherapistProfile(e) {
@@ -480,6 +558,17 @@ function handleSaveTherapistProfile(e) {
     localStorage.setItem('psico_therapist_registry', registry);
     if (phone) localStorage.setItem('psico_therapist_phone', phone);
     if (institution) localStorage.setItem('psico_therapist_institution', institution);
+
+    // Guardar firma digitalizada si el canvas tiene contenido
+    const canvas = document.getElementById('therapistSignatureCanvas');
+    if (canvas) {
+        try {
+            const sigUrl = canvas.toDataURL();
+            if (sigUrl && sigUrl.length > 500) {
+                localStorage.setItem('psico_therapist_signature', sigUrl);
+            }
+        } catch (err) {}
+    }
 
     if (AppState.currentUser) {
         AppState.currentUser.name = name;
@@ -514,7 +603,7 @@ function handleSaveTherapistProfile(e) {
 
     updateSidebarUser();
     closeModal('therapistProfileModal');
-    showToast('Perfil profesional y membrete oficial actualizados con éxito', 'success');
+    showToast('Perfil profesional, membrete y firma guardados con éxito', 'success');
 }
 
 // ============================================
@@ -4170,6 +4259,7 @@ function updateStats() {
     const mc = Math.max(...wc, 1);
     document.getElementById('weekdayChart').innerHTML = wd.map((d, i) => `<div class="bar-item"><div class="bar-fill" style="height:${(wc[i] / mc * 100) || 4}%"></div><div class="bar-label">${d}</div></div>`).join('');
     renderAgendaHeatmap();
+    renderClinicalAnalytics();
 }
 
 function renderAgendaHeatmap() {
@@ -4216,6 +4306,140 @@ function renderAgendaHeatmap() {
     `;
 
     container.innerHTML = html;
+}
+
+function renderClinicalAnalytics() {
+    const diagList = document.getElementById('diagnosticDistributionList');
+    const remContent = document.getElementById('remissionMetricsContent');
+    const radList = document.getElementById('retentionRadarList');
+
+    if (!diagList || !remContent || !radList) return;
+
+    // 1. Distribución Diagnóstica
+    const diagCounts = {};
+    let totalDiagnosed = 0;
+    (AppState.patients || []).forEach(p => {
+        const d = (p.diagnosis || '').trim() || 'En Evaluación Diagnóstica';
+        diagCounts[d] = (diagCounts[d] || 0) + 1;
+        totalDiagnosed++;
+    });
+
+    const sortedDiags = Object.entries(diagCounts).sort((a, b) => b[1] - a[1]);
+    const colors = ['#0d9488', '#6366f1', '#f59e0b', '#ec4899', '#10b981', '#3b82f6'];
+
+    if (sortedDiags.length === 0) {
+        diagList.innerHTML = '<div style="color:var(--text-tertiary);font-size:12px;">Sin expedientes registrados aún</div>';
+    } else {
+        diagList.innerHTML = sortedDiags.slice(0, 5).map(([diag, count], i) => {
+            const pct = Math.round((count / (totalDiagnosed || 1)) * 100);
+            const color = colors[i % colors.length];
+            return `
+                <div style="font-size:12px;">
+                    <div style="display:flex;justify-content:space-between;margin-bottom:3px;font-weight:500;">
+                        <span style="color:var(--text-primary);">${diag}</span>
+                        <span style="color:var(--text-secondary);">${count} (${pct}%)</span>
+                    </div>
+                    <div style="background:var(--bg-secondary);height:6px;border-radius:3px;overflow:hidden;">
+                        <div style="background:${color};width:${pct}%;height:100%;border-radius:3px;"></div>
+                    </div>
+                </div>
+            `;
+        }).join('');
+    }
+
+    // 2. Métrica de Remisión y Eficacia Sintomática
+    let sumDeltas = 0;
+    let deltaCount = 0;
+    let improvedCount = 0;
+
+    (AppState.patients || []).forEach(p => {
+        if (typeof getPortalResults === 'function') {
+            const evals = getPortalResults(p.id).results.filter(e => e.type === 'phq9' || e.scaleType === 'phq9');
+            if (evals.length >= 2) {
+                const first = evals[0].score;
+                const last = evals[evals.length - 1].score;
+                if (first > 0) {
+                    const delta = ((first - last) / first) * 100;
+                    sumDeltas += delta;
+                    deltaCount++;
+                    if (delta > 0) improvedCount++;
+                }
+            }
+        }
+    });
+
+    const avgImprovement = deltaCount > 0 ? Math.round(sumDeltas / deltaCount) : 0;
+    const responseRate = deltaCount > 0 ? Math.round((improvedCount / deltaCount) * 100) : 0;
+
+    remContent.innerHTML = `
+        <div style="display:flex;align-items:center;gap:14px;background:var(--bg-secondary);padding:14px;border-radius:var(--radius-md);border:1px solid var(--border-primary);">
+            <div style="font-size:32px;font-weight:800;color:${avgImprovement >= 0 ? '#10b981' : '#ef4444'};">
+                ${avgImprovement >= 0 ? '-' + avgImprovement + '%' : '+' + Math.abs(avgImprovement) + '%'}
+            </div>
+            <div>
+                <strong style="font-size:13px;color:var(--text-primary);display:block;">Tasa Promedio de Reducción Sintomática</strong>
+                <span style="font-size:11.5px;color:var(--text-secondary);">
+                    ${deltaCount > 0 
+                        ? `${responseRate}% de consultantes evaluados muestran remisión clínica favorable.` 
+                        : 'Completar escalas longitudinales (PHQ-9/GAD-7) para calcular delta de eficacia.'}
+                </span>
+            </div>
+        </div>
+    `;
+
+    // 3. Radar de Alertas y Retención
+    const now = Date.now();
+    const dayMs = 24 * 60 * 60 * 1000;
+    const alertItems = [];
+
+    (AppState.patients || []).forEach(p => {
+        if (typeof getPortalResults === 'function') {
+            const { results: evals } = getPortalResults(p.id);
+            const hasRisk = evals.some(e => e.alertRisk);
+            if (hasRisk) {
+                alertItems.push({
+                    patient: p,
+                    type: 'danger',
+                    icon: '🚨',
+                    text: `${p.name}: Indicador de riesgo elevado en evaluación psicométrica.`
+                });
+            }
+        }
+
+        const pApps = (AppState.appointments || []).filter(a => a.patientId === p.id && a.status !== 'cancelada');
+        if (pApps.length > 0) {
+            const lastApp = pApps.sort((a, b) => new Date(b.date) - new Date(a.date))[0];
+            const diffDays = Math.floor((now - new Date(lastApp.date).getTime()) / dayMs);
+            if (diffDays > 21) {
+                alertItems.push({
+                    patient: p,
+                    type: 'warning',
+                    icon: '⏳',
+                    text: `${p.name}: ${diffDays} días sin consulta registrada (riesgo de interrupción).`
+                });
+            }
+        }
+    });
+
+    if (alertItems.length === 0) {
+        radList.innerHTML = `
+            <div style="color:#10b981;font-size:12.5px;padding:8px 0;display:flex;align-items:center;gap:6px;">
+                <i class="fas fa-check-circle"></i> Todos los pacientes activos están al día en sus sesiones y sin alertas de riesgo.
+            </div>
+        `;
+    } else {
+        radList.innerHTML = alertItems.slice(0, 4).map(item => `
+            <div style="display:flex;align-items:center;justify-content:space-between;background:${item.type === 'danger' ? 'rgba(239,68,68,0.08)' : 'rgba(245,158,11,0.08)'};border-left:4px solid ${item.type === 'danger' ? '#ef4444' : '#f59e0b'};padding:8px 12px;border-radius:4px;font-size:12px;">
+                <div style="display:flex;align-items:center;gap:8px;">
+                    <span>${item.icon}</span>
+                    <span style="color:var(--text-primary);font-weight:500;">${item.text}</span>
+                </div>
+                <button class="btn-sm btn-secondary" onclick="viewPatientDetail('${item.patient.id}')" style="font-size:11px;padding:3px 8px;">
+                    Ver Expediente
+                </button>
+            </div>
+        `).join('');
+    }
 }
 
 // ============================================

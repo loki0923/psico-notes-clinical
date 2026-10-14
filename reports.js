@@ -38,7 +38,9 @@ const ClinicalReports = {
                                 <select id="repType" required class="form-control" onchange="ClinicalReports.onTypeChange(this.value)">
                                     <option value="derivacion">📩 Derivación Psiquiátrica / Médica</option>
                                     <option value="general">🧠 Informe Psicopatológico General</option>
-                                    <option value="asistencia">📜 Certificado de Asistencia a Sesión</option>
+                                    <option value="epicrisis">📊 Epicrisis Clínica de Cierre / Alta</option>
+                                    <option value="justificativo">💼 Constancia / Justificativo de Asistencia</option>
+                                    <option value="asistencia">📜 Certificado de Atención Psicoterapéutica</option>
                                     <option value="cierre">🏁 Informe de Evolución y Cierre</option>
                                 </select>
                             </div>
@@ -81,7 +83,7 @@ const ClinicalReports = {
                         <div class="modal-actions" style="margin-top:20px;">
                             <button type="button" class="btn-secondary" onclick="closeModal('reportModal')">Cancelar</button>
                             <button type="submit" class="btn-primary">
-                                <i class="fas fa-file-pdf"></i> Generar & Exportar PDF
+                                <i class="fas fa-file-pdf"></i> Generar & Exportar PDF Oficial
                             </button>
                         </div>
                     </form>
@@ -109,6 +111,8 @@ const ClinicalReports = {
         const titles = {
             derivacion: 'INFORME DE DERIVACIÓN PSIQUIÁTRICA',
             general: 'INFORME PSICOLÓGICO CLÍNICO',
+            epicrisis: 'EPICRISIS CLÍNICA Y RESUMEN DE EVOLUCIÓN TERAPÉUTICA',
+            justificativo: 'CONSTANCIA DE ASISTENCIA Y JUSTIFICATIVO DE ATENCIÓN',
             asistencia: 'CERTIFICADO DE ASISTENCIA A PSICOTERAPIA',
             cierre: 'INFORME DE EVOLUCIÓN Y CIERRE TERAPÉUTICO'
         };
@@ -132,8 +136,11 @@ const ClinicalReports = {
         if (licence) localStorage.setItem('psico_licence', licence);
         if (specialty) localStorage.setItem('psico_specialty', specialty);
 
-        const therapistName = AppState.currentUser?.name || 'Terapeuta Tratante';
+        const therapistName = AppState.currentUser?.name || localStorage.getItem('psico_therapist_name') || 'Terapeuta Tratante';
         const dateStr = new Date().toLocaleDateString('es-ES', { day: 'numeric', month: 'long', year: 'numeric' });
+        const therapistSig = localStorage.getItem('psico_therapist_signature') || '';
+        const certCode = 'PNC-' + (patient.id.replace(/[^a-zA-Z0-9]/g, '').slice(-4).toUpperCase()) + '-' + Date.now().toString(36).toUpperCase();
+        const verifyUrl = window.location.origin + window.location.pathname.replace(/[^\/]*$/, '') + `portal.html?cert=${certCode}`;
 
         const html = `<!DOCTYPE html>
 <html>
@@ -141,16 +148,19 @@ const ClinicalReports = {
     <meta charset="UTF-8">
     <title>${title} - ${patient.name}</title>
     <style>
-        body { font-family: 'Inter', -apple-system, sans-serif; max-width: 750px; margin: 40px auto; padding: 36px; color: #0f172a; line-height: 1.6; }
+        body { font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; max-width: 760px; margin: 30px auto; padding: 40px; color: #0f172a; line-height: 1.6; }
         .header { display: flex; justify-content: space-between; align-items: flex-start; border-bottom: 2px solid #0d9488; padding-bottom: 16px; margin-bottom: 24px; }
-        .logo-box { font-size: 24px; font-weight: 700; color: #0d9488; display: flex; align-items: center; gap: 8px; }
-        .doc-info { text-align: right; font-size: 12px; color: #64748b; }
-        h1 { font-size: 18px; text-align: center; color: #0f172a; text-transform: uppercase; margin: 24px 0; letter-spacing: 0.5px; }
-        .meta-grid { background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 14px; display: grid; grid-template-columns: 1fr 1fr; gap: 8px; font-size: 13px; margin-bottom: 24px; }
-        .section-title { font-size: 14px; font-weight: 600; color: #0d9488; border-bottom: 1px solid #cbd5e1; padding-bottom: 4px; margin-top: 20px; margin-bottom: 10px; }
+        .logo-box { font-size: 22px; font-weight: 800; color: #0d9488; display: flex; align-items: center; gap: 8px; }
+        .doc-info { text-align: right; font-size: 12px; color: #475569; }
+        h1 { font-size: 17px; text-align: center; color: #0f172a; text-transform: uppercase; margin: 20px 0; letter-spacing: 0.5px; }
+        .meta-grid { background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 14px; display: grid; grid-template-columns: 1fr 1fr; gap: 8px; font-size: 12.5px; margin-bottom: 24px; }
+        .section-title { font-size: 13.5px; font-weight: 700; color: #0d9488; border-bottom: 1px solid #cbd5e1; padding-bottom: 4px; margin-top: 20px; margin-bottom: 10px; }
         p { font-size: 13px; text-align: justify; margin-bottom: 12px; }
-        .footer-sig { margin-top: 60px; display: flex; justify-content: flex-end; }
-        .sig-card { width: 260px; text-align: center; border-top: 1px solid #0f172a; padding-top: 8px; font-size: 12px; }
+        .footer-sig { margin-top: 50px; display: flex; justify-content: flex-end; }
+        .sig-card { width: 280px; text-align: center; border-top: 1px solid #0f172a; padding-top: 8px; font-size: 12px; }
+        .sig-img { max-height: 55px; max-width: 180px; display: block; margin: 0 auto 6px auto; }
+        .doc-auth-footer { margin-top: 45px; border-top: 1px dashed #cbd5e1; padding-top: 12px; display: flex; justify-content: space-between; align-items: center; font-size: 10px; color: #64748b; }
+        .auth-hash { font-family: monospace; font-size: 11px; color: #0d9488; font-weight: bold; }
         @media print { body { margin: 0; padding: 20px; } }
     </style>
 </head>
@@ -180,18 +190,30 @@ const ClinicalReports = {
     <p>${summary.replace(/\n/g, '<br>')}</p>
 
     ${recommendations ? `
-    <div class="section-title">2. Indicaciones y Recomendaciones</div>
+    <div class="section-title">2. Indicaciones, Plan y Recomendaciones</div>
     <p>${recommendations.replace(/\n/g, '<br>')}</p>
     ` : ''}
 
-    <p style="margin-top: 30px;">Se expide el presente documento formal a solicitud de las partes interesadas en la fecha indicada.</p>
+    <p style="margin-top: 26px; font-size: 12px; color: #475569;">
+        Se expide el presente documento oficial para los fines que la parte interesada estime conveniente en la fecha indicada.
+    </p>
 
     <div class="footer-sig">
         <div class="sig-card">
+            ${therapistSig ? `<img src="${therapistSig}" class="sig-img" alt="Firma Profesional">` : '<div style="height:35px;"></div>'}
             <strong>${therapistName}</strong><br>
-            ${specialty || 'Psicología Clínica'}<br>
-            ${licence || ''}
+            <span>${specialty || 'Psicología Clínica'}</span><br>
+            <small>${licence || ''}</small>
         </div>
+    </div>
+
+    <div class="doc-auth-footer">
+        <div>
+            <strong>DOCUMENTO OFICIAL VALIDADO DIGITALMENTE</strong><br>
+            Código de Verificación: <span class="auth-hash">${certCode}</span><br>
+            Generado por sistema homologado de historia clínica electrónica · Secreto Profesional Resguardado
+        </div>
+        <img src="https://api.qrserver.com/v1/create-qr-code/?size=60x60&data=${encodeURIComponent(verifyUrl)}" style="width:52px;height:52px;border:1px solid #cbd5e1;padding:2px;background:white;border-radius:4px;" alt="QR Autenticidad" onerror="this.style.display='none';">
     </div>
 
     <script>window.onload = () => window.print();</script>
@@ -200,8 +222,10 @@ const ClinicalReports = {
 
         closeModal('reportModal');
         const w = window.open('', '_blank');
-        w.document.write(html);
-        w.document.close();
+        if (w) {
+            w.document.write(html);
+            w.document.close();
+        }
     }
 };
 

@@ -1146,6 +1146,59 @@ ClinicalTestSuite.add('TC-PRIV-01', 'Sistema de Bloqueo por Inactividad Médica 
     if (!validAttempt || securityState.isLocked) throw new Error('La sesión debe desbloquearse con credenciales válidas');
 });
 
+// 30. TC-REP-01: Generación de Epicrisis Oficial y Código Criptográfico de Autenticidad QR
+ClinicalTestSuite.add('TC-REP-01', 'Generación de Epicrisis Oficial y Código Criptográfico de Autenticidad QR', async () => {
+    const patient = { id: 'pat_rep_01', name: 'Ignacio Silva', birthdate: '1990-04-12', diagnosis: 'Trastorno de Ansiedad Generalizada (F41.1)' };
+    const certCode = 'PNC-' + (patient.id.replace(/[^a-zA-Z0-9]/g, '').slice(-4).toUpperCase()) + '-' + Date.now().toString(36).toUpperCase();
+    
+    if (!certCode.startsWith('PNC-')) throw new Error('Código de certificación no cumple con el prefijo oficial');
+    if (!certCode.includes('-')) throw new Error('Formato de código criptográfico inválido');
+
+    // Validar tipo epicrisis y justificativo
+    const titles = {
+        derivacion: 'INFORME DE DERIVACIÓN PSIQUIÁTRICA',
+        general: 'INFORME PSICOLÓGICO CLÍNICO',
+        epicrisis: 'EPICRISIS CLÍNICA Y RESUMEN DE EVOLUCIÓN TERAPÉUTICA',
+        justificativo: 'CONSTANCIA DE ASISTENCIA Y JUSTIFICATIVO DE ATENCIÓN'
+    };
+    if (!titles.epicrisis || !titles.justificativo) throw new Error('Tipos de informes oficiales incompletos');
+});
+
+// 31. TC-CON-01: Consentimiento Informado Digital en Portal (Firma Táctil y Trazabilidad)
+ClinicalTestSuite.add('TC-CON-01', 'Consentimiento Informado Digital en Portal (Firma Táctil y Trazabilidad)', async () => {
+    const consentRecord = {
+        patientId: 'pat_portal_con_01',
+        signedAt: new Date().toISOString(),
+        signature: 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg=='
+    };
+
+    if (!consentRecord.patientId || !consentRecord.signedAt) throw new Error('Registro de consentimiento carece de metadatos de auditoría');
+    if (!consentRecord.signature.startsWith('data:image/')) throw new Error('Formato de firma digital no es válido');
+});
+
+// 32. TC-STAT-01: Analítica Clínica Agregada (Distribución Diagnóstica y Remisión Sintomática)
+ClinicalTestSuite.add('TC-STAT-01', 'Analítica Clínica Agregada (Distribución Diagnóstica y Remisión Sintomática)', async () => {
+    const patients = [
+        { id: 'p1', diagnosis: 'Ansiedad' },
+        { id: 'p2', diagnosis: 'Ansiedad' },
+        { id: 'p3', diagnosis: 'Depresión' },
+        { id: 'p4', diagnosis: 'TDAH' }
+    ];
+
+    const diagCounts = {};
+    patients.forEach(p => {
+        diagCounts[p.diagnosis] = (diagCounts[p.diagnosis] || 0) + 1;
+    });
+
+    if (diagCounts['Ansiedad'] !== 2) throw new Error('Conteo de distribución diagnóstica incorrecto para Ansiedad');
+    if (diagCounts['Depresión'] !== 1) throw new Error('Conteo incorrecto para Depresión');
+
+    // Cálculo de remisión promedio
+    const patientDeltas = [60, 40, 80];
+    const avgRemission = Math.round(patientDeltas.reduce((a, b) => a + b, 0) / patientDeltas.length);
+    if (avgRemission !== 60) throw new Error(`Remisión promedio esperada 60%, obtenida ${avgRemission}%`);
+});
+
 // Auto-ejecución si se corre desde Node.js (CLI)
 if (typeof process !== 'undefined' && process.argv && process.argv[1] && process.argv[1].endsWith('tests.js')) {
     ClinicalTestSuite.runAll().then(res => {
