@@ -64,6 +64,9 @@
             </div>
         </div>
         <div style="display: flex; align-items: center; gap: 10px;">
+            <span id="offlineSyncBadge" class="offline-sync-badge" style="display: none;" title="Registros pendientes de sincronizar con el terapeuta. Clic para sincronizar ahora." onclick="PortalOfflineQueue.flush()">
+                <i class="fas fa-cloud-arrow-up"></i> <span id="offlineSyncCount">0</span>
+            </span>
             <button class="btn-sos" onclick="triggerPortalEmergencyHelp()" title="Obtener ayuda inmediata en crisis">
                 <i class="fas fa-life-ring"></i> SOS
             </button>
@@ -72,6 +75,21 @@
             </button>
         </div>
     </header>
+
+    <!-- BANNER PWA INSTALABLE -->
+    <div id="pwaInstallBanner" class="pwa-install-banner" style="display: none;">
+        <div class="pwa-banner-content">
+            <span class="pwa-banner-icon">📲</span>
+            <div>
+                <strong>Instala la App en tu Celular</strong>
+                <small>Acceso directo con un solo toque desde tu pantalla de inicio</small>
+            </div>
+        </div>
+        <div class="pwa-banner-actions">
+            <button class="btn-sm btn-pwa-install" onclick="promptPwaInstall()">Instalar</button>
+            <button class="btn-sm btn-pwa-dismiss" onclick="dismissPwaBanner()">✕</button>
+        </div>
+    </div>
 
     <!-- CONTENIDO -->
     <main class="portal-content">
@@ -122,6 +140,36 @@
                     <div class="stat-info">
                         <div class="stat-value" id="nextSessionText">—</div>
                         <div class="stat-label">Próxima sesión</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- BOTIQUÍN DE CALMA Y REGULACIÓN EMOCIONAL -->
+            <div class="calm-kit-card">
+                <div class="calm-kit-header">
+                    <div>
+                        <span class="calm-kit-badge">✨ BOTIQUÍN EMOCIONAL</span>
+                        <h3 class="calm-kit-title">Herramientas de Calma Inmediata</h3>
+                        <p class="calm-kit-subtitle">Técnicas clínicas para regular la ansiedad y desacelerar tu mente</p>
+                    </div>
+                </div>
+                <div class="calm-kit-grid">
+                    <div class="calm-tool-btn" onclick="openBreathingExercise()">
+                        <div class="calm-tool-icon">🫁</div>
+                        <div class="calm-tool-info">
+                            <strong>Respiración 4-7-8</strong>
+                            <small>Reduce taquicardia y estrés en 2 min</small>
+                        </div>
+                        <i class="fas fa-play calm-tool-play"></i>
+                    </div>
+
+                    <div class="calm-tool-btn" onclick="openGroundingExercise()">
+                        <div class="calm-tool-icon">⚓</div>
+                        <div class="calm-tool-info">
+                            <strong>Anclaje 5-4-3-2-1</strong>
+                            <small>Frena pensamientos intrusivos y pánico</small>
+                        </div>
+                        <i class="fas fa-play calm-tool-play"></i>
                     </div>
                 </div>
             </div>
@@ -350,6 +398,75 @@
             <button class="btn-primary full-width" onclick="closeCrisisHelpModal()">
                 Entendido, mantengo la calma
             </button>
+        </div>
+    </div>
+</div>
+
+<!-- MODAL DE RESPIRACIÓN GUIADA 4-7-8 -->
+<div id="breathingModal" class="modal" style="display: none;">
+    <div class="modal-overlay" onclick="closeBreathingExercise()"></div>
+    <div class="modal-content modal-breathing-content">
+        <div class="modal-header">
+            <div>
+                <h2>Respiración Guiada 4-7-8</h2>
+                <small style="color: var(--text-secondary);">Técnica parasimpática de relajación profunda</small>
+            </div>
+            <button class="btn-icon" onclick="closeBreathingExercise()">
+                <i class="fas fa-times"></i>
+            </button>
+        </div>
+        <div class="modal-body breathing-modal-body">
+            <!-- ORBE DE RESPIRACIÓN ANIMADO -->
+            <div class="breathing-stage">
+                <div class="breathing-circle-outer">
+                    <div class="breathing-circle-inner" id="breathingOrb">
+                        <span class="breathing-countdown" id="breathingCountdown">4</span>
+                        <span class="breathing-instruction" id="breathingInstruction">Inhala</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- CONTROLES Y ESTADO -->
+            <div class="breathing-meta-bar">
+                <div class="breathing-chip">
+                    <span>Ciclo:</span> <strong id="breathingCycleCounter">1 / 4</strong>
+                </div>
+                <div class="breathing-chip">
+                    <button class="btn-sound-toggle" id="breathingSoundBtn" onclick="toggleBreathingSound()">
+                        <i class="fas fa-volume-high"></i> Sonido suave
+                    </button>
+                </div>
+            </div>
+
+            <div class="breathing-phase-guide" id="breathingPhaseGuide">
+                Inhala lentamente por la nariz llenando tu abdomen
+            </div>
+
+            <!-- BOTONES DE ACCIÓN -->
+            <div class="breathing-actions">
+                <button class="btn-primary full-width" id="btnBreathingToggle" onclick="toggleBreathingSession()">
+                    <i class="fas fa-play"></i> Iniciar Ejercicio
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- MODAL DE ANCLAJE GROUNDING 5-4-3-2-1 -->
+<div id="groundingModal" class="modal" style="display: none;">
+    <div class="modal-overlay" onclick="closeGroundingExercise()"></div>
+    <div class="modal-content modal-grounding-content">
+        <div class="modal-header">
+            <div>
+                <h2>Anclaje Sensorial 5-4-3-2-1</h2>
+                <small style="color: var(--text-secondary);">Conecta con el aquí y el ahora para detener la ansiedad</small>
+            </div>
+            <button class="btn-icon" onclick="closeGroundingExercise()">
+                <i class="fas fa-times"></i>
+            </button>
+        </div>
+        <div class="modal-body grounding-modal-body" id="groundingModalBody">
+            <!-- Paso dinámico renderizado por JS -->
         </div>
     </div>
 </div>

@@ -23,6 +23,116 @@ const AppState = {
 };
 
 // ============================================
+// SEGURIDAD CLÍNICA & PRIVACIDAD (HIPAA / GDPR)
+// ============================================
+const ClinicalSecurity = {
+    inactivityTimer: null,
+    TIMEOUT_MS: 15 * 60 * 1000, // 15 minutos de inactividad médica
+    isLocked: false,
+
+    init() {
+        const events = ['mousemove', 'mousedown', 'keydown', 'touchstart', 'scroll'];
+        const onActivity = () => this.resetInactivityTimer();
+        events.forEach(ev => window.addEventListener(ev, onActivity, { passive: true }));
+        this.resetInactivityTimer();
+
+        if (sessionStorage.getItem('psico_session_locked') === 'true') {
+            this.lockApp(false);
+        }
+    },
+
+    resetInactivityTimer() {
+        if (this.isLocked) return;
+        if (this.inactivityTimer) clearTimeout(this.inactivityTimer);
+        if (AppState.currentUser) {
+            this.inactivityTimer = setTimeout(() => {
+                this.lockApp(true);
+            }, this.TIMEOUT_MS);
+        }
+    },
+
+    lockApp(auto = false) {
+        if (!AppState.currentUser) return;
+        this.isLocked = true;
+        sessionStorage.setItem('psico_session_locked', 'true');
+        const overlay = document.getElementById('screenLockOverlay');
+        if (overlay) {
+            const nameEl = document.getElementById('lockTherapistName');
+            if (nameEl) nameEl.textContent = AppState.currentUser.name || 'Terapeuta Titular';
+            const passInput = document.getElementById('unlockPasswordInput');
+            if (passInput) {
+                passInput.value = '';
+                passInput.classList.remove('error');
+                setTimeout(() => passInput.focus(), 150);
+            }
+            const errEl = document.getElementById('unlockError');
+            if (errEl) errEl.style.display = 'none';
+            overlay.style.display = 'flex';
+        }
+        if (auto) {
+            console.log('🔒 Sesión bloqueada automáticamente por inactividad clínica (HIPAA)');
+        }
+    },
+
+    async unlockApp(e) {
+        if (e) e.preventDefault();
+        const passInput = document.getElementById('unlockPasswordInput');
+        const errEl = document.getElementById('unlockError');
+        const entered = (passInput ? passInput.value : '').trim();
+
+        if (!entered) {
+            if (passInput) passInput.focus();
+            return;
+        }
+
+        const currentUser = AppState.currentUser;
+        if (!currentUser) {
+            this.forceUnlock();
+            return;
+        }
+
+        const users = (typeof getUsers === 'function') ? getUsers() : [];
+        const user = users.find(u => u.id === currentUser.id);
+
+        let isValid = false;
+        if (user && user.passwordHash) {
+            const enteredHash = await hashPassword(entered);
+            if (enteredHash === user.passwordHash) {
+                isValid = true;
+            }
+        } else {
+            isValid = true;
+        }
+
+        if (isValid) {
+            this.forceUnlock();
+            if (typeof showToast === 'function') {
+                showToast('Expedientes clínicos desbloqueados 🔓', 'success');
+            }
+        } else {
+            if (errEl) {
+                errEl.textContent = 'Contraseña incorrecta. Intente nuevamente.';
+                errEl.style.display = 'block';
+            }
+            if (passInput) {
+                passInput.classList.add('error');
+                passInput.focus();
+            }
+        }
+    },
+
+    forceUnlock() {
+        this.isLocked = false;
+        sessionStorage.removeItem('psico_session_locked');
+        const overlay = document.getElementById('screenLockOverlay');
+        if (overlay) overlay.style.display = 'none';
+        this.resetInactivityTimer();
+    }
+};
+
+window.ClinicalSecurity = ClinicalSecurity;
+
+// ============================================
 // INICIALIZACIÓN
 // ============================================
 document.addEventListener('DOMContentLoaded', () => {
@@ -63,6 +173,7 @@ async function startAppForCurrentUser() {
     updatePatientSelects();
     checkPortalCrisisAlerts();
     setInterval(checkPortalCrisisAlerts, 20000);
+    ClinicalSecurity.init();
 
     // Sincronizar en segundo plano todos los pacientes a la base de datos PostgreSQL
     if (AppState.patients && AppState.patients.length > 0) {
@@ -1396,23 +1507,448 @@ function renderTabObjetivos(patientId) {
     return `<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;"><h4 style="margin:0;">Plan de Tratamiento</h4><button class="btn-primary" onclick="addTreatmentGoal('${patientId}'); viewPatient('${patientId}');"><i class="fas fa-plus"></i> Nuevo objetivo</button></div>${goals.length === 0 ? '<div class="empty-state"><div class="empty-icon">🎯</div><p>Sin objetivos definidos</p></div>' : `<div class="goals-progress">${goals.map(g => `<div class="goal-progress-item"><div class="goal-progress-header"><div class="goal-progress-title">${g.title}</div><div style="display:flex;gap:4px;align-items:center;"><span class="tag tag-${g.status}">${g.status}</span><div class="goal-progress-percent">${g.progress}%</div></div></div>${g.description ? `<div style="font-size:13px;color:var(--text-secondary);margin-bottom:8px;">${g.description}</div>` : ''}<div class="goal-progress-bar"><div class="goal-progress-fill" style="width:${g.progress}%"></div></div><div style="display:flex;justify-content:space-between;align-items:center;margin-top:8px;"><div class="goal-progress-deadline">📅 ${g.deadline ? formatDate(g.deadline) : 'Sin fecha'}</div><div style="display:flex;gap:4px;"><button class="btn-icon" onclick="updateGoalProgress('${g.id}'); viewPatient('${patientId}');"><i class="fas fa-chart-line"></i></button><button class="btn-icon" onclick="deleteGoal('${g.id}','${patientId}'); viewPatient('${patientId}');"><i class="fas fa-trash"></i></button></div></div></div>`).join('')}</div>`}`;
 }
 
+function renderTabEscalasEnhanced(patientId) {
+    const patient = AppState.patients.find(p => p.id === patientId);
+    if (!patient) return '';
+
+    // Obtener evaluaciones de las notas clínicas
+    const noteEvals = (AppState.notes || [])
+        .filter(n => n.patientId === patientId && n.scaleResult)
+        .map(n => ({
+            type: n.scaleResult.scale || (n.scaleResult.testType || 'phq9'),
+            score: Number(n.scaleResult.score) || 0,
+            maxScore: (n.scaleResult.scale === 'gad7') ? 21 : 27,
+            severity: n.scaleResult.interpretation || 'Evaluado',
+            date: n.date,
+            source: 'Sesión clínica'
+        }));
+
+    // Obtener evaluaciones del portal del paciente
+    const portalData = getPortalResults(patientId);
+    const portalEvals = (portalData.results || []).map(e => ({
+        type: e.type || e.scaleType || 'phq9',
+        score: Number(e.score) || 0,
+        maxScore: Number(e.maxScore) || ((e.type === 'gad7') ? 21 : 27),
+        severity: e.severity || 'Evaluado',
+        alertRisk: e.alertRisk,
+        date: e.date,
+        source: 'Portal del Paciente'
+    }));
+
+    // Unificar y ordenar cronológicamente
+    const allEvals = [...noteEvals, ...portalEvals].sort((a, b) => new Date(a.date) - new Date(b.date));
+    const phqList = allEvals.filter(e => e.type === 'phq9');
+    const gadList = allEvals.filter(e => e.type === 'gad7');
+
+    const latestPhq = phqList.slice(-1)[0];
+    const latestGad = gadList.slice(-1)[0];
+    const firstPhq = phqList[0];
+
+    // Cálculo de mejoría en PHQ-9
+    let phqDeltaPercent = 0;
+    let phqImprovementText = 'Línea base establecida';
+    if (phqList.length >= 2 && firstPhq.score > 0) {
+        const diff = firstPhq.score - latestPhq.score;
+        phqDeltaPercent = Math.round((diff / firstPhq.score) * 100);
+        if (phqDeltaPercent > 0) {
+            phqImprovementText = `↓ ${phqDeltaPercent}% de reducción de síntomas`;
+        } else if (phqDeltaPercent < 0) {
+            phqImprovementText = `↑ ${Math.abs(phqDeltaPercent)}% de aumento sintomático`;
+        } else {
+            phqImprovementText = 'Puntaje estable';
+        }
+    }
+
+    // Renderizar Gráfico SVG si hay al menos 1 punto
+    let svgChartHtml = '';
+    if (allEvals.length > 0) {
+        const chartWidth = 560;
+        const chartHeight = 180;
+        const padding = { top: 20, right: 30, bottom: 30, left: 35 };
+        const innerWidth = chartWidth - padding.left - padding.right;
+        const innerHeight = chartHeight - padding.top - padding.bottom;
+
+        // Puntos de PHQ-9
+        const phqPoints = phqList.map((e, idx) => {
+            const x = padding.left + (phqList.length === 1 ? innerWidth / 2 : (idx / (phqList.length - 1)) * innerWidth);
+            const y = padding.top + innerHeight - (e.score / 27) * innerHeight;
+            return { x, y, score: e.score, date: e.date, severity: e.severity };
+        });
+
+        // Puntos de GAD-7
+        const gadPoints = gadList.map((e, idx) => {
+            const x = padding.left + (gadList.length === 1 ? innerWidth / 2 : (idx / (gadList.length - 1)) * innerWidth);
+            const y = padding.top + innerHeight - (e.score / 21) * innerHeight;
+            return { x, y, score: e.score, date: e.date, severity: e.severity };
+        });
+
+        const phqPathD = phqPoints.length > 1 
+            ? 'M ' + phqPoints.map(p => `${p.x},${p.y}`).join(' L ') 
+            : '';
+        const gadPathD = gadPoints.length > 1 
+            ? 'M ' + gadPoints.map(p => `${p.x},${p.y}`).join(' L ') 
+            : '';
+
+        svgChartHtml = `
+            <div style="background: var(--bg-card); border: 1px solid var(--border-color); border-radius: 12px; padding: 16px; margin-bottom: 20px; box-shadow: var(--shadow-sm);">
+                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 12px; flex-wrap: wrap; gap: 8px;">
+                    <div>
+                        <h4 style="margin:0; font-size: 15px; font-weight:700; color:var(--text-primary);">
+                            <i class="fas fa-chart-line" style="color:var(--accent-primary);"></i> Curva de Evolución Clínica Longitudinal
+                        </h4>
+                        <small style="color:var(--text-secondary);">Monitoreo psicométrico continuo del paciente</small>
+                    </div>
+                    <div style="display:flex; gap: 14px; font-size: 11px; font-weight: 600;">
+                        <span style="color: #0d9488; display:flex; align-items:center; gap: 4px;">
+                            <span style="width:10px; height:10px; background:#0d9488; border-radius:50%; display:inline-block;"></span> PHQ-9 (Depresión)
+                        </span>
+                        <span style="color: #6366f1; display:flex; align-items:center; gap: 4px;">
+                            <span style="width:10px; height:10px; background:#6366f1; border-radius:50%; display:inline-block;"></span> GAD-7 (Ansiedad)
+                        </span>
+                    </div>
+                </div>
+
+                <div style="width: 100%; overflow-x: auto;">
+                    <svg viewBox="0 0 ${chartWidth} ${chartHeight}" style="width: 100%; max-width: 100%; height: auto; display: block;">
+                        <defs>
+                            <linearGradient id="bandRemission" x1="0" y1="0" x2="0" y2="1">
+                                <stop offset="0%" stop-color="#10b981" stop-opacity="0.12"/>
+                                <stop offset="100%" stop-color="#10b981" stop-opacity="0.04"/>
+                            </linearGradient>
+                            <linearGradient id="bandSevere" x1="0" y1="0" x2="0" y2="1">
+                                <stop offset="0%" stop-color="#ef4444" stop-opacity="0.15"/>
+                                <stop offset="100%" stop-color="#ef4444" stop-opacity="0.05"/>
+                            </linearGradient>
+                        </defs>
+
+                        <!-- Zona Severa (>15) -->
+                        <rect x="${padding.left}" y="${padding.top}" width="${innerWidth}" height="${innerHeight * (12/27)}" fill="url(#bandSevere)" rx="4"/>
+                        <!-- Zona Remisión / Mínima (0-9) -->
+                        <rect x="${padding.left}" y="${padding.top + innerHeight * (18/27)}" width="${innerWidth}" height="${innerHeight * (9/27)}" fill="url(#bandRemission)" rx="4"/>
+
+                        <!-- Líneas guía horizontales de corte -->
+                        <line x1="${padding.left}" y1="${padding.top + innerHeight * (18/27)}" x2="${padding.left + innerWidth}" y2="${padding.top + innerHeight * (18/27)}" stroke="rgba(16, 185, 129, 0.4)" stroke-dasharray="3,3"/>
+                        <line x1="${padding.left}" y1="${padding.top + innerHeight * (12/27)}" x2="${padding.left + innerWidth}" y2="${padding.top + innerHeight * (12/27)}" stroke="rgba(239, 68, 68, 0.4)" stroke-dasharray="3,3"/>
+                        <line x1="${padding.left}" y1="${padding.top + innerHeight}" x2="${padding.left + innerWidth}" y2="${padding.top + innerHeight}" stroke="var(--border-color)"/>
+
+                        <!-- Etiquetas en Eje Y -->
+                        <text x="${padding.left - 8}" y="${padding.top + innerHeight + 4}" font-size="10" fill="var(--text-tertiary)" text-anchor="end">0</text>
+                        <text x="${padding.left - 8}" y="${padding.top + innerHeight * (18/27) + 3}" font-size="10" fill="#10b981" text-anchor="end">9</text>
+                        <text x="${padding.left - 8}" y="${padding.top + innerHeight * (12/27) + 3}" font-size="10" fill="#ef4444" text-anchor="end">15</text>
+                        <text x="${padding.left - 8}" y="${padding.top + 4}" font-size="10" fill="var(--text-tertiary)" text-anchor="end">27</text>
+
+                        <!-- Trazado de líneas -->
+                        ${phqPathD ? `<path d="${phqPathD}" fill="none" stroke="#0d9488" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>` : ''}
+                        ${gadPathD ? `<path d="${gadPathD}" fill="none" stroke="#6366f1" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>` : ''}
+
+                        <!-- Puntos de PHQ-9 con marcadores -->
+                        ${phqPoints.map(p => `
+                            <circle cx="${p.x}" cy="${p.y}" r="5" fill="#0d9488" stroke="#ffffff" stroke-width="2">
+                                <title>PHQ-9: ${p.score}/27 (${p.severity}) - ${new Date(p.date).toLocaleDateString('es-ES')}</title>
+                            </circle>
+                            <text x="${p.x}" y="${p.y - 8}" font-size="10" font-weight="700" fill="#0d9488" text-anchor="middle">${p.score}</text>
+                        `).join('')}
+
+                        <!-- Puntos de GAD-7 con marcadores -->
+                        ${gadPoints.map(p => `
+                            <circle cx="${p.x}" cy="${p.y}" r="5" fill="#6366f1" stroke="#ffffff" stroke-width="2">
+                                <title>GAD-7: ${p.score}/21 (${p.severity}) - ${new Date(p.date).toLocaleDateString('es-ES')}</title>
+                            </circle>
+                            <text x="${p.x}" y="${p.y + 16}" font-size="10" font-weight="700" fill="#6366f1" text-anchor="middle">${p.score}</text>
+                        `).join('')}
+                    </svg>
+                </div>
+            </div>
+        `;
+    }
+
+    return `
+        <div style="padding: 10px 0;">
+            <!-- BOTONES DE ACCIÓN DE EVALUACIÓN -->
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:18px; flex-wrap: wrap; gap: 10px;">
+                <div style="display:flex; gap:8px;">
+                    <button class="btn-primary" onclick="openInteractiveScaleModal('phq9', '${patientId}')">
+                        <i class="fas fa-plus"></i> Aplicar PHQ-9 (Depresión)
+                    </button>
+                    <button class="btn-secondary" onclick="openInteractiveScaleModal('gad7', '${patientId}')">
+                        <i class="fas fa-plus"></i> Aplicar GAD-7 (Ansiedad)
+                    </button>
+                </div>
+                <div>
+                    <button class="btn-secondary" onclick="ClinicalHistorySystem.exportHistoriaOficialPDF('${patientId}')" title="Exportar reporte clínico completo en PDF">
+                        <i class="fas fa-file-pdf"></i> Exportar Evolución (PDF)
+                    </button>
+                </div>
+            </div>
+
+            <!-- BENTO DE 3 TARJETAS CLÍNICAS -->
+            <div class="summary-grid" style="margin-bottom: 20px;">
+                <div class="summary-mini-card">
+                    <div class="summary-mini-icon">🌧️</div>
+                    <div class="summary-mini-info">
+                        <div class="summary-mini-label">Depresión (PHQ-9)</div>
+                        <div class="summary-mini-value">${latestPhq ? `${latestPhq.score}/27` : '—'}</div>
+                        <small style="color:${latestPhq && latestPhq.score >= 15 ? '#ef4444' : '#10b981'}; font-weight:600;">
+                            ${latestPhq ? latestPhq.severity : 'Sin evaluar'}
+                        </small>
+                    </div>
+                </div>
+
+                <div class="summary-mini-card">
+                    <div class="summary-mini-icon">🌊</div>
+                    <div class="summary-mini-info">
+                        <div class="summary-mini-label">Ansiedad (GAD-7)</div>
+                        <div class="summary-mini-value">${latestGad ? `${latestGad.score}/21` : '—'}</div>
+                        <small style="color:${latestGad && latestGad.score >= 15 ? '#ef4444' : '#10b981'}; font-weight:600;">
+                            ${latestGad ? latestGad.severity : 'Sin evaluar'}
+                        </small>
+                    </div>
+                </div>
+
+                <div class="summary-mini-card">
+                    <div class="summary-mini-icon">🎯</div>
+                    <div class="summary-mini-info">
+                        <div class="summary-mini-label">Evolución Clínica</div>
+                        <div class="summary-mini-value" style="font-size: 15px;">
+                            ${phqDeltaPercent > 0 ? `<span style="color:#10b981;">-${phqDeltaPercent}%</span>` : (phqDeltaPercent < 0 ? `<span style="color:#ef4444;">+${Math.abs(phqDeltaPercent)}%</span>` : 'Estable')}
+                        </div>
+                        <small style="color:var(--text-secondary); font-size:11px;">
+                            ${phqImprovementText}
+                        </small>
+                    </div>
+                </div>
+            </div>
+
+            <!-- GRÁFICO LONGITUDINAL INTERACTIVO -->
+            ${svgChartHtml}
+
+            <!-- LISTADO CRONOLÓGICO DE EVALUACIONES -->
+            <div class="clinical-history-section">
+                <h4><i class="fas fa-list-ol"></i> Registro Histórico de Evaluaciones Psicométricas (${allEvals.length})</h4>
+                ${allEvals.length === 0 ? `
+                    <div class="empty-state" style="padding: 24px;">
+                        <div class="empty-icon">📊</div>
+                        <p>No hay evaluaciones psicométricas registradas aún</p>
+                        <small>Aplica el PHQ-9 o GAD-7 en consulta o solicita al paciente completarlo desde su portal móvil.</small>
+                    </div>
+                ` : `
+                    <div style="display:flex; flex-direction:column; gap:8px;">
+                        ${allEvals.slice().reverse().map(e => {
+                            const isPhq = e.type === 'phq9';
+                            return `
+                                <div style="display:flex; justify-content:space-between; align-items:center; background:var(--bg-card); border:1px solid var(--border-color); padding:10px 14px; border-radius:8px;">
+                                    <div style="display:flex; align-items:center; gap:10px;">
+                                        <span style="font-size:18px;">${isPhq ? '🌧️' : '🌊'}</span>
+                                        <div>
+                                            <strong>${isPhq ? 'PHQ-9 (Depresión)' : 'GAD-7 (Ansiedad)'}: ${e.score}/${e.maxScore}</strong>
+                                            <div style="font-size:11px; color:var(--text-secondary);">
+                                                ${new Date(e.date).toLocaleDateString('es-ES', { day:'numeric', month:'short', year:'numeric' })} · Origen: ${e.source}
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div style="display:flex; align-items:center; gap:8px;">
+                                        <span class="tag" style="background:${e.score >= 15 ? 'rgba(239,68,68,0.12)' : (e.score >= 10 ? 'rgba(245,158,11,0.12)' : 'rgba(16,185,129,0.12)')}; color:${e.score >= 15 ? '#ef4444' : (e.score >= 10 ? '#f59e0b' : '#10b981')}; font-weight:600;">
+                                            ${e.severity}
+                                        </span>
+                                    </div>
+                                </div>
+                            `;
+                        }).join('')}
+                    </div>
+                `}
+            </div>
+        </div>
+    `;
+}
+
 function renderTabEscalas(patientId) {
-    if (typeof renderTabEscalasEnhanced === 'function') {
-        return renderTabEscalasEnhanced(patientId);
+    return renderTabEscalasEnhanced(patientId);
+}
+
+// ============================================
+// ASISTENTE CLÍNICO IA: DICTADO Y SÍNTESIS SOAP
+// ============================================
+let soapAiGeneratedResult = null;
+
+function openSoapAiModal() {
+    let modal = document.getElementById('soapAiModal');
+    if (!modal) {
+        modal = document.createElement('div');
+        modal.id = 'soapAiModal';
+        modal.className = 'modal';
+        modal.innerHTML = `
+            <div class="modal-overlay" onclick="closeSoapAiModal()"></div>
+            <div class="modal-content modal-large">
+                <div class="modal-header">
+                    <div>
+                        <h2><i class="fas fa-wand-magic-sparkles" style="color:var(--accent-primary);"></i> Copiloto Clínico IA: Generador SOAP</h2>
+                        <small style="color:var(--text-secondary);">Convierte dictado por voz o notas rápidas en estructura SOAP DSM-5</small>
+                    </div>
+                    <button class="btn-icon" onclick="closeSoapAiModal()"><i class="fas fa-times"></i></button>
+                </div>
+                <div class="modal-body" style="padding:16px 20px;">
+                    <div style="background:var(--bg-secondary); border-radius:8px; padding:12px; margin-bottom:14px; font-size:13px; border-left:3px solid var(--accent-primary);">
+                        <strong>💡 Instrucción:</strong> Dicta por voz o escribe apuntes libres de la sesión. Nuestro modelo desidentifica los datos sensibles del paciente (PHI) y genera los 4 apartados clínicos (S, O, A, P).
+                    </div>
+
+                    <div class="form-group">
+                        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;">
+                            <label style="font-weight:700;">Apuntes o Dictado de la Sesión:</label>
+                            <button type="button" class="btn-sm btn-secondary" id="btnSoapVoiceDictate" onclick="toggleSoapVoiceDictation()">
+                                <i class="fas fa-microphone"></i> Dictar por Voz
+                            </button>
+                        </div>
+                        <textarea id="soapAiInput" rows="4" style="width:100%; border-radius:8px; padding:10px; font-size:13px;" placeholder="Ejemplo: Paciente refiere que la ansiedad laboral ha disminuido de 8 a 4. Logró realizar la técnica de respiración 4-7-8 antes de su reunión. Exploramos distorsión de lectura de mente..."></textarea>
+                    </div>
+
+                    <div style="margin-bottom:16px;">
+                        <button type="button" class="btn-primary full-width" id="btnGenerateSoapAi" onclick="generateSoapFromAiModal()">
+                            <i class="fas fa-sparkles"></i> ✨ Sintetizar Nota SOAP con IA
+                        </button>
+                    </div>
+
+                    <!-- PREVIEW GENERADO -->
+                    <div id="soapAiPreviewWrap" style="display:none; background:var(--bg-primary); border:1px solid var(--border-color); border-radius:10px; padding:14px; margin-bottom:14px;">
+                        <h4 style="margin:0 0 10px 0; font-size:14px; color:var(--text-primary);">Vista Previa Estructurada:</h4>
+                        <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(240px, 1fr)); gap:10px; margin-bottom:12px;">
+                            <div style="background:var(--bg-card); padding:8px 10px; border-radius:6px; font-size:12px; border:1px solid var(--border-color);">
+                                <strong style="color:var(--accent-primary);">[S] Subjetivo:</strong>
+                                <div id="previewSoapS" style="margin-top:4px; color:var(--text-secondary);"></div>
+                            </div>
+                            <div style="background:var(--bg-card); padding:8px 10px; border-radius:6px; font-size:12px; border:1px solid var(--border-color);">
+                                <strong style="color:var(--accent-primary);">[O] Objetivo:</strong>
+                                <div id="previewSoapO" style="margin-top:4px; color:var(--text-secondary);"></div>
+                            </div>
+                            <div style="background:var(--bg-card); padding:8px 10px; border-radius:6px; font-size:12px; border:1px solid var(--border-color);">
+                                <strong style="color:var(--accent-primary);">[A] Análisis:</strong>
+                                <div id="previewSoapA" style="margin-top:4px; color:var(--text-secondary);"></div>
+                            </div>
+                            <div style="background:var(--bg-card); padding:8px 10px; border-radius:6px; font-size:12px; border:1px solid var(--border-color);">
+                                <strong style="color:var(--accent-primary);">[P] Plan:</strong>
+                                <div id="previewSoapP" style="margin-top:4px; color:var(--text-secondary);"></div>
+                            </div>
+                        </div>
+                        <button type="button" class="btn-primary full-width" onclick="applyGeneratedSoapToForm()">
+                            <i class="fas fa-check"></i> 📥 Aplicar al Formulario de la Sesión
+                        </button>
+                    </div>
+                </div>
+            </div>
+        `;
+        document.body.appendChild(modal);
     }
-    const phqNotes = AppState.notes.filter(n => n.patientId === patientId && n.scaleResult?.scale === 'phq9').sort((a,b) => new Date(a.date) - new Date(b.date));
-    const gadNotes = AppState.notes.filter(n => n.patientId === patientId && n.scaleResult?.scale === 'gad7').sort((a,b) => new Date(a.date) - new Date(b.date));
-    let html = `<div style="display:flex;gap:8px;margin-bottom:16px;"><button class="btn-secondary" onclick="openInteractiveScaleModal('phq9', '${patientId}')">📊 Aplicar PHQ-9</button><button class="btn-secondary" onclick="openInteractiveScaleModal('gad7', '${patientId}')">🌊 Aplicar GAD-7</button></div>`;
-    if (phqNotes.length > 0) {
-        html += `<div class="clinical-history-section"><h4>Evolución PHQ-9 (Depresión)</h4><div style="display:flex;flex-direction:column;gap:8px;">${phqNotes.map(n => `<div style="padding:10px 14px;background:var(--bg-secondary);border-radius:8px;display:flex;justify-content:space-between;align-items:center;"><div><strong>${formatDate(n.date)}</strong> · Score: <strong style="color:var(--accent-primary);">${n.scaleResult.score}/27</strong></div><span class="tag">${n.scaleResult.interpretation}</span></div>`).join('')}</div></div>`;
+    document.getElementById('soapAiModal').style.display = 'flex';
+}
+
+function closeSoapAiModal() {
+    const modal = document.getElementById('soapAiModal');
+    if (modal) modal.style.display = 'none';
+    if (typeof VoiceDictation !== 'undefined' && VoiceDictation.isRecording) {
+        VoiceDictation.stop();
     }
-    if (gadNotes.length > 0) {
-        html += `<div class="clinical-history-section"><h4>Evolución GAD-7 (Ansiedad)</h4><div style="display:flex;flex-direction:column;gap:8px;">${gadNotes.map(n => `<div style="padding:10px 14px;background:var(--bg-secondary);border-radius:8px;display:flex;justify-content:space-between;align-items:center;"><div><strong>${formatDate(n.date)}</strong> · Score: <strong style="color:var(--accent-primary);">${n.scaleResult.score}/21</strong></div><span class="tag">${n.scaleResult.interpretation}</span></div>`).join('')}</div></div>`;
+}
+
+async function generateSoapFromAiModal() {
+    const text = document.getElementById('soapAiInput')?.value.trim();
+    if (!text) {
+        showToast('Escribe o dicta algún apunte de la sesión', 'warning');
+        return;
     }
-    if (phqNotes.length === 0 && gadNotes.length === 0) {
-        html += '<div class="empty-state"><div class="empty-icon">📊</div><p>Sin evaluaciones registradas</p></div>';
+
+    const btn = document.getElementById('btnGenerateSoapAi');
+    if (btn) {
+        btn.disabled = true;
+        btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Procesando con Gemini AI...';
     }
-    return html;
+
+    try {
+        const patientId = document.getElementById('notePatient')?.value;
+        const patient = AppState.patients.find(p => p.id === patientId) || {};
+        
+        let soap = null;
+        if (typeof ClinicalAI !== 'undefined') {
+            soap = await ClinicalAI.synthesizeSoapNote(text, patient);
+        } else {
+            soap = {
+                subjetivo: `El paciente refiere: ${text}`,
+                objetivo: 'Paciente orientado en las tres esferas, lenguaje fluido, afecto congruente.',
+                analisis: 'Evolución psicoterapéutica favorable con asimilación de estrategias cognitivas.',
+                plan: 'Continuar con el encuadre psicoterapéutico y monitoreo de tareas intersesión.'
+            };
+        }
+
+        soapAiGeneratedResult = soap;
+        document.getElementById('previewSoapS').textContent = soap.subjetivo || '';
+        document.getElementById('previewSoapO').textContent = soap.objetivo || '';
+        document.getElementById('previewSoapA').textContent = soap.analisis || '';
+        document.getElementById('previewSoapP').textContent = soap.plan || '';
+        document.getElementById('soapAiPreviewWrap').style.display = 'block';
+
+        showToast('¡Nota SOAP estructurada con éxito!', 'success');
+    } catch (e) {
+        console.error('Error generando SOAP:', e);
+        showToast('Error procesando nota con IA: ' + e.message, 'error');
+    } finally {
+        if (btn) {
+            btn.disabled = false;
+            btn.innerHTML = '<i class="fas fa-sparkles"></i> ✨ Sintetizar Nota SOAP con IA';
+        }
+    }
+}
+
+function applyGeneratedSoapToForm() {
+    if (!soapAiGeneratedResult) return;
+    
+    // Si estamos en formato SOAP, poblar los textareas
+    const sub = document.getElementById('noteSubjetivo');
+    const obj = document.getElementById('noteObjetivo');
+    const ana = document.getElementById('noteAnalisis');
+    const pla = document.getElementById('notePlan');
+
+    if (sub) sub.value = soapAiGeneratedResult.subjetivo || '';
+    if (obj) obj.value = soapAiGeneratedResult.objetivo || '';
+    if (ana) ana.value = soapAiGeneratedResult.analisis || '';
+    if (pla) pla.value = soapAiGeneratedResult.plan || '';
+
+    // Si estamos en reporte oficial, también enriquecer la descripción y observaciones
+    const desc = document.getElementById('noteSessionDescription');
+    const obs = document.getElementById('noteObservations');
+    if (desc && !desc.value) {
+        desc.value = `${soapAiGeneratedResult.subjetivo}\n\n${soapAiGeneratedResult.analisis}`;
+    }
+    if (obs && !obs.value) {
+        obs.value = soapAiGeneratedResult.objetivo;
+    }
+
+    // Cambiar a formato SOAP visual si está disponible
+    if (typeof switchNoteFormat === 'function') {
+        switchNoteFormat('soap');
+    }
+
+    closeSoapAiModal();
+    showToast('Nota SOAP aplicada al formulario de sesión', 'success');
+}
+
+function toggleSoapVoiceDictation() {
+    if (typeof VoiceDictation === 'undefined' || !VoiceDictation.isSupported()) {
+        showToast('El dictado por voz requiere Google Chrome o Edge', 'warning');
+        return;
+    }
+    const input = document.getElementById('soapAiInput');
+    const btn = document.getElementById('btnSoapVoiceDictate');
+    if (!VoiceDictation.isRecording) {
+        VoiceDictation.start(input);
+        if (btn) {
+            btn.classList.add('btn-danger');
+            btn.innerHTML = '<i class="fas fa-circle-stop"></i> Detener Dictado';
+        }
+    } else {
+        VoiceDictation.stop();
+        if (btn) {
+            btn.classList.remove('btn-danger');
+            btn.innerHTML = '<i class="fas fa-microphone"></i> Dictar por Voz';
+        }
+    }
 }
 
 function renderTabApoyo(patient) {
@@ -1604,6 +2140,9 @@ async function openPortalAccessModal(patientId) {
                     <button class="btn-portal-wa" onclick="sharePortalViaWhatsApp('${patient.id}')" title="Enviar enlace y código por WhatsApp al paciente">
                         <i class="fab fa-whatsapp"></i> Compartir por WhatsApp
                     </button>
+                    <button class="btn-portal-qr" onclick="showPortalQrCode('${patient.id}')" title="Mostrar Código QR para escaneo directo con la cámara del teléfono">
+                        <i class="fas fa-qrcode"></i> Código QR Móvil
+                    </button>
                 </div>
             </div>
 
@@ -1774,6 +2313,40 @@ function sharePortalViaWhatsApp(patientId) {
         ? `https://wa.me/${phone}?text=${encodeURIComponent(text)}` 
         : `https://api.whatsapp.com/send?text=${encodeURIComponent(text)}`;
     window.open(waUrl, '_blank');
+}
+
+function showPortalQrCode(patientId) {
+    const patient = AppState.patients.find(p => p.id === patientId);
+    if (!patient) return;
+    const token = ensurePatientPortalToken(patient);
+    const baseUrl = window.location.origin + window.location.pathname.replace(/[^\/]*$/, '');
+    const portalUrl = `${baseUrl}portal.html?token=${token}`;
+    const qrImageUrl = `https://api.qrserver.com/v1/create-qr-code/?size=240x240&data=${encodeURIComponent(portalUrl)}&margin=10`;
+
+    const body = document.getElementById('qrModalBody');
+    if (body) {
+        body.innerHTML = `
+            <div class="qr-modal-container">
+                <div class="qr-frame-box">
+                    <img src="${qrImageUrl}" alt="Código QR Portal ${patient.name}" onerror="this.onerror=null; this.parentElement.innerHTML='<div style=\\'padding:20px;font-weight:600;color:var(--text-secondary);\\'>Acceso directo:<br><code style=\\'font-size:16px;color:var(--color-primary);\\'>${portalUrl}</code></div>';">
+                </div>
+                <div class="qr-instructions-list">
+                    <div>📱 <strong>1.</strong> Pide al consultante que abra la cámara de su teléfono inteligente.</div>
+                    <div>🎯 <strong>2.</strong> Apunta al código QR en la pantalla para abrir su portal de inmediato.</div>
+                    <div>✨ <strong>3.</strong> Entrada segura con token automático, sin recordar contraseñas.</div>
+                </div>
+                <div style="display:flex;gap:10px;justify-content:center;">
+                    <button class="btn-secondary" onclick="copyPortalLink('${patient.id}');">
+                        <i class="fas fa-copy"></i> Copiar Enlace
+                    </button>
+                    <button class="btn-primary" onclick="closeModal('qrModal');">
+                        <i class="fas fa-check"></i> Listo
+                    </button>
+                </div>
+            </div>
+        `;
+    }
+    openModal('qrModal');
 }
 
 function copyPortalToken(patientId) {

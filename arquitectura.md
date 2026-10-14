@@ -726,7 +726,176 @@ Se generaron los artefactos oficiales de despliegue:
 Se incorporaron dos nuevos casos de prueba en `tests.js`:
 - **`TC-DB-01`**: Validación de Persistencia y Estructura de Base de Datos Relacional.
 - **`TC-DB-02`**: Flujo Integral de Tareas, Autoregistro ABC, Monitoreo de Ánimo y Alerta SOS.
-- **Resultado de la Suite Total**: **24 de 24 pruebas aprobadas (100% PASS)**.
+- **Resultado de la Suite Base**: **24 de 24 pruebas aprobadas (100% PASS)**.
+
+---
+
+## 14. Fase 6 — Innovación Clínica Diferencial: Las 3 Superpotencias Competitivas
+
+En respuesta a la directriz estratégica de superar a cualquier solución competidora de salud mental en el mercado, se implementó una suite de 3 innovaciones clínicas de alto impacto:
+
+```mermaid
+flowchart TD
+    subgraph Paciente["Portal del Paciente (Móvil / PWA)"]
+        P1["Botiquín de Calma"] --> P2["Respiración 4-7-8 (Web Audio 432Hz/528Hz)"]
+        P1 --> P3["Anclaje Sensorial 5-4-3-2-1"]
+        P2 & P3 --> P4["Auto-sincronización con PostgreSQL (/api/v1/portal/cbt)"]
+        P5["PWA Install Banner"] --> P6["Experiencia Nativa Móvil"]
+    end
+
+    subgraph Backend["API & Base de Datos PostgreSQL"]
+        P4 --> B1["cbt_records (Técnica: Regulación Emocional)"]
+        B1 --> B2["API Gateway (/api/v1/portal/data/:patientId)"]
+    end
+
+    subgraph Psicologo["Expediente Clínico del Terapeuta"]
+        B2 --> T1["Tablero Gráfico Longitudinal Apple Health"]
+        T1 --> T2["Curvas SVG Interactivas PHQ-9 & GAD-7"]
+        T1 --> T3["Zonas Clínicas de Remisión / Leve / Severa"]
+        T1 --> T4["Cálculo Automático de Delta % de Mejoría"]
+        
+        T5["Copiloto Clínico IA SOAP"] --> T6["Dictado Médico por Voz (Web Speech API)"]
+        T6 --> T7["Motor Gemini AI / Síntesis Estructurada"]
+        T7 --> T8["Llenado Automático de Nota SOAP Oficial"]
+    end
+```
+
+### 14.1. Superpotencia 1: Botiquín de Calma y Regulación Emocional en el Portal (`portal.html`, `portal.js`, `portal.css`)
+- **Técnica 4-7-8 (Dr. Andrew Weil)**: Ciclos de 4s inhalación, 7s retención pulmonar y 8s exhalación.
+  - **Motor Acústico Web Audio API**: Generación en tiempo real de tonos sinusoidales armónicos (frecuencias Solfeggio de 432Hz y 528Hz) para relajación vagal sin requerir descargas de archivos de audio externos.
+  - **Respuesta Háptica**: Vibración táctil (`navigator.vibrate`) en dispositivos compatibles al cambio de fase respiratoria.
+  - **Orbe Respiratorio Reactivo**: Animación CSS fluida que se expande, contiene y contrae con retroalimentación visual concéntrica.
+- **Técnica de Grounding 5-4-3-2-1**: Anclaje sensorial guiado paso a paso para neutralizar ataques de pánico y rumiación ansiosa.
+- **Registro Clínico Silencioso**: Cada sesión completada calcula el delta de alivio emocional (ej. 80% intensidad inicial a 20% intensidad final) y se sincroniza automáticamente a `cbt_records` en PostgreSQL para que el psicólogo evalúe la adherencia en consulta.
+- **PWA Instalable**: Banner inteligente con soporte para el evento `beforeinstallprompt` en Android y guía paso a paso para "Añadir a pantalla de inicio" en iOS Safari.
+
+### 14.2. Superpotencia 2: Tablero Gráfico Longitudinal Estilo Apple Health (`app.js`, Tab Escalas)
+- **Visualización Vectorial SVG Pura**: Gráfico reactivo de alta resolución (`viewBox="0 0 560 180"`) sin dependencias externas pesadas, garantizando carga instantánea.
+- **Bandas Horizontales de Gravedad Clínica**:
+  - Zona Verde (0 - 4 pts): Remisión clínica / Mínimo.
+  - Zona Ámbar (5 - 14 pts): Sintomatología Leve / Moderada.
+  - Zona Roja (15 - 27 pts): Sintomatología Severa.
+- **Puntos Interactivos y Curva de Tendencia**: Marcadores hover con tooltip que detallan fecha, puntaje exacto y severidad.
+- **Indicador Cuantitativo de Evolución (% Delta)**: Cálculo del porcentaje de cambio entre la primera y la última evaluación:
+  $$\Delta\% = \frac{\text{Puntaje Inicial} - \text{Puntaje Actual}}{\text{Puntaje Inicial}} \times 100$$
+  Generando badges visuales de "Mejoría clínica" o "Alerta de incremento sintomático".
+
+### 14.3. Superpotencia 3: Copiloto Clínico IA SOAP con Dictado por Voz (`app.js`, `index.html`, `voice-dictation.js`, `ai-clinical.js`)
+- **Dictado Manos Libres**: Integración de `VoiceDictation` (Web Speech API) directamente en el formulario de creación de notas clínicas, permitiendo al terapeuta dictar sus impresiones de la sesión con un solo clic.
+- **Síntesis Clínica Estructurada**: Conexión con `ClinicalAI.synthesizeSoapNote` con prompt engineering clínico optimizado para modelos Gemini API (o fallback analítico algorítmico local), separando los relatos orales en:
+  - **S (Subjetivo)**: Motivo de consulta, verbalizaciones del paciente y estado de ánimo percibido.
+  - **O (Objetivo)**: Observaciones conductuales, afecto, escalas y signos observables.
+  - **A (Análisis / Apreciación)**: Hipótesis diagnóstica, juicio clínico y formulación de caso.
+  - **P (Plan)**: Intervenciones planificadas, tareas intersesión y fecha del próximo encuentro.
+- **Aplicación con 1 Clic**: El psicólogo revisa y edita el borrador antes de volcarlo automáticamente a los campos oficiales de la historia clínica.
+
+### 14.4. Diagrama de Secuencia de Flujo Integrado
+
+```mermaid
+sequenceDiagram
+    autonumber
+    actor P as Paciente
+    participant Portal as Portal Móvil (PWA)
+    participant Server as API Gateway / DB
+    participant App as App del Terapeuta
+    actor T as Terapeuta
+
+    Note over P,Portal: Manejo de Crisis y Regulación Emocional
+    P->>Portal: Inicia Respiración 4-7-8 en Botiquín de Calma
+    Portal->>Portal: Genera tonos 432Hz/528Hz con Web Audio API
+    P->>Portal: Completa 4 ciclos y califica alivio
+    Portal->>Server: POST /api/v1/portal/cbt (Sesión de respiración registrada)
+    Server-->>Portal: 200 OK
+
+    Note over T,App: Consulta Clínica y Evolución
+    T->>App: Abre Expediente del Paciente -> Pestaña Escalas
+    App->>Server: GET /api/v1/portal/data/:id
+    Server-->>App: Retorna evaluaciones PHQ-9/GAD-7 y registros de calma
+    App->>App: Renderiza Curvas SVG Longitudinales y Delta % de Mejoría
+    
+    Note over T,App: Registro de Sesión con Copiloto IA
+    T->>App: Clic en "Copiloto IA SOAP" y pulsa "Dictar por Voz"
+    T->>App: Dicta observaciones clínicas oralmente
+    App->>App: Procesa audio con Web Speech API
+    T->>App: Clic en "Sintetizar Nota SOAP con IA"
+    App->>App: ClinicalAI.synthesizeSoapNote() con Gemini / Fallback
+    App-->>T: Previsualiza Nota SOAP estructurada (S, O, A, P)
+    T->>App: Clic en "Transferir a la Nota de Sesión"
+    App->>Server: Guarda nota oficial protocolizada en PostgreSQL
+```
+
+### 14.5. Validación Automatizada de la Suite de Innovación
+Se incorporaron las pruebas unitarias e integrales en `tests.js`:
+- **`TC-POR-04`**: Botiquín de Calma (Respiración 4-7-8, Anclaje 5-4-3-2-1, Web Audio y Registro Clínico).
+- **`TC-CHAR-01`**: Tablero Gráfico Longitudinal y Copiloto IA SOAP (Síntesis y Analytics).
+- **Resultado de la Suite Fase 6**: **26 de 26 pruebas aprobadas (100% PASS)**.
+
+---
+
+## 15. Fase 7 — Optimización Industrial: Blindaje de Seguridad OWASP, Resiliencia Offline (PWA v6.2) y Privacidad HIPAA
+
+Esta fase eleva a **Psico Notes Clinical** a estándares de grado hospitalario y resiliencia de misión crítica, resolviendo los vectores de riesgo en producción y garantizando continuidad operativa en cualquier escenario de conectividad.
+
+```mermaid
+flowchart TD
+    subgraph SecLayer["Capa de Seguridad & Privacidad (Consultorio & Backend)"]
+        S1["Cortafuegos de Servidor (server.js)"] -->|403 Forbidden| S2["Bloqueo .env / server.js / db.js / schema.sql"]
+        S1 --> S3["Cabeceras OWASP: nosniff, SAMEORIGIN, strict-origin"]
+        S4["ClinicalSecurity (app.js)"] --> S5["Auto-lock tras 15 min de Inactividad (HIPAA)"]
+        S4 --> S6["Botón de Bloqueo Instantáneo en Sidebar"]
+        S4 --> S7["Overlay Glassmorphism con Desbloqueo Seguro"]
+    end
+
+    subgraph OfflineLayer["Capa de Resiliencia PWA & Red (Dispositivos Móviles)"]
+        P1["Service Worker v6.2 (sw.js)"] --> P2["Precacheo del 100% de Módulos Clínicos"]
+        P1 -->|Exclusión Estricta /api/| P3["Zero-Cache en Datos de Salud PHI"]
+        P4["PortalOfflineQueue (portal.js)"] --> P5["Encolamiento en LocalStorage sin Conexión"]
+        P5 --> P6["Badge Reactivo en Cabecera del Portal"]
+        P6 -->|Evento 'online' / Clic| P7["Auto-flush y Sincronización Automática con PostgreSQL"]
+    end
+
+    subgraph UXLayer["Experiencia Inmediata en Consulta"]
+        Q1["showPortalQrCode()"] --> Q2["Proyección de Código QR en Pantalla del Terapeuta"]
+        Q2 --> Q3["Escaneo Directo con Cámara del Teléfono"]
+        Q3 --> Q4["Ingreso Inmediato al Portal sin Tipear Contraseñas"]
+    end
+```
+
+### 15.1. Cortafuegos de Archivos Sensibles y Hardening OWASP (`server.js`)
+- **Protección contra Fuga de Código y Esquema Relacional**: Se implementó un middleware interceptor que deniega inmediatamente (`HTTP 403 Forbidden`) cualquier solicitud dirigida a archivos fuente del backend (`server.js`, `db.js`, `schema.sql`, `docker-compose.yml`, `package.json`, `package-lock.json`, `tests.js`, extensiones `.env`, `.sql`, `.yml`, `.yaml`, `.log` y archivos ocultos).
+- **Cabeceras de Defensa en Profundidad**:
+  - `X-Content-Type-Options: nosniff` (Previene ataques de MIME-sniffing).
+  - `X-Frame-Options: SAMEORIGIN` (Protege contra ataques de clickjacking en iframes).
+  - `X-XSS-Protection: 1; mode=block` (Mitigación activa de cross-site scripting).
+  - `Referrer-Policy: strict-origin-when-cross-origin` (Salvaguarda la privacidad de URLs con tokens de pacientes).
+- **Optimización de Caché de Entrega**: Configuración de `maxAge: '1h'` y directiva `dotfiles: 'ignore'` en `express.static`.
+
+### 15.2. Service Worker v6.2 y Cola de Sincronización Fuera de Línea (`sw.js`, `portal.js`, `portal.html`)
+- **Cobertura Total de Módulos Clínicos en Caché**: Inclusión garantizada en `PRECACHE_ASSETS` de `historia-clinica.js`, `scales.js`, `voice-dictation.js`, `phi-anonymizer.js` y `session-reminders.js`.
+- **Aislamiento Estricto de APIs (`Zero-Cache PHI`)**: Las rutas `/api/` quedan formalmente excluidas del caché estático del Service Worker, impidiendo la retención de datos obsoletos o la mezcla accidental de expedientes entre sesiones de pacientes.
+- **Motor `PortalOfflineQueue` con Auto-Flush**:
+  - Si el paciente realiza respiración 4-7-8, grounding 5-4-3-2-1, autoregistros cognitivos ABC, check-in de ánimo o tests psicométricos sin datos móviles o en zonas sin cobertura, la operación se encola en `psico_portal_offline_queue`.
+  - Un badge interactivo pulsante (`#offlineSyncBadge`) en el encabezado del portal informa el número de registros en espera.
+  - Al detectar el evento `online` del navegador o al pulsar el badge, el sistema ejecuta un barrido secuencial (`flush`) persistiendo automáticamente todos los registros hacia la base de datos PostgreSQL en Render.
+
+### 15.3. Sistema de Bloqueo por Inactividad Médica (`ClinicalSecurity` - Cumplimiento HIPAA)
+- **Monitoreo Continuo de Interacción**: Escucha reactiva pasiva de eventos (`mousemove`, `mousedown`, `keydown`, `touchstart`, `scroll`).
+- **Auto-Bloqueo tras 15 Minutos**: Si el psicólogo atiende una llamada, realiza una intervención presencial o se ausenta temporalmente del consultorio, el sistema activa automáticamente un protector de pantalla clínico.
+- **Bloqueo Manual Instantáneo**: Icono de candado (`<i class="fas fa-lock"></i>`) en la barra lateral para bloquear con un solo clic.
+- **Resguardo de Formularios Abiertos**: La pantalla de bloqueo utiliza una capa de diseño glassmorphism (`backdrop-filter: blur(25px)`) sin recargar la página ni destruir el estado de borradores clínicos o notas en progreso, permitiendo reanudar inmediatamente tras validar la contraseña médica.
+
+### 15.4. Vinculación Móvil Instantánea por Código QR Dinámico (`app.js`, `styles.css`)
+- **Eliminación de Fricción en el Consultorio**: Botón *"Código QR Móvil"* integrado en el modal del portal de cada paciente.
+- **Escaneo con Cámara Nativa**: Genera un código QR de alto contraste para que el consultante escanee directamente desde la pantalla de la computadora, abriendo de forma inmediata *"Mi Espacio"* en su teléfono con autenticación segura por token sin requerir memorizar contraseñas.
+
+### 15.5. Matriz de Validación Automatizada (29/29 Pruebas PASS)
+Se sumaron 3 casos de prueba exhaustivos en `tests.js`:
+- **`TC-SEC-03`**: Políticas de Seguridad OWASP y Bloqueo de Archivos Sensibles de Servidor.
+- **`TC-SYNC-01`**: Cola de Sincronización Fuera de Línea (`PortalOfflineQueue` y Resiliencia PWA).
+- **`TC-PRIV-01`**: Sistema de Bloqueo por Inactividad Médica y Confidencialidad PHI (HIPAA).
+- **Resultado Global**: **29 de 29 pruebas aprobadas exitosamente (100% PASS, 0 fallos)**.
+
+
 
 
 

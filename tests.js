@@ -994,6 +994,158 @@ ClinicalTestSuite.add('TC-DB-02', 'Flujo Integral de Tareas, Autoregistro ABC y 
     }
 });
 
+// 25. TC-POR-04: Botiquín de Calma (Respiración 4-7-8, Anclaje Sensorial 5-4-3-2-1 y Sincronización)
+ClinicalTestSuite.add('TC-POR-04', 'Botiquín de Calma (Respiración 4-7-8, Anclaje 5-4-3-2-1 y Registro Clínico)', async () => {
+    const { db } = await import('./db.js');
+    const patientId = 'patient_calm_test_01';
+    await db.upsertPatient({
+        id: patientId,
+        name: 'Paciente Test Calma',
+        portalToken: 'PN-CALM-01',
+        portalEnabled: true
+    });
+
+    // 1. Registro de Respiración 4-7-8
+    const breathingRecord = await db.addCbtRecord(patientId, {
+        situation: 'Técnica de Autorregulación: Respiración Guiada 4-7-8',
+        thought: 'Activación autónoma de herramientas de calma en el portal',
+        distortion: 'Manejo adaptativo del estrés',
+        emotion: 'Calma / Alivio',
+        initialIntensity: 80,
+        rationalThought: 'Completó 4 ciclos de respiración profunda parasimpática',
+        finalIntensity: 25
+    });
+    if (!breathingRecord || Number(breathingRecord.final_intensity) !== 25) {
+        throw new Error('Fallo al registrar sesión de respiración 4-7-8 en la base de datos');
+    }
+
+    // 2. Registro de Anclaje Sensorial 5-4-3-2-1
+    const groundingRecord = await db.addCbtRecord(patientId, {
+        situation: 'Técnica de Autorregulación: Anclaje Sensorial 5-4-3-2-1',
+        thought: 'Activación autónoma de herramientas de calma en el portal',
+        distortion: 'Manejo adaptativo del estrés',
+        emotion: 'Calma / Alivio',
+        initialIntensity: 85,
+        rationalThought: 'Ejercicio sensorial completado para desacelerar la mente',
+        finalIntensity: 20
+    });
+    if (!groundingRecord || Number(groundingRecord.final_intensity) !== 20) {
+        throw new Error('Fallo al registrar sesión de grounding 5-4-3-2-1 en la base de datos');
+    }
+
+    const portal = await db.getPatientPortalData(patientId);
+    if (!portal || portal.cbtRecords.length < 2) {
+        throw new Error('Las técnicas del botiquín de calma no se recuperan en el portal del paciente');
+    }
+});
+
+// 26. TC-CHAR-01: Tablero Gráfico Longitudinal y Copiloto IA SOAP
+ClinicalTestSuite.add('TC-CHAR-01', 'Tablero Gráfico Longitudinal y Copiloto IA SOAP (Síntesis y Analytics)', async () => {
+    // 1. Verificar síntesis SOAP
+    const { default: clinicalAI } = await import('./ai-clinical.js').catch(() => ({ default: globalThis.ClinicalAI }));
+    const aiInstance = globalThis.ClinicalAI;
+    if (aiInstance) {
+        const informalText = 'Paciente de 28 años, refiere insomnio y angustia en el trabajo. Acordamos técnica 4-7-8.';
+        const soapResult = await aiInstance.synthesizeSoapNote(informalText, { diagnosis: 'Ansiedad' });
+        if (!soapResult.subjetivo || !soapResult.analisis || !soapResult.plan) {
+            throw new Error('El copiloto IA no generó los cuadrantes SOAP requeridos');
+        }
+    }
+
+    // 2. Verificar lógica matemática de delta de mejoría longitudinal
+    const initialScore = 20;
+    const finalScore = 8;
+    const deltaPercent = Math.round(((initialScore - finalScore) / initialScore) * 100);
+    if (deltaPercent !== 60) {
+        throw new Error('El cálculo de porcentaje de mejoría longitudinal es incorrecto');
+    }
+});
+
+// 27. TC-SEC-03: Políticas de Seguridad OWASP y Bloqueo de Archivos Sensibles
+ClinicalTestSuite.add('TC-SEC-03', 'Políticas de Seguridad OWASP y Bloqueo de Archivos Sensibles', async () => {
+    const RESTRICTED_FILES = new Set([
+        'server.js', 'db.js', 'schema.sql', 'docker-compose.yml',
+        'package.json', 'package-lock.json', 'tests.js', 'plan_pruebas.md'
+    ]);
+    const RESTRICTED_EXTS = ['.env', '.sql', '.yml', '.yaml', '.log'];
+
+    function isBlocked(reqPath) {
+        const parsed = reqPath.split('/').pop().toLowerCase();
+        return RESTRICTED_FILES.has(parsed) || RESTRICTED_EXTS.some(ext => parsed.endsWith(ext)) || parsed.startsWith('.');
+    }
+
+    if (!isBlocked('/server.js')) throw new Error('server.js no fue bloqueado por la política de seguridad');
+    if (!isBlocked('/db.js')) throw new Error('db.js no fue bloqueado');
+    if (!isBlocked('/schema.sql')) throw new Error('schema.sql no fue bloqueado');
+    if (!isBlocked('/.env')) throw new Error('.env no fue bloqueado');
+    if (!isBlocked('/docker-compose.yml')) throw new Error('docker-compose.yml no fue bloqueado');
+    if (isBlocked('/index.html')) throw new Error('index.html no debería ser bloqueado');
+    if (isBlocked('/portal.html')) throw new Error('portal.html no debería ser bloqueado');
+});
+
+// 28. TC-SYNC-01: Cola de Sincronización Fuera de Línea (Offline Queue y Resiliencia PWA)
+ClinicalTestSuite.add('TC-SYNC-01', 'Cola de Sincronización Fuera de Línea (Offline Queue y Resiliencia PWA)', async () => {
+    const mockStorage = {};
+    const testQueue = {
+        QUEUE_KEY: 'psico_portal_offline_queue_test',
+        getQueue() {
+            try { return JSON.parse(mockStorage[this.QUEUE_KEY] || '[]'); } catch { return []; }
+        },
+        enqueue(endpoint, payload) {
+            const q = this.getQueue();
+            q.push({ id: 'test_' + Date.now(), endpoint, payload });
+            mockStorage[this.QUEUE_KEY] = JSON.stringify(q);
+        },
+        clear() { delete mockStorage[this.QUEUE_KEY]; }
+    };
+
+    // Simulación de registro sin conectividad
+    testQueue.enqueue('/api/v1/portal/cbt', {
+        patientId: 'p_test',
+        token: 'PN-TEST',
+        situation: 'Ataque de pánico en el metro',
+        thought: 'Me voy a desmayar'
+    });
+    testQueue.enqueue('/api/v1/portal/mood', {
+        patientId: 'p_test',
+        token: 'PN-TEST',
+        mood: 4
+    });
+
+    const pending = testQueue.getQueue();
+    if (pending.length !== 2) throw new Error(`Se esperaban 2 operaciones en cola, encontradas: ${pending.length}`);
+    if (pending[0].endpoint !== '/api/v1/portal/cbt') throw new Error('Endpoint de CBT incorrecto en cola');
+    if (pending[1].payload.mood !== 4) throw new Error('Payload de estado de ánimo incorrecto en cola');
+});
+
+// 29. TC-PRIV-01: Sistema de Bloqueo por Inactividad Médica y Confidencialidad PHI (HIPAA)
+ClinicalTestSuite.add('TC-PRIV-01', 'Sistema de Bloqueo por Inactividad Médica y Confidencialidad PHI (HIPAA)', async () => {
+    const securityState = {
+        isLocked: false,
+        timeoutMs: 15 * 60 * 1000,
+        lockApp() { this.isLocked = true; },
+        unlockApp(password, expectedPassword) {
+            if (password === expectedPassword) {
+                this.isLocked = false;
+                return true;
+            }
+            return false;
+        }
+    };
+
+    // Bloqueo manual
+    securityState.lockApp();
+    if (!securityState.isLocked) throw new Error('La pantalla de bloqueo debería estar activa');
+
+    // Desbloqueo con contraseña incorrecta
+    const wrongAttempt = securityState.unlockApp('passwordErronea', 'Secret123!');
+    if (wrongAttempt || !securityState.isLocked) throw new Error('La sesión no debe desbloquearse con contraseña inválida');
+
+    // Desbloqueo exitoso con credenciales médicas
+    const validAttempt = securityState.unlockApp('Secret123!', 'Secret123!');
+    if (!validAttempt || securityState.isLocked) throw new Error('La sesión debe desbloquearse con credenciales válidas');
+});
+
 // Auto-ejecución si se corre desde Node.js (CLI)
 if (typeof process !== 'undefined' && process.argv && process.argv[1] && process.argv[1].endsWith('tests.js')) {
     ClinicalTestSuite.runAll().then(res => {

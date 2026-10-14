@@ -14,6 +14,113 @@ const PortalState = {
     currentFilter: 'pending'
 };
 
+// ============================================
+// COLA DE SINCRONIZACIÓN FUERA DE LÍNEA (OFFLINE QUEUE)
+// ============================================
+const PortalOfflineQueue = {
+    QUEUE_KEY: 'psico_portal_offline_queue',
+
+    enqueue(endpoint, payload) {
+        try {
+            const queue = this.getQueue();
+            queue.push({
+                id: 'sync_' + Date.now() + '_' + Math.random().toString(36).substr(2, 6),
+                endpoint,
+                payload,
+                createdAt: new Date().toISOString()
+            });
+            localStorage.setItem(this.QUEUE_KEY, JSON.stringify(queue));
+            this.updateBadge();
+        } catch (e) {
+            console.warn('Error encolando operación offline:', e);
+        }
+    },
+
+    getQueue() {
+        try {
+            return JSON.parse(localStorage.getItem(this.QUEUE_KEY) || '[]');
+        } catch {
+            return [];
+        }
+    },
+
+    async flush() {
+        const queue = this.getQueue();
+        if (queue.length === 0) return;
+
+        const remaining = [];
+        let successCount = 0;
+
+        for (const item of queue) {
+            try {
+                const res = await fetch(item.endpoint, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(item.payload)
+                });
+                if (res.ok) {
+                    successCount++;
+                } else if (res.status >= 500 || res.status === 408) {
+                    remaining.push(item);
+                }
+            } catch (err) {
+                remaining.push(item);
+            }
+        }
+
+        localStorage.setItem(this.QUEUE_KEY, JSON.stringify(remaining));
+        this.updateBadge();
+
+        if (successCount > 0 && typeof showToast === 'function') {
+            showToast(`🔄 Sincronizados ${successCount} registros pendientes con tu terapeuta`, 'success');
+        }
+    },
+
+    updateBadge() {
+        const queue = this.getQueue();
+        const badge = document.getElementById('offlineSyncBadge');
+        const countEl = document.getElementById('offlineSyncCount');
+        if (badge && countEl) {
+            if (queue.length > 0) {
+                badge.style.display = 'inline-flex';
+                countEl.textContent = queue.length;
+            } else {
+                badge.style.display = 'none';
+            }
+        }
+    }
+};
+
+window.PortalOfflineQueue = PortalOfflineQueue;
+
+async function sendPortalPost(endpoint, payload) {
+    if (typeof navigator !== 'undefined' && !navigator.onLine) {
+        PortalOfflineQueue.enqueue(endpoint, payload);
+        return false;
+    }
+    try {
+        const res = await fetch(endpoint, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload)
+        });
+        if (!res.ok) {
+            PortalOfflineQueue.enqueue(endpoint, payload);
+            return false;
+        }
+        return true;
+    } catch (err) {
+        PortalOfflineQueue.enqueue(endpoint, payload);
+        return false;
+    }
+}
+
+window.addEventListener('online', () => {
+    if (typeof showToast === 'function') showToast('Conexión reanudada. Sincronizando registros...', 'info');
+    PortalOfflineQueue.flush();
+});
+
+
 const REFLECTIONS = [
     "Cada pequeño paso cuenta. No necesitas ser perfecto, solo constante. 🌱",
     "Tus emociones son válidas. Permitirte sentirlas es el primer paso. 💚",
@@ -270,6 +377,8 @@ async function enterPortal() {
     renderTasks();
     updateTestsLastResults();
     updateProgress();
+    PortalOfflineQueue.updateBadge();
+    PortalOfflineQueue.flush();
     showToast(`Bienvenido/a, ${(PortalState.patientName || 'Paciente').split(' ')[0]}`, 'success');
 }
 
@@ -439,19 +548,15 @@ function selectMood(value) {
     PortalState.moodLog.push(moodLog);
     savePatientData();
 
-    // Sincronizar en tiempo real con backend PostgreSQL
+    // Sincronizar en tiempo real con backend PostgreSQL (con soporte de cola offline)
     if (PortalState.patientId && PortalState.portalToken) {
-        fetch('/api/v1/portal/mood', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-                patientId: PortalState.patientId,
-                token: PortalState.portalToken,
-                mood: value,
-                sleep: 3,
-                energy: 3
-            })
-        }).catch(e => console.warn('Sync mood offline:', e));
+        sendPortalPost('/api/v1/portal/mood', {
+            patientId: PortalState.patientId,
+            token: PortalState.portalToken,
+            mood: value,
+            sleep: 3,
+            energy: 3
+        });
     }
 
     document.getElementById('moodConfirmation').style.display = 'flex';
@@ -529,16 +634,12 @@ function toggleTask(taskId) {
         showToast('¡Tarea completada! 🎉', 'success');
     }
 
-    // Sincronizar en tiempo real con backend PostgreSQL
+    // Sincronizar en tiempo real con backend PostgreSQL (con soporte de cola offline)
     if (PortalState.patientId && PortalState.portalToken) {
-        fetch(`/api/v1/portal/tasks/${taskId}/toggle`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-                patientId: PortalState.patientId,
-                token: PortalState.portalToken
-            })
-        }).catch(e => console.warn('Sync task toggle offline:', e));
+        sendPortalPost(`/api/v1/portal/tasks/${taskId}/toggle`, {
+            patientId: PortalState.patientId,
+            token: PortalState.portalToken
+        });
     }
 }
 
@@ -738,23 +839,19 @@ function submitCbtRecord() {
     PortalState.cbtRecords.push(cbtEntry);
     savePatientData();
 
-    // Sincronizar en tiempo real con backend PostgreSQL
+    // Sincronizar en tiempo real con backend PostgreSQL (con soporte de cola offline)
     if (PortalState.patientId && PortalState.portalToken) {
-        fetch('/api/v1/portal/cbt', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-                patientId: PortalState.patientId,
-                token: PortalState.portalToken,
-                situation,
-                thought,
-                distortion,
-                emotion,
-                initialIntensity: parseInt(initIntensity, 10) || 50,
-                rationalThought: rational,
-                finalIntensity: parseInt(finalIntensity, 10) || 30
-            })
-        }).catch(e => console.warn('Sync CBT offline:', e));
+        sendPortalPost('/api/v1/portal/cbt', {
+            patientId: PortalState.patientId,
+            token: PortalState.portalToken,
+            situation,
+            thought,
+            distortion,
+            emotion,
+            initialIntensity: parseInt(initIntensity, 10) || 50,
+            rationalThought: rational,
+            finalIntensity: parseInt(finalIntensity, 10) || 30
+        });
     }
 
     closeTestModal();
@@ -805,38 +902,30 @@ function submitTest(testType, questionCount) {
     if (alertRisk) {
         PortalState.activeCrisisAlert = true;
         // Notificar al servidor PostgreSQL
-        fetch('/api/v1/portal/crisis', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-                patientId: PortalState.patientId,
-                patientName: PortalState.patientName,
-                token: PortalState.portalToken,
-                severity: 'CRITICO',
-                reason: riskReason
-            })
-        }).catch(() => {});
+        sendPortalPost('/api/v1/portal/crisis', {
+            patientId: PortalState.patientId,
+            patientName: PortalState.patientName,
+            token: PortalState.portalToken,
+            severity: 'CRITICO',
+            reason: riskReason
+        });
     }
 
     PortalState.evaluations.push(evaluation);
     savePatientData();
 
-    // Sincronizar evaluación con el backend PostgreSQL
+    // Sincronizar evaluación con el backend PostgreSQL (con soporte de cola offline)
     if (PortalState.patientId && PortalState.portalToken) {
-        fetch('/api/v1/portal/evaluations', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-                patientId: PortalState.patientId,
-                token: PortalState.portalToken,
-                scaleType: testType,
-                score: total,
-                maxScore: questionCount * 3,
-                alertRisk,
-                riskReason,
-                answers: []
-            })
-        }).catch(e => console.warn('Sync evaluation offline:', e));
+        sendPortalPost('/api/v1/portal/evaluations', {
+            patientId: PortalState.patientId,
+            token: PortalState.portalToken,
+            scaleType: testType,
+            score: total,
+            maxScore: questionCount * 3,
+            alertRisk,
+            riskReason,
+            answers: []
+        });
     }
 
     if (alertRisk) {
@@ -1039,3 +1128,364 @@ setInterval(() => {
         loadTasksFromNotes();
     }
 }, 30000);
+
+// ============================================
+// AUDIO SINTETIZADO DE CALMA (WEB AUDIO API)
+// ============================================
+let audioCtx = null;
+let soundEnabled = true;
+
+function toggleBreathingSound() {
+    soundEnabled = !soundEnabled;
+    const btn = document.getElementById('breathingSoundBtn');
+    if (btn) {
+        btn.innerHTML = soundEnabled 
+            ? '<i class="fas fa-volume-high"></i> Sonido suave' 
+            : '<i class="fas fa-volume-xmark"></i> Silencio';
+    }
+}
+
+function playCalmTone(freq = 432, duration = 0.8) {
+    if (!soundEnabled) return;
+    try {
+        if (!audioCtx) {
+            audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        }
+        if (audioCtx.state === 'suspended') {
+            audioCtx.resume();
+        }
+        const osc = audioCtx.createOscillator();
+        const gain = audioCtx.createGain();
+        osc.type = 'sine';
+        osc.frequency.setValueAtTime(freq, audioCtx.currentTime);
+        gain.gain.setValueAtTime(0.001, audioCtx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.12, audioCtx.currentTime + 0.1);
+        gain.gain.exponentialRampToValueAtTime(0.0001, audioCtx.currentTime + duration);
+        osc.connect(gain);
+        gain.connect(audioCtx.destination);
+        osc.start();
+        osc.stop(audioCtx.currentTime + duration);
+    } catch (e) {}
+}
+
+// ============================================
+// RESPIRACIÓN GUIADA 4-7-8
+// ============================================
+const BreathingController = {
+    isRunning: false,
+    interval: null,
+    currentCycle: 1,
+    maxCycles: 4,
+    phase: 'idle', // 'inhale', 'hold', 'exhale'
+    secondsRemaining: 4
+};
+
+function openBreathingExercise() {
+    resetBreathingSession();
+    const modal = document.getElementById('breathingModal');
+    if (modal) modal.style.display = 'flex';
+}
+
+function closeBreathingExercise() {
+    stopBreathingSession();
+    const modal = document.getElementById('breathingModal');
+    if (modal) modal.style.display = 'none';
+}
+
+function resetBreathingSession() {
+    stopBreathingSession();
+    BreathingController.currentCycle = 1;
+    BreathingController.phase = 'idle';
+    BreathingController.secondsRemaining = 4;
+    updateBreathingUI('Listo para comenzar', '4', 'Presiona Iniciar para activar la respiración 4-7-8');
+    const orb = document.getElementById('breathingOrb');
+    if (orb) orb.className = 'breathing-circle-inner';
+    const counter = document.getElementById('breathingCycleCounter');
+    if (counter) counter.textContent = `1 / ${BreathingController.maxCycles}`;
+    const btn = document.getElementById('btnBreathingToggle');
+    if (btn) btn.innerHTML = '<i class="fas fa-play"></i> Iniciar Ejercicio';
+}
+
+function toggleBreathingSession() {
+    if (BreathingController.isRunning) {
+        stopBreathingSession();
+        const btn = document.getElementById('btnBreathingToggle');
+        if (btn) btn.innerHTML = '<i class="fas fa-play"></i> Continuar Ejercicio';
+    } else {
+        startBreathingSession();
+        const btn = document.getElementById('btnBreathingToggle');
+        if (btn) btn.innerHTML = '<i class="fas fa-pause"></i> Pausar';
+    }
+}
+
+function startBreathingSession() {
+    BreathingController.isRunning = true;
+    runInhalePhase();
+}
+
+function stopBreathingSession() {
+    BreathingController.isRunning = false;
+    if (BreathingController.interval) {
+        clearInterval(BreathingController.interval);
+        BreathingController.interval = null;
+    }
+}
+
+function updateBreathingUI(instruction, countdown, guide) {
+    const instEl = document.getElementById('breathingInstruction');
+    const countEl = document.getElementById('breathingCountdown');
+    const guideEl = document.getElementById('breathingPhaseGuide');
+    if (instEl) instEl.textContent = instruction;
+    if (countEl) countEl.textContent = countdown;
+    if (guideEl) guideEl.textContent = guide;
+}
+
+function runInhalePhase() {
+    if (!BreathingController.isRunning) return;
+    BreathingController.phase = 'inhale';
+    BreathingController.secondsRemaining = 4;
+    const orb = document.getElementById('breathingOrb');
+    if (orb) orb.className = 'breathing-circle-inner inhale';
+    updateBreathingUI('Inhala', BreathingController.secondsRemaining, 'Inhala lentamente y con calma por la nariz (4s)');
+    playCalmTone(392, 0.8);
+    if (navigator.vibrate) navigator.vibrate(80);
+
+    BreathingController.interval = setInterval(() => {
+        BreathingController.secondsRemaining--;
+        if (BreathingController.secondsRemaining > 0) {
+            const countEl = document.getElementById('breathingCountdown');
+            if (countEl) countEl.textContent = BreathingController.secondsRemaining;
+        } else {
+            clearInterval(BreathingController.interval);
+            runHoldPhase();
+        }
+    }, 1000);
+}
+
+function runHoldPhase() {
+    if (!BreathingController.isRunning) return;
+    BreathingController.phase = 'hold';
+    BreathingController.secondsRemaining = 7;
+    const orb = document.getElementById('breathingOrb');
+    if (orb) orb.className = 'breathing-circle-inner hold';
+    updateBreathingUI('Sostén', BreathingController.secondsRemaining, 'Mantén el aire suspendido en tus pulmones con suavidad (7s)');
+    playCalmTone(432, 0.6);
+
+    BreathingController.interval = setInterval(() => {
+        BreathingController.secondsRemaining--;
+        if (BreathingController.secondsRemaining > 0) {
+            const countEl = document.getElementById('breathingCountdown');
+            if (countEl) countEl.textContent = BreathingController.secondsRemaining;
+        } else {
+            clearInterval(BreathingController.interval);
+            runExhalePhase();
+        }
+    }, 1000);
+}
+
+function runExhalePhase() {
+    if (!BreathingController.isRunning) return;
+    BreathingController.phase = 'exhale';
+    BreathingController.secondsRemaining = 8;
+    const orb = document.getElementById('breathingOrb');
+    if (orb) orb.className = 'breathing-circle-inner exhale';
+    updateBreathingUI('Exhala', BreathingController.secondsRemaining, 'Suelta todo el aire lentamente por la boca en un suave suspiro (8s)');
+    playCalmTone(330, 1.0);
+    if (navigator.vibrate) navigator.vibrate(100);
+
+    BreathingController.interval = setInterval(() => {
+        BreathingController.secondsRemaining--;
+        if (BreathingController.secondsRemaining > 0) {
+            const countEl = document.getElementById('breathingCountdown');
+            if (countEl) countEl.textContent = BreathingController.secondsRemaining;
+        } else {
+            clearInterval(BreathingController.interval);
+            // Siguiente ciclo o finalización
+            if (BreathingController.currentCycle < BreathingController.maxCycles) {
+                BreathingController.currentCycle++;
+                const counter = document.getElementById('breathingCycleCounter');
+                if (counter) counter.textContent = `${BreathingController.currentCycle} / ${BreathingController.maxCycles}`;
+                runInhalePhase();
+            } else {
+                finishBreathingSession();
+            }
+        }
+    }, 1000);
+}
+
+function finishBreathingSession() {
+    stopBreathingSession();
+    playCalmTone(528, 1.5);
+    updateBreathingUI('¡Completado!', '✨', 'Excelente. Tu ritmo cardíaco se ha desacelerado y tu cuerpo está en calma.');
+    const orb = document.getElementById('breathingOrb');
+    if (orb) orb.className = 'breathing-circle-inner';
+    const btn = document.getElementById('btnBreathingToggle');
+    if (btn) btn.innerHTML = '<i class="fas fa-rotate-right"></i> Repetir Ejercicio';
+
+    showToast('¡Sesión de respiración 4-7-8 completada con éxito! 🌱', 'success');
+    syncCalmIntervention('Respiración Guiada 4-7-8', 'Completó 4 ciclos de respiración profunda parasimpática');
+}
+
+// ============================================
+// ANCLAJE SENSORIAL GROUNDING 5-4-3-2-1
+// ============================================
+let currentGroundingStep = 0;
+const GroundingSteps = [
+    { num: 5, icon: '👁️', title: '5 cosas que puedes VER', desc: 'Mira a tu alrededor detenidamente y nombra 5 objetos que llamen tu atención.', placeholder: 'Ej: la lámpara, el marco de la puerta, la textura de la mesa...' },
+    { num: 4, icon: '✋', title: '4 cosas que puedes TOCAR o SENTIR', desc: 'Nota 4 sensaciones táctiles físicas en tu cuerpo en este preciso instante.', placeholder: 'Ej: la suavidad de mi ropa, el respaldo de la silla, el frío del suelo...' },
+    { num: 3, icon: '👂', title: '3 sonidos que puedes ESCUCHAR', desc: 'Guarda silencio unos segundos y detecta 3 sonidos presentes en tu entorno.', placeholder: 'Ej: el zumbido del ventilador, un pájaro afuera, mi propia respiración...' },
+    { num: 2, icon: '👃', title: '2 olores que puedes PERCIBIR', desc: 'Inhala suavemente y busca 2 olores en el aire o en tu piel.', placeholder: 'Ej: olor a café, jabón en mis manos, aire fresco...' },
+    { num: 1, icon: '👅', title: '1 sabor que tienes en tu boca', desc: 'Enfoca tu atención en el sabor actual en tu paladar o toma un sorbo de agua.', placeholder: 'Ej: sabor a pasta dental, sorbo de agua fresca, neutral...' }
+];
+
+function openGroundingExercise() {
+    currentGroundingStep = 0;
+    renderGroundingStep();
+    const modal = document.getElementById('groundingModal');
+    if (modal) modal.style.display = 'flex';
+}
+
+function closeGroundingExercise() {
+    const modal = document.getElementById('groundingModal');
+    if (modal) modal.style.display = 'none';
+}
+
+function renderGroundingStep() {
+    const container = document.getElementById('groundingModalBody');
+    if (!container) return;
+
+    if (currentGroundingStep >= GroundingSteps.length) {
+        container.innerHTML = `
+            <div class="grounding-step-card">
+                <div class="grounding-step-icon">🧘✨</div>
+                <div class="grounding-step-title">¡Anclaje Completado!</div>
+                <p class="grounding-step-desc">
+                    Has traído tu mente al presente. El momento de crisis ha pasado y estás a salvo aquí y ahora.
+                </p>
+                <button class="btn-primary full-width" onclick="finishGroundingExercise()">
+                    <i class="fas fa-check"></i> Finalizar y Guardar en mi Registro
+                </button>
+            </div>
+        `;
+        return;
+    }
+
+    const step = GroundingSteps[currentGroundingStep];
+    container.innerHTML = `
+        <div class="grounding-step-card">
+            <span class="grounding-step-num">Paso ${currentGroundingStep + 1} de 5</span>
+            <div class="grounding-step-icon">${step.icon}</div>
+            <div class="grounding-step-title">${step.title}</div>
+            <p class="grounding-step-desc">${step.desc}</p>
+            <div class="grounding-input-list">
+                <input type="text" class="grounding-input" id="groundingInput" placeholder="${step.placeholder}" autofocus>
+            </div>
+            <div style="display: flex; gap: 10px;">
+                ${currentGroundingStep > 0 ? `<button class="btn-secondary" onclick="currentGroundingStep--; renderGroundingStep();">Atrás</button>` : ''}
+                <button class="btn-primary full-width" onclick="nextGroundingStep()">
+                    Siguiente <i class="fas fa-arrow-right"></i>
+                </button>
+            </div>
+        </div>
+    `;
+    setTimeout(() => {
+        const inp = document.getElementById('groundingInput');
+        if (inp) inp.focus();
+    }, 100);
+}
+
+function nextGroundingStep() {
+    playCalmTone(440 + currentGroundingStep * 40, 0.4);
+    if (navigator.vibrate) navigator.vibrate(50);
+    currentGroundingStep++;
+    renderGroundingStep();
+}
+
+function finishGroundingExercise() {
+    closeGroundingExercise();
+    showToast('¡Anclaje 5-4-3-2-1 completado! Estás en calma y presente 🌱', 'success');
+    syncCalmIntervention('Anclaje Sensorial 5-4-3-2-1', 'Ejercicio sensorial completado para desacelerar la mente');
+}
+
+// ============================================
+// REGISTRO DE INTERVENCIONES DE CALMA EN BACKEND
+// ============================================
+function syncCalmIntervention(technique, detail) {
+    if (!PortalState.patientId) return;
+
+    // Guardar en cbt_records para que el terapeuta lo vea
+    const entry = {
+        id: generateId(),
+        situation: `Técnica de Autorregulación: ${technique}`,
+        thought: 'Activación autónoma de herramientas de calma en el portal',
+        distortion: 'Manejo adaptativo del estrés',
+        emotion: 'Calma / Alivio',
+        initialIntensity: 75,
+        rationalThought: detail,
+        finalIntensity: 25,
+        date: new Date().toISOString(),
+        timestamp: Date.now()
+    };
+    PortalState.cbtRecords.push(entry);
+    savePatientData();
+
+    // Sincronizar con PostgreSQL (con soporte de cola offline)
+    if (PortalState.portalToken) {
+        sendPortalPost('/api/v1/portal/cbt', {
+            patientId: PortalState.patientId,
+            token: PortalState.portalToken,
+            situation: entry.situation,
+            thought: entry.thought,
+            distortion: entry.distortion,
+            emotion: entry.emotion,
+            initialIntensity: entry.initialIntensity,
+            rationalThought: entry.rationalThought,
+            finalIntensity: entry.finalIntensity
+        });
+    }
+}
+
+// ============================================
+// PWA INSTALL BANNER CONTROLLER
+// ============================================
+let deferredPrompt = null;
+
+window.addEventListener('beforeinstallprompt', (e) => {
+    e.preventDefault();
+    deferredPrompt = e;
+    const banner = document.getElementById('pwaInstallBanner');
+    if (banner && !sessionStorage.getItem('pwa_dismissed')) {
+        banner.style.display = 'flex';
+    }
+});
+
+function promptPwaInstall() {
+    if (deferredPrompt) {
+        deferredPrompt.prompt();
+        deferredPrompt.userChoice.then((choiceResult) => {
+            if (choiceResult.outcome === 'accepted') {
+                showToast('¡App instalada en tu pantalla de inicio!', 'success');
+            }
+            deferredPrompt = null;
+            dismissPwaBanner();
+        });
+    } else {
+        // Instrucción para iOS Safari
+        alert('Para instalar en iPhone: presiona el botón Compartir (cuadrado con flecha) y selecciona "Agregar a la pantalla de inicio" 📲');
+    }
+}
+
+function dismissPwaBanner() {
+    const banner = document.getElementById('pwaInstallBanner');
+    if (banner) banner.style.display = 'none';
+    sessionStorage.setItem('pwa_dismissed', 'true');
+}
+
+// Registrar Service Worker para PWA offline
+if ('serviceWorker' in navigator) {
+    window.addEventListener('load', () => {
+        navigator.serviceWorker.register('./sw.js')
+            .then(() => console.log('✅ ServiceWorker de Mi Espacio activo'))
+            .catch((err) => console.warn('SW register error:', err));
+    });
+}

@@ -29,8 +29,39 @@ app.use((req, res, next) => {
     next();
 });
 
+// Cabeceras de Seguridad OWASP / Hardening Clínico
+app.use((req, res, next) => {
+    res.setHeader('X-Content-Type-Options', 'nosniff');
+    res.setHeader('X-Frame-Options', 'SAMEORIGIN');
+    res.setHeader('X-XSS-Protection', '1; mode=block');
+    res.setHeader('Referrer-Policy', 'strict-origin-when-cross-origin');
+    next();
+});
+
+// Cortafuegos de Archivos Sensibles (Prevención de Exposición de Código Fuente y Credenciales)
+const RESTRICTED_FILES = new Set([
+    'server.js', 'db.js', 'schema.sql', 'docker-compose.yml',
+    'package.json', 'package-lock.json', 'tests.js', 'plan_pruebas.md'
+]);
+const RESTRICTED_EXTS = ['.env', '.sql', '.yml', '.yaml', '.log'];
+
+app.use((req, res, next) => {
+    const parsedPath = path.basename(req.path.toLowerCase());
+    if (
+        RESTRICTED_FILES.has(parsedPath) ||
+        RESTRICTED_EXTS.some(ext => parsedPath.endsWith(ext)) ||
+        parsedPath.startsWith('.')
+    ) {
+        return res.status(403).json({ error: 'Acceso no autorizado: Archivo protegido por políticas de seguridad clínica.' });
+    }
+    next();
+});
+
 app.use(express.json({ limit: '10mb' }));
-app.use(express.static(__dirname));
+app.use(express.static(__dirname, {
+    maxAge: '1h',
+    dotfiles: 'ignore'
+}));
 
 // Inicializar capa de base de datos
 await db.initialize();
