@@ -1199,6 +1199,131 @@ ClinicalTestSuite.add('TC-STAT-01', 'Analítica Clínica Agregada (Distribución
     if (avgRemission !== 60) throw new Error(`Remisión promedio esperada 60%, obtenida ${avgRemission}%`);
 });
 
+// 33. TC-CLOUD-01: Registro y Autenticación Centralizada de Terapeuta en Base de Datos
+ClinicalTestSuite.add('TC-CLOUD-01', 'Registro y Autenticación Centralizada de Terapeuta en Base de Datos', async () => {
+    const { db } = await import('./db.js');
+    await db.initialize();
+
+    const testEmail = `terapeuta_cloud_${Date.now()}@clinica.com`;
+    const testHash = '5e884898da28047151d0e56f8dc6292773603d0d6aabbdd62a11ef721d1542d8'; // password: 'password'
+
+    const registered = await db.registerTherapist({
+        name: 'Dra. Valentina Cloud',
+        email: testEmail,
+        passwordHash: testHash,
+        specialty: 'Neuropsicología Clínica',
+        registryNumber: 'CL-998811',
+        phone: '+56 9 8888 7777',
+        institution: 'Centro de Neurociencias'
+    });
+
+    if (!registered || !registered.id) throw new Error('Fallo al registrar terapeuta en base de datos');
+    if (registered.password_hash) throw new Error('El objeto devuelto no debe exponer el hash de la contraseña');
+
+    const logged = await db.loginTherapist(testEmail, testHash);
+    if (!logged) throw new Error('Login fallido con credenciales correctas');
+    if (logged.name !== 'Dra. Valentina Cloud') throw new Error('Nombre del terapeuta no coincide');
+
+    const wrongLogin = await db.loginTherapist(testEmail, 'wrong_hash');
+    if (wrongLogin !== null) throw new Error('Login debería fallar con hash incorrecto');
+});
+
+// 34. TC-CLOUD-02: Respaldo y Snapshot Integral en la Nube (Multi-Dispositivo)
+ClinicalTestSuite.add('TC-CLOUD-02', 'Respaldo y Snapshot Integral en la Nube (Multi-Dispositivo)', async () => {
+    const { db } = await import('./db.js');
+    await db.initialize();
+
+    const testTherapistId = `ther_sync_${Date.now()}`;
+    const payload = {
+        patients: [
+            { id: 'pat_cloud_1', name: 'Paciente Guardado en PC', diagnosis: 'Ansiedad Social', portalToken: 'CLD01' },
+            { id: 'pat_cloud_2', name: 'Paciente Guardado en Móvil', diagnosis: 'Insomnio', portalToken: 'CLD02' }
+        ],
+        appointments: [
+            { id: 'app_cloud_1', patient_id: 'pat_cloud_1', appointment_date: '2026-10-20', appointment_time: '10:00' }
+        ],
+        notes: [
+            { id: 'note_cloud_1', patient_id: 'pat_cloud_1', title: 'Sesión Inicial SOAP', subjective: 'Refiere ansiedad' }
+        ],
+        treatmentPlans: [
+            { id: 'plan_cloud_1', patient_id: 'pat_cloud_1', diagnosis: 'Ansiedad Social' }
+        ],
+        settings: {
+            signature: 'data:image/png;base64,mock',
+            darkMode: true
+        }
+    };
+
+    const saveResult = await db.saveTherapistCloudSync(testTherapistId, payload, Date.now());
+    if (!saveResult || saveResult.therapistId !== testTherapistId) {
+        throw new Error('Fallo al persistir snapshot de sincronización en la nube');
+    }
+
+    const fetched = await db.getTherapistCloudSync(testTherapistId);
+    if (!fetched || !fetched.payload) {
+        throw new Error('No se recuperó el snapshot sincronizado del terapeuta');
+    }
+    if (fetched.payload.patients.length !== 2) {
+        throw new Error(`Se esperaban 2 pacientes en snapshot, obtenidos ${fetched.payload.patients.length}`);
+    }
+    if (fetched.payload.notes[0].title !== 'Sesión Inicial SOAP') {
+        throw new Error('Contenido de nota clínica en snapshot no coincide');
+    }
+});
+
+// 35. TC-CLOUD-03: Fusión Inteligente de Colecciones sin Pérdida de Datos (PC + Móvil Merge)
+ClinicalTestSuite.add('TC-CLOUD-03', 'Fusión Inteligente de Colecciones sin Pérdida de Datos (PC + Móvil Merge)', async () => {
+    // Simula lo que tiene la PC (guardado ayer)
+    const pcPatients = [
+        { id: 'p1', name: 'Carlos Gomez', diagnosis: 'Fobia Específica', updatedAt: '2026-10-13T10:00:00Z' },
+        { id: 'p2', name: 'Lucia Mendez', diagnosis: 'TAG', updatedAt: '2026-10-13T11:00:00Z' }
+    ];
+
+    // Simula lo que tiene la nube o el móvil (creado hoy)
+    const cloudPatients = [
+        { id: 'p2', name: 'Lucia Mendez', diagnosis: 'TAG Leve', updatedAt: '2026-10-14T08:00:00Z' },
+        { id: 'p3', name: 'Mario Rossi', diagnosis: 'Estrés Laboral', updatedAt: '2026-10-14T09:00:00Z' }
+    ];
+
+    // Función de merge
+    const mergeCollections = (localList, cloudList) => {
+        const map = new Map();
+        for (const item of (cloudList || [])) {
+            if (item && item.id) map.set(item.id, item);
+        }
+        for (const item of (localList || [])) {
+            if (!item || !item.id) continue;
+            if (!map.has(item.id)) {
+                map.set(item.id, item);
+            } else {
+                const cloudItem = map.get(item.id);
+                const localTs = new Date(item.updatedAt || item.createdAt || 0).getTime();
+                const cloudTs = new Date(cloudItem.updatedAt || cloudItem.createdAt || 0).getTime();
+                if (localTs >= cloudTs) {
+                    map.set(item.id, { ...cloudItem, ...item });
+                }
+            }
+        }
+        return Array.from(map.values());
+    };
+
+    const merged = mergeCollections(pcPatients, cloudPatients);
+    if (merged.length !== 3) {
+        throw new Error(`Se esperaban 3 pacientes consolidados (sin duplicados y sin pérdidas), se obtuvieron ${merged.length}`);
+    }
+
+    const p2Merged = merged.find(p => p.id === 'p2');
+    if (p2Merged.diagnosis !== 'TAG Leve') {
+        throw new Error('La versión más reciente de Lucia Mendez (TAG Leve) debió prevalecer');
+    }
+
+    const p1Exists = merged.some(p => p.id === 'p1');
+    const p3Exists = merged.some(p => p.id === 'p3');
+    if (!p1Exists || !p3Exists) {
+        throw new Error('Los pacientes de la PC y del móvil deben co-existir en el merge');
+    }
+});
+
 // Auto-ejecución si se corre desde Node.js (CLI)
 if (typeof process !== 'undefined' && process.argv && process.argv[1] && process.argv[1].endsWith('tests.js')) {
     ClinicalTestSuite.runAll().then(res => {

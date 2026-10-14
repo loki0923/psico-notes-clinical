@@ -12,7 +12,7 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Playfair+Display:wght@500;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <link rel="stylesheet" href="styles.css">
+    <link rel="stylesheet" href="styles.css?v=6.5">
 </head>
 <body>
 
@@ -201,6 +201,10 @@
             <i class="fas fa-home"></i> <span>Mi Consulta</span>
         </div>
         <div class="top-bar-actions">
+            <!-- BOTÓN DE ESTADO DE SINCRONIZACIÓN EN LA NUBE (MULTI-DISPOSITIVO) -->
+            <button class="btn-sync-cloud synced" id="cloudSyncStatusBtn" onclick="if(window.CloudSyncManager) window.CloudSyncManager.manualSyncClick()" title="Sincronización en la nube activa. Accesible en PC y móvil. Clic para forzar actualización.">
+                <i class="fas fa-cloud-check"></i> <span class="sync-text">Nube al día</span>
+            </button>
             <button class="btn-icon" onclick="openTelehealthModal()" title="Iniciar Teleconsulta Cifrada (Videollamada)">
                 <i class="fas fa-video"></i>
             </button>
@@ -1460,21 +1464,21 @@
 
 <!-- OVERLAY DE BLOQUEO DE PANTALLA POR PRIVACIDAD (HIPAA / GDPR) -->
 <div id="screenLockOverlay" class="screen-lock-overlay" style="display: none;">
-    <div class="screen-lock-card">
-        <div class="lock-avatar-orb">🔒</div>
-        <h2 class="lock-title">Expedientes Protegidos</h2>
-        <p class="lock-subtitle" id="lockTherapistName">Lic. en Psicología Clínica</p>
-        <p class="lock-desc">
+    <div class="screen-lock-card" style="background: var(--bg-primary, #0e1524); border: 1px solid var(--border-primary, #1e293b); border-radius: 16px; box-shadow: 0 25px 60px -15px rgba(0, 0, 0, 0.7); max-width: 440px; width: 100%; padding: 36px 32px; text-align: center; margin: auto; position: relative; z-index: 10000000; box-sizing: border-box;">
+        <div class="lock-avatar-orb" style="width: 72px; height: 72px; border-radius: 50%; background: linear-gradient(135deg, #0d9488, #0284c7); color: white; font-size: 32px; display: flex; align-items: center; justify-content: center; margin: 0 auto 16px auto; box-shadow: 0 10px 25px rgba(13, 148, 136, 0.35);">🔒</div>
+        <h2 class="lock-title" style="font-size: 20px; font-weight: 700; color: var(--text-primary, #f8fafc); margin: 0 0 4px 0;">Expedientes Protegidos</h2>
+        <p class="lock-subtitle" id="lockTherapistName" style="font-size: 13px; font-weight: 600; color: var(--color-primary, #2dd4bf); margin: 0 0 12px 0;">Lic. en Psicología Clínica</p>
+        <p class="lock-desc" style="font-size: 12.5px; color: var(--text-secondary, #94a3b8); line-height: 1.5; margin: 0 0 24px 0;">
             Sesión bloqueada por privacidad para salvaguardar la confidencialidad de la información médica ante terceros en el consultorio.
         </p>
-        <form onsubmit="ClinicalSecurity.unlockApp(event)">
-            <div class="lock-input-group">
-                <input type="password" id="unlockPasswordInput" placeholder="Ingresa tu contraseña para desbloquear..." autocomplete="current-password" required>
-                <button type="submit" class="btn-primary" style="width: 100%; justify-content: center; padding: 12px; margin-top: 6px;">
+        <form onsubmit="ClinicalSecurity.unlockApp(event)" style="margin: 0; width: 100%;">
+            <div class="lock-input-group" style="display: flex; flex-direction: column; gap: 12px; width: 100%;">
+                <input type="password" id="unlockPasswordInput" placeholder="Ingresa tu contraseña para desbloquear..." autocomplete="current-password" required style="background: var(--bg-secondary, #1a2234); border: 1px solid var(--border-secondary, #334155); border-radius: 8px; padding: 12px 16px; font-size: 14px; color: var(--text-primary, #ffffff); text-align: center; letter-spacing: 2px; outline: none; width: 100%; box-sizing: border-box;">
+                <button type="submit" class="btn-primary" style="width: 100%; justify-content: center; padding: 12px; margin-top: 6px; cursor: pointer;">
                     <i class="fas fa-lock-open"></i> Desbloquear Expedientes
                 </button>
             </div>
-            <div id="unlockError" class="auth-error" style="display: none; margin-top: 10px;"></div>
+            <div id="unlockError" class="auth-error" style="display: none; margin-top: 10px; color: #f43f5e; font-size: 12.5px; font-weight: 600;"></div>
         </form>
     </div>
 </div>

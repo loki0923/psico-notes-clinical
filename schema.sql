@@ -167,3 +167,14 @@ CREATE TABLE IF NOT EXISTS appointments (
 );
 
 CREATE INDEX IF NOT EXISTS idx_app_date ON appointments(appointment_date);
+
+-- 10. Sincronización en la Nube Multi-Dispositivo (Snapshot Clínico Integral por Terapeuta)
+CREATE TABLE IF NOT EXISTS therapist_cloud_sync (
+    therapist_id VARCHAR(64) PRIMARY KEY,
+    payload JSONB NOT NULL,
+    version INTEGER DEFAULT 1,
+    client_timestamp BIGINT,
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE INDEX IF NOT EXISTS idx_sync_updated_at ON therapist_cloud_sync(updated_at);

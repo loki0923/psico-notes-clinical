@@ -42,7 +42,8 @@ class DatabaseManager {
             evaluations: [],
             crisis_alerts: [],
             clinical_notes: [],
-            appointments: []
+            appointments: [],
+            therapist_cloud_sync: {}
         };
     }
 
@@ -384,6 +385,186 @@ class DatabaseManager {
             }
         }
         if (!this.isPostgresConnected) this._persistLocalStore();
+    }
+
+    // ============================================
+    // GESTIÓN DE TERAPEUTAS & AUTENTICACIÓN CLOUD
+    // ============================================
+
+    async findTherapistByEmail(email) {
+        if (!email) return null;
+        const cleanEmail = email.trim().toLowerCase();
+
+        if (this.isPostgresConnected && this.pgPool) {
+            const res = await this.pgPool.query(
+                'SELECT * FROM therapists WHERE LOWER(email) = $1',
+                [cleanEmail]
+            );
+            return res.rows[0] || null;
+        }
+
+        return this.localStore.therapists.find(t => (t.email || '').toLowerCase() === cleanEmail) || null;
+    }
+
+    async findTherapistById(id) {
+        if (!id) return null;
+
+        if (this.isPostgresConnected && this.pgPool) {
+            const res = await this.pgPool.query(
+                'SELECT * FROM therapists WHERE id = $1',
+                [id]
+            );
+            return res.rows[0] || null;
+        }
+
+        return this.localStore.therapists.find(t => t.id === id) || null;
+    }
+
+    async registerTherapist(data) {
+        const id = data.id || `therapist_${Date.now()}`;
+        const therapist = {
+            id,
+            name: data.name || '',
+            email: (data.email || '').trim().toLowerCase(),
+            specialty: data.specialty || 'Psicología Clínica',
+            registry_number: data.registryNumber || data.registry_number || '',
+            phone: data.phone || '',
+            institution: data.institution || '',
+            password_hash: data.passwordHash || data.password_hash || '',
+            created_at: new Date().toISOString(),
+            updated_at: new Date().toISOString()
+        };
+
+        if (this.isPostgresConnected && this.pgPool) {
+            const query = `
+                INSERT INTO therapists (id, name, specialty, registry_number, email, phone, institution, password_hash, created_at, updated_at)
+                VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+                ON CONFLICT (email) DO UPDATE SET
+                    name = EXCLUDED.name,
+                    specialty = EXCLUDED.specialty,
+                    registry_number = EXCLUDED.registry_number,
+                    phone = EXCLUDED.phone,
+                    institution = EXCLUDED.institution,
+                    password_hash = CASE WHEN EXCLUDED.password_hash != '' THEN EXCLUDED.password_hash ELSE therapists.password_hash END,
+                    updated_at = EXCLUDED.updated_at
+                RETURNING *
+            `;
+            const values = [
+                therapist.id, therapist.name, therapist.specialty, therapist.registry_number,
+                therapist.email, therapist.phone, therapist.institution, therapist.password_hash,
+                therapist.created_at, therapist.updated_at
+            ];
+            const res = await this.pgPool.query(query, values);
+            const saved = res.rows[0];
+            delete saved.password_hash;
+            return saved;
+        }
+
+        const idx = this.localStore.therapists.findIndex(t => (t.email || '').toLowerCase() === therapist.email);
+        if (idx >= 0) {
+            this.localStore.therapists[idx] = {
+                ...this.localStore.therapists[idx],
+                ...therapist,
+                password_hash: therapist.password_hash || this.localStore.therapists[idx].password_hash
+            };
+        } else {
+            this.localStore.therapists.push(therapist);
+        }
+        this._persistLocalStore();
+
+        const copy = { ...therapist };
+        delete copy.password_hash;
+        return copy;
+    }
+
+    async loginTherapist(email, passwordHash) {
+        if (!email || !passwordHash) return null;
+        const therapist = await this.findTherapistByEmail(email);
+        if (!therapist) return null;
+
+        if (therapist.password_hash && therapist.password_hash !== passwordHash) {
+            return null;
+        }
+
+        const clean = { ...therapist };
+        delete clean.password_hash;
+        return clean;
+    }
+
+    // ============================================
+    // SINCRONIZACIÓN EN LA NUBE MULTI-DISPOSITIVO
+    // ============================================
+
+    async saveTherapistCloudSync(therapistId, payload, clientTimestamp = Date.now()) {
+        if (!therapistId || !payload) return null;
+
+        // Si el payload incluye pacientes y tareas, sincronizarlos también a nivel relacional
+        if (Array.isArray(payload.patients) && payload.patients.length > 0) {
+            try {
+                const tasks = (payload.notes || [])
+                    .flatMap(n => n.intersessionTasks || [])
+                    .concat(payload.tasks || []);
+                await this.syncPatientsBatch(payload.patients, tasks);
+            } catch (err) {
+                console.warn('Advertencia en sync relacional batch:', err.message);
+            }
+        }
+
+        if (this.isPostgresConnected && this.pgPool) {
+            const query = `
+                INSERT INTO therapist_cloud_sync (therapist_id, payload, client_timestamp, updated_at)
+                VALUES ($1, $2, $3, CURRENT_TIMESTAMP)
+                ON CONFLICT (therapist_id) DO UPDATE SET
+                    payload = EXCLUDED.payload,
+                    client_timestamp = EXCLUDED.client_timestamp,
+                    updated_at = CURRENT_TIMESTAMP
+                RETURNING *
+            `;
+            const res = await this.pgPool.query(query, [therapistId, JSON.stringify(payload), clientTimestamp]);
+            return {
+                therapistId,
+                clientTimestamp,
+                updatedAt: res.rows[0].updated_at
+            };
+        }
+
+        if (!this.localStore.therapist_cloud_sync) {
+            this.localStore.therapist_cloud_sync = {};
+        }
+
+        this.localStore.therapist_cloud_sync[therapistId] = {
+            payload,
+            clientTimestamp,
+            updatedAt: new Date().toISOString()
+        };
+        this._persistLocalStore();
+
+        return {
+            therapistId,
+            clientTimestamp,
+            updatedAt: this.localStore.therapist_cloud_sync[therapistId].updatedAt
+        };
+    }
+
+    async getTherapistCloudSync(therapistId) {
+        if (!therapistId) return null;
+
+        if (this.isPostgresConnected && this.pgPool) {
+            const res = await this.pgPool.query(
+                'SELECT payload, client_timestamp, updated_at FROM therapist_cloud_sync WHERE therapist_id = $1',
+                [therapistId]
+            );
+            if (res.rows.length === 0) return null;
+            const row = res.rows[0];
+            return {
+                payload: typeof row.payload === 'string' ? JSON.parse(row.payload) : row.payload,
+                clientTimestamp: row.client_timestamp,
+                updatedAt: row.updated_at
+            };
+        }
+
+        if (!this.localStore.therapist_cloud_sync) return null;
+        return this.localStore.therapist_cloud_sync[therapistId] || null;
     }
 }
 

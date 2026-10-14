@@ -3901,6 +3901,68 @@ body.screen-locked .sidebar {
     transform: translateY(-1px);
 }
 
+/* ============================================
+   ESTILOS DE SINCRONIZACIÓN EN LA NUBE MULTI-DISPOSITIVO
+   ============================================ */
+.btn-sync-cloud {
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
+    padding: 6px 14px;
+    border-radius: 20px;
+    font-size: 12px;
+    font-weight: 600;
+    cursor: pointer;
+    border: 1px solid transparent;
+    transition: all 0.25s ease;
+    white-space: nowrap;
+    background: var(--bg-secondary, #f1f5f9);
+    color: var(--text-secondary, #475569);
+}
+
+.btn-sync-cloud.synced {
+    background: rgba(16, 185, 129, 0.12);
+    color: #059669;
+    border-color: rgba(16, 185, 129, 0.3);
+}
+
+.btn-sync-cloud.synced:hover {
+    background: rgba(16, 185, 129, 0.2);
+    transform: translateY(-1px);
+}
+
+.btn-sync-cloud.syncing {
+    background: rgba(59, 130, 246, 0.12);
+    color: #2563eb;
+    border-color: rgba(59, 130, 246, 0.3);
+}
+
+.btn-sync-cloud.offline {
+    background: rgba(100, 116, 139, 0.12);
+    color: #64748b;
+    border-color: rgba(100, 116, 139, 0.25);
+}
+
+.btn-sync-cloud.error {
+    background: rgba(225, 98, 89, 0.12);
+    color: #dc2626;
+    border-color: rgba(225, 98, 89, 0.3);
+}
+
+.btn-sync-cloud.error:hover {
+    background: rgba(225, 98, 89, 0.22);
+}
+
+@media (max-width: 640px) {
+    .btn-sync-cloud .sync-text {
+        display: none;
+    }
+    .btn-sync-cloud {
+        padding: 6px 10px;
+    }
+}
+
+
 
 
 

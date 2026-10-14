@@ -78,7 +78,7 @@ app.get('/api/health', (req, res) => {
         version: '6.0.0',
         timestamp: new Date().toISOString(),
         database: db.isPostgresConnected ? 'PostgreSQL' : 'Embedded Relational Engine',
-        features: ['postgresql-storage', 'patient-portal-api', 'zero-knowledge-sync', 'gemini-ai-proxy', 'telehealth', 'crisis-protocol']
+        features: ['postgresql-storage', 'patient-portal-api', 'zero-knowledge-sync', 'gemini-ai-proxy', 'telehealth', 'crisis-protocol', 'cloud-sync', 'therapist-auth']
     });
 });
 
@@ -414,6 +414,124 @@ app.get('/api/v1/sync/pull/:userId', (req, res) => {
         return res.status(404).json({ error: 'No hay datos sincronizados para este usuario' });
     }
     res.json(record);
+});
+
+// ============================================
+// AUTENTICACIÓN CENTRALIZADA EN NUBE (TERAPEUTAS)
+// ============================================
+
+app.post('/api/v1/auth/register', async (req, res) => {
+    try {
+        const { name, email, passwordHash, specialty, registryNumber, phone, institution } = req.body;
+        if (!email || !passwordHash) {
+            return res.status(400).json({ error: 'Email y contraseña requeridos' });
+        }
+
+        const existing = await db.findTherapistByEmail(email);
+        if (existing) {
+            return res.status(409).json({ error: 'Ya existe una cuenta registrada con este correo.' });
+        }
+
+        const therapist = await db.registerTherapist({
+            name,
+            email,
+            passwordHash,
+            specialty,
+            registryNumber,
+            phone,
+            institution
+        });
+
+        res.json({
+            status: 'ok',
+            message: 'Cuenta creada y sincronizada en la nube con éxito.',
+            therapist
+        });
+    } catch (err) {
+        console.error('Error registrando terapeuta:', err);
+        res.status(500).json({ error: err.message });
+    }
+});
+
+app.post('/api/v1/auth/login', async (req, res) => {
+    try {
+        const { email, passwordHash } = req.body;
+        if (!email || !passwordHash) {
+            return res.status(400).json({ error: 'Email y contraseña requeridos' });
+        }
+
+        const therapist = await db.loginTherapist(email, passwordHash);
+        if (!therapist) {
+            return res.status(401).json({ error: 'Credenciales inválidas o cuenta inexistente.' });
+        }
+
+        // Obtener además el snapshot más reciente para responder de inmediato
+        const syncData = await db.getTherapistCloudSync(therapist.id);
+
+        res.json({
+            status: 'ok',
+            authenticated: true,
+            therapist,
+            cloudData: syncData ? syncData.payload : null,
+            lastSynced: syncData ? syncData.updatedAt : null
+        });
+    } catch (err) {
+        console.error('Error en login de terapeuta:', err);
+        res.status(500).json({ error: err.message });
+    }
+});
+
+// ============================================
+// SINCRONIZACIÓN EN LA NUBE MULTI-DISPOSITIVO
+// ============================================
+
+app.get('/api/v1/clinical/sync', async (req, res) => {
+    try {
+        const therapistId = req.query.therapistId || req.headers['x-therapist-id'];
+        if (!therapistId) {
+            return res.status(400).json({ error: 'therapistId requerido para sincronización' });
+        }
+
+        const syncRecord = await db.getTherapistCloudSync(therapistId);
+        if (!syncRecord) {
+            return res.json({
+                status: 'empty',
+                therapistId,
+                payload: null,
+                message: 'No hay datos previos en la nube para este terapeuta.'
+            });
+        }
+
+        res.json({
+            status: 'ok',
+            therapistId,
+            payload: syncRecord.payload,
+            clientTimestamp: syncRecord.clientTimestamp,
+            updatedAt: syncRecord.updatedAt
+        });
+    } catch (err) {
+        console.error('Error obteniendo sincronización cloud:', err);
+        res.status(500).json({ error: err.message });
+    }
+});
+
+app.post('/api/v1/clinical/sync', async (req, res) => {
+    try {
+        const { therapistId, payload, clientTimestamp } = req.body;
+        if (!therapistId || !payload) {
+            return res.status(400).json({ error: 'therapistId y payload requeridos' });
+        }
+
+        const result = await db.saveTherapistCloudSync(therapistId, payload, clientTimestamp || Date.now());
+        res.json({
+            status: 'synced',
+            ...result,
+            message: 'Datos clínicos respaldados y sincronizados exitosamente en la nube.'
+        });
+    } catch (err) {
+        console.error('Error guardando sincronización cloud:', err);
+        res.status(500).json({ error: err.message });
+    }
 });
 
 // Iniciar servidor si se ejecuta directamente

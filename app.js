@@ -137,9 +137,24 @@ window.ClinicalSecurity = ClinicalSecurity;
 // ============================================
 // INICIALIZACIÓN
 // ============================================
-document.addEventListener('DOMContentLoaded', () => {
+document.addEventListener('DOMContentLoaded', async () => {
     initAuthEventListeners();
     loadThemePreference();
+
+    // Eventos de conectividad para sincronización resiliente
+    window.addEventListener('online', () => {
+        if (typeof CloudSyncManager !== 'undefined') {
+            CloudSyncManager.pushToCloud(false);
+            if (AppState.currentUser) CloudSyncManager.pullFromCloud(AppState.currentUser.id, false);
+        }
+    });
+
+    window.addEventListener('offline', () => {
+        if (typeof CloudSyncManager !== 'undefined') {
+            CloudSyncManager.updateStatusUI('offline');
+        }
+    });
+
     const session = getSession();
     if (session) {
         const user = getUsers().find(u => u.id === session);
@@ -153,7 +168,12 @@ document.addEventListener('DOMContentLoaded', () => {
                 phone: user.phone || localStorage.getItem('psico_therapist_phone') || '',
                 institution: user.institution || localStorage.getItem('psico_therapist_institution') || ''
             };
-            startAppForCurrentUser();
+            await startAppForCurrentUser();
+
+            // Sincronización en segundo plano con la nube al arrancar
+            if (typeof CloudSyncManager !== 'undefined') {
+                CloudSyncManager.pullFromCloud(user.id, false);
+            }
             return;
         }
     }
@@ -176,6 +196,11 @@ async function startAppForCurrentUser() {
     checkPortalCrisisAlerts();
     setInterval(checkPortalCrisisAlerts, 20000);
     ClinicalSecurity.init();
+
+    // Estado inicial del botón de sincronización
+    if (typeof CloudSyncManager !== 'undefined') {
+        CloudSyncManager.updateStatusUI(navigator.onLine ? 'synced' : 'offline');
+    }
 
     // Sincronizar en segundo plano todos los pacientes a la base de datos PostgreSQL
     if (AppState.patients && AppState.patients.length > 0) {
@@ -287,7 +312,210 @@ async function loadAndMigratePatients(storedPatients) {
     }));
 }
 
-async function saveData() {
+// ============================================
+// GESTOR DE SINCRONIZACIÓN EN LA NUBE MULTI-DISPOSITIVO
+// ============================================
+const CloudSyncManager = {
+    isSyncing: false,
+    lastSyncTime: null,
+    syncDebounceTimer: null,
+    status: 'idle',
+
+    updateStatusUI(status, message) {
+        this.status = status;
+        const el = document.getElementById('cloudSyncStatusBtn');
+        if (!el) return;
+
+        if (status === 'syncing') {
+            el.innerHTML = '<i class="fas fa-sync fa-spin"></i> <span class="sync-text">Sincronizando...</span>';
+            el.title = 'Guardando datos en la nube...';
+            el.className = 'btn-sync-cloud syncing';
+        } else if (status === 'synced') {
+            el.innerHTML = '<i class="fas fa-cloud-check"></i> <span class="sync-text">Nube al día</span>';
+            const timeStr = this.lastSyncTime ? new Date(this.lastSyncTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : 'reciente';
+            el.title = `Sincronizado con la nube a las ${timeStr}. Accesible desde tu PC y móvil.`;
+            el.className = 'btn-sync-cloud synced';
+        } else if (status === 'offline') {
+            el.innerHTML = '<i class="fas fa-wifi-slash"></i> <span class="sync-text">Modo Local</span>';
+            el.title = 'Sin conexión. Los datos están seguros en este dispositivo y se subirán al reconectar.';
+            el.className = 'btn-sync-cloud offline';
+        } else if (status === 'error') {
+            el.innerHTML = '<i class="fas fa-cloud-slash"></i> <span class="sync-text">Reintentar Sync</span>';
+            el.title = message || 'Error al conectar con la nube. Clic para reintentar.';
+            el.className = 'btn-sync-cloud error';
+        }
+    },
+
+    schedulePush() {
+        if (!AppState.currentUser || !AppState.currentUser.id) return;
+        if (this.syncDebounceTimer) clearTimeout(this.syncDebounceTimer);
+        this.syncDebounceTimer = setTimeout(() => {
+            this.pushToCloud(false);
+        }, 1200);
+    },
+
+    async pushToCloud(showToastFeedback = false) {
+        if (!AppState.currentUser || !AppState.currentUser.id) return;
+        if (!navigator.onLine) {
+            this.updateStatusUI('offline');
+            return;
+        }
+
+        try {
+            this.isSyncing = true;
+            this.updateStatusUI('syncing');
+
+            const payload = {
+                patients: AppState.patients || [],
+                appointments: AppState.appointments || [],
+                notes: AppState.notes || [],
+                treatmentPlans: AppState.treatmentPlans || [],
+                settings: {
+                    signature: localStorage.getItem('psico_therapist_signature') || '',
+                    phone: localStorage.getItem('psico_therapist_phone') || '',
+                    institution: localStorage.getItem('psico_therapist_institution') || '',
+                    specialty: localStorage.getItem('psico_therapist_specialty') || '',
+                    registry: localStorage.getItem('psico_therapist_registry') || '',
+                    darkMode: AppState.darkMode
+                },
+                clientTimestamp: Date.now()
+            };
+
+            const res = await fetch('/api/v1/clinical/sync', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    therapistId: AppState.currentUser.id,
+                    payload,
+                    clientTimestamp: Date.now()
+                })
+            });
+
+            if (res.ok) {
+                this.lastSyncTime = Date.now();
+                this.updateStatusUI('synced');
+                if (showToastFeedback && typeof showToast === 'function') {
+                    showToast('☁️ Expediente sincronizado con la nube con éxito', 'success');
+                }
+            } else {
+                this.updateStatusUI('error', 'Error en el servidor de sincronización');
+            }
+        } catch (e) {
+            console.warn('Sync push error:', e.message);
+            this.updateStatusUI('offline');
+        } finally {
+            this.isSyncing = false;
+        }
+    },
+
+    async pullFromCloud(therapistId = AppState.currentUser?.id, showToastFeedback = false) {
+        if (!therapistId) return false;
+        if (!navigator.onLine) {
+            this.updateStatusUI('offline');
+            return false;
+        }
+
+        try {
+            this.isSyncing = true;
+            this.updateStatusUI('syncing');
+
+            const res = await fetch(`/api/v1/clinical/sync?therapistId=${encodeURIComponent(therapistId)}`);
+            if (!res.ok) {
+                this.updateStatusUI('error');
+                return false;
+            }
+
+            const data = await res.json();
+            if (data.status === 'ok' && data.payload) {
+                const cloud = data.payload;
+
+                // Combinación sin pérdida (merge inteligente)
+                const mergedPatients = this.mergeCollections(AppState.patients || [], cloud.patients || []);
+                const mergedAppointments = this.mergeCollections(AppState.appointments || [], cloud.appointments || []);
+                const mergedNotes = this.mergeCollections(AppState.notes || [], cloud.notes || []);
+                const mergedPlans = this.mergeCollections(AppState.treatmentPlans || [], cloud.treatmentPlans || []);
+
+                AppState.patients = mergedPatients;
+                AppState.appointments = mergedAppointments;
+                AppState.notes = mergedNotes;
+                AppState.treatmentPlans = mergedPlans;
+
+                // Configuraciones del terapeuta
+                if (cloud.settings) {
+                    if (cloud.settings.signature && !localStorage.getItem('psico_therapist_signature')) {
+                        localStorage.setItem('psico_therapist_signature', cloud.settings.signature);
+                    }
+                    if (cloud.settings.phone) localStorage.setItem('psico_therapist_phone', cloud.settings.phone);
+                    if (cloud.settings.institution) localStorage.setItem('psico_therapist_institution', cloud.settings.institution);
+                }
+
+                // Guardar en el almacenamiento del navegador actual
+                await saveDataLocallyOnly();
+
+                // Re-renderizar vistas si ya están inicializadas
+                if (typeof updateDashboard === 'function') updateDashboard();
+                if (typeof renderPatients === 'function') renderPatients();
+                if (typeof renderAppointments === 'function') renderAppointments();
+                if (typeof renderNotes === 'function') renderNotes();
+                if (typeof updateCounts === 'function') updateCounts();
+                if (typeof renderCalendar === 'function') renderCalendar();
+
+                this.lastSyncTime = Date.now();
+                this.updateStatusUI('synced');
+                if (showToastFeedback && typeof showToast === 'function') {
+                    showToast('☁️ Datos descargados y sincronizados desde la nube', 'success');
+                }
+                return true;
+            } else if (data.status === 'empty') {
+                // Si la nube está vacía pero este dispositivo ya tiene pacientes o notas (ej. lo guardado ayer en la PC)
+                if ((AppState.patients && AppState.patients.length > 0) || (AppState.notes && AppState.notes.length > 0)) {
+                    await this.pushToCloud(false);
+                } else {
+                    this.updateStatusUI('synced');
+                }
+                return true;
+            }
+        } catch (e) {
+            console.warn('Sync pull error:', e.message);
+            this.updateStatusUI('offline');
+            return false;
+        } finally {
+            this.isSyncing = false;
+        }
+    },
+
+    mergeCollections(localList, cloudList) {
+        const map = new Map();
+        for (const item of (cloudList || [])) {
+            if (item && item.id) map.set(item.id, item);
+        }
+        for (const item of (localList || [])) {
+            if (!item || !item.id) continue;
+            if (!map.has(item.id)) {
+                map.set(item.id, item);
+            } else {
+                const cloudItem = map.get(item.id);
+                const localTs = new Date(item.updatedAt || item.createdAt || 0).getTime();
+                const cloudTs = new Date(cloudItem.updatedAt || cloudItem.createdAt || 0).getTime();
+                if (localTs >= cloudTs) {
+                    map.set(item.id, { ...cloudItem, ...item });
+                }
+            }
+        }
+        return Array.from(map.values());
+    },
+
+    manualSyncClick() {
+        if (this.isSyncing) return;
+        this.pullFromCloud(AppState.currentUser?.id, true).then(() => {
+            this.pushToCloud(true);
+        });
+    }
+};
+
+window.CloudSyncManager = CloudSyncManager;
+
+async function saveDataLocallyOnly() {
     try {
         localStorage.setItem(userStorageKey('patients'), await encryptData(AppState.patients));
         localStorage.setItem(userStorageKey('appointments'), await encryptData(AppState.appointments));
@@ -297,7 +525,14 @@ async function saveData() {
         localStorage.setItem('psico_portal_notes_backup', JSON.stringify(AppState.notes));
         if (typeof updateSessionRemindersUI === 'function') updateSessionRemindersUI();
     } catch (e) {
-        console.error('Error guardando:', e);
+        console.error('Error guardando local:', e);
+    }
+}
+
+async function saveData() {
+    await saveDataLocallyOnly();
+    if (typeof CloudSyncManager !== 'undefined') {
+        CloudSyncManager.schedulePush();
     }
 }
 
@@ -364,26 +599,83 @@ async function handleLogin(e) {
     errorEl.classList.remove('visible');
     const email = document.getElementById('loginEmail').value.trim().toLowerCase();
     const password = document.getElementById('loginPassword').value;
-    const user = getUsers().find(u => u.email === email);
-    if (!user) { errorEl.textContent = 'No existe una cuenta con este correo.'; errorEl.classList.add('visible'); return; }
     const hash = await hashPassword(password);
-    if (hash !== user.passwordHash) { errorEl.textContent = 'Contraseña incorrecta.'; errorEl.classList.add('visible'); return; }
-    AppState.currentUser = {
-        id: user.id,
-        name: user.name,
-        email: user.email,
-        specialty: user.specialty || localStorage.getItem('psico_therapist_specialty') || 'Psicología Clínica',
-        registryNumber: user.registryNumber || localStorage.getItem('psico_therapist_registry') || '',
-        phone: user.phone || localStorage.getItem('psico_therapist_phone') || '',
-        institution: user.institution || localStorage.getItem('psico_therapist_institution') || ''
+
+    let loggedUser = null;
+    let cloudData = null;
+
+    // 1. Intentar autenticar contra el servidor central (PostgreSQL / Cloud)
+    try {
+        const response = await fetch('/api/v1/auth/login', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ email, passwordHash: hash })
+        });
+        const resData = await response.json();
+        if (response.ok && resData.authenticated) {
+            loggedUser = resData.therapist;
+            cloudData = resData.cloudData;
+        } else if (response.status === 401) {
+            errorEl.textContent = 'Correo o contraseña incorrectos.';
+            errorEl.classList.add('visible');
+            return;
+        }
+    } catch (netErr) {
+        console.warn('Servidor cloud no disponible para login en este instante, verificando almacenamiento local:', netErr.message);
+    }
+
+    // 2. Si el servidor no respondió (offline) o como fallback, consultar memoria local
+    if (!loggedUser) {
+        const localUser = getUsers().find(u => u.email === email);
+        if (localUser) {
+            if (hash !== localUser.passwordHash) {
+                errorEl.textContent = 'Contraseña incorrecta.';
+                errorEl.classList.add('visible');
+                return;
+            }
+            loggedUser = localUser;
+        }
+    }
+
+    if (!loggedUser) {
+        errorEl.textContent = 'No existe una cuenta con este correo o las credenciales son incorrectas.';
+        errorEl.classList.add('visible');
+        return;
+    }
+
+    // 3. Normalizar usuario y guardarlo localmente para futuras sesiones offline
+    const userToStore = {
+        id: loggedUser.id,
+        name: loggedUser.name,
+        email: loggedUser.email,
+        specialty: loggedUser.specialty || localStorage.getItem('psico_therapist_specialty') || 'Psicología Clínica',
+        registryNumber: loggedUser.registry_number || loggedUser.registryNumber || localStorage.getItem('psico_therapist_registry') || '',
+        phone: loggedUser.phone || localStorage.getItem('psico_therapist_phone') || '',
+        institution: loggedUser.institution || localStorage.getItem('psico_therapist_institution') || '',
+        passwordHash: hash
     };
-    if (user.name) localStorage.setItem('psico_therapist_name', user.name);
-    if (user.specialty) localStorage.setItem('psico_therapist_specialty', user.specialty);
-    if (user.registryNumber) localStorage.setItem('psico_therapist_registry', user.registryNumber);
-    setSession(user.id);
+
+    const users = getUsers();
+    const idx = users.findIndex(u => u.email === userToStore.email || u.id === userToStore.id);
+    if (idx >= 0) users[idx] = userToStore;
+    else users.push(userToStore);
+    saveUsers(users);
+
+    AppState.currentUser = userToStore;
+    if (userToStore.name) localStorage.setItem('psico_therapist_name', userToStore.name);
+    if (userToStore.specialty) localStorage.setItem('psico_therapist_specialty', userToStore.specialty);
+    if (userToStore.registryNumber) localStorage.setItem('psico_therapist_registry', userToStore.registryNumber);
+    setSession(userToStore.id);
+
     document.getElementById('loginForm').reset();
     await startAppForCurrentUser();
-    showToast(`Bienvenido/a, ${user.name}`, 'success');
+
+    // 4. Sincronizar inmediatamente desde la nube para traer todos los datos creados en otros dispositivos
+    if (typeof CloudSyncManager !== 'undefined') {
+        await CloudSyncManager.pullFromCloud(userToStore.id, false);
+    }
+
+    showToast(`Bienvenido/a, ${userToStore.name} (Nube Sincronizada)`, 'success');
 }
 
 async function handleRegister(e) {
@@ -396,35 +688,71 @@ async function handleRegister(e) {
     const email = document.getElementById('registerEmail').value.trim().toLowerCase();
     const password = document.getElementById('registerPassword').value;
     const password2 = document.getElementById('registerPassword2').value;
+
     if (password !== password2) { errorEl.textContent = 'Las contraseñas no coinciden.'; errorEl.classList.add('visible'); return; }
     if (password.length < 6) { errorEl.textContent = 'Mínimo 6 caracteres.'; errorEl.classList.add('visible'); return; }
-    const users = getUsers();
-    if (users.some(u => u.email === email)) { errorEl.textContent = 'Correo ya registrado.'; errorEl.classList.add('visible'); return; }
+
+    const pwdHash = await hashPassword(password);
+    let registeredTherapist = null;
+
+    // 1. Registrar en el servidor cloud (PostgreSQL)
+    try {
+        const response = await fetch('/api/v1/auth/register', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                name,
+                email,
+                passwordHash: pwdHash,
+                specialty,
+                registryNumber
+            })
+        });
+        const resData = await response.json();
+        if (response.ok && resData.therapist) {
+            registeredTherapist = resData.therapist;
+        } else if (response.status === 409) {
+            errorEl.textContent = 'Ya existe una cuenta registrada con este correo en la nube.';
+            errorEl.classList.add('visible');
+            return;
+        }
+    } catch (netErr) {
+        console.warn('Servidor cloud no disponible para registro inmediato, guardando en local:', netErr.message);
+    }
+
+    // 2. Persistir localmente para soporte offline
+    const finalId = registeredTherapist?.id || generateId();
     const newUser = {
-        id: generateId(),
+        id: finalId,
         name,
         specialty,
         registryNumber,
         email,
-        passwordHash: await hashPassword(password),
+        passwordHash: pwdHash,
         createdAt: new Date().toISOString()
     };
-    users.push(newUser);
+
+    const users = getUsers();
+    const existingIdx = users.findIndex(u => u.email === email);
+    if (existingIdx >= 0) users[existingIdx] = newUser;
+    else users.push(newUser);
     saveUsers(users);
+
     localStorage.setItem('psico_therapist_name', name);
     localStorage.setItem('psico_therapist_specialty', specialty);
     localStorage.setItem('psico_therapist_registry', registryNumber);
-    AppState.currentUser = {
-        id: newUser.id,
-        name: newUser.name,
-        email: newUser.email,
-        specialty: newUser.specialty,
-        registryNumber: newUser.registryNumber
-    };
+
+    AppState.currentUser = newUser;
     setSession(newUser.id);
     document.getElementById('registerForm').reset();
     await startAppForCurrentUser();
-    showToast(`Cuenta creada. Bienvenida/o, ${newUser.name}`, 'success');
+
+    // 3. Subir respaldo a la nube de inmediato
+    if (typeof CloudSyncManager !== 'undefined') {
+        await CloudSyncManager.pushToCloud(false);
+    }
+
+    showToast(`Cuenta creada y sincronizada en la nube. ¡Bienvenida/o, ${newUser.name}!`, 'success');
 }
 
 function handleLogout() {
