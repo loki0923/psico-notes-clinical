@@ -68,6 +68,7 @@ const ClinicalSecurity = {
             const errEl = document.getElementById('unlockError');
             if (errEl) errEl.style.display = 'none';
             overlay.style.display = 'flex';
+            document.body.classList.add('screen-locked');
         }
         if (auto) {
             console.log('🔒 Sesión bloqueada automáticamente por inactividad clínica (HIPAA)');
@@ -124,6 +125,7 @@ const ClinicalSecurity = {
     forceUnlock() {
         this.isLocked = false;
         sessionStorage.removeItem('psico_session_locked');
+        document.body.classList.remove('screen-locked');
         const overlay = document.getElementById('screenLockOverlay');
         if (overlay) overlay.style.display = 'none';
         this.resetInactivityTimer();

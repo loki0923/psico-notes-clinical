@@ -3741,17 +3741,32 @@ TELECONSULTA EN VIVO
    PANTALLA DE BLOQUEO POR INACTIVIDAD / PRIVACIDAD HIPAA
    ==================================================== */
 .screen-lock-overlay {
-    position: fixed;
-    inset: 0;
-    z-index: 999999;
-    backdrop-filter: blur(25px);
-    -webkit-backdrop-filter: blur(25px);
-    background: rgba(15, 23, 42, 0.85);
+    position: fixed !important;
+    inset: 0 !important;
+    top: 0 !important;
+    left: 0 !important;
+    right: 0 !important;
+    bottom: 0 !important;
+    width: 100vw !important;
+    height: 100vh !important;
+    z-index: 99999999 !important;
+    isolation: isolate !important;
+    backdrop-filter: blur(25px) !important;
+    -webkit-backdrop-filter: blur(25px) !important;
+    background: rgba(11, 15, 23, 0.96) !important;
     display: flex;
     align-items: center;
     justify-content: center;
-    padding: 20px;
+    padding: 24px;
     animation: fadeInLock 0.3s ease;
+    overflow-y: auto;
+}
+
+body.screen-locked .sidebar {
+    opacity: 0 !important;
+    pointer-events: none !important;
+    visibility: hidden !important;
+    transition: opacity 0.2s ease, visibility 0.2s ease;
 }
 
 @keyframes fadeInLock {
@@ -3763,11 +3778,14 @@ TELECONSULTA EN VIVO
     background: var(--bg-primary);
     border: 1px solid var(--border-primary);
     border-radius: var(--radius-lg);
-    box-shadow: 0 25px 60px -15px rgba(0, 0, 0, 0.6);
+    box-shadow: 0 25px 60px -15px rgba(0, 0, 0, 0.7);
     max-width: 440px;
     width: 100%;
     padding: 36px 32px;
     text-align: center;
+    margin: auto;
+    position: relative;
+    z-index: 10000000;
 }
 
 .lock-avatar-orb {
