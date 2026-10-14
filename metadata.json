@@ -1,0 +1,6 @@
+{
+  "name": "Psico Notes Clinical",
+  "description": "Gestión Clínica Psicológica Completa y Facturación SENIAT",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

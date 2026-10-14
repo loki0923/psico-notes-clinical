@@ -1,0 +1,18 @@
+# Configuración para despliegue opcional del frontend en Netlify
+[build]
+  publish = "."
+
+# Si despliegas el backend en Render.com o Railway, descomenta y coloca aquí la URL de tu backend
+# para redirigir automáticamente todas las peticiones a la API:
+# [[redirects]]
+#   from = "/api/*"
+#   to = "https://TU-BACKEND.onrender.com/api/:splat"
+#   status = 200
+#   force = true
+
+[[headers]]
+  for = "/*"
+  [headers.values]
+    X-Frame-Options = "DENY"
+    X-Content-Type-Options = "nosniff"
+    Referrer-Policy = "strict-origin-when-cross-origin"

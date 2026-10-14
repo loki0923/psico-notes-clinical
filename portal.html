@@ -1,0 +1,362 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Mi Espacio - Psico Notes</title>
+    <meta name="theme-color" content="#6b9080">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Playfair+Display:wght@500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="portal.css">
+</head>
+<body>
+
+<!-- PANTALLA DE ACCESO -->
+<div id="accessScreen" class="access-screen">
+    <div class="access-card">
+        <div class="access-logo">
+            <span class="logo-icon">🌱</span>
+            <span class="logo-text">Mi Espacio</span>
+        </div>
+        <p class="access-subtitle">Tu espacio personal de acompañamiento terapéutico</p>
+        
+        <div id="accessForm">
+            <div class="form-group">
+                <label>Código de acceso</label>
+                <input type="text" id="accessCode" placeholder="Ingresa tu código personal" autocomplete="off" style="text-transform: uppercase; letter-spacing: 2px; font-weight: 600;">
+                <small style="color: var(--text-tertiary); font-size: 11px; display: block; margin-top: 6px;">
+                    💡 Tu terapeuta te proporcionó este código
+                </small>
+            </div>
+            <div id="accessError" class="error-message"></div>
+            <button class="btn-primary full-width" onclick="handleAccess()">
+                <i class="fas fa-arrow-right"></i> Entrar a mi espacio
+            </button>
+        </div>
+        
+        <div id="welcomeBack" style="display: none;">
+            <div class="welcome-back-info">
+                <div class="patient-avatar-large" id="portalPatientAvatar">👤</div>
+                <h2 id="portalPatientName">Bienvenido/a</h2>
+                <p style="color: var(--text-secondary); font-size: 13px;">¿Continuamos donde lo dejamos?</p>
+            </div>
+            <button class="btn-primary full-width" onclick="enterPortal()">
+                <i class="fas fa-heart"></i> Entrar
+            </button>
+            <button class="btn-text" onclick="logoutPortal()">
+                Cambiar de cuenta
+            </button>
+        </div>
+    </div>
+</div>
+
+<!-- APP PRINCIPAL DEL PORTAL -->
+<div id="portalApp" class="portal-app" style="display: none;">
+    
+    <!-- HEADER -->
+    <header class="portal-header">
+        <div class="portal-header-left">
+            <div class="portal-avatar" id="headerAvatar">👤</div>
+            <div>
+                <div class="portal-greeting" id="headerGreeting">Hola</div>
+                <div class="portal-patient-name" id="headerName">Paciente</div>
+            </div>
+        </div>
+        <div style="display: flex; align-items: center; gap: 10px;">
+            <button class="btn-sos" onclick="triggerPortalEmergencyHelp()" title="Obtener ayuda inmediata en crisis">
+                <i class="fas fa-life-ring"></i> SOS
+            </button>
+            <button class="btn-icon" onclick="logoutPortal()" title="Salir">
+                <i class="fas fa-sign-out-alt"></i>
+            </button>
+        </div>
+    </header>
+
+    <!-- CONTENIDO -->
+    <main class="portal-content">
+        
+        <!-- VISTA INICIO -->
+        <div class="portal-view active" id="viewHome">
+            <div class="mood-check-in">
+                <h2>¿Cómo te sientes hoy?</h2>
+                <p class="mood-subtitle">Tómate un momento para conectar contigo</p>
+                <div class="mood-selector">
+                    <button class="mood-btn" data-mood="5" onclick="selectMood(5)">
+                        <span class="mood-emoji">😊</span>
+                        <span class="mood-label">Muy bien</span>
+                    </button>
+                    <button class="mood-btn" data-mood="4" onclick="selectMood(4)">
+                        <span class="mood-emoji">🙂</span>
+                        <span class="mood-label">Bien</span>
+                    </button>
+                    <button class="mood-btn" data-mood="3" onclick="selectMood(3)">
+                        <span class="mood-emoji">😐</span>
+                        <span class="mood-label">Neutral</span>
+                    </button>
+                    <button class="mood-btn" data-mood="2" onclick="selectMood(2)">
+                        <span class="mood-emoji">😔</span>
+                        <span class="mood-label">Mal</span>
+                    </button>
+                    <button class="mood-btn" data-mood="1" onclick="selectMood(1)">
+                        <span class="mood-emoji">😞</span>
+                        <span class="mood-label">Muy mal</span>
+                    </button>
+                </div>
+                <div id="moodConfirmation" class="mood-confirmation" style="display: none;">
+                    <i class="fas fa-check-circle"></i>
+                    <span>¡Gracias por compartir! Tu estado ha sido registrado.</span>
+                </div>
+            </div>
+
+            <div class="quick-stats">
+                <div class="quick-stat">
+                    <div class="stat-icon">📋</div>
+                    <div class="stat-info">
+                        <div class="stat-value" id="pendingTasksCount">0</div>
+                        <div class="stat-label">Tareas pendientes</div>
+                    </div>
+                </div>
+                <div class="quick-stat">
+                    <div class="stat-icon">📅</div>
+                    <div class="stat-info">
+                        <div class="stat-value" id="nextSessionText">—</div>
+                        <div class="stat-label">Próxima sesión</div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="section-card">
+                <h3><i class="fas fa-lightbulb"></i> Reflexión del día</h3>
+                <p class="reflection-text" id="dailyReflection">Cargando...</p>
+            </div>
+        </div>
+
+        <!-- VISTA TAREAS -->
+        <div class="portal-view" id="viewTasks">
+            <div class="view-header">
+                <h2>Mis Tareas</h2>
+                <p class="view-subtitle">Actividades entre sesiones para tu crecimiento</p>
+            </div>
+            
+            <div class="tasks-filter">
+                <button class="filter-btn active" data-filter="pending" onclick="filterTasks('pending')">
+                    Pendientes <span class="filter-count" id="countPending">0</span>
+                </button>
+                <button class="filter-btn" data-filter="completed" onclick="filterTasks('completed')">
+                    Completadas <span class="filter-count" id="countCompleted">0</span>
+                </button>
+                <button class="filter-btn" data-filter="all" onclick="filterTasks('all')">
+                    Todas
+                </button>
+            </div>
+            
+            <div id="tasksList" class="tasks-list">
+                <div class="empty-state">
+                    <div class="empty-icon">✨</div>
+                    <p>No tienes tareas pendientes</p>
+                    <small>Tu terapeuta te asignará actividades entre sesiones</small>
+                </div>
+            </div>
+        </div>
+
+        <!-- VISTA TESTS -->
+        <div class="portal-view" id="viewTests">
+            <div class="view-header">
+                <h2>Mi Bienestar</h2>
+                <p class="view-subtitle">Evaluaciones para acompañar tu proceso</p>
+            </div>
+
+            <div class="tests-grid">
+                <div class="test-card" onclick="openTest('phq9')">
+                    <div class="test-icon">🌧️</div>
+                    <div class="test-info">
+                        <h3>Evaluación del Estado de Ánimo (PHQ-9)</h3>
+                        <p>9 preguntas · 2 minutos</p>
+                        <div class="test-last" id="lastPhq9">Sin realizar aún</div>
+                    </div>
+                    <i class="fas fa-chevron-right"></i>
+                </div>
+
+                <div class="test-card" onclick="openTest('gad7')">
+                    <div class="test-icon">🌊</div>
+                    <div class="test-info">
+                        <h3>Evaluación de Ansiedad (GAD-7)</h3>
+                        <p>7 preguntas · 2 minutos</p>
+                        <div class="test-last" id="lastGad7">Sin realizar aún</div>
+                    </div>
+                    <i class="fas fa-chevron-right"></i>
+                </div>
+
+                <div class="test-card" onclick="openTest('mood')">
+                    <div class="test-icon">💭</div>
+                    <div class="test-info">
+                        <h3>Registro de Ánimo Diario</h3>
+                        <p>3 preguntas · 1 minuto</p>
+                        <div class="test-last" id="lastMood">Sin registro hoy</div>
+                    </div>
+                    <i class="fas fa-chevron-right"></i>
+                </div>
+
+                <div class="test-card" onclick="openTest('cbt_thought')">
+                    <div class="test-icon">🧠</div>
+                    <div class="test-info">
+                        <h3>Registro de Pensamientos (ABC)</h3>
+                        <p>Identifica pensamientos, distorsiones y emociones · 3 min</p>
+                        <div class="test-last" id="lastCbt">Sin registro reciente</div>
+                    </div>
+                    <i class="fas fa-chevron-right"></i>
+                </div>
+            </div>
+
+            <div class="section-card">
+                <h3><i class="fas fa-chart-line"></i> Mi evolución</h3>
+                <div id="evolutionChart" class="evolution-chart">
+                    <div class="chart-empty">Completa evaluaciones para ver tu progreso</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- VISTA PROGRESO -->
+        <div class="portal-view" id="viewProgress">
+            <div class="view-header">
+                <h2>Mi Proceso</h2>
+                <p class="view-subtitle">Tu camino de crecimiento personal</p>
+            </div>
+
+            <div class="progress-summary">
+                <div class="progress-card">
+                    <div class="progress-icon">📅</div>
+                    <div class="progress-info">
+                        <div class="progress-value" id="totalSessions">0</div>
+                        <div class="progress-label">Evaluaciones realizadas</div>
+                    </div>
+                </div>
+                <div class="progress-card">
+                    <div class="progress-icon">✅</div>
+                    <div class="progress-info">
+                        <div class="progress-value" id="completedTasks">0</div>
+                        <div class="progress-label">Tareas realizadas</div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="section-card">
+                <h3><i class="fas fa-star"></i> Logros recientes</h3>
+                <div id="achievementsList" class="achievements-list">
+                    <div class="achievement">
+                        <div class="achievement-icon">🌱</div>
+                        <div class="achievement-info">
+                            <div class="achievement-title">Primer paso</div>
+                            <div class="achievement-desc">Comenzaste tu proceso terapéutico</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="section-card">
+                <h3><i class="fas fa-calendar"></i> Historial de evaluaciones</h3>
+                <div id="evaluationsHistory" class="evaluations-history">
+                    <div class="empty-state-small">Aún no hay evaluaciones registradas</div>
+                </div>
+            </div>
+        </div>
+
+    </main>
+
+    <!-- NAVEGACIÓN INFERIOR -->
+    <nav class="portal-nav">
+        <button class="nav-btn active" data-view="home" onclick="switchView('home')">
+            <i class="fas fa-home"></i>
+            <span>Inicio</span>
+        </button>
+        <button class="nav-btn" data-view="tasks" onclick="switchView('tasks')">
+            <i class="fas fa-tasks"></i>
+            <span>Tareas</span>
+        </button>
+        <button class="nav-btn" data-view="tests" onclick="switchView('tests')">
+            <i class="fas fa-heart"></i>
+            <span>Bienestar</span>
+        </button>
+        <button class="nav-btn" data-view="progress" onclick="switchView('progress')">
+            <i class="fas fa-chart-line"></i>
+            <span>Progreso</span>
+        </button>
+    </nav>
+
+</div>
+
+<!-- MODAL DE TEST -->
+<div id="testModal" class="modal" style="display: none;">
+    <div class="modal-overlay" onclick="closeTestModal()"></div>
+    <div class="modal-content">
+        <div class="modal-header">
+            <h2 id="testModalTitle">Evaluación</h2>
+            <button class="btn-icon" onclick="closeTestModal()">
+                <i class="fas fa-times"></i>
+            </button>
+        </div>
+        <div class="modal-body" id="testModalBody">
+            <!-- Contenido dinámico -->
+        </div>
+    </div>
+</div>
+
+<!-- MODAL DE EMERGENCIA / PROTOCOLO SOS -->
+<div id="crisisHelpModal" class="modal" style="display: none;">
+    <div class="modal-overlay" onclick="closeCrisisHelpModal()"></div>
+    <div class="modal-content" style="border-top: 6px solid #e16259; max-width: 500px;">
+        <div class="modal-header">
+            <h2 style="color: #e16259; display: flex; align-items: center; gap: 8px;">
+                🚨 Apoyo Inmediato en Crisis
+            </h2>
+            <button class="btn-icon" onclick="closeCrisisHelpModal()">
+                <i class="fas fa-times"></i>
+            </button>
+        </div>
+        <div class="modal-body" style="padding: 16px 0;">
+            <div class="crisis-callout">
+                <h3>No estás solo/a. Hay ayuda disponible ahora mismo.</h3>
+                <p style="font-size: 13px; color: #4a5568; margin-bottom: 12px;">
+                    Si estás experimentando una sobrecarga emocional intensa o pensamientos de hacerte daño, por favor contacta a uno de estos servicios de contención gratuitos y confidenciales:
+                </p>
+                <div class="crisis-line-item">
+                    <div>
+                        <strong>🇻🇪 Línea FPVP / Ayuda Psicológica</strong><br>
+                        <small>Atención 24/7 en crisis</small>
+                    </div>
+                    <a href="tel:02122419288">📞 0212-241-92-88</a>
+                </div>
+                <div class="crisis-line-item">
+                    <div>
+                        <strong>🇻🇪 UCV Línea de Crisis</strong><br>
+                        <small>Orientación gratuita</small>
+                    </div>
+                    <a href="tel:02126052800">📞 0212-605-28-00</a>
+                </div>
+                <div class="crisis-line-item">
+                    <div>
+                        <strong>🌎 Emergencias Generales</strong><br>
+                        <small>Ambulancia y guardia médica</small>
+                    </div>
+                    <a href="tel:911">📞 911</a>
+                </div>
+            </div>
+
+            <div style="background: var(--bg-secondary); padding: 12px; border-radius: 8px; font-size: 13px; margin-bottom: 16px;">
+                <strong>Tu terapeuta ha sido notificado/a</strong> de tu solicitud de apoyo. Si es posible, comunícate también con tu familiar de confianza.
+            </div>
+
+            <button class="btn-primary full-width" onclick="closeCrisisHelpModal()">
+                Entendido, mantengo la calma
+            </button>
+        </div>
+    </div>
+</div>
+
+<!-- TOAST CONTAINER -->
+<div id="toastContainer" class="toast-container"></div>
+
+<script src="portal.js"></script>
+</body>
+</html>

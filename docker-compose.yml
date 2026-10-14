@@ -1,0 +1,40 @@
+version: '3.8'
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: psiconotes_postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-psiconotes}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-psiconotes_secret_2026}
+      POSTGRES_DB: ${POSTGRES_DB:-psiconotes_clinical}
+    ports:
+      - "${POSTGRES_PORT:-5432}:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+      - ./schema.sql:/docker-entrypoint-initdb.d/01_schema.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-psiconotes} -d ${POSTGRES_DB:-psiconotes_clinical}"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  backend:
+    build: .
+    container_name: psiconotes_api
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      NODE_ENV: production
+      PORT: 3000
+      DATABASE_URL: postgres://${POSTGRES_USER:-psiconotes}:${POSTGRES_PASSWORD:-psiconotes_secret_2026}@postgres:5432/${POSTGRES_DB:-psiconotes_clinical}
+      GEMINI_API_KEY: ${GEMINI_API_KEY:-}
+    ports:
+      - "3000:3000"
+
+volumes:
+  pgdata:
+    driver: local

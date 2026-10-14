@@ -1,0 +1,1433 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Psico Notes - Gestión Clínica Avanzada</title>
+    <link rel="manifest" href="manifest.json">
+    <meta name="theme-color" content="#6b9080">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <link rel="apple-touch-icon" href="icon-192.png">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Playfair+Display:wght@500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+
+<!-- AUTH SCREEN -->
+<div class="auth-screen hidden" id="authScreen">
+    <div class="auth-card">
+        <div class="auth-logo">
+            <span class="logo-icon">🧠</span>
+            <span class="logo-text">Psico Notes Clinical</span>
+        </div>
+        <p class="auth-subtitle">Espacio clínico privado para profesionales de la salud mental</p>
+        <form id="loginForm">
+            <h3 class="auth-title">Iniciar sesión</h3>
+            <div class="form-group">
+                <label>Correo electrónico</label>
+                <input type="email" id="loginEmail" required placeholder="tu@correo.com">
+            </div>
+            <div class="form-group">
+                <label>Contraseña</label>
+                <input type="password" id="loginPassword" required placeholder="••••••••">
+            </div>
+            <div class="auth-error" id="loginError"></div>
+            <button type="submit" class="btn-primary auth-submit">
+                <i class="fas fa-lock"></i> Acceder
+            </button>
+            <p class="auth-switch">
+                ¿No tienes cuenta? <a href="#" id="showRegister">Regístrate</a>
+            </p>
+        </form>
+        <form id="registerForm" style="display:none;">
+            <h3 class="auth-title">Crear cuenta profesional</h3>
+            <div class="form-group">
+                <label>Nombre Completo con Título Profesional *</label>
+                <input type="text" id="registerName" required placeholder="Dra. / Dr. / Lic. Nombre y Apellido">
+            </div>
+            <div class="form-group">
+                <label>Especialidad Médica / Psicológica *</label>
+                <input type="text" id="registerSpecialty" required placeholder="Ej. Psicología Clínica, Psiquiatría, Psicoterapia...">
+            </div>
+            <div class="form-group">
+                <label>N.º Colegiatura Médica / Psicológica *</label>
+                <input type="text" id="registerRegistry" required placeholder="Ej. Colegio de Médicos N.º 45.892 / Col. Psicólogos N.º 12.345">
+            </div>
+            <div class="form-group">
+                <label>Correo electrónico *</label>
+                <input type="email" id="registerEmail" required placeholder="doctor@correo.com">
+            </div>
+            <div class="form-group">
+                <label>Contraseña *</label>
+                <input type="password" id="registerPassword" required minlength="6">
+            </div>
+            <div class="form-group">
+                <label>Confirmar contraseña *</label>
+                <input type="password" id="registerPassword2" required>
+            </div>
+            <div class="auth-error" id="registerError"></div>
+            <button type="submit" class="btn-primary auth-submit">
+                <i class="fas fa-user-md"></i> Crear cuenta y habilitar membrete
+            </button>
+            <p class="auth-switch">
+                ¿Ya tienes cuenta? <a href="#" id="showLogin">Inicia sesión</a>
+            </p>
+        </form>
+    </div>
+</div>
+
+<!-- SIDEBAR -->
+<aside class="sidebar" id="sidebar">
+    <div class="sidebar-header">
+        <div class="logo">
+            <span class="logo-icon">🧠</span>
+            <span class="logo-text">Psico Notes</span>
+        </div>
+        <button class="sidebar-toggle" id="sidebarToggle">
+            <i class="fas fa-chevron-left"></i>
+        </button>
+    </div>
+    <nav class="sidebar-nav">
+        <div class="nav-section">
+            <div class="nav-section-title">Consulta</div>
+            <a href="#" class="nav-item active" data-view="dashboard">
+                <i class="fas fa-home"></i>
+                <span>Mi Consulta</span>
+            </a>
+            <a href="#" class="nav-item" data-view="patients">
+                <i class="fas fa-users"></i>
+                <span>Personas</span>
+                <span class="nav-badge" id="patientCount">0</span>
+            </a>
+            <a href="#" class="nav-item" data-view="appointments">
+                <i class="fas fa-calendar-alt"></i>
+                <span>Agenda</span>
+                <span class="nav-badge" id="appointmentCount">0</span>
+            </a>
+            <a href="#" class="nav-item" data-view="notes" title="Reportes de Atención por Sesión de Terapia">
+                <i class="fas fa-file-invoice"></i>
+                <span>Reportes de Atención</span>
+                <span class="nav-badge" id="notesCount">0</span>
+            </a>
+            <a href="#" class="nav-item" data-view="scales">
+                <i class="fas fa-tasks"></i>
+                <span>Escalas y Tests</span>
+            </a>
+        </div>
+        <div class="nav-section">
+            <div class="nav-section-title">Gestión</div>
+            <a href="#" class="nav-item" data-view="finance">
+                <i class="fas fa-wallet"></i>
+                <span>Finanzas</span>
+            </a>
+            <a href="#" class="nav-item" data-view="billing">
+                <i class="fas fa-file-invoice"></i>
+                <span>Facturación</span>
+            </a>
+        </div>
+        <div class="nav-section">
+            <div class="nav-section-title">Herramientas Clínicas</div>
+            <a href="#" class="nav-item" onclick="ClinicalHistorySystem.openInAppPreconsultaForm()">
+                <i class="fas fa-clipboard-list"></i>
+                <span>Llenar Pre-consulta</span>
+            </a>
+            <a href="#" class="nav-item" onclick="PsychoEd.openWorksheetModal('tcc_5col')">
+                <i class="fas fa-brain"></i>
+                <span>Psicoeducación TCC</span>
+            </a>
+            <a href="#" class="nav-item" onclick="Vademecum.openVademecumModal()">
+                <i class="fas fa-pills"></i>
+                <span>Vademécum</span>
+            </a>
+            <a href="#" class="nav-item" onclick="ClinicalReports.openReportGeneratorModal()">
+                <i class="fas fa-file-pdf"></i>
+                <span>Informes Oficiales</span>
+            </a>
+        </div>
+        <div class="nav-section">
+            <div class="nav-section-title">Análisis</div>
+            <a href="#" class="nav-item" data-view="search">
+                <i class="fas fa-search"></i>
+                <span>Búsqueda</span>
+            </a>
+            <a href="#" class="nav-item" data-view="stats">
+                <i class="fas fa-chart-bar"></i>
+                <span>Métricas</span>
+            </a>
+        </div>
+    </nav>
+    <div class="sidebar-footer">
+        <div class="sidebar-tools">
+            <button class="btn-icon" onclick="openTherapistProfileModal()" title="Perfil Profesional y Membrete">
+                <i class="fas fa-id-card"></i>
+            </button>
+            <button class="btn-icon" onclick="exportBackupFile()" title="Descargar backup">
+                <i class="fas fa-download"></i>
+            </button>
+            <button class="btn-icon" onclick="importBackup()" title="Restaurar backup">
+                <i class="fas fa-upload"></i>
+            </button>
+            <button class="btn-icon" onclick="openBackupModal()" title="Gestión backup">
+                <i class="fas fa-cloud"></i>
+            </button>
+            <button class="btn-icon" onclick="preloadAIModel()" title="Asistente Clínico">
+                <i class="fas fa-robot"></i>
+            </button>
+        </div>
+        <div class="user-info" onclick="openTherapistProfileModal()" style="cursor:pointer;" title="Click para editar nombre, especialidad y colegiatura">
+            <div class="user-avatar" id="sidebarUserAvatar">🩺</div>
+            <div class="user-details">
+                <div class="user-name" id="sidebarUserName">Terapeuta</div>
+                <div class="user-role" id="sidebarUserEmail">Psicología Clínica</div>
+                <div id="sidebarUserRegistry" style="font-size:0.75rem;color:var(--text-tertiary);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;"></div>
+            </div>
+            <button class="btn-icon" id="logoutBtn" title="Salir" onclick="event.stopPropagation(); handleLogout();">
+                <i class="fas fa-sign-out-alt"></i>
+            </button>
+        </div>
+    </div>
+</aside>
+
+<!-- MAIN CONTENT -->
+<main class="main-content" id="mainContent">
+    <div class="top-bar">
+        <div class="breadcrumb" id="breadcrumb">
+            <i class="fas fa-home"></i> <span>Mi Consulta</span>
+        </div>
+        <div class="top-bar-actions">
+            <button class="btn-icon" onclick="openTelehealthModal()" title="Iniciar Teleconsulta Cifrada (Videollamada)">
+                <i class="fas fa-video"></i>
+            </button>
+            <button class="btn-icon" onclick="openQaTestsModal()" title="Verificación de Calidad y Pruebas QA">
+                <i class="fas fa-vial"></i>
+            </button>
+            <button class="btn-icon reminder-bell-btn" id="sessionReminderBtn" title="Recordatorios de Sesiones">
+                <i class="fas fa-bell"></i>
+                <span class="reminder-badge" id="sessionReminderBadge" style="display:none;">0</span>
+            </button>
+            <button class="btn-icon" id="themeToggle" title="Cambiar tema">
+                <i class="fas fa-moon"></i>
+            </button>
+        </div>
+    </div>
+
+    <!-- BANNER DE CRISIS EN TIEMPO REAL -->
+    <div id="crisisLiveBanner" class="crisis-live-banner" style="display:none;">
+        <div class="crisis-live-content">
+            <span class="crisis-beacon">🚨</span>
+            <span id="crisisLiveText"><strong>ALERTA CLÍNICA:</strong> Un paciente ha registrado indicadores de crisis en su portal.</span>
+            <button type="button" style="background:#e16259;color:white;border:none;border-radius:4px;padding:4px 10px;font-size:12px;font-weight:600;cursor:pointer;" onclick="openActiveCrisisProtocol()">Atender Ahora</button>
+            <button type="button" class="btn-icon" onclick="dismissCrisisBanner()"><i class="fas fa-times"></i></button>
+        </div>
+    </div>
+
+    <div class="views-container">
+        <!-- DASHBOARD -->
+        <div class="view active" id="dashboardView">
+            <div class="welcome-section">
+                <div>
+                    <p class="welcome-greeting" id="welcomeGreeting">Buenos días</p>
+                    <h1 class="welcome-title" id="welcomeTitle">Terapeuta</h1>
+                    <p class="welcome-subtitle" id="welcomeSubtitle">Tu consulta te espera</p>
+                </div>
+                <div class="welcome-date">
+                    <div class="date-day" id="currentDay"></div>
+                    <div class="date-full" id="currentDate"></div>
+                </div>
+            </div>
+            <div class="summary-cards">
+                <div class="summary-card">
+                    <div class="summary-icon">🗓️</div>
+                    <div class="summary-info">
+                        <h3>Sesiones hoy</h3>
+                        <div class="summary-value" id="todaySessions">0</div>
+                        <div class="summary-label" id="todaySessionsLabel">Programadas</div>
+                    </div>
+                </div>
+                <div class="summary-card priority">
+                    <div class="summary-icon">❤️</div>
+                    <div class="summary-info">
+                        <h3>Prioritarios</h3>
+                        <div class="summary-value" id="priorityPatients">0</div>
+                        <div class="summary-label">Requieren atención</div>
+                    </div>
+                </div>
+                <div class="summary-card">
+                    <div class="summary-icon">🎯</div>
+                    <div class="summary-info">
+                        <h3>Objetivos</h3>
+                        <div class="summary-value" id="weekGoals">0</div>
+                        <div class="summary-label">Cumplidos esta semana</div>
+                    </div>
+                </div>
+                <div class="summary-card">
+                    <div class="summary-icon">😊</div>
+                    <div class="summary-info">
+                        <h3>Ánimo promedio</h3>
+                        <div class="summary-value" id="avgMood">—</div>
+                        <div class="summary-label">General</div>
+                    </div>
+                </div>
+            </div>
+            <!-- RECORDATORIOS DE SESIONES CLINICAS PENDIENTES -->
+            <div class="section-block" id="sessionRemindersBlock">
+                <div class="section-header-flex" style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">
+                    <h2 class="section-title" style="margin:0;"><i class="fas fa-clock"></i> Recordatorios de Sesiones Pendientes</h2>
+                    <button class="btn-secondary btn-sm" onclick="openCustomReminderModal()">
+                        <i class="fas fa-plus"></i> Añadir Recordatorio
+                    </button>
+                </div>
+                <div class="session-reminders-widget" id="sessionRemindersWidget"></div>
+            </div>
+            <div class="section-block">
+                <h2 class="section-title"><i class="fas fa-bell"></i> Alertas Clínicas</h2>
+                <div class="clinical-alerts" id="clinicalAlerts">
+                    <div class="empty-state">
+                        <div class="empty-icon">✅</div>
+                        <p>Sin alertas pendientes</p>
+                    </div>
+                </div>
+            </div>
+            <div class="section-block">
+                <h2 class="section-title"><i class="fas fa-chart-line"></i> Evolución</h2>
+                <div class="evolution-grid">
+                    <div class="evolution-card">
+                        <h4>Ansiedad (GAD-7)</h4>
+                        <div class="evolution-chart" id="anxietyChart"></div>
+                    </div>
+                    <div class="evolution-card">
+                        <h4>Ánimo</h4>
+                        <div class="evolution-chart" id="moodChart"></div>
+                    </div>
+                    <div class="evolution-card">
+                        <h4>Asistencia</h4>
+                        <div class="evolution-chart" id="attendanceChart"></div>
+                    </div>
+                    <div class="evolution-card">
+                        <h4>Sesiones</h4>
+                        <div class="evolution-chart" id="sessionsChart"></div>
+                    </div>
+                </div>
+            </div>
+            <div class="section-block">
+                <h2 class="section-title"><i class="fas fa-calendar-day"></i> Agenda del Día</h2>
+                <div class="contextual-agenda" id="contextualAgenda">
+                    <div class="empty-state">
+                        <div class="empty-icon">📅</div>
+                        <p>No hay sesiones hoy</p>
+                        <button class="btn-primary" onclick="openModal('appointmentModal')">Agendar cita</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- PATIENTS -->
+        <div class="view" id="patientsView">
+            <div class="page-header">
+                <div class="page-header-left">
+                    <h1 class="page-title">Personas en Proceso</h1>
+                    <p class="page-subtitle">Acompañamiento clínico según etapa del ciclo vital</p>
+                </div>
+                <div style="display:flex;gap:8px;flex-wrap:wrap;">
+                    <button class="btn-primary" onclick="ClinicalHistorySystem.openInAppPreconsultaForm()" title="Llenar formulario de pre-consulta directamente en la app">
+                        <i class="fas fa-clipboard-list"></i> Llenar Pre-consulta
+                    </button>
+                    <button class="btn-secondary" onclick="ClinicalHistorySystem.openPreconsultaModal()" title="Opciones para compartir enlace remoto o WhatsApp">
+                        <i class="fas fa-qrcode"></i> Enlace Remoto
+                    </button>
+                    <button class="btn-secondary" onclick="ClinicalHistorySystem.openGoogleFormImportModal()" title="Importar respuestas de Google Form">
+                        <i class="fab fa-google"></i> Importar Formulario
+                    </button>
+                    <button class="btn-primary" onclick="openModal('patientModal')">
+                        <i class="fas fa-user-plus"></i> Nuevo Expediente
+                    </button>
+                </div>
+            </div>
+            <!-- Etapas del Ciclo Vital: Niñez, Adolescencia, Adultez -->
+            <div class="population-filter-tabs" id="populationFilterTabs">
+                <button class="population-tab-btn active" id="tabPopAll" onclick="setPatientCategoryFilter('all')">
+                    <span class="tab-pop-label">Todos</span>
+                    <span class="tab-pop-count" id="countAllPatients">0</span>
+                </button>
+                <button class="population-tab-btn" id="tabPopChild" onclick="setPatientCategoryFilter('child')">
+                    <span class="tab-pop-icon">🧒</span>
+                    <span class="tab-pop-label">Niñez</span>
+                    <span class="tab-pop-hint">(&lt;12a)</span>
+                    <span class="tab-pop-count badge-child-count" id="countChildPatients">0</span>
+                </button>
+                <button class="population-tab-btn" id="tabPopAdolescent" onclick="setPatientCategoryFilter('adolescent')">
+                    <span class="tab-pop-icon">🧑</span>
+                    <span class="tab-pop-label">Adolescencia</span>
+                    <span class="tab-pop-hint">(12-17a)</span>
+                    <span class="tab-pop-count badge-adolescent-count" id="countAdolescentPatients">0</span>
+                </button>
+                <button class="population-tab-btn" id="tabPopAdult" onclick="setPatientCategoryFilter('adult')">
+                    <span class="tab-pop-icon">👤</span>
+                    <span class="tab-pop-label">Adultez</span>
+                    <span class="tab-pop-hint">(18+a)</span>
+                    <span class="tab-pop-count badge-adult-count" id="countAdultPatients">0</span>
+                </button>
+            </div>
+            <div class="search-bar">
+                <i class="fas fa-search"></i>
+                <input type="text" id="patientSearch" placeholder="Buscar por nombre, diagnóstico, colegio, tutor o teléfono...">
+            </div>
+            <div class="patients-list" id="patientsList"></div>
+        </div>
+
+        <!-- APPOINTMENTS / AGENDA CLÍNICA MULTI-VISTA -->
+        <div class="view" id="appointmentsView">
+            <div class="page-header" style="flex-wrap:wrap;gap:12px;">
+                <div class="page-header-left">
+                    <h1 class="page-title">Agenda Clínica</h1>
+                    <p class="page-subtitle">Sesiones programadas, disponibilidad y seguimiento de citas</p>
+                </div>
+                <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
+                    <!-- SELECTOR DE VISTAS: DÍA, SEMANA, MES, AÑO -->
+                    <div class="calendar-view-switcher">
+                        <button type="button" class="btn-cal-mode" id="calModeDay" onclick="setCalendarViewMode('day')">
+                            <i class="fas fa-calendar-day"></i> Día
+                        </button>
+                        <button type="button" class="btn-cal-mode" id="calModeWeek" onclick="setCalendarViewMode('week')">
+                            <i class="fas fa-calendar-week"></i> Semana
+                        </button>
+                        <button type="button" class="btn-cal-mode active" id="calModeMonth" onclick="setCalendarViewMode('month')">
+                            <i class="fas fa-calendar-alt"></i> Mes
+                        </button>
+                        <button type="button" class="btn-cal-mode" id="calModeYear" onclick="setCalendarViewMode('year')">
+                            <i class="fas fa-calendar"></i> Año
+                        </button>
+                    </div>
+
+                    <button class="btn-primary" onclick="openModal('appointmentModal')">
+                        <i class="fas fa-calendar-plus"></i> Agendar Cita
+                    </button>
+                </div>
+            </div>
+
+            <!-- BARRA DE NAVEGACIÓN Y CONTROLES DEL CALENDARIO -->
+            <div class="calendar-header" style="justify-content:space-between;background:var(--bg-card);border:1px solid var(--border-primary);border-radius:12px;padding:12px 18px;margin-bottom:18px;">
+                <div style="display:flex;align-items:center;gap:8px;">
+                    <button class="btn-secondary" onclick="navigateCalendarToday()" style="font-weight:600;padding:6px 14px;border-radius:6px;font-size:12px;">
+                        <i class="fas fa-dot-circle" style="color:var(--accent-primary);margin-right:4px;"></i> Hoy
+                    </button>
+                    <div style="display:flex;gap:4px;">
+                        <button class="btn-icon" id="prevMonth" onclick="navigateCalendarPeriod(-1)" title="Período anterior">
+                            <i class="fas fa-chevron-left"></i>
+                        </button>
+                        <button class="btn-icon" id="nextMonth" onclick="navigateCalendarPeriod(1)" title="Período siguiente">
+                            <i class="fas fa-chevron-right"></i>
+                        </button>
+                    </div>
+                </div>
+
+                <div class="calendar-title" id="calendarTitle" style="font-size:18px;font-weight:700;color:var(--text-primary);letter-spacing:0.3px;"></div>
+
+                <div class="calendar-quick-metrics" id="calendarQuickMetrics" style="font-size:12px;color:var(--text-secondary);display:flex;align-items:center;gap:10px;">
+                    <!-- Métricas automáticas -->
+                </div>
+            </div>
+
+            <!-- CONTENEDOR DE LA VISTA PRINCIPAL DEL CALENDARIO -->
+            <div id="calendarMainContainer">
+                <div class="calendar-grid" id="calendarGrid"></div>
+            </div>
+
+            <!-- CITAS DEL DÍA SELECCIONADO (TIMELINE DE DETALLE) -->
+            <div id="calendarDayDetailsContainer" style="margin-top:20px;">
+                <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">
+                    <h2 class="section-title" id="dayDetailsTitle" style="margin:0;">Citas del Día</h2>
+                    <span id="dayDetailsSubtitle" style="font-size:12px;color:var(--text-secondary);"></span>
+                </div>
+                <div class="appointments-list" id="appointmentsList"></div>
+            </div>
+        </div>
+
+        <!-- NOTES -->
+        <div class="view" id="notesView">
+            <div class="page-header">
+                <div class="page-header-left">
+                    <h1 class="page-title">Reportes de Atención & Sesiones</h1>
+                    <p class="page-subtitle">Registro protocolizado de cada sesión de terapia con Reporte de Atención oficial y formato SOAP</p>
+                </div>
+                <button class="btn-primary" onclick="openReporteAtencionModal()">
+                    <i class="fas fa-file-signature"></i> Nuevo Reporte de Atención
+                </button>
+            </div>
+            <div class="search-bar">
+                <i class="fas fa-search"></i>
+                <input type="text" id="notesSearch" placeholder="Buscar por título, paciente o contenido...">
+            </div>
+            <div class="notes-list" id="notesList"></div>
+        </div>
+
+        <!-- FINANCE -->
+        <div class="view" id="financeView">
+            <div id="financeContent"></div>
+        </div>
+
+        <!-- BILLING -->
+        <div class="view" id="billingView">
+            <div class="page-header">
+                <div class="page-header-left">
+                    <h1 class="page-title">Facturación SENIAT</h1>
+                    <p class="page-subtitle">Gestión de facturas y configuración fiscal</p>
+                </div>
+                <div style="display: flex; gap: 8px;">
+                    <button class="btn-secondary" onclick="openBillingConfig()">
+                        <i class="fas fa-cog"></i> Configuración
+                    </button>
+                    <button class="btn-primary" onclick="openInvoiceCreator()">
+                        <i class="fas fa-plus"></i> Emitir factura
+                    </button>
+                </div>
+            </div>
+            <div id="billingContent"></div>
+        </div>
+
+        <!-- ESCALAS Y TESTS -->
+        <div class="view" id="scalesView"></div>
+
+        <!-- SEARCH -->
+        <div class="view" id="searchView">
+            <div class="page-header">
+                <div class="page-header-left">
+                    <h1 class="page-title">Búsqueda Global</h1>
+                    <p class="page-subtitle">Buscar expedientes y notas en toda la consulta</p>
+                </div>
+            </div>
+            <div class="search-bar large">
+                <i class="fas fa-search"></i>
+                <input type="text" id="globalSearch" placeholder="Escriba el término a buscar...">
+            </div>
+            <div class="search-results" id="searchResults">
+                <div class="empty-state">
+                    <div class="empty-icon">🔍</div>
+                    <p>Escriba para buscar...</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- STATS -->
+        <div class="view" id="statsView">
+            <div class="page-header">
+                <div class="page-header-left">
+                    <h1 class="page-title">Métricas de Consulta</h1>
+                    <p class="page-subtitle">Estadísticas e indicadores</p>
+                </div>
+            </div>
+            <div class="stats-grid">
+                <div class="stat-card">
+                    <div class="stat-icon">👥</div>
+                    <div class="stat-info">
+                        <h3>Activos</h3>
+                        <div class="stat-value" id="activePatients">0</div>
+                    </div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-icon">📅</div>
+                    <div class="stat-info">
+                        <h3>Sesiones / Mes</h3>
+                        <div class="stat-value" id="monthAppointments">0</div>
+                    </div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-icon">📝</div>
+                    <div class="stat-info">
+                        <h3>Notas SOAP</h3>
+                        <div class="stat-value" id="totalNotes">0</div>
+                    </div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-icon">⏱️</div>
+                    <div class="stat-info">
+                        <h3>Horas clínicas</h3>
+                        <div class="stat-value" id="consultationHours">0</div>
+                    </div>
+                </div>
+            </div>
+            <div class="chart-container">
+                <h3 style="font-size: 14px; margin-bottom: 16px; color: var(--text-secondary);">Distribución de sesiones por día de la semana</h3>
+                <div class="bar-chart" id="weekdayChart"></div>
+            </div>
+            <div class="chart-container" style="margin-top:20px;" id="agendaHeatmapContainer"></div>
+        </div>
+    </div>
+</main>
+
+<!-- PATIENT MODAL -->
+<div class="modal" id="patientModal">
+    <div class="modal-overlay" onclick="closeModal('patientModal')"></div>
+    <div class="modal-content modal-large">
+        <div class="modal-header">
+            <h2 id="patientModalTitle">Nuevo Expediente</h2>
+            <button class="btn-icon" onclick="closeModal('patientModal')">
+                <i class="fas fa-times"></i>
+            </button>
+        </div>
+        <form id="patientForm" class="modal-form">
+            <input type="hidden" id="patientId">
+            <div class="form-section-title">Etapa Vital y Datos de la Persona</div>
+            <div class="form-row">
+                <div class="form-group">
+                    <label>Etapa del Ciclo Vital *</label>
+                    <select id="patientCategory" onchange="onPatientCategoryChange()">
+                        <option value="adult">👤 Adultez (18+ años)</option>
+                        <option value="adolescent">🧑 Adolescencia (12 a 17 años)</option>
+                        <option value="child">🧒 Niñez / Infancia (&lt; 12 años)</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>Fecha de Nacimiento</label>
+                    <input type="date" id="patientBirthdate" onchange="onPatientBirthdateChange()" oninput="onPatientBirthdateChange()">
+                </div>
+            </div>
+            <div class="form-row">
+                <div class="form-group">
+                    <label>Nombre Completo *</label>
+                    <input type="text" id="patientName" required>
+                </div>
+                <div class="form-group">
+                    <label>Identidad de Género</label>
+                    <select id="patientGender">
+                        <option value="">Seleccionar</option>
+                        <option>Femenino</option>
+                        <option>Masculino</option>
+                        <option>No binario</option>
+                        <option>Otro</option>
+                    </select>
+                </div>
+            </div>
+            <div class="form-row">
+                <div class="form-group">
+                    <label>Email de Contacto</label>
+                    <input type="email" id="patientEmail" placeholder="Email del paciente o tutor">
+                </div>
+                <div class="form-group">
+                    <label>Teléfono de Contacto</label>
+                    <input type="tel" id="patientPhone" placeholder="Teléfono del paciente o tutor">
+                </div>
+            </div>
+            <div class="form-row" id="adultSpecificRow">
+                <div class="form-group">
+                    <label>Ocupación / Actividad</label>
+                    <input type="text" id="patientOccupation" placeholder="Profesión, trabajo o estudios">
+                </div>
+                <div class="form-group">
+                    <label>Estado Civil / Convivencia</label>
+                    <input type="text" id="patientMaritalStatus" placeholder="Soltero/a, Casado/a, Conviviente...">
+                </div>
+            </div>
+
+            <!-- SECCIÓN CONDICIONAL PEDIÁTRICA Y ADOLESCENTE -->
+            <div id="pediatricFieldsSection" class="pediatric-fields-container" style="display: none;">
+                <div class="form-section-title" style="margin-top:0;color:var(--accent-primary);">
+                    <i class="fas fa-user-friends"></i> Tutor Legal y Entorno Educativo
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>Representante / Tutor Legal *</label>
+                        <input type="text" id="patientGuardianName" placeholder="Madre, Padre o Tutor con custodia legal">
+                    </div>
+                    <div class="form-group">
+                        <label>Parentesco / Vínculo</label>
+                        <select id="patientGuardianRelation">
+                            <option value="">Seleccionar vínculo</option>
+                            <option value="Madre">Madre</option>
+                            <option value="Padre">Padre</option>
+                            <option value="Tutor Legal">Tutor Legal</option>
+                            <option value="Abuelo/a">Abuelo / Abuela</option>
+                            <option value="Otro">Otro familiar a cargo</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>Teléfono de Contacto del Tutor</label>
+                        <input type="tel" id="patientGuardianPhone" placeholder="Teléfono directo o WhatsApp del tutor">
+                    </div>
+                    <div class="form-group">
+                        <label>Consentimiento Parental Legal</label>
+                        <select id="patientGuardianConsent">
+                            <option value="firmado">✅ Consentimiento Parental Firmado</option>
+                            <option value="pendiente">⏳ Pendiente de firma</option>
+                            <option value="no-aplica">No aplica / Mayoría de edad</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>Institución Educativa / Escuela</label>
+                        <input type="text" id="patientSchoolName" placeholder="Nombre de la escuela o colegio">
+                    </div>
+                    <div class="form-group">
+                        <label>Grado / Nivel Escolar</label>
+                        <input type="text" id="patientSchoolGrade" placeholder="Ej: 3° Básico, 1° Medio, etc.">
+                    </div>
+                </div>
+
+                <!-- SUBSECCIÓN NIÑOS (<12 AÑOS) -->
+                <div id="childSpecificBlock" style="display: none;">
+                    <div class="form-group">
+                        <label>Hitos del Neurodesarrollo y Antecedentes Perinatales</label>
+                        <textarea id="patientDevelopmentalMilestones" rows="2" placeholder="Parto, hitos psicomotores, adquisición del lenguaje, control de esfínteres, sueño y conducta lúdica..."></textarea>
+                    </div>
+                </div>
+
+                <!-- SUBSECCIÓN ADOLESCENTES (12-17 AÑOS) -->
+                <div id="adolescentSpecificBlock" style="display: none;">
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label>Pacto de Confidencialidad y Asentimiento</label>
+                            <select id="patientAdolescentAssent">
+                                <option value="firmado">🤝 Asentimiento y Alianza de Confidencialidad Acordada</option>
+                                <option value="pendiente">⏳ Pendiente de acordar en encuadre</option>
+                                <option value="en-revision">En revisión con familia</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label>Perspectiva del Adolescente vs Demanda Familiar</label>
+                        <textarea id="patientAdolescentPerspective" rows="2" placeholder="¿Cómo percibe el/la adolescente su motivo de consulta y qué objetivos busca trabajar personalmente frente a la solicitud de los padres?"></textarea>
+                    </div>
+                </div>
+            </div>
+            <div class="form-section-title">Contacto de Emergencia</div>
+            <div class="form-row">
+                <div class="form-group">
+                    <label>Nombre</label>
+                    <input type="text" id="patientEmergency">
+                </div>
+                <div class="form-group">
+                    <label>Vínculo / Teléfono</label>
+                    <input type="text" id="patientEmergencyRelation">
+                </div>
+            </div>
+            <div class="form-section-title">Motivo de Consulta</div>
+            <div class="form-group">
+                <label>En palabras del paciente</label>
+                <textarea id="patientReason" rows="2"></textarea>
+            </div>
+            <div class="form-group">
+                <label>Objetivos terapéuticos del paciente</label>
+                <textarea id="patientGoals" rows="2"></textarea>
+            </div>
+            <div class="form-section-title">Diagnóstico y Evaluación</div>
+            <div class="form-row">
+                <div class="form-group">
+                    <label>Diagnóstico Principal (CIE-11 / DSM-5)</label>
+                    <input type="text" id="patientDiagnosis" placeholder="Ej: F32.1 Trastorno depresivo moderado">
+                </div>
+                <div class="form-group">
+                    <label>Diagnóstico Secundario</label>
+                    <input type="text" id="patientDiagnosis2">
+                </div>
+            </div>
+            <div class="form-group">
+                <label>Medicación Actual</label>
+                <textarea id="patientMedication" rows="2"></textarea>
+            </div>
+            <div class="form-section-title">Historia Clínica</div>
+            <div class="form-group">
+                <label>Antecedentes Personales Relevantes</label>
+                <textarea id="patientMedical" rows="3"></textarea>
+            </div>
+            <div class="form-group">
+                <label>Historia Familiar</label>
+                <textarea id="patientFamilyHistory" rows="2"></textarea>
+            </div>
+            <div class="form-group">
+                <label>Factores de Riesgo</label>
+                <textarea id="patientRiskFactors" rows="2"></textarea>
+            </div>
+            <div class="form-group">
+                <label>Factores Protectores / Recursos</label>
+                <textarea id="patientProtectiveFactors" rows="2"></textarea>
+            </div>
+            <div class="form-section-title">Encuadre</div>
+            <div class="form-group">
+                <label>Notas de Encuadre / Acuerdos</label>
+                <textarea id="patientNotes" rows="2"></textarea>
+            </div>
+            <div class="form-row">
+                <div class="form-group">
+                    <label>Frecuencia acordada</label>
+                    <select id="patientFrequency">
+                        <option value="">Seleccionar</option>
+                        <option>Semanal</option>
+                        <option>Quincenal</option>
+                        <option>Mensual</option>
+                        <option>Bajo demanda</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>Modalidad preferida</label>
+                    <select id="patientModality">
+                        <option value="">Seleccionar</option>
+                        <option>Presencial</option>
+                        <option>Online</option>
+                        <option>Mixta</option>
+                    </select>
+                </div>
+            </div>
+            <div class="modal-actions">
+                <button type="button" class="btn-secondary" onclick="closeModal('patientModal')">Cancelar</button>
+                <button type="submit" class="btn-primary">
+                    <i class="fas fa-save"></i> Guardar Expediente
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- PATIENT DETAIL MODAL -->
+<div class="modal" id="patientDetailModal">
+    <div class="modal-overlay" onclick="closeModal('patientDetailModal')"></div>
+    <div class="modal-content modal-xl">
+        <div class="modal-header">
+            <h2>Expediente Clínico</h2>
+            <button class="btn-icon" onclick="closeModal('patientDetailModal')">
+                <i class="fas fa-times"></i>
+            </button>
+        </div>
+        <div class="patient-detail" id="patientDetail"></div>
+    </div>
+</div>
+
+<!-- APPOINTMENT MODAL -->
+<div class="modal" id="appointmentModal">
+    <div class="modal-overlay" onclick="closeModal('appointmentModal')"></div>
+    <div class="modal-content">
+        <div class="modal-header">
+            <h2 id="appointmentModalTitle">Agendar Cita</h2>
+            <button class="btn-icon" onclick="closeModal('appointmentModal')">
+                <i class="fas fa-times"></i>
+            </button>
+        </div>
+        <form id="appointmentForm" class="modal-form">
+            <input type="hidden" id="appointmentId">
+            <div class="form-group">
+                <label>Paciente *</label>
+                <select id="appointmentPatient" required>
+                    <option value="">Seleccionar</option>
+                </select>
+            </div>
+            <div class="ai-suggest-box">
+                <button type="button" class="btn-secondary ai-suggest-btn" onclick="suggestAppointmentSlots()">
+                    <i class="fas fa-magic"></i> Sugerir Horario Inteligente
+                </button>
+                <div class="ai-suggest-results" id="aiSuggestResults"></div>
+            </div>
+            <div class="form-row">
+                <div class="form-group">
+                    <label>Fecha *</label>
+                    <input type="date" id="appointmentDate" required>
+                </div>
+                <div class="form-group">
+                    <label>Hora *</label>
+                    <input type="time" id="appointmentTime" required>
+                </div>
+            </div>
+            <div class="form-row">
+                <div class="form-group">
+                    <label>Duración</label>
+                    <select id="appointmentDuration">
+                        <option value="45">45 min</option>
+                        <option value="50" selected>50 min</option>
+                        <option value="60">60 min</option>
+                        <option value="90">90 min</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>Modalidad</label>
+                    <select id="appointmentType">
+                        <option>Presencial</option>
+                        <option>Online</option>
+                        <option>Domicilio</option>
+                    </select>
+                </div>
+            </div>
+            <div class="form-group">
+                <label>Objetivo / Notas de la sesión</label>
+                <textarea id="appointmentNotes" rows="2"></textarea>
+            </div>
+            <div class="modal-actions">
+                <button type="button" class="btn-secondary" onclick="closeModal('appointmentModal')">Cancelar</button>
+                <button type="submit" class="btn-primary">
+                    <i class="fas fa-check"></i> Confirmar Cita
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- NOTE MODAL -->
+<div class="modal" id="noteModal">
+    <div class="modal-overlay" onclick="closeModal('noteModal')"></div>
+    <div class="modal-content modal-large">
+        <div class="modal-header">
+            <h2 id="noteModalTitle">Reporte de Atención — Sesión de Terapia</h2>
+            <button class="btn-icon" onclick="closeModal('noteModal')">
+                <i class="fas fa-times"></i>
+            </button>
+        </div>
+        <form id="noteForm" class="modal-form">
+            <input type="hidden" id="noteId">
+            <div class="form-row">
+                <div class="form-group">
+                    <label>Paciente *</label>
+                    <select id="notePatient" required>
+                        <option value="">Seleccionar</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>Fecha de la Sesión *</label>
+                    <input type="date" id="noteDate" required>
+                </div>
+            </div>
+            <div class="form-group">
+                <label>Título / Enfoque de la Sesión *</label>
+                <input type="text" id="noteTitle" required placeholder="Ej: Sesión 4 - Reestructuración cognitiva y manejo de distorsiones">
+            </div>
+            <div class="note-format-switcher" style="display:flex;gap:10px;margin-bottom:14px;">
+                <button type="button" class="btn-tab-toggle active" id="btnNoteFormatFPV" onclick="switchNoteFormat('fpv')" style="padding:7px 14px;border-radius:6px;font-size:12px;font-weight:700;border:1px solid var(--accent-primary);background:var(--accent-primary);color:#fff;cursor:pointer;">
+                    <i class="fas fa-file-invoice"></i> Reporte Oficial de Atención (Por Sesión)
+                </button>
+                <button type="button" class="btn-tab-toggle" id="btnNoteFormatSoap" onclick="switchNoteFormat('soap')" style="padding:7px 14px;border-radius:6px;font-size:12px;font-weight:600;border:1px solid var(--border-primary);background:var(--bg-secondary);color:var(--text-primary);cursor:pointer;">
+                    <i class="fas fa-notes-medical"></i> Formato SOAP / Copiloto IA
+                </button>
+            </div>
+
+            <!-- CONTENEDOR FORMATO OFICIAL DE REPORTE DE ATENCIÓN CLÍNICA -->
+            <div id="fpvNoteContainer" style="display:block;background:var(--bg-secondary);padding:14px;border-radius:10px;margin-bottom:16px;border:1px solid var(--border-primary);">
+                <div style="background:var(--bg-primary);padding:10px 14px;border-radius:8px;font-size:12px;margin-bottom:14px;border-left:3px solid var(--accent-primary);color:var(--text-secondary);display:flex;align-items:center;gap:10px;">
+                    <i class="fas fa-info-circle" style="color:var(--accent-primary);font-size:16px;"></i>
+                    <span><strong>Protocolo Clínico Obligatorio:</strong> El <em>Reporte de Atención</em> debe llenarse en cada sesión de terapia para asentar la evolución formal, objetivos alcanzados y tareas del paciente.</span>
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>Nº Sesión *</label>
+                        <input type="number" id="noteSessionNum" value="1" min="1">
+                    </div>
+                    <div class="form-group">
+                        <label>Técnicas e Instrumentos Aplicados</label>
+                        <input type="text" id="noteAppliedTechniques" placeholder="Ej: TCC, Reestructuración cognitiva, role-playing, PHQ-9">
+                    </div>
+                </div>
+                <div class="form-group">
+                    <div class="soap-label-row">
+                        <label class="soap-label"><strong>Objetivos de la Sesión:</strong></label>
+                        <button type="button" class="btn-icon" onclick="toggleDictation('noteSessionGoals')" title="Dictado por voz"><i class="fas fa-microphone"></i></button>
+                    </div>
+                    <textarea id="noteSessionGoals" rows="2" placeholder="Objetivos fijados para esta sesión..."></textarea>
+                </div>
+                <div class="form-group">
+                    <div class="soap-label-row">
+                        <label class="soap-label"><strong>Descripción de la Sesión (Desarrollo):</strong></label>
+                        <button type="button" class="btn-icon" onclick="toggleDictation('noteSessionDescription')" title="Dictado por voz"><i class="fas fa-microphone"></i></button>
+                    </div>
+                    <textarea id="noteSessionDescription" rows="4" placeholder="Desarrollo del diálogo terapéutico y aspectos explorados..."></textarea>
+                </div>
+                <div class="form-group">
+                    <div class="soap-label-row">
+                        <label class="soap-label"><strong>Hallazgos Clínicos:</strong></label>
+                        <button type="button" class="btn-icon" onclick="toggleDictation('noteClinicalFindings')" title="Dictado por voz"><i class="fas fa-microphone"></i></button>
+                    </div>
+                    <textarea id="noteClinicalFindings" rows="2" placeholder="Insights, esquemas nucleares, resistencias o recursos observados..."></textarea>
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>Resultados Obtenidos:</label>
+                        <textarea id="noteObtainedResults" rows="2" placeholder="Avances inmediatos al cierre de la sesión..."></textarea>
+                    </div>
+                    <div class="form-group">
+                        <label>Próximas Sesiones / Tareas:</label>
+                        <textarea id="noteNextSessionsPlan" rows="2" placeholder="Foco de la próxima cita y tareas acordadas..."></textarea>
+                    </div>
+                </div>
+            </div>
+
+            <!-- CONTENEDOR FORMATO SOAP -->
+            <div id="soapNoteContainer" style="display:none;">
+                <div class="form-group">
+                    <label>📋 Cargar Plantilla Clínica</label>
+                    <select onchange="applySoapTemplate(this.value)">
+                        <option value="">— Seleccionar modelo teórico —</option>
+                        <option value="tcc">TCC (Terapia Cognitivo-Conductual)</option>
+                        <option value="psicoanalitica">Psicodinámica / Psicoanalítica</option>
+                        <option value="sistemica">Sistémica / Familiar</option>
+                        <option value="act">ACT (Terapia de Aceptación y Compromiso)</option>
+                    </select>
+                </div>
+                <div class="soap-container">
+                    <div class="form-group">
+                        <div class="soap-label-row">
+                            <label class="soap-label"><strong>S</strong> - Subjetivo (Relato del paciente):</label>
+                            <button type="button" class="btn-icon" onclick="toggleDictation('noteSubjetivo')" title="Dictado por voz">
+                                <i class="fas fa-microphone"></i>
+                            </button>
+                        </div>
+                        <textarea id="noteSubjetivo" rows="3" placeholder="Discurso, motivos reportados, síntomas referidos..."></textarea>
+                    </div>
+                    <div class="form-group">
+                        <div class="soap-label-row">
+                            <label class="soap-label"><strong>O</strong> - Objetivo (Observación clínica):</label>
+                            <button type="button" class="btn-icon" onclick="toggleDictation('noteObjetivo')" title="Dictado por voz">
+                                <i class="fas fa-microphone"></i>
+                            </button>
+                        </div>
+                        <textarea id="noteObjetivo" rows="3" placeholder="Conducta, lenguaje no verbal, afecto, orientación, examen mental..."></textarea>
+                    </div>
+                    <div class="form-group">
+                        <div class="soap-label-row">
+                            <label class="soap-label"><strong>A</strong> - Análisis (Hipótesis y progreso):</label>
+                            <button type="button" class="btn-icon" onclick="toggleDictation('noteAnalisis')" title="Dictado por voz">
+                                <i class="fas fa-microphone"></i>
+                            </button>
+                        </div>
+                        <textarea id="noteAnalisis" rows="3" placeholder="Formulación del caso, evaluación del progreso, patrones identificados..."></textarea>
+                    </div>
+                    <div class="form-group">
+                        <div class="soap-label-row">
+                            <label class="soap-label"><strong>P</strong> - Plan (Intervención e intersesión):</label>
+                            <button type="button" class="btn-icon" onclick="toggleDictation('notePlan')" title="Dictado por voz">
+                                <i class="fas fa-microphone"></i>
+                            </button>
+                        </div>
+                        <textarea id="notePlan" rows="3" placeholder="Técnicas aplicadas, próximas tareas, objetivos para la siguiente sesión..."></textarea>
+                    </div>
+                </div>
+            </div>
+            <div class="form-group">
+                <label>📋 Tareas Intersesión (Se sincronizan con el portal del paciente)</label>
+                <div id="intersessionTasksEditor"></div>
+                <button type="button" class="btn-secondary" onclick="addIntersessionTask()" style="margin-top:8px;">
+                    <i class="fas fa-plus"></i> Añadir tarea
+                </button>
+            </div>
+            <div class="form-row">
+                <div class="form-group">
+                    <label>Evaluación de Riesgo</label>
+                    <select id="noteRisk">
+                        <option value="bajo">🟢 Bajo</option>
+                        <option value="medio">🟡 Medio</option>
+                        <option value="alto">🔴 Alto (Activa Protocolo)</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>Afecto Predominante</label>
+                    <select id="noteMood">
+                        <option value="">Seleccionar</option>
+                        <option value="muy-bueno">😊 Eutímico</option>
+                        <option value="bueno">🙂 Estable</option>
+                        <option value="neutral">😐 Aplanado</option>
+                        <option value="bajo">😔 Ansioso</option>
+                        <option value="muy-bajo">😞 Depresivo</option>
+                    </select>
+                </div>
+            </div>
+            <div class="form-group">
+                <label class="checkbox-label">
+                    <input type="checkbox" id="noteConfidential"> 🔒 Confidencial / Nota reservada
+                </label>
+            </div>
+            <div class="modal-actions">
+                <button type="button" class="btn-secondary" onclick="closeModal('noteModal')">Cancelar</button>
+                <button type="button" class="btn-secondary" onclick="ClinicalHistorySystem.exportReporteAtencionPDF(document.getElementById('noteId').value)" title="Imprimir Reporte Oficial de Atención con membrete y firma">
+                    <i class="fas fa-print"></i> Imprimir Reporte de Atención (PDF)
+                </button>
+                <button type="submit" class="btn-primary">
+                    <i class="fas fa-save"></i> Guardar Reporte de Atención
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- SCALE MODAL -->
+<div class="modal" id="scaleModal">
+    <div class="modal-overlay" onclick="closeModal('scaleModal')"></div>
+    <div class="modal-content modal-large">
+        <div class="modal-header">
+            <h2>Escala Clínica</h2>
+            <button class="btn-icon" onclick="closeModal('scaleModal')">
+                <i class="fas fa-times"></i>
+            </button>
+        </div>
+        <div class="modal-form" id="scaleModalBody"></div>
+    </div>
+</div>
+
+<!-- BILLING MODAL -->
+<div class="modal" id="billingModal">
+    <div class="modal-overlay" onclick="closeModal('billingModal')"></div>
+    <div class="modal-content modal-large">
+        <div class="modal-header">
+            <h2 id="billingModalTitle">Facturación SENIAT</h2>
+            <button class="btn-icon" onclick="closeModal('billingModal')">
+                <i class="fas fa-times"></i>
+            </button>
+        </div>
+        <div class="modal-form" id="billingModalBody"></div>
+    </div>
+</div>
+
+<!-- BACKUP MODAL -->
+<div class="modal" id="backupModal">
+    <div class="modal-overlay" onclick="closeModal('backupModal')"></div>
+    <div class="modal-content">
+        <div class="modal-header">
+            <h2 id="backupModalTitle">💾 Centro de Backups</h2>
+            <button class="btn-icon" onclick="closeModal('backupModal')">
+                <i class="fas fa-times"></i>
+            </button>
+        </div>
+        <div class="modal-form" id="backupModalBody"></div>
+    </div>
+</div>
+
+<!-- FINANCE TRANSACTION MODAL -->
+<div class="modal" id="financeTransactionModal">
+    <div class="modal-overlay" onclick="closeModal('financeTransactionModal')"></div>
+    <div class="modal-content">
+        <div class="modal-header">
+            <h2 id="financeTransactionModalTitle">Transacción</h2>
+            <button class="btn-icon" onclick="closeModal('financeTransactionModal')">
+                <i class="fas fa-times"></i>
+            </button>
+        </div>
+        <div class="modal-form" id="financeTransactionModalBody"></div>
+    </div>
+</div>
+
+<!-- FINANCE CATEGORIES MODAL -->
+<div class="modal" id="financeCategoriesModal">
+    <div class="modal-overlay" onclick="closeModal('financeCategoriesModal')"></div>
+    <div class="modal-content">
+        <div class="modal-header">
+            <h2>Gestionar categorías de egresos</h2>
+            <button class="btn-icon" onclick="closeModal('financeCategoriesModal')">
+                <i class="fas fa-times"></i>
+            </button>
+        </div>
+        <div class="modal-form" id="financeCategoriesModalBody"></div>
+    </div>
+</div>
+
+<!-- FINANCE GOAL MODAL -->
+<div class="modal" id="financeGoalModal">
+    <div class="modal-overlay" onclick="closeModal('financeGoalModal')"></div>
+    <div class="modal-content">
+        <div class="modal-header">
+            <h2 id="financeGoalModalTitle">Meta Financiera</h2>
+            <button class="btn-icon" onclick="closeModal('financeGoalModal')">
+                <i class="fas fa-times"></i>
+            </button>
+        </div>
+        <div class="modal-form" id="financeGoalModalBody"></div>
+    </div>
+</div>
+
+<!-- FINANCE RATE MODAL -->
+<div class="modal" id="financeRateModal">
+    <div class="modal-overlay" onclick="closeModal('financeRateModal')"></div>
+    <div class="modal-content">
+        <div class="modal-header">
+            <h2 id="financeRateModalTitle">Tarifa por Tiempo</h2>
+            <button class="btn-icon" onclick="closeModal('financeRateModal')">
+                <i class="fas fa-times"></i>
+            </button>
+        </div>
+        <div class="modal-form" id="financeRateModalBody"></div>
+    </div>
+</div>
+
+<!-- DRAWER LATERAL DE RECORDATORIOS DE SESIONES -->
+<div class="reminder-drawer" id="sessionReminderDrawer">
+    <div class="reminder-drawer-overlay" onclick="closeReminderDrawer()"></div>
+    <div class="reminder-drawer-content">
+        <div class="reminder-drawer-header">
+            <div>
+                <h3 style="margin:0;font-size:18px;display:flex;align-items:center;gap:8px;"><i class="fas fa-bell"></i> Recordatorios de Sesiones</h3>
+                <p style="margin:4px 0 0 0;font-size:12px;color:var(--text-tertiary);">Alertas de evoluciones, confirmaciones y citas próximas</p>
+            </div>
+            <button class="btn-icon" onclick="closeReminderDrawer()"><i class="fas fa-times"></i></button>
+        </div>
+
+        <div class="drawer-filter-bar">
+            <span class="drawer-filter-pill active" data-cat="all" onclick="filterReminderDrawerCategory('all')">Todos</span>
+            <span class="drawer-filter-pill" data-cat="no_note" onclick="filterReminderDrawerCategory('no_note')">📝 Sin Nota</span>
+            <span class="drawer-filter-pill" data-cat="starting_soon" onclick="filterReminderDrawerCategory('starting_soon')">⏰ En Breve</span>
+            <span class="drawer-filter-pill" data-cat="unconfirmed" onclick="filterReminderDrawerCategory('unconfirmed')">📲 Sin Confirmar</span>
+            <span class="drawer-filter-pill" data-cat="custom" onclick="filterReminderDrawerCategory('custom')">📌 Personalizados</span>
+        </div>
+
+        <div class="reminder-drawer-body" id="reminderDrawerList"></div>
+
+        <div class="reminder-drawer-footer">
+            <button class="btn-primary" style="width:100%;justify-content:center;" onclick="openCustomReminderModal()">
+                <i class="fas fa-plus"></i> Crear Recordatorio Personalizado
+            </button>
+        </div>
+    </div>
+</div>
+
+<!-- AI COPILOT & DIAGNOSTIC MODAL -->
+<div class="modal" id="aiCopilotModal">
+    <div class="modal-overlay" onclick="closeModal('aiCopilotModal')"></div>
+    <div class="modal-content modal-large" style="max-width: 750px;">
+        <div class="modal-header">
+            <h2><i class="fas fa-robot"></i> Asistente Clínico de IA (Gemini AI)</h2>
+            <div style="display:flex;gap:8px;align-items:center;">
+                <button class="btn-icon" onclick="openApiKeyConfigModal()" title="Configurar Gemini API Key">
+                    <i class="fas fa-key"></i>
+                </button>
+                <button class="btn-icon" onclick="closeModal('aiCopilotModal')">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+        </div>
+        <div class="ai-modal-tabs">
+            <button class="ai-tab active" id="tabBtnCopilot" onclick="switchAiTab('copilot')"><i class="fas fa-comments"></i> Copiloto Clínico</button>
+            <button class="ai-tab" id="tabBtnDiagnostics" onclick="switchAiTab('diagnostics')"><i class="fas fa-brain"></i> Hipótesis Diagnósticas</button>
+            <button class="ai-tab" id="tabBtnSoap" onclick="switchAiTab('soap')"><i class="fas fa-pen-nib"></i> Sintetizador SOAP</button>
+        </div>
+
+        <!-- TAB COPILOT -->
+        <div class="ai-tab-content active" id="aiTabCopilot">
+            <div class="ai-chat-box" id="aiChatBox">
+                <div class="ai-msg bot">
+                    <div class="ai-avatar">🤖</div>
+                    <div class="ai-bubble">
+                        ¡Hola! Soy tu <strong>Copiloto Clínico</strong> impulsado por Gemini AI. Puedo ayudarte a formular hipótesis, consultar técnicas basadas en evidencia (TCC, ACT, DBT) o preparar intervenciones para tus pacientes. ¿En qué te puedo asistir hoy?
+                    </div>
+                </div>
+            </div>
+            <form id="aiChatForm" class="ai-chat-input-form" onsubmit="handleAiChatSubmit(event)">
+                <input type="text" id="aiChatInput" placeholder="Haz una consulta clínica o pregunta sobre intervención..." required autocomplete="off">
+                <button type="submit" class="btn-primary"><i class="fas fa-paper-plane"></i></button>
+            </form>
+        </div>
+
+        <!-- TAB DIAGNOSTICS -->
+        <div class="ai-tab-content" id="aiTabDiagnostics" style="display:none;">
+            <div class="form-group" style="margin-bottom:16px;">
+                <label>Seleccionar Paciente para Evaluación DSM-5 / CIE-11:</label>
+                <select id="aiDiagPatientSelect" class="form-control" onchange="runAiDiagnosticAnalysis()">
+                    <option value="">-- Seleccionar expediente --</option>
+                </select>
+            </div>
+            <div class="ai-diag-output" id="aiDiagOutput">
+                <div class="empty-state">
+                    <div class="empty-icon">🧠</div>
+                    <p>Selecciona un paciente para analizar su historial, test aplicados y notas clínicas.</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- TAB SOAP -->
+        <div class="ai-tab-content" id="aiTabSoap" style="display:none;">
+            <p style="font-size:13px;color:var(--text-secondary);margin-bottom:12px;">
+                Pega tus anotaciones informales o borrador de la sesión para estructurarlas automáticamente en formato SOAP.
+            </p>
+            <div class="form-group">
+                <textarea id="aiSoapDraft" rows="5" placeholder="Ej: Paciente refiere alta ansiedad en el trabajo, no duerme bien, puntuación GAD7=14, acordamos técnica de respiración diafragmática..."></textarea>
+            </div>
+            <button type="button" class="btn-primary" onclick="runAiSoapSynthesis()" style="width:100%;justify-content:center;">
+                <i class="fas fa-magic"></i> Generar Nota SOAP Estructurada
+            </button>
+            <div id="aiSoapResult" style="margin-top:16px;"></div>
+        </div>
+    </div>
+</div>
+
+<!-- API KEY CONFIG MODAL -->
+<div class="modal" id="apiKeyModal">
+    <div class="modal-overlay" onclick="closeModal('apiKeyModal')"></div>
+    <div class="modal-content" style="max-width: 450px;">
+        <div class="modal-header">
+            <h2>🔑 Configurar Gemini API Key</h2>
+            <button class="btn-icon" onclick="closeModal('apiKeyModal')"><i class="fas fa-times"></i></button>
+        </div>
+        <div style="padding:16px 0;">
+            <p style="font-size:13px;color:var(--text-secondary);margin-bottom:12px;">
+                Tu clave se almacena de forma <strong>local y cifrada</strong> en tu navegador. Nunca se envía a ningún servidor intermediario.
+            </p>
+            <div class="form-group">
+                <label>Google Gemini API Key:</label>
+                <input type="password" id="geminiApiKeyInput" placeholder="AIzaSy..." style="width:100%;">
+            </div>
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-top:16px;">
+                <a href="https://aistudio.google.com/app/apikey" target="_blank" rel="noopener" style="font-size:12px;color:var(--accent-primary);">
+                    Obtener clave gratis en Google AI Studio ↗
+                </a>
+                <button type="button" class="btn-primary" onclick="saveGeminiKeyFromModal()">Guardar Clave</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- TELEHEALTH MODAL -->
+<div class="modal" id="telehealthModal">
+    <div class="modal-overlay" onclick="closeModal('telehealthModal')"></div>
+    <div class="modal-content modal-large" style="max-width: 950px; width: 95%;">
+        <div class="modal-header">
+            <h2><i class="fas fa-video" style="color:var(--accent-primary);"></i> Teleconsulta Clínica Cifrada</h2>
+            <button class="btn-icon" onclick="closeModal('telehealthModal')"><i class="fas fa-times"></i></button>
+        </div>
+        <div style="padding:12px 0;">
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;flex-wrap:wrap;gap:8px;">
+                <div style="display:flex;align-items:center;gap:8px;">
+                    <label style="font-size:13px;font-weight:600;">Paciente:</label>
+                    <select id="telehealthPatientSelect" onchange="updateTelehealthPatient(this.value)" style="padding:6px 10px;border-radius:6px;border:1px solid var(--border-primary);">
+                        <option value="">Seleccionar paciente</option>
+                    </select>
+                </div>
+                <div style="display:flex;gap:8px;">
+                    <button type="button" class="btn-secondary btn-sm" onclick="copyTelehealthLink()"><i class="fas fa-copy"></i> Copiar Enlace Paciente</button>
+                    <button type="button" class="btn-secondary btn-sm" onclick="openTelehealthSeparateTab()"><i class="fas fa-external-link-alt"></i> Abrir en Pestaña</button>
+                </div>
+            </div>
+
+            <div class="telehealth-grid">
+                <div class="telehealth-video-pane">
+                    <iframe id="telehealthIframe" allow="camera; microphone; fullscreen; display-capture; autoplay" src=""></iframe>
+                </div>
+                <div class="telehealth-notes-pane">
+                    <div style="display:flex;justify-content:space-between;align-items:center;">
+                        <strong style="font-size:13px;">Apuntes Rápidos de Sesión</strong>
+                        <button type="button" class="btn-icon" onclick="toggleDictation('telehealthNotesInput')" title="Dictado por voz"><i class="fas fa-microphone"></i></button>
+                    </div>
+                    <textarea id="telehealthNotesInput" placeholder="Anota observaciones conductuales, relato y acuerdos en vivo..."></textarea>
+                    <button type="button" class="btn-primary btn-sm" onclick="transferTelehealthNotesToSoap()"><i class="fas fa-magic"></i> Convertir a Nota SOAP</button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- QA TESTS RUNNER MODAL -->
+<div class="modal" id="qaTestsModal">
+    <div class="modal-overlay" onclick="closeModal('qaTestsModal')"></div>
+    <div class="modal-content modal-large" style="max-width: 700px;">
+        <div class="modal-header">
+            <h2><i class="fas fa-vial" style="color:var(--accent-primary);"></i> Suite de Pruebas de Calidad & QA</h2>
+            <button class="btn-icon" onclick="closeModal('qaTestsModal')"><i class="fas fa-times"></i></button>
+        </div>
+        <div style="padding:16px 0;">
+            <p style="font-size:13px;color:var(--text-secondary);margin-bottom:14px;">
+                Verificación automatizada de criptografía AES-GCM, anonimizador PHI, psicometría (PHQ-9/GAD-7), finanzas y protocolo de crisis.
+            </p>
+            <div id="qaTestsResultsContainer" style="background:var(--bg-secondary);padding:14px;border-radius:8px;max-height:360px;overflow-y:auto;font-family:monospace;font-size:12px;line-height:1.6;">
+                <p>Haz clic en "Ejecutar Suite" para correr las pruebas...</p>
+            </div>
+            <div class="modal-actions" style="margin-top:16px;display:flex;justify-content:space-between;align-items:center;">
+                <span id="qaTestsStatusBadge" style="font-size:13px;font-weight:600;">Estado: Listo</span>
+                <button type="button" class="btn-primary" onclick="runAutomatedQaTests()"><i class="fas fa-play"></i> Ejecutar Suite (100% Tests)</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- MODAL DE PERFIL PROFESIONAL Y COLEGIATURA MÉDICA / PSICOLÓGICA -->
+<div class="modal" id="therapistProfileModal">
+    <div class="modal-overlay" onclick="closeModal('therapistProfileModal')"></div>
+    <div class="modal-content" style="max-width: 560px;">
+        <div class="modal-header">
+            <h2><i class="fas fa-id-card-alt" style="color:var(--accent-primary);"></i> Perfil y Colegiatura Profesional</h2>
+            <button class="btn-icon" onclick="closeModal('therapistProfileModal')"><i class="fas fa-times"></i></button>
+        </div>
+        <form id="therapistProfileForm" onsubmit="handleSaveTherapistProfile(event)" style="padding:16px 0;">
+            <p style="font-size:13px;color:var(--text-secondary);margin-bottom:14px;line-height:1.4;">
+                Los datos ingresados se estamparán de forma dinámica en los <strong>membretes de Historias Clínicas Oficiales, Hojas de Evolución, Consentimientos Informados, firmas digitales y mensajes de WhatsApp</strong> enviados a los pacientes.
+            </p>
+            <div class="form-group">
+                <label>Nombre Completo con Título Profesional *</label>
+                <input type="text" id="therapistProfileName" required placeholder="Ej. Dr. Carlos Mendoza / Dra. Elena Soto / Lic. Roberto Gil">
+            </div>
+            <div class="form-row">
+                <div class="form-group">
+                    <label>Especialidad o Mención Clínica *</label>
+                    <input type="text" id="therapistProfileSpecialty" required placeholder="Ej. Psicología Clínica / Psiquiatría">
+                </div>
+                <div class="form-group">
+                    <label>N.º Colegiatura Médica / Psicológica *</label>
+                    <input type="text" id="therapistProfileRegistry" required placeholder="Ej. Colegio de Médicos N.º 34.561 / FPV 19.820">
+                </div>
+            </div>
+            <div class="form-row">
+                <div class="form-group">
+                    <label>Correo Electrónico Profesional</label>
+                    <input type="email" id="therapistProfileEmail" placeholder="doctor@correo.com">
+                </div>
+                <div class="form-group">
+                    <label>Teléfono / WhatsApp Profesional</label>
+                    <input type="text" id="therapistProfilePhone" placeholder="+58 412 1234567">
+                </div>
+            </div>
+            <div class="form-group">
+                <label>Institución / Centro de Consulta (Opcional)</label>
+                <input type="text" id="therapistProfileInstitution" placeholder="Ej. Policlínica Metropolitana / Centro de Salud Mental">
+            </div>
+            <div class="modal-actions" style="margin-top:16px;display:flex;justify-content:flex-end;gap:10px;">
+                <button type="button" class="btn-secondary" onclick="closeModal('therapistProfileModal')">Cancelar</button>
+                <button type="submit" class="btn-primary"><i class="fas fa-save"></i> Guardar Credenciales</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- PORTAL DE ACCESO AL PACIENTE MODAL -->
+<div class="modal" id="portalAccessModal">
+    <div class="modal-overlay" onclick="closeModal('portalAccessModal')"></div>
+    <div class="modal-content modal-large portal-access-modal-card">
+        <div class="modal-header">
+            <div style="display:flex; align-items:center; gap:12px;">
+                <div class="portal-header-icon-badge">
+                    <i class="fas fa-mobile-screen-button"></i>
+                </div>
+                <div>
+                    <h2 style="margin:0; font-size:17px; font-weight:700;">Portal del Paciente — Espacio Terapéutico</h2>
+                    <p style="margin:2px 0 0 0; font-size:12px; color:var(--text-secondary);">Credenciales de acceso intersesión y acompañamiento digital</p>
+                </div>
+            </div>
+            <button class="btn-icon" onclick="closeModal('portalAccessModal')">
+                <i class="fas fa-times"></i>
+            </button>
+        </div>
+        <div class="modal-body" id="portalAccessModalBody" style="padding: 20px 24px;">
+            <!-- Contenido dinámico generado por openPortalAccessModal() -->
+        </div>
+    </div>
+</div>
+
+<div class="toast-container" id="toastContainer"></div>
+
+<script src="phi-anonymizer.js"></script>
+<script src="voice-dictation.js"></script>
+<script src="ai-clinical.js"></script>
+<script src="psychoed.js"></script>
+<script src="reports.js"></script>
+<script src="vademecum.js"></script>
+<script src="app.js"></script>
+<script src="scales.js"></script>
+<script src="finance.js"></script>
+<script src="adm.js"></script>
+<script src="session-reminders.js"></script>
+<script src="backup.js"></script>
+<script src="crisis-protocol.js"></script>
+<script src="consentimiento.js"></script>
+<script src="historia-clinica.js"></script>
+<script src="tests.js"></script>
+<script>
+if ('serviceWorker' in navigator) {
+    navigator.serviceWorker.register('/sw.js')
+        .then(() => console.log('✅ ServiceWorker registrado'))
+        .catch(err => console.log('SW Error:', err));
+}
+</script>
+</body>
+</html>
