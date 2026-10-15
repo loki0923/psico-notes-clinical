@@ -95,6 +95,55 @@ const PhiAnonymizer = {
             }
         }
 
+        // 6. Tutores, representantes y familiares (SEC-004)
+        const familyFields = ['guardianName', 'motherName', 'fatherName'];
+        familyFields.forEach((field, fIdx) => {
+            if (patientInfo[field] && patientInfo[field].trim().length > 2) {
+                const famName = patientInfo[field].trim();
+                const token = `[FAMILIAR_TUTOR_${fIdx + 1}]`;
+                mapping[token] = famName;
+                const famRegex = new RegExp(this.escapeRegExp(famName), 'gi');
+                if (famRegex.test(result)) {
+                    result = result.replace(famRegex, token);
+                    replacementCount++;
+                }
+            }
+        });
+
+        // 7. Institución educativa o laboral (SEC-004)
+        if (patientInfo.schoolName && patientInfo.schoolName.trim().length > 2) {
+            const school = patientInfo.schoolName.trim();
+            const token = '[INSTITUCION_EDUCATIVA]';
+            mapping[token] = school;
+            const schoolRegex = new RegExp(this.escapeRegExp(school), 'gi');
+            if (schoolRegex.test(result)) {
+                result = result.replace(schoolRegex, token);
+                replacementCount++;
+            }
+        }
+
+        // 8. Dirección o ubicación de residencia específica (SEC-004)
+        if (patientInfo.address && patientInfo.address.trim().length > 4) {
+            const addr = patientInfo.address.trim();
+            const token = '[UBICACION_RESIDENCIAL]';
+            mapping[token] = addr;
+            const addrRegex = new RegExp(this.escapeRegExp(addr), 'gi');
+            if (addrRegex.test(result)) {
+                result = result.replace(addrRegex, token);
+                replacementCount++;
+            }
+        }
+
+        // 9. Fechas específicas exactas (sustitución por marcadores temporales relativos - SEC-004)
+        const dateRegex = /\b(?:\d{1,2}[/-]\d{1,2}[/-]\d{2,4}|\d{4}[/-]\d{1,2}[/-]\d{1,2}|\d{1,2}\s+de\s+(?:enero|febrero|marzo|abril|mayo|junio|julio|agosto|septiembre|octubre|noviembre|diciembre)\s+de\s+\d{4})\b/gi;
+        let dateIdx = 1;
+        result = result.replace(dateRegex, (match) => {
+            const token = `[FECHA_RELATIVA_${dateIdx++}]`;
+            mapping[token] = match;
+            replacementCount++;
+            return token;
+        });
+
         return {
             anonymizedText: result,
             mapping,

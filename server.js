@@ -18,16 +18,95 @@ const __dirname = path.dirname(__filename);
 const app = express();
 const PORT = process.env.PORT || 3000;
 
-// Configuración de CORS para permitir despliegues híbridos (Netlify + Render/Railway)
+// SEC-001: Configuración Estricta de CORS (Whitelist Clínica Autorizada)
+const DEFAULT_ALLOWED_ORIGINS = [
+    'https://psico-notes-clinical.onrender.com',
+    'http://localhost:3000',
+    'http://127.0.0.1:3000',
+    'http://localhost:5173'
+];
+const envOrigins = (process.env.ALLOWED_ORIGINS || '').split(',').map(o => o.trim()).filter(Boolean);
+const ALLOWED_ORIGINS = new Set([...DEFAULT_ALLOWED_ORIGINS, ...envOrigins]);
+
 app.use((req, res, next) => {
-    res.header('Access-Control-Allow-Origin', '*');
-    res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
-    res.header('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept, Authorization');
-    if (req.method === 'OPTIONS') {
-        return res.sendStatus(200);
+    const origin = req.headers.origin;
+    // Peticiones same-origin o internas sin cabecera origin (ej. server-to-server o scripts locales)
+    if (!origin) {
+        return next();
     }
-    next();
+
+    if (ALLOWED_ORIGINS.has(origin)) {
+        res.header('Access-Control-Allow-Origin', origin);
+        res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
+        res.header('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept, Authorization, X-Therapist-Id');
+        res.header('Access-Control-Allow-Credentials', 'true');
+        if (req.method === 'OPTIONS') {
+            return res.sendStatus(200);
+        }
+        return next();
+    }
+
+    // Rechazo formal a orígenes no autorizados
+    if (req.method === 'OPTIONS') {
+        return res.status(403).json({ error: 'CORS: Origen no autorizado por políticas clínicas.' });
+    }
+    return res.status(403).json({ error: 'Acceso denegado: Origen no autorizado por política de seguridad CORS.' });
 });
+
+// SEC-003: Limitador de Tasa en Memoria contra Fuerza Bruta (Rate Limiting)
+const rateLimitBuckets = new Map();
+
+function checkRateLimit(key, maxAttempts = 5, windowMs = 15 * 60 * 1000) {
+    const now = Date.now();
+    let bucket = rateLimitBuckets.get(key);
+    if (!bucket || now - bucket.startTime > windowMs) {
+        bucket = { count: 1, startTime: now };
+        rateLimitBuckets.set(key, bucket);
+        return { allowed: true, remaining: maxAttempts - 1 };
+    }
+    bucket.count++;
+    if (bucket.count > maxAttempts) {
+        return {
+            allowed: false,
+            remaining: 0,
+            retryAfterMs: Math.max(0, windowMs - (now - bucket.startTime))
+        };
+    }
+    return { allowed: true, remaining: maxAttempts - bucket.count };
+}
+
+function rateLimitMiddleware(actionName, maxAttempts = 5, windowMs = 15 * 60 * 1000) {
+    return (req, res, next) => {
+        const ip = req.headers['x-forwarded-for'] || req.socket.remoteAddress || req.ip || '127.0.0.1';
+        const key = `${actionName}:${ip}`;
+        const check = checkRateLimit(key, maxAttempts, windowMs);
+        if (!check.allowed) {
+            return res.status(429).json({
+                error: `Demasiados intentos fallidos. Por seguridad, la solicitud está temporalmente bloqueada. Reintente en ${Math.ceil(check.retryAfterMs / 60000)} minutos.`,
+                retryAfter: Math.ceil(check.retryAfterMs / 1000)
+            });
+        }
+        next();
+    };
+}
+
+// SEC-006: Registro de Auditoría Médica Inmutable
+async function recordAuditLog(therapistId, patientId, action, resourceType, req) {
+    try {
+        const ip = req ? (req.headers['x-forwarded-for'] || req.socket?.remoteAddress || req.ip || '127.0.0.1') : '127.0.0.1';
+        const userAgent = req ? (req.headers['user-agent'] || 'App') : 'Internal';
+        await db.createAuditLog({
+            therapistId: therapistId || null,
+            patientId: patientId || null,
+            action,
+            resourceType,
+            ipAddress: String(ip).split(',')[0].trim(),
+            userAgent: userAgent.substring(0, 255)
+        });
+    } catch (e) {
+        console.warn('Advertencia en audit log:', e.message);
+    }
+}
 
 // Cabeceras de Seguridad OWASP / Hardening Clínico
 app.use((req, res, next) => {
@@ -94,8 +173,8 @@ app.get('/api/health', (req, res) => {
 // PORTAL DEL PACIENTE: AUTENTICACIÓN Y DATOS EN VIVO
 // ============================================
 
-// Autenticación por Token / PIN
-app.post('/api/v1/portal/auth', async (req, res) => {
+// Autenticación por Token / PIN (SEC-003: Rate Limited & Zero PII Leak)
+app.post('/api/v1/portal/auth', rateLimitMiddleware('portal_auth', 5, 15 * 60 * 1000), async (req, res) => {
     try {
         const token = (req.body.token || req.body.code || '').trim();
         if (!token) {
@@ -107,17 +186,21 @@ app.post('/api/v1/portal/auth', async (req, res) => {
             return res.status(401).json({ error: 'Código de acceso inválido o portal inactivo' });
         }
 
+        // Validación de caducidad si existe portal_expires_at
+        if (patient.portal_expires_at && new Date(patient.portal_expires_at) < new Date()) {
+            return res.status(401).json({ error: 'El acceso al portal ha caducado. Contacte a su terapeuta.' });
+        }
+
+        await recordAuditLog(patient.therapist_id, patient.id, 'PORTAL_AUTH_SUCCESS', 'PORTAL', req);
+
+        // SEC-003: No devolver teléfono, correo ni token reflejado en la respuesta
         res.json({
             authenticated: true,
             patient: {
                 id: patient.id,
                 name: patient.name,
-                email: patient.email,
-                phone: patient.phone,
-                portalToken: patient.portal_token || patient.portalToken,
                 therapistName: patient.therapist_name || 'Licenciado(a) en Psicología',
-                therapistSpecialty: patient.therapist_specialty || 'Psicología Clínica',
-                therapistRegistry: patient.therapist_registry || ''
+                therapistSpecialty: patient.therapist_specialty || 'Psicología Clínica'
             }
         });
     } catch (err) {
@@ -314,11 +397,22 @@ app.post('/api/v1/portal/crisis-alerts/ack/:id', async (req, res) => {
     }
 });
 
-// Sincronización batch desde la app clínica del terapeuta hacia la base de datos
+// Sincronización batch desde la app clínica del terapeuta hacia la base de datos (SEC-002: Multi-Tenant)
 app.post('/api/v1/patients/sync', async (req, res) => {
     try {
+        const therapistId = req.headers['x-therapist-id'] || req.body.therapistId;
         const { patients = [], tasks = [] } = req.body;
-        await db.syncPatientsBatch(patients, tasks);
+        
+        // Asignar therapist_id a todos los pacientes sincronizados para forzar aislamiento estricto
+        const isolatedPatients = patients.map(p => ({
+            ...p,
+            therapist_id: therapistId || p.therapistId || p.therapist_id || null
+        }));
+
+        await db.syncPatientsBatch(isolatedPatients, tasks);
+        if (therapistId) {
+            await recordAuditLog(therapistId, null, 'SYNC_PATIENTS_BATCH', 'PATIENTS', req);
+        }
         res.json({ status: 'synced', count: patients.length, timestamp: Date.now() });
     } catch (err) {
         console.error('Error sincronizando pacientes:', err);
@@ -326,14 +420,17 @@ app.post('/api/v1/patients/sync', async (req, res) => {
     }
 });
 
-// Listado de pacientes desde la base de datos
+// Listado de pacientes desde la base de datos (SEC-002: Filtrado estricto por terapeuta autenticado)
 app.get('/api/v1/patients', async (req, res) => {
     try {
-        if (db.isPostgresConnected && db.pgPool) {
-            const result = await db.pgPool.query('SELECT * FROM patients ORDER BY name ASC');
-            return res.json({ patients: result.rows });
+        const therapistId = req.headers['x-therapist-id'] || req.query.therapistId;
+        if (!therapistId) {
+            return res.status(401).json({ error: 'Acceso denegado: Identificador de terapeuta requerido (X-Therapist-Id)' });
         }
-        res.json({ patients: db.localStore.patients });
+
+        const patients = await db.getPatientsByTherapist(therapistId);
+        await recordAuditLog(therapistId, null, 'READ_PATIENTS_LIST', 'PATIENTS', req);
+        res.json({ patients });
     } catch (err) {
         res.status(500).json({ error: err.message });
     }
@@ -461,7 +558,7 @@ app.post('/api/v1/auth/register', async (req, res) => {
     }
 });
 
-app.post('/api/v1/auth/login', async (req, res) => {
+app.post('/api/v1/auth/login', rateLimitMiddleware('therapist_login', 5, 15 * 60 * 1000), async (req, res) => {
     try {
         const { email, passwordHash } = req.body;
         if (!email || !passwordHash) {
@@ -470,11 +567,13 @@ app.post('/api/v1/auth/login', async (req, res) => {
 
         const therapist = await db.loginTherapist(email, passwordHash);
         if (!therapist) {
+            await recordAuditLog(null, null, 'LOGIN_FAILED', 'AUTH', req);
             return res.status(401).json({ error: 'Credenciales inválidas o cuenta inexistente.' });
         }
 
         // Obtener además el snapshot más reciente para responder de inmediato
         const syncData = await db.getTherapistCloudSync(therapist.id);
+        await recordAuditLog(therapist.id, null, 'LOGIN_SUCCESS', 'AUTH', req);
 
         res.json({
             status: 'ok',
@@ -489,8 +588,8 @@ app.post('/api/v1/auth/login', async (req, res) => {
     }
 });
 
-// Solicitud de código de recuperación de contraseña
-app.post('/api/v1/auth/forgot-password', async (req, res) => {
+// Solicitud de código de recuperación de contraseña (SEC-003: Rate Limited)
+app.post('/api/v1/auth/forgot-password', rateLimitMiddleware('forgot_password', 3, 30 * 60 * 1000), async (req, res) => {
     try {
         const { email } = req.body;
         if (!email) {
@@ -498,6 +597,7 @@ app.post('/api/v1/auth/forgot-password', async (req, res) => {
         }
 
         const resetRecord = await db.createPasswordReset(email);
+        await recordAuditLog(null, null, 'REQUEST_PASSWORD_RESET', 'AUTH', req);
         res.json({
             status: 'ok',
             message: 'Código de recuperación generado con éxito.',
@@ -519,6 +619,7 @@ app.post('/api/v1/auth/reset-password', async (req, res) => {
         }
 
         await db.verifyAndResetPassword(email, code, newPasswordHash);
+        await recordAuditLog(null, null, 'PASSWORD_RESET_SUCCESS', 'AUTH', req);
         res.json({
             status: 'ok',
             message: 'Contraseña actualizada exitosamente en la base de datos.'
@@ -526,6 +627,84 @@ app.post('/api/v1/auth/reset-password', async (req, res) => {
     } catch (err) {
         console.error('Error en reset-password:', err.message);
         res.status(400).json({ error: err.message });
+    }
+});
+
+// ============================================
+// FACTURACIÓN SENIAT PERSISTENTE (DB-002)
+// ============================================
+
+app.get('/api/v1/billing/config', async (req, res) => {
+    try {
+        const therapistId = req.headers['x-therapist-id'] || req.query.therapistId;
+        if (!therapistId) {
+            return res.status(401).json({ error: 'X-Therapist-Id requerido' });
+        }
+        const config = await db.getBillingConfig(therapistId);
+        res.json({ status: 'ok', config });
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
+app.post('/api/v1/billing/config', async (req, res) => {
+    try {
+        const therapistId = req.headers['x-therapist-id'] || req.body.therapistId;
+        const config = req.body.config || req.body;
+        if (!therapistId) {
+            return res.status(401).json({ error: 'X-Therapist-Id requerido' });
+        }
+        const saved = await db.saveBillingConfig(therapistId, config);
+        await recordAuditLog(therapistId, null, 'SAVE_BILLING_CONFIG', 'BILLING', req);
+        res.json({ status: 'ok', config: saved });
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
+app.get('/api/v1/billing/invoices', async (req, res) => {
+    try {
+        const therapistId = req.headers['x-therapist-id'] || req.query.therapistId;
+        if (!therapistId) {
+            return res.status(401).json({ error: 'X-Therapist-Id requerido' });
+        }
+        const invoices = await db.getBillingInvoices(therapistId);
+        res.json({ status: 'ok', invoices });
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
+app.post('/api/v1/billing/invoices', async (req, res) => {
+    try {
+        const therapistId = req.headers['x-therapist-id'] || req.body.therapistId;
+        const invoice = req.body.invoice || req.body;
+        if (!therapistId) {
+            return res.status(401).json({ error: 'X-Therapist-Id requerido' });
+        }
+        const saved = await db.saveBillingInvoice(therapistId, invoice);
+        await recordAuditLog(therapistId, invoice.patientId, 'CREATE_INVOICE', 'BILLING', req);
+        res.json({ status: 'ok', invoice: saved });
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
+// Endpoint seguro de consulta de auditoría médica (SEC-006)
+app.get('/api/v1/audit/logs', async (req, res) => {
+    try {
+        const therapistId = req.headers['x-therapist-id'] || req.query.therapistId;
+        if (!therapistId) {
+            return res.status(401).json({ error: 'X-Therapist-Id requerido' });
+        }
+        if (db.isPostgresConnected && db.pgPool) {
+            const result = await db.pgPool.query('SELECT * FROM audit_logs WHERE therapist_id = $1 ORDER BY created_at DESC LIMIT 100', [therapistId]);
+            return res.json({ status: 'ok', logs: result.rows });
+        }
+        const logs = (db.localStore.audit_logs || []).filter(l => l.therapist_id === therapistId);
+        res.json({ status: 'ok', logs });
+    } catch (err) {
+        res.status(500).json({ error: err.message });
     }
 });
 

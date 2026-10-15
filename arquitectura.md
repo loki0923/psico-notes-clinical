@@ -1182,6 +1182,527 @@ Se incorporó el nuevo caso de prueba automatizado en `tests.js`:
   - Emula apertura/cierre de drawer y sincronización reactiva de pestañas en bottom bar.
 - **Resultado Global de la Suite**: **37 de 37 pruebas aprobadas al 100% (0 fallos)**.
 
+---
+
+## 20. Hoja de Rutas de Fortalecimiento Clínico y Seguridad de Producción (7 Pilares Estratégicos)
+
+Este apartado formaliza la arquitectura técnica y clínica definitiva para dar cumplimiento riguroso a la **Hoja de Rutas de Producción**, previa a la atención de pacientes reales.
+
+### 20.1. Pilar 1: Seguridad y Confidencialidad de los Expedientes (P0)
+
+#### 1.1. Política Estricta de CORS (Cross-Origin Resource Sharing)
+Actualmente, el servidor cuenta con `Access-Control-Allow-Origin: *`, lo cual permite peticiones arbitrarias desde cualquier navegador o dominio ajeno.
+- **Arquitectura de Restricción**: Se implementa una lista blanca dinámica en `server.js` basada en la variable de entorno `ALLOWED_ORIGINS` y orígenes clínicos canónicos:
+  - Dominio de producción: `https://psico-notes-clinical.onrender.com`
+  - Desarrollo local controlado: `http://localhost:3000`, `http://127.0.0.1:3000`
+- **Rechazo de Orígenes No Autorizados**: Toda solicitud con cabecera `Origin` ajena a la lista blanca es interceptada con código de estado HTTP `403 Forbidden`.
+
+#### 1.2. Aislamiento Multi-Tenant Estricto por Terapeuta (Control de Acceso por Recurso)
+- Ningún terapeuta debe poder consultar, modificar o suprimir expedientes de otro profesional.
+- **Validación Criptográfica y de Sesión**:
+  - Todo endpoint de datos (`/api/v1/clinical/sync`, `/api/v1/patients`, `/api/v1/portal/data/:patientId`, etc.) exige la autenticación del profesional mediante sesión o token `Authorization: Bearer <token>` / cabecera `X-Therapist-Id`.
+  - En PostgreSQL, las consultas incorporan obligatoriamente la cláusula `WHERE therapist_id = $1`.
+  - El endpoint genérico `SELECT * FROM patients` se reemplaza por consultas filtradas por la identidad del terapeuta autenticado.
+
+#### 1.3. Endurecimiento de la Autenticación del Portal del Paciente (Zero PII Leak)
+- **Generación de Tokens de Alta Entropía**:
+  - Los códigos de acceso al portal se generan mediante `crypto.randomBytes(32).toString('hex')` (256 bits de aleatoriedad criptográfica), abandonando identificadores predecibles.
+  - Se establece fecha de caducidad explícita (`expires_at` a 30 días renovables) y capacidad de revocación inmediata por parte del terapeuta.
+- **Erradicación de Fuga de PII en la Respuesta de Autenticación**:
+  - En la versión previa, `POST /api/v1/portal/auth` devolvía `phone`, `email` y el propio `portalToken` del paciente en el cuerpo JSON.
+  - **Nuevo Contrato Mínimo**:
+    - Petición: `{ token: "..." }`
+    - Respuesta HTTP 200:
+      ```json
+      {
+        "authenticated": true,
+        "patient": {
+          "id": "p_98a7b6",
+          "firstName": "Camila"
+        },
+        "therapist": {
+          "name": "Dra. Valeria Rivas",
+          "specialty": "Psicología Clínica"
+        }
+      }
+      ```
+    - Se elimina de la respuesta el teléfono, correo electrónico, documento de identidad y el token de acceso, impidiendo la reflexión o filtración de datos sensibles (PHI).
+
+#### 1.4. Protección contra Fuerza Bruta y Rate Limiting
+- Se implementa un limitador reactivo de tasa de peticiones en memoria / middleware:
+  - `/api/v1/auth/login`: Máximo 5 intentos fallidos cada 15 minutos por IP / cuenta. Bloqueo temporal con HTTP `429 Too Many Requests`.
+  - `/api/v1/portal/auth`: Máximo 5 intentos por IP cada 15 minutos.
+  - `/api/v1/auth/forgot-password`: Máximo 3 solicitudes de PIN cada 30 minutos.
+
+#### 1.5. Registro de Auditoría Médica Inmutable (`audit_logs`)
+- Para cumplir con estándares internacionales de salud (HIPAA Security Rule / GDPR Artículo 30), se crea la tabla `audit_logs` en PostgreSQL:
+  - Campos: `id`, `therapist_id`, `patient_id`, `action` (READ, CREATE, UPDATE, DELETE, EXPORT, CRISIS_ALERT), `resource_type`, `ip_address`, `user_agent`, `created_at`.
+- Queda registro inalterable de cada acceso a la historia clínica.
+
+#### 1.6. Copias de Seguridad Cifradas con Verificación de Restauración
+- Exportación en formato JSON cifrado simétricamente con AES-GCM (256 bits) usando clave derivada por PBKDF2 (100.000 iteraciones).
+- Inclusión de un hash SHA-256 de integridad para validar que el archivo no fue manipulado antes de proceder a la restauración en la base de datos.
+
+```mermaid
+flowchart TD
+    subgraph AccesoSeguro["Capa de Seguridad y Control de Acceso"]
+        Req["Petición HTTP Entrante"] --> CORSCheck{"¿Origen en Whitelist?"}
+        CORSCheck -- "No" --> RejectCORS["HTTP 403 Forbidden"]
+        CORSCheck -- "Sí" --> RateLimit{"¿Excede Límite de Intentos?"}
+        RateLimit -- "Sí" --> Block429["HTTP 429 Too Many Requests"]
+        RateLimit -- "No" --> AuthValidation{"Validación de Sesión y Token"}
+        AuthValidation -- "Inválido" --> Err401["HTTP 401 / 403 No Autorizado"]
+        AuthValidation -- "Válido" --> TenantCheck{"¿El recurso pertenece al terapeuta?"}
+        TenantCheck -- "No" --> ErrIsolation["HTTP 403 Aislamiento Clínico"]
+        TenantCheck -- "Sí" --> AuditLog["Registrar en audit_logs"]
+        AuditLog --> DBQuery["Ejecutar Consulta Aislada en PostgreSQL"]
+    end
+```
+
+---
+
+### 20.2. Pilar 2: Privacidad Profunda de la Inteligencia Artificial (P0)
+
+#### 2.1. Pipeline de Anonimización Profunda PHI en `phi-anonymizer.js`
+El módulo actual anonimizaba únicamente nombre, teléfono y correo electrónico. Para garantizar anonimización clínica rigurosa, se amplía a:
+1. **Identificadores Personales y Familiares**: Nombre del paciente, tutores, familiares mencionados en el texto libre, profesionales de referencia.
+2. **Fechas Exactas y Líneas Temporales**: Fechas de nacimiento, fechas de citas y eventos específicos sustituidas por rangos etarios adaptados o marcadores relativos (`[FECHA_RELATIVA_1]`).
+3. **Ubicaciones Geográficas Específicas**: Ciudades, municipios, colegios, universidades, empresas empleadoras o barrios sustituidos por `[INSTITUCION_EDUCATIVA]`, `[LUGAR_TRABAJO]`, `[UBICACION_GEOGRAFICA]`.
+4. **Documentos de Identidad y Números de Afiliación**: C.I., DNI, RUT, pasaportes, números de póliza de seguro y número de expediente.
+5. **Datos Sensibles de Menores**: Protección reforzada para antecedentes perinatales, desarrollo escolar e hitos con anonimización de nombres de cuidadores.
+
+#### 2.2. Consentimiento Informado Específico para Funciones de IA
+- Se establece una cláusula y modal de **Consentimiento Informado para Procesamiento Asistido por Inteligencia Artificial**:
+  - Explica al paciente y al profesional que la IA se utiliza exclusivamente como herramienta de redacción y síntesis técnica (asistencia en notas SOAP).
+  - Aclara que ningún dato personal identificable sale del navegador y que el proveedor de cómputo (Google Gemini API) no utiliza los datos de la API para entrenamiento de modelos conforme a los términos de privacidad empresarial de Google Cloud.
+  - Registro de aceptación con fecha, hora y versión del consentimiento.
+
+#### 2.3. Principio de Minimización de Datos y Auditoría de Red
+- **Prohibición de Envíos Masivos**: Nunca se envía la historia clínica completa a Gemini. Únicamente se transmite el extracto o viñeta clínica desidentificada indispensable para la tarea requerida (ej. síntesis de evolución de una sesión específica).
+- **Trazabilidad y Verificación de Tráfico**:
+  - Función de auditoría que registra en consola local el payload exacto antes de ser enviado al proxy, demostrando al profesional que ningún identificador directo viaja en la trama de red.
+
+```mermaid
+flowchart LR
+    subgraph DispositivoCliente["Dispositivo Local del Terapeuta"]
+        RawNote["Apuntes Clínicos Brutos"]
+        ConsentCheck{"¿Consentimiento de IA Activo?"}
+        Sanitizer["Módulo PhiAnonymizer"]
+        Minimizer["Extractor de Minimización"]
+        MappingStore[("Mapeo Cifrado en Memoria")]
+    end
+
+    subgraph NubeIA["Proveedor de IA Seguro"]
+        Proxy["Proxy Backend Seguro"]
+        Gemini["Google Gemini 2.5 API"]
+    end
+
+    RawNote --> ConsentCheck
+    ConsentCheck -- "No" --> Bloqueo["Bloqueo Ético: Requiere Consentimiento"]
+    ConsentCheck -- "Sí" --> Sanitizer
+    Sanitizer --> Minimizer
+    Sanitizer -. Guarda mapeo secreto .-> MappingStore
+    Minimizer -->|Payload 100% Desidentificado| Proxy
+    Proxy --> Gemini
+    Gemini -->|Síntesis SOAP Estructurada| Proxy
+    Proxy -->|Respuesta Desidentificada| DispositivoCliente
+    DispositivoCliente --> Reidentificacion["Restauración Local Bidireccional"]
+```
+
+---
+
+### 20.3. Pilar 3: Protocolo Estructurado de Crisis y Riesgo Suicida (P0)
+
+#### 3.1. Evaluación Estructurada de Riesgo (C-SSRS Adaptado)
+Se incorpora un formulario estructurado basado en la escala internacional de Columbia (C-SSRS) que indaga sistemáticamente:
+1. **Ideación Suicida**: Pasiva ("preferiría no despertar") vs Activa ("ganas de quitarse la vida").
+2. **Intención Suicida**: Deseo explícito de actuar según los pensamientos.
+3. **Plan Específico**: Formulación de método, lugar o momento definido.
+4. **Acceso a Medios**: Disponibilidad de fármacos, armas o elementos de letalidad.
+5. **Antecedentes e Intentos Previos**: Historia de autolesiones o intentos en el paciente y antecedentes familiares.
+6. **Factores Protectores**: Red vincular de apoyo, razones para vivir, valores, hijos, alianza terapéutica.
+7. **Nivel de Actuación Humana**: *Bajo / Moderado / Alto / Inminente*.
+
+#### 3.2. Disparo de Alerta en Ítem 9 del PHQ-9
+- Si el ítem 9 de la escala PHQ-9 recibe puntuación $\ge 1$, el sistema **no asume un diagnóstico automático**, sino que genera una **Alerta Clínica Prioritaria** que exige obligatoriamente:
+  1. Valoración clínica directa por el profesional.
+  2. Registro de las decisiones adoptadas en el expediente.
+- **Diferenciación de Estados de Alerta**:
+  - `PENDIENTE DE VALORACIÓN HUMANA` (baliza visual destacada en el dashboard).
+  - `ATENDIDA Y DOCUMENTADA` (con registro del profesional tratante, fecha, hora, medidas y derivación).
+
+#### 3.3. Protocolos Adicionales de Emergencia
+- **Violencia de Género y Doméstica**: Guía de evaluación de riesgo para la integridad física y teléfonos de amparo judicial/policial.
+- **Sospecha de Abuso o Negligencia en Menores**: Protocolo ético-legal con resguardo de la confidencialidad frente al presunto agresor y notificación a las instancias de protección infantil competentes.
+- **Riesgo para Terceros**: Pautas claras para el deber de advertir y proteger según la jurisprudencia clínica.
+
+#### 3.4. Directorio de Emergencias Geolocalizado Dinámico
+El sistema detecta o permite seleccionar la ubicación territorial del paciente, evitando asumir que terapeuta y paciente residen en la misma región:
+- 🇻🇪 **Venezuela**: FPVP (0212-241-92-88), Crisis UCV (0212-605-28-00), Emergencias 911 / 171.
+- 🇦🇷 **Argentina**: Centro de Asistencia al Suicida (135 / 0800-999-0091), Emergencias 107 / 911.
+- 🇨🇱 **Chile**: Fono Salud Responde (*4141 / 600 360 77 77), Emergencias 131.
+- 🇨🇴 **Colombia**: Línea 106 "El poder de ser escuchado", Línea Diversa, Emergencias 123.
+- 🇲🇽 **México**: Línea de la Vida (800 911 2000), SAPTEL (55 5259-8121), Emergencias 911.
+- 🇪🇸 **España**: Línea 024 de Atención a la Conducta Suicida, Teléfono de la Esperanza (717 003 717), Emergencias 112.
+- 🇺🇸 / 🌎 **EE. UU. e Internacional**: Línea 988 Suicide & Crisis Lifeline (Español disponible).
+
+```mermaid
+flowchart TD
+    Trigger["Detección de Riesgo
+    (Ítem 9 PHQ-9 > 0, SOS en Portal o Notificación en Sesión)"] --> Alerta["🚨 Alerta Clínica Prioritaria Generada
+    (Estado: PENDIENTE DE REVISIÓN)"]
+    
+    Alerta --> Banner["Banner Rojo en Dashboard de Mi Consulta
+    (No se puede descartar sin documentar)"]
+    
+    Banner --> AbrirProtocolo["Apertura del Protocolo de Evaluación Estructurada"]
+    
+    subgraph EvaluacionCSSRS["Evaluación Estructurada C-SSRS"]
+        Preg1["1. ¿Ideación pasiva o activa?"]
+        Preg2["2. ¿Intención explícita de actuar?"]
+        Preg3["3. ¿Plan estructurado definido?"]
+        Preg4["4. ¿Acceso inmediato a medios letales?"]
+        Preg5["5. ¿Intentos previos personales/familiares?"]
+        Preg6["6. Factores protectores identificados"]
+    end
+    
+    AbrirProtocolo --> EvaluacionCSSRS
+    EvaluacionCSSRS --> DeterminarNivel{"Nivel Clínico de Urgencia"}
+    
+    DeterminarNivel -- "Bajo / Moderado" --> PlanSeguridad["Plan de Seguridad de 6 Pasos
+    - Disparadores identificados
+    - Estrategias de afrontamiento internas
+    - Red de apoyo social
+    - Contacto de emergencia notificado"]
+    
+    DeterminarNivel -- "Alto / Inminente" --> ContencionUrgente["Actuación Inmediata
+    - Contacto con familiar/tutor responsable
+    - Retiro de medios letales
+    - Derivación formal a guardia psiquiátrica
+    - Directorio localizado según país del paciente"]
+    
+    PlanSeguridad --> RegistroAuditoria["Documentación Clínica Obligatoria
+    - Nombre del profesional evaluador
+    - Fecha y hora exacta
+    - Decisión clínica y medidas adoptadas
+    - Programación de seguimiento en 24-48h"]
+    
+    ContencionUrgente --> RegistroAuditoria
+    RegistroAuditoria --> TransicionEstado["Cambio de Estado de Alerta:
+    'REVISADA Y DOCUMENTADA'"]
+```
+
+---
+
+### 20.4. Pilar 4: Historia Clínica Psicológica Más Rigurosa (P1)
+
+#### 4.1. Separación Epistemológica en la Nota Clínica
+Para evitar la confusión entre el discurso del paciente y la inferencia del terapeuta, la nota clínica separa cuatro campos epistemológicos distintos:
+1. **Datos Aportados por el Paciente (Subjetivo)**: Relato textual, motivo de consulta referido y síntomas vivenciados entre comillas o con atribución clara.
+2. **Observaciones Objetivas del Profesional (Objetivo)**: Porte, conducta motora, expresión afectiva, congruencia ideoverbal, lenguaje y resultados puntuales de pruebas aplicadas.
+3. **Análisis e Hipótesis Clínica (Análisis)**: Conceptualización del caso, distinguiendo explícitamente entre:
+   - *Hipótesis de Trabajo / Impresión Diagnóstica Provisional*.
+   - *Diagnóstico Diferencial en Exploración*.
+   - *Diagnóstico Clínico Confirmado (conforme a criterios CIE-11 / DSM-5)*.
+4. **Intervención y Planificación (Plan)**: Técnicas de intervención empleadas en la sesión (reestructuración cognitiva, exposición, psicoeducación), respuesta del paciente, tareas intersesión acordadas y metas de la siguiente cita.
+
+#### 4.2. Inmutabilidad de Registros Clínicos y Trazabilidad de Revisiones (Audit Trail)
+- **Estados de la Nota**:
+  - `Borrador`: Editable libremente por el autor mientras redacta la sesión.
+  - `Firmada y Validada`: Al pulsar *"Validar y Firmar"*, la nota se sella con la colegiatura y datos del terapeuta, fecha/hora UTC y se bloquea contra sobrescrituras destructivas.
+- **Gestión de Adendums**:
+  - Si un profesional requiere corregir o ampliar una nota ya firmada, el sistema no sobrescribe el registro original. Genera un **Adendum** vinculado con timestamp propio, motivo de la aclaratoria y firma profesional, preservando la trazabilidad médico-legal.
+
+#### 4.3. Marco Ético en Niñez y Adolescencia
+- Registro explícito de:
+  - Consentimiento informado de tutores legales.
+  - Formato de **Asentimiento Informado del Menor** (adaptado al lenguaje infantil o adolescente).
+  - Constancia de los límites de confidencialidad explicados al menor y a sus representantes.
+
+```mermaid
+stateDiagram-v2
+    [*] --> Borrador: Crear Nueva Nota de Sesión
+    Borrador --> Borrador: Auto-guardado cada 30s
+    Borrador --> Firmada: Acción Validar y Firmar
+    Firmada --> Adendum: Modificación requerida posterior
+    Adendum --> Firmada: Anexo firmado con justificación
+    Firmada --> InformeOficial: Exportar Reporte de Atención o PDF
+```
+
+---
+
+### 20.5. Pilar 5: Validación Psicométrica de Escalas e Instrumentos (P1)
+
+#### 5.1. Fichas Técnicas y Citas Bibliográficas Oficiales
+Cada instrumento psicométrico en `scales.js` debe presentar su ficha técnica accesible con un clic para el profesional:
+- **PHQ-9**:
+  - *Autores*: Kroenke, Spitzer & Williams (2001).
+  - *Validación en Español*: Diez-Quevedo, Rangil, Sanchez-Planell, Kroenke & Spitzer (2001). Validación en atención primaria y hospitalaria en población hispanohablante.
+  - *Puntos de corte*: 0-4 Mínima, 5-9 Leve, 10-14 Moderada, 15-19 Moderadamente Severa, 20-27 Severa.
+  - *Limitación*: Cuestionario de cribado sintomatológico; no equivale por sí solo a un diagnóstico de Trastorno Depresivo Mayor.
+- **GAD-7**:
+  - *Autores*: Spitzer, Kroenke, Williams & Löwe (2006).
+  - *Validación en Español*: García-Campayo et al. (2010).
+  - *Puntos de corte*: 0-4 Mínima, 5-9 Leve, 10-14 Moderada, 15-21 Severa.
+- **BDI-II (Inventario de Depresión de Beck - II)**:
+  - *Autores*: Beck, Steer & Brown (1996); adaptación española de Sanz, Perdigón & Vázquez (2003).
+
+#### 5.2. Suite de Pruebas Automatizadas de Cálculo Psicométrico
+- Se incorporan pruebas unitarias en `tests.js` que evalúan:
+  - Puntuaciones mínimas extremas (0) y máximas (27 para PHQ-9, 21 para GAD-7).
+  - Puntos de frontera exacta entre niveles (ej. 4 vs 5, 9 vs 10, 14 vs 15).
+  - Manejo adecuado de cuestionarios con respuestas incompletas o nulas.
+  - Activación inmediata de la alerta ante cualquier valor $\ge 1$ en el ítem 9.
+
+---
+
+### 20.6. Pilar 6: Base de Datos, Persistencia y Sincronización Híbrida (P1)
+
+#### 6.1. Integración de Facturación SENIAT a PostgreSQL
+Actualmente, `adm.js` utiliza exclusivamente `localStorage` para almacenar configuración fiscal y facturas emitidas, lo que provoca pérdida de datos al cambiar de dispositivo o limpiar la memoria del navegador.
+- **Solución Arquitectural**:
+  - Se crean las tablas `billing_config` y `billing_invoices` en PostgreSQL vinculadas a `therapist_id`.
+  - El objeto `payload` de `CloudSyncManager` incorpora la clave `billing: { config, invoices }`, garantizando sincronización bidireccional inmediata y respaldo en la nube para móvil y PC.
+
+#### 6.2. Esquema Relacional de Base de Datos Actualizado
+```mermaid
+erDiagram
+    therapists ||--o{ patients : "atiende"
+    therapists ||--o{ therapist_cloud_sync : "sincroniza snapshot"
+    therapists ||--o{ audit_logs : "genera eventos"
+    therapists ||--o{ billing_config : "configura impuestos"
+    therapists ||--o{ billing_invoices : "emite"
+    therapists ||--o{ password_resets : "solicita restablecimiento"
+    
+    patients ||--o{ notes : "posee evoluciones"
+    patients ||--o{ appointments : "agenda citas"
+    patients ||--o{ crisis_alerts : "activa alertas"
+    patients ||--o{ patient_tasks : "realiza tareas intersesion"
+    patients ||--o{ mood_logs : "registra animo"
+    patients ||--o{ cbt_records : "registra pensamientos ABC"
+    patients ||--o{ evaluations : "completa escalas"
+
+    therapists {
+        varchar id PK
+        varchar email UK
+        varchar password_hash
+        varchar name
+        varchar specialty
+        varchar registry_number
+        timestamp created_at
+    }
+
+    patients {
+        varchar id PK
+        varchar therapist_id FK
+        varchar name
+        varchar category
+        varchar portal_token UK
+        boolean portal_enabled
+        timestamp portal_expires_at
+        varchar emergency_contact
+        varchar emergency_phone
+    }
+
+    notes {
+        varchar id PK
+        varchar patient_id FK
+        varchar therapist_id FK
+        date note_date
+        varchar status
+        text subjetivo
+        text objetivo
+        text analisis
+        text plan
+        text diagnosis_hypothesis
+        text diagnosis_confirmed
+        jsonb revisions
+        timestamp signed_at
+    }
+
+    crisis_alerts {
+        varchar id PK
+        varchar patient_id FK
+        varchar therapist_id FK
+        varchar risk_level
+        varchar status
+        text trigger_reason
+        text human_evaluation
+        text safety_plan
+        varchar attended_by
+        timestamp created_at
+        timestamp attended_at
+    }
+
+    billing_invoices {
+        varchar id PK
+        varchar therapist_id FK
+        varchar patient_id FK
+        varchar invoice_number
+        numeric total_amount
+        numeric igtf_amount
+        varchar currency
+        varchar status
+        timestamp created_at
+    }
+
+    audit_logs {
+        serial id PK
+        varchar therapist_id FK
+        varchar patient_id
+        varchar action
+        varchar resource_type
+        varchar ip_address
+        varchar user_agent
+        timestamp created_at
+    }
+```
+
+---
+
+### 20.7. Pilar 7: Usabilidad, Productividad y Flujo de Trabajo Clínico (P2)
+
+#### 7.1. Dashboard Clínico Centrado en la Agenda y Casos de Alto Riesgo
+- **Prioridad Visual en Mi Consulta**:
+  - Encabezado: Timeline de citas programadas para el día de hoy con estado de confirmación.
+  - Alertas prioritarias: Pacientes con valoraciones de crisis pendientes o sin atención en más de 21 días.
+  - Tareas administrativas: Notas en estado `Borrador` pendientes de firma.
+  - Reducción del ruido visual mediante pestañas limpias y acordeones contextuales.
+
+#### 7.2. Flujo de Evolución Rápida desde la Cita
+- Cada tarjeta de cita en la agenda incluye el botón directo **"Evolucionar Sesión"**:
+  - Al hacer clic, abre inmediatamente el formulario de la nota con el expediente del paciente preseleccionado, el número de sesión correlativo calculado y la fecha y hora de la cita vinculada, evitando duplicación manual de datos.
+
+#### 7.3. Auto-Guardado Silencioso de Borradores
+- Motor de guardado en segundo plano con debounce de 30 segundos en el formulario de la nota:
+  - Badge discreto en la esquina superior del modal: `"🟢 Borrador guardado localmente a las HH:MM:SS"`.
+  - Ante recarga fortuita del navegador o pérdida temporal de energía, el sistema detecta el borrador pendiente y ofrece restaurarlo con un clic.
+
+#### 7.4. Botones de Acción Diferenciados
+- Barra de acciones de la nota clínica claramente jerarquizada:
+  - 💾 **Guardar Borrador** (secundario): Conserva los cambios en progreso para continuar más tarde sin sellar el registro.
+  - 🔒 **Validar y Firmar** (primario acentuado): Aplica el sello profesional oficial y bloquea el expediente contra alteraciones.
+  - 📄 **Exportar Informe** (utilidad): Genera la versión para impresión o PDF con el membrete oficial del terapeuta.
+
+---
+
+## 21. Matriz Canónica de Ejecución: Hoja de Ruta v1.0 (Etapas 1 a 4)
+
+Este apartado mapea formalmente la **Hoja de Ruta v1.0 de Psico Notes Clinical** aprobada para producción clínica en Venezuela y el ámbito hispanohablante.
+
+### 21.1. Principios Rectores y Políticas de Liberación (Gateways)
+1. **Confidencialidad de los datos clínicos**: Cero fugas de información identificable (PHI/PII) en APIs, logs o proxies externos.
+2. **Seguridad por defecto**: Aislamiento estricto entre profesionales (multi-tenant), CORS restringido y protección contra fuerza bruta.
+3. **Responsabilidad clínica humana**: La IA y las escalas psicométricas son herramientas de asistencia; nunca sustituyen el juicio, diagnóstico o intervención de un profesional colegiado.
+4. **Documentación basada en evidencia**: Citas psicométricas oficiales, adaptaciones en español validadas y notas SOAP con separación epistemológica.
+5. **Trazabilidad de las operaciones**: Registro inmutable de auditoría (`audit_logs`) y notas firmadas con historial de adendums.
+6. **Usabilidad y accesibilidad**: Flujo optimizado para consulta real, notas rápidas desde la agenda y diseño adaptable para PC, tablet y teléfono.
+7. **Adaptación normativa venezolana**: Exención de IVA médico según ley venezolana, régimen de IGTF (3%) y teléfonos locales de emergencia (FPVP, UCV, 911).
+
+### 21.2. Desglose de Tareas y Criterios de Aceptación
+
+```mermaid
+flowchart TD
+    subgraph ETAPA1["Etapa 1: Seguridad y Privacidad (P0)"]
+        SEC001["SEC-001: Restringir CORS (Whitelist)"]
+        SEC002["SEC-002: Autorización por Expediente (Multi-tenant)"]
+        SEC003["SEC-003: Protección Portal (Tokens & Sin PII)"]
+        SEC004["SEC-004: Privacidad IA (Anonimización Profunda)"]
+        SEC005["SEC-005: Copias Cifradas & Recuperación"]
+        SEC006["SEC-006: Auditoría de Accesos (audit_logs)"]
+    end
+
+    subgraph ETAPA2["Etapa 2: Calidad Clínica y Documentación (P0)"]
+        CLI001["CLI-001: Historia Clínica Estructurada (SOAP)"]
+        CLI002["CLI-002: Consentimiento Informado (Datos & IA)"]
+        CLI003["CLI-003: Validación Psicométrica (PHQ-9/GAD-7)"]
+        CLI004["CLI-004: Protocolo de Crisis (C-SSRS & Alertas)"]
+        CLI005["CLI-005: Trazabilidad de Notas (Firmas & Adendums)"]
+        CLI006["CLI-006: Supervisión de IA (Límites diagnósticos)"]
+        CLI007["CLI-007: Atención de Niños y Adolescentes"]
+    end
+
+    subgraph ETAPA3["Etapa 3: Persistencia y Experiencia de Usuario (P1)"]
+        UX001["UX-001: Panel Clínico Unificado (Agenda)"]
+        DB001["DB-001: Auditoría de Persistencia (PostgreSQL)"]
+        DB002["DB-002: Facturación SENIAT Persistente"]
+        UX002["UX-002: Guardado Automático de Borradores"]
+        UX003["UX-003: Flujo de Sesión (Evolución desde Cita)"]
+        UX004["UX-004: Diseño Adaptable (PC / Tablet / Móvil)"]
+    end
+
+    subgraph ETAPA4["Etapa 4: Validación, Cumplimiento y Piloto (P1)"]
+        QA001["QA-001: Pruebas Integrales Automatizadas"]
+        QA002["QA-002: Revisión Fiscal SENIAT (IVA/IGTF)"]
+        QA003["QA-003: Revisión Ética y Normativa"]
+        QA004["QA-004: Piloto Controlado con Datos Sintéticos"]
+    end
+
+    ETAPA1 --> ETAPA2
+    ETAPA2 --> ETAPA3
+    ETAPA3 --> ETAPA4
+```
+
+### 21.3. Matriz de Asignación por Agente Especializado
+
+| Tarea | Título | Prioridad | Agente Responsable | Archivos Principales | Criterio de Aceptación Verificable |
+| :--- | :--- | :---: | :--- | :--- | :--- |
+| **SEC-001** | Restringir CORS | P0 | **Agente 2 (Backend)** | `server.js` | Solicitudes desde orígenes no listados son rechazadas con HTTP 403. Preflight OPTIONS responde 200 solo a orígenes autorizados. |
+| **SEC-002** | Autorización por Expediente | P0 | **Agente 2 (Backend)** | `server.js`, `db.js` | Filtrado estricto `WHERE therapist_id = $1` en todos los endpoints. Un terapeuta no puede leer ni modificar datos ajenos. |
+| **SEC-003** | Protección Autenticación y Portal | P0 | **Agente 2 & 3** | `server.js`, `portal.js` | Tokens de 32 bytes con expiración y revocación. `/api/v1/portal/auth` no devuelve teléfono, correo ni token plano. Rate limiting 5 intentos/15min. |
+| **SEC-004** | Privacidad de IA | P0 | **Agente 3 (Frontend)** | `phi-anonymizer.js`, `ai-clinical.js` | Desidentificación de fechas, parientes, colegios, menores y lugares. Consentimiento previo activo. Cero PHI en red hacia Gemini. |
+| **SEC-005** | Copias de Seguridad y Recuperación | P0 | **Agente 2 & 4** | `backup.js`, `server.js` | Respaldo cifrado AES-256-GCM con validación de hash SHA-256 al restaurar. |
+| **SEC-006** | Auditoría de Accesos | P0 | **Agente 2 (Backend)** | `db.js`, `schema.sql` | Tabla `audit_logs` que registra acciones sensibles sin almacenar contraseñas ni tokens. |
+| **CLI-001** | Historia Clínica Estructurada | P0 | **Agente 3 (Frontend)** | `historia-clinica.js` | Separación rigurosa de relato subjetivo, observaciones objetivas, hipótesis clínica, diagnóstico y plan. |
+| **CLI-002** | Consentimiento Informado | P0 | **Agente 3 (Frontend)** | `consentimiento.js` | Formularios y registro de aceptación para atención psicológica, teleconsulta, protección de datos y uso asistido de IA. |
+| **CLI-003** | Validación de Instrumentos | P0 | **Agente 4 & 3** | `scales.js`, `tests.js` | Fichas técnicas psicométricas, citas en español, advertencia ética de no-diagnóstico y pruebas de frontera de puntuación. |
+| **CLI-004** | Protocolo de Crisis | P0 | **Agente 3 & 2** | `crisis-protocol.js`, `db.js` | Evaluación estructurada C-SSRS, alerta ineludible ante PHQ-9 ítem 9 > 0, estado pendiente/atendida, directorio geolocalizado. |
+| **CLI-005** | Trazabilidad de Notas | P0 | **Agente 3 & 2** | `app.js`, `historia-clinica.js` | Estados `Borrador` y `Firmada`. Notas firmadas bloqueadas contra edición. Gestión de adendums fechados y firmados. |
+| **CLI-006** | Supervisión de IA Clínica | P0 | **Agente 3 (Frontend)** | `ai-clinical.js` | Sugerencias claramente etiquetadas como hipótesis; prohibición de diagnósticos confirmados automáticos. |
+| **CLI-007** | Atención de Niños y Adolescentes | P0 | **Agente 3 (Frontend)** | `historia-clinica.js`, `app.js` | Gestión de tutores legales, asentimiento informado del menor y delimitación de confidencialidad. |
+| **UX-001** | Panel Clínico Unificado | P1 | **Agente 3 (Frontend)** | `index.html`, `app.js` | Dashboard con agenda del día en timeline, alertas críticas visibles y notas pendientes de firma al frente. |
+| **DB-001** | Auditoría de Persistencia | P1 | **Agente 2 (Backend)** | `db.js`, `server.js` | Fuente de verdad única definida (PostgreSQL para cloud, IndexedDB/LocalStorage como caché offline). |
+| **DB-002** | Facturación Persistente | P1 | **Agente 2 & 3** | `adm.js`, `server.js`, `db.js` | Migración de facturas y configuración fiscal SENIAT a PostgreSQL vinculada al terapeuta autenticado. |
+| **UX-002** | Guardado Automático | P1 | **Agente 3 (Frontend)** | `app.js` | Auto-save de borradores cada 30 segundos con badge de estado y recuperación de sesiones interrumpidas. |
+| **UX-003** | Flujo de Sesión | P1 | **Agente 3 (Frontend)** | `app.js` | Botón directo "Evolucionar Sesión" en la cita para abrir la nota prellenada con paciente, fecha y número de sesión. |
+| **UX-004** | Diseño Adaptable | P1 | **Agente 3 (Frontend)** | `styles.css` | Certificación responsiva táctil en smartphones, tablets y ordenadores de escritorio. |
+| **QA-001** | Pruebas Integrales Automatizadas | P1 | **Agente 4 (QA)** | `tests.js`, `plan_pruebas.md` | Suite completa de pruebas automatizadas cubriendo los 44 casos (100% aprobadas). |
+| **QA-002** | Revisión Fiscal Venezolana | P1 | **Agente 1 & 4** | `adm.js` | Verificación de honorarios médicos exentos de IVA, alícuota IGTF (3%) y numeración correlativa. |
+| **QA-003** | Revisión Ética y Normativa | P1 | **Agente 1 & 4** | `arquitectura.md` | Cumplimiento del Código de Ética Profesional del Psicólogo de Venezuela y pautas de la FPV. |
+| **QA-004** | Piloto Controlado | P1 | **Agente 4 (QA/DevOps)** | `tests.js` | Validación final con cuentas ficticias de prueba antes de autorizar el ingreso de pacientes reales. |
+
+---
+
+### 21.4. Certificación Final de Implementación y Resultados de la Suite (QA)
+
+A la fecha de cierre del Sprint de Seguridad y Estabilización Clínica (2026-10-14), los 4 agentes especializados han culminado e integrado las directrices de la **Hoja de Ruta v1.0**:
+
+```mermaid
+flowchart LR
+    A["Seguridad & CORS (SEC-001..006)"] --> D["Suite QA (44/44 Aprobadas)"]
+    B["Calidad Clínica C-SSRS (CLI-001..007)"] --> D
+    C["Persistencia SENIAT & UX (DB/UX-001..004)"] --> D
+    D --> E["Luz Verde Producción (Render / Cloud)"]
+```
+
+#### Resultados Verificables en CLI (`node tests.js`):
+- **Total de pruebas ejecutadas**: 44
+- **Aprobadas**: 44 (100%)
+- **Fallidas**: 0 (0%)
+- **Casos de prueba nuevos incorporados**:
+  1. `TC-SEC-04`: Restricción estricta de CORS a dominios autorizados y bloqueo 403 de orígenes no autorizados.
+  2. `TC-SEC-05`: Eliminación de fuga de PII y no-reflexión de `portalToken` en handshake de autenticación del portal.
+  3. `TC-SEC-06`: Aislamiento multi-tenant por `therapist_id` en endpoints de pacientes y sincronización.
+  4. `TC-CLI-01`: Evaluación estructurada C-SSRS, cálculo de riesgo y directorio telefónico de emergencia localizado (VE, CO, AR, CL, MX, ES, US).
+  5. `TC-PSY-04`: Verificación rigurosa de límites psicométricos para PHQ-9 (0-27) y GAD-7 (0-21).
+  6. `TC-DB-03`: Persistencia en nube de configuración fiscal SENIAT (RIF, exención IVA 0%, IGTF 3%) y facturas emitidas.
+  7. `TC-NOTE-01`: Inmutabilidad legal de reportes clínicos firmados y anexado trazable mediante adendums.
+
+El sistema queda certificado para uso clínico con alta fidelidad técnica, protección de la confidencialidad del paciente, resguardo ético ante emergencias y resiliencia multi-dispositivo.
+
+
+
+
 
 
 

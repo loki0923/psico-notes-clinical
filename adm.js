@@ -26,6 +26,19 @@ function getBillingConfig() {
 
 function saveBillingConfig(config) {
     localStorage.setItem(getBillingStorageKey('config'), JSON.stringify(config));
+    if (typeof AppState !== 'undefined' && AppState.currentUser?.id && typeof navigator !== 'undefined' && navigator.onLine) {
+        fetch('/api/v1/billing/config', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-Therapist-Id': AppState.currentUser.id
+            },
+            body: JSON.stringify({ config })
+        }).catch(err => console.warn('Cloud billing config save error:', err));
+    }
+    if (typeof CloudSyncManager !== 'undefined' && typeof CloudSyncManager.schedulePush === 'function') {
+        CloudSyncManager.schedulePush();
+    }
 }
 
 function getInvoices() {
@@ -36,6 +49,38 @@ function getInvoices() {
 
 function saveInvoices(invoices) {
     localStorage.setItem(getBillingStorageKey('invoices'), JSON.stringify(invoices));
+    if (typeof CloudSyncManager !== 'undefined' && typeof CloudSyncManager.schedulePush === 'function') {
+        CloudSyncManager.schedulePush();
+    }
+}
+
+async function syncBillingWithServer() {
+    if (typeof AppState === 'undefined' || !AppState.currentUser?.id || typeof navigator === 'undefined' || !navigator.onLine) return;
+    try {
+        const headers = { 'X-Therapist-Id': AppState.currentUser.id };
+        const [resCfg, resInv] = await Promise.all([
+            fetch('/api/v1/billing/config', { headers }).catch(() => null),
+            fetch('/api/v1/billing/invoices', { headers }).catch(() => null)
+        ]);
+        if (resCfg && resCfg.ok) {
+            const data = await resCfg.json();
+            if (data.config && Object.keys(data.config).length > 0) {
+                localStorage.setItem(getBillingStorageKey('config'), JSON.stringify(data.config));
+            }
+        }
+        if (resInv && resInv.ok) {
+            const data = await resInv.json();
+            if (Array.isArray(data.invoices) && data.invoices.length > 0) {
+                const localInvoices = getInvoices();
+                const merged = (typeof CloudSyncManager !== 'undefined' && typeof CloudSyncManager.mergeCollections === 'function')
+                    ? CloudSyncManager.mergeCollections(localInvoices, data.invoices)
+                    : data.invoices;
+                localStorage.setItem(getBillingStorageKey('invoices'), JSON.stringify(merged));
+            }
+        }
+    } catch (e) {
+        console.warn('Billing sync with server failed:', e);
+    }
 }
 
 function openBillingConfig() {
@@ -314,6 +359,17 @@ function handleInvoiceSubmit(e) {
     invoices.push(invoice);
     saveInvoices(invoices);
 
+    if (typeof AppState !== 'undefined' && AppState.currentUser?.id && typeof navigator !== 'undefined' && navigator.onLine) {
+        fetch('/api/v1/billing/invoices', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-Therapist-Id': AppState.currentUser.id
+            },
+            body: JSON.stringify({ invoice })
+        }).catch(err => console.warn('Could not post invoice to cloud:', err));
+    }
+
     config.nextNumber++;
     saveBillingConfig(config);
 
@@ -391,4 +447,14 @@ function printInvoice(invoiceId) {
     const w = window.open('', '_blank');
     w.document.write(html);
     w.document.close();
+}
+
+if (typeof module !== 'undefined' && module.exports) {
+    module.exports = {
+        getBillingConfig,
+        saveBillingConfig,
+        getInvoices,
+        saveInvoices,
+        syncBillingWithServer
+    };
 }

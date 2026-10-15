@@ -186,3 +186,56 @@ CREATE TABLE IF NOT EXISTS password_resets (
     expires_at TIMESTAMP WITH TIME ZONE NOT NULL,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );
+
+-- 12. Registro de Auditoría de Seguridad Clínica (Audit Trail - SEC-006)
+CREATE TABLE IF NOT EXISTS audit_logs (
+    id SERIAL PRIMARY KEY,
+    therapist_id VARCHAR(64),
+    patient_id VARCHAR(64),
+    action VARCHAR(100) NOT NULL,
+    resource_type VARCHAR(50) NOT NULL,
+    ip_address VARCHAR(50) DEFAULT '127.0.0.1',
+    user_agent VARCHAR(255) DEFAULT '',
+    details JSONB DEFAULT '{}',
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE INDEX IF NOT EXISTS idx_audit_therapist ON audit_logs(therapist_id);
+CREATE INDEX IF NOT EXISTS idx_audit_action ON audit_logs(action);
+CREATE INDEX IF NOT EXISTS idx_audit_created ON audit_logs(created_at DESC);
+
+-- 13. Configuración Fiscal SENIAT Persistente (DB-002)
+CREATE TABLE IF NOT EXISTS billing_config (
+    therapist_id VARCHAR(64) PRIMARY KEY REFERENCES therapists(id) ON DELETE CASCADE,
+    fiscal_name VARCHAR(255) NOT NULL,
+    rif VARCHAR(50) NOT NULL,
+    address TEXT,
+    phone VARCHAR(50),
+    invoice_prefix VARCHAR(20) DEFAULT 'FACT-',
+    next_number INTEGER DEFAULT 1,
+    iva_rate NUMERIC DEFAULT 0,
+    apply_igtf BOOLEAN DEFAULT TRUE,
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+);
+
+-- 14. Facturación Emitida SENIAT Persistente (DB-002)
+CREATE TABLE IF NOT EXISTS billing_invoices (
+    id VARCHAR(64) PRIMARY KEY,
+    therapist_id VARCHAR(64) REFERENCES therapists(id) ON DELETE CASCADE,
+    patient_id VARCHAR(64) REFERENCES patients(id) ON DELETE SET NULL,
+    invoice_number VARCHAR(50) NOT NULL,
+    issue_date DATE NOT NULL,
+    patient_name VARCHAR(255) NOT NULL,
+    patient_rif VARCHAR(50),
+    subtotal NUMERIC NOT NULL,
+    iva_amount NUMERIC DEFAULT 0,
+    igtf_amount NUMERIC DEFAULT 0,
+    total_amount NUMERIC NOT NULL,
+    currency VARCHAR(10) DEFAULT 'USD',
+    status VARCHAR(30) DEFAULT 'emitida',
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE INDEX IF NOT EXISTS idx_invoices_therapist ON billing_invoices(therapist_id);
+CREATE INDEX IF NOT EXISTS idx_invoices_patient ON billing_invoices(patient_id);
+

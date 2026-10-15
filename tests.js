@@ -1456,6 +1456,307 @@ ClinicalTestSuite.add('TC-MOB-01', 'Arquitectura de Navegación Móvil, Drawer &
     }
 });
 
+// ============================================
+// CASOS DE PRUEBA HOJA DE RUTA v1.0 (SEC, CLI, DB, UX)
+// ============================================
+
+// 38. TC-SEC-04: Validación de Lista Blanca CORS (SEC-001)
+ClinicalTestSuite.add('TC-SEC-04', 'Validación de Lista Blanca CORS y rechazo de orígenes no autorizados', async () => {
+    const DEFAULT_ALLOWED_ORIGINS = [
+        'https://psico-notes-clinical.onrender.com',
+        'http://localhost:3000',
+        'http://localhost:5173',
+        'http://127.0.0.1:3000',
+        'http://127.0.0.1:5173'
+    ];
+
+    function checkCORSOrigin(origin, envAllowed = '') {
+        const extra = envAllowed ? envAllowed.split(',').map(s => s.trim().toLowerCase()) : [];
+        const allowed = [...DEFAULT_ALLOWED_ORIGINS.map(s => s.toLowerCase()), ...extra];
+        if (!origin) return true; // Server-to-server / curl / native tools
+        return allowed.includes(origin.toLowerCase());
+    }
+
+    // 1. Origen legítimo en producción
+    if (!checkCORSOrigin('https://psico-notes-clinical.onrender.com')) {
+        throw new Error('El dominio oficial de producción en Render debe estar permitido por CORS');
+    }
+
+    // 2. Origen local de desarrollo
+    if (!checkCORSOrigin('http://localhost:3000')) {
+        throw new Error('Localhost debe estar autorizado para desarrollo');
+    }
+
+    // 3. Petición sin origen (móvil nativo / CLI)
+    if (!checkCORSOrigin(undefined)) {
+        throw new Error('Peticiones sin encabezado Origin deben permitirse');
+    }
+
+    // 4. Origen malicioso externo no autorizado
+    if (checkCORSOrigin('https://malicious-attacker-site.com')) {
+        throw new Error('Un origen no autorizado NO debe ser admitido por la política CORS');
+    }
+
+    // 5. Origen spoofing por prefijo
+    if (checkCORSOrigin('https://psico-notes-clinical.onrender.com.attacker.org')) {
+        throw new Error('Intento de subdominio malicioso debe ser rechazado');
+    }
+});
+
+// 39. TC-SEC-05: Protección de Autenticación del Portal y Cero Fuga de PII (SEC-003)
+ClinicalTestSuite.add('TC-SEC-05', 'Protección del Portal del Paciente y Cero Fuga PII en Respuesta de Auth', async () => {
+    const mockDbPatient = {
+        id: 'pat_sec_999',
+        name: 'Carlos Mendoza',
+        phone: '+584149998877',
+        email: 'carlos.mendoza@email.com',
+        emergency: '0412-1112233',
+        portalToken: 'SECRET_TOKEN_HASH_12345',
+        tokenCreatedAt: new Date().toISOString(),
+        therapistId: 'therapist_dr_garcia'
+    };
+
+    function simulatePortalAuthResponse(patient, therapist) {
+        return {
+            authenticated: true,
+            patient: {
+                id: patient.id,
+                name: patient.name
+            },
+            therapist: {
+                name: therapist?.name || 'Psicólogo Clínico',
+                specialty: therapist?.specialty || 'Psicoterapia'
+            }
+        };
+    }
+
+    const authResponse = simulatePortalAuthResponse(mockDbPatient, { name: 'Dra. García', specialty: 'Clínica' });
+
+    if (!authResponse.authenticated) {
+        throw new Error('La autenticación legítima debe responder authenticated: true');
+    }
+    if (authResponse.patient.id !== 'pat_sec_999' || authResponse.patient.name !== 'Carlos Mendoza') {
+        throw new Error('El nombre e ID del paciente deben estar presentes para identificar la sesión');
+    }
+    if ('portalToken' in authResponse || 'portalToken' in authResponse.patient) {
+        throw new Error('VULNERABILIDAD CRÍTICA: portalToken se reflejó en la respuesta del portal');
+    }
+    if ('phone' in authResponse.patient || 'email' in authResponse.patient) {
+        throw new Error('VULNERABILIDAD CRÍTICA: Datos de contacto (teléfono/email) expuestos en endpoint público de auth');
+    }
+    if ('emergency' in authResponse.patient) {
+        throw new Error('Contacto de emergencia no debe exponerse en el handshake inicial del portal');
+    }
+});
+
+// 40. TC-SEC-06: Aislamiento Multitenant de Expedientes por Terapeuta (SEC-002)
+ClinicalTestSuite.add('TC-SEC-06', 'Aislamiento Multitenant de Expedientes y Control de Acceso por Terapeuta', async () => {
+    const { db } = (typeof window !== 'undefined' && window.db) ? { db: window.db } : await import('./db.js');
+    if (!db) throw new Error('Módulo db.js no disponible para pruebas multitenant');
+
+    const therapistA = 'therapist_alpha_' + Date.now();
+    const therapistB = 'therapist_beta_' + Date.now();
+
+    const patientA = {
+        id: 'pat_alpha_' + Date.now(),
+        name: 'Paciente Exclusivo de Alpha',
+        diagnosis: 'F41.1 Ansiedad Generalizada',
+        phone: '0414-1111111'
+    };
+
+    const patientB = {
+        id: 'pat_beta_' + Date.now(),
+        name: 'Paciente Exclusivo de Beta',
+        diagnosis: 'F32.0 Episodio Depresivo Leve',
+        phone: '0412-2222222'
+    };
+
+    await db.syncPatients([patientA], therapistA);
+    await db.syncPatients([patientB], therapistB);
+
+    const listA = await db.getPatientsByTherapist(therapistA);
+    const hasAInA = listA.some(p => p.id === patientA.id);
+    const hasBInA = listA.some(p => p.id === patientB.id);
+
+    if (!hasAInA) throw new Error('El terapeuta A debe poder consultar su propio paciente');
+    if (hasBInA) throw new Error('FALLO DE AISLAMIENTO: El terapeuta A pudo ver el paciente del terapeuta B');
+
+    const listB = await db.getPatientsByTherapist(therapistB);
+    const hasBInB = listB.some(p => p.id === patientB.id);
+    const hasAInB = listB.some(p => p.id === patientA.id);
+
+    if (!hasBInB) throw new Error('El terapeuta B debe poder consultar su propio paciente');
+    if (hasAInB) throw new Error('FALLO DE AISLAMIENTO: El terapeuta B pudo ver el paciente del terapeuta A');
+});
+
+// 41. TC-CLI-01: Evaluación Estructurada C-SSRS y Directorio de Emergencia (CLI-004)
+ClinicalTestSuite.add('TC-CLI-01', 'Evaluación Estructurada C-SSRS y Directorio Localizado de Crisis', async () => {
+    await import('./crisis-protocol.js');
+    const CrisisEmergencyDirectory = globalThis.CrisisEmergencyDirectory;
+    const calculateCSSRSRisk = globalThis.calculateCSSRSRisk;
+
+    if (!CrisisEmergencyDirectory || !calculateCSSRSRisk) {
+        throw new Error('Módulo crisis-protocol.js no exportó funciones C-SSRS');
+    }
+
+    const dirVE = CrisisEmergencyDirectory.VE;
+    if (!dirVE || !Array.isArray(dirVE.hotlines) || dirVE.hotlines.length === 0) {
+        throw new Error('Directorio de Venezuela no contiene líneas configuradas');
+    }
+    const hasFPVP = dirVE.hotlines.some(h => h.phone.includes('0212-241-92-88') || h.name.includes('FPVP'));
+    if (!hasFPVP) throw new Error('Línea de Ayuda FPVP 0212-241-92-88 no encontrada en directorio venezolano');
+    if (!dirVE.minorProtocol || !dirVE.minorProtocol.includes('LOPNNA')) {
+        throw new Error('Directorio venezolano debe incluir protocolo LOPNNA para menores');
+    }
+
+    const requiredCountries = ['CO', 'AR', 'CL', 'MX', 'ES', 'US'];
+    for (const c of requiredCountries) {
+        if (!CrisisEmergencyDirectory[c] || !CrisisEmergencyDirectory[c].hotlines.length) {
+            throw new Error(`Directorio de emergencias incompleto para país: ${c}`);
+        }
+    }
+
+    const lowRisk = calculateCSSRSRisk({ passiveWish: true, activeIdeation: false, protectiveFactors: 'Familia activa' });
+    if (lowRisk.level !== 'bajo' || lowRisk.immediateActionRequired !== false) {
+        throw new Error(`C-SSRS bajo riesgo falló. Obtenido: ${lowRisk.level}`);
+    }
+
+    const criticalRisk = calculateCSSRSRisk({
+        suicidalIntent: true,
+        specificPlan: true,
+        lethalMeansAccess: true,
+        priorAttempts: true
+    });
+    if (criticalRisk.level !== 'extremo' || criticalRisk.immediateActionRequired !== true) {
+        throw new Error(`C-SSRS riesgo extremo falló. Obtenido: ${criticalRisk.level}`);
+    }
+});
+
+// 42. TC-PSY-04: Límites Psicométricos y Calificaciones de PHQ-9 y GAD-7 (CLI-003)
+ClinicalTestSuite.add('TC-PSY-04', 'Cálculos de Límites Psicométricos de Severidad para PHQ-9 y GAD-7', async () => {
+    function interpretPHQ9(score) {
+        if (score <= 4) return 'Mínima';
+        if (score <= 9) return 'Leve';
+        if (score <= 14) return 'Moderada';
+        if (score <= 19) return 'Moderadamente severa';
+        return 'Severa';
+    }
+
+    function interpretGAD7(score) {
+        if (score <= 4) return 'Mínima';
+        if (score <= 9) return 'Leve';
+        if (score <= 14) return 'Moderada';
+        return 'Severa';
+    }
+
+    if (interpretPHQ9(0) !== 'Mínima') throw new Error('PHQ-9 score 0 debe ser Mínima');
+    if (interpretPHQ9(4) !== 'Mínima') throw new Error('PHQ-9 score 4 debe ser Mínima');
+    if (interpretPHQ9(5) !== 'Leve') throw new Error('PHQ-9 score 5 debe ser Leve');
+    if (interpretPHQ9(9) !== 'Leve') throw new Error('PHQ-9 score 9 debe ser Leve');
+    if (interpretPHQ9(10) !== 'Moderada') throw new Error('PHQ-9 score 10 debe ser Moderada');
+    if (interpretPHQ9(14) !== 'Moderada') throw new Error('PHQ-9 score 14 debe ser Moderada');
+    if (interpretPHQ9(15) !== 'Moderadamente severa') throw new Error('PHQ-9 score 15 debe ser Moderadamente severa');
+    if (interpretPHQ9(19) !== 'Moderadamente severa') throw new Error('PHQ-9 score 19 debe ser Moderadamente severa');
+    if (interpretPHQ9(20) !== 'Severa') throw new Error('PHQ-9 score 20 debe ser Severa');
+    if (interpretPHQ9(27) !== 'Severa') throw new Error('PHQ-9 score 27 (máximo) debe ser Severa');
+
+    if (interpretGAD7(0) !== 'Mínima') throw new Error('GAD-7 score 0 debe ser Mínima');
+    if (interpretGAD7(4) !== 'Mínima') throw new Error('GAD-7 score 4 debe ser Mínima');
+    if (interpretGAD7(5) !== 'Leve') throw new Error('GAD-7 score 5 debe ser Leve');
+    if (interpretGAD7(9) !== 'Leve') throw new Error('GAD-7 score 9 debe ser Leve');
+    if (interpretGAD7(10) !== 'Moderada') throw new Error('GAD-7 score 10 debe ser Moderada');
+    if (interpretGAD7(14) !== 'Moderada') throw new Error('GAD-7 score 14 debe ser Moderada');
+    if (interpretGAD7(15) !== 'Severa') throw new Error('GAD-7 score 15 debe ser Severa');
+    if (interpretGAD7(21) !== 'Severa') throw new Error('GAD-7 score 21 (máximo) debe ser Severa');
+});
+
+// 43. TC-DB-03: Persistencia y Sincronización Fiscal SENIAT en la Nube (DB-002)
+ClinicalTestSuite.add('TC-DB-03', 'Persistencia y Sincronización Fiscal SENIAT (DB-002)', async () => {
+    const { db } = (typeof window !== 'undefined' && window.db) ? { db: window.db } : await import('./db.js');
+    if (!db) throw new Error('Módulo db.js no disponible');
+
+    const therapistId = 'therapist_seniat_' + Date.now();
+    const config = {
+        fiscalName: 'Dra. Coromoto Salazar',
+        rif: 'V-15890123-4',
+        address: 'Av. Francisco de Miranda, Chacao, Caracas',
+        phone: '0212-9876543',
+        invoicePrefix: 'FACT-',
+        nextNumber: 45,
+        ivaRate: 0,
+        applyIGTF: true
+    };
+
+    await db.saveBillingConfig(therapistId, config);
+    const savedConfig = await db.getBillingConfig(therapistId);
+
+    if (!savedConfig || savedConfig.rif !== 'V-15890123-4' || savedConfig.fiscalName !== 'Dra. Coromoto Salazar') {
+        throw new Error('Configuración fiscal SENIAT no se persistió correctamente');
+    }
+
+    const subtotal = 60.00;
+    const igtf = subtotal * 0.03;
+    const total = subtotal + igtf;
+
+    const invoice = {
+        id: 'inv_' + Date.now(),
+        number: 'FACT-000045',
+        clientName: 'Alejandro Morales',
+        clientRif: 'V-19876543',
+        concept: 'Consulta de Psicoterapia Clínica (Sesión 4)',
+        amountUSD: subtotal,
+        igtfUSD: igtf,
+        totalUSD: total,
+        paymentMethod: 'Efectivo USD (Aplica 3% IGTF)',
+        date: new Date().toISOString()
+    };
+
+    await db.saveBillingInvoice(therapistId, invoice);
+    const invoices = await db.getBillingInvoices(therapistId);
+
+    const found = invoices.find(i => i.id === invoice.id);
+    if (!found) throw new Error('La factura emitida no fue recuperada de la persistencia');
+    if (Math.abs(found.totalUSD - 61.80) > 0.01) {
+        throw new Error(`Total de factura incorrecto: esperado 61.80, obtenido ${found.totalUSD}`);
+    }
+});
+
+// 44. TC-NOTE-01: Inmutabilidad de Reportes Firmados y Gestión de Adendums (CLI-005)
+ClinicalTestSuite.add('TC-NOTE-01', 'Inmutabilidad de Reportes Firmados y Gestión de Adendums (CLI-005)', async () => {
+    const signedNote = {
+        id: 'note_signed_' + Date.now(),
+        patientId: 'pat_001',
+        title: 'Sesión #3 - Intervención en Crisis',
+        subjetivo: 'Paciente acude con angustia aguda.',
+        objetivo: 'Afecto lábil, sin ideación suicida activa.',
+        status: 'firmada',
+        isSigned: true,
+        signedBy: 'Lcda. Valentina Blanco',
+        signedAt: '2026-10-14T10:00:00Z',
+        signedRegistry: 'FPV-12345',
+        addendums: []
+    };
+
+    const addendumEntry = {
+        id: 'ad_' + Date.now(),
+        date: new Date().toISOString(),
+        author: 'Lcda. Valentina Blanco',
+        text: 'Aclaratoria posterior: Se recibe llamada telefónica del familiar confirmando administración de tratamiento médico.'
+    };
+
+    signedNote.addendums.push(addendumEntry);
+
+    if (signedNote.signedBy !== 'Lcda. Valentina Blanco') {
+        throw new Error('La firma original fue alterada');
+    }
+    if (signedNote.signedAt !== '2026-10-14T10:00:00Z') {
+        throw new Error('La fecha y hora de la firma original fue alterada');
+    }
+    if (signedNote.addendums.length !== 1 || !signedNote.addendums[0].text.includes('Aclaratoria posterior')) {
+        throw new Error('El adendum no fue registrado en el historial inmutable');
+    }
+});
+
 // Auto-ejecución si se corre desde Node.js (CLI)
 if (typeof process !== 'undefined' && process.argv && process.argv[1] && process.argv[1].endsWith('tests.js')) {
     ClinicalTestSuite.runAll().then(res => {

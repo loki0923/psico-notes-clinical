@@ -1044,6 +1044,14 @@
                 <i class="fas fa-times"></i>
             </button>
         </div>
+        <div id="noteDraftRecoveryBanner" style="display:none;background:#eff6ff;border:1px solid #bfdbfe;color:#1e40af;padding:8px 12px;border-radius:6px;margin:8px 0;font-size:12px;align-items:center;justify-content:space-between;">
+            <span><i class="fas fa-history"></i> Hay un borrador guardado automáticamente de esta sesión.</span>
+            <div style="display:flex;gap:6px;">
+                <button type="button" class="btn-primary" style="padding:3px 8px;font-size:11px;" onclick="restoreNoteDraft()">Restaurar</button>
+                <button type="button" class="btn-secondary" style="padding:3px 8px;font-size:11px;" onclick="discardNoteDraft()">Descartar</button>
+            </div>
+        </div>
+        <div id="noteAutosaveIndicator" style="font-size:11px;color:var(--text-secondary);margin-bottom:8px;min-height:16px;"></div>
         <form id="noteForm" class="modal-form">
             <input type="hidden" id="noteId">
             <div class="form-row">
@@ -1216,7 +1224,32 @@
                 <label class="checkbox-label">
                     <input type="checkbox" id="noteConfidential"> 🔒 Confidencial / Nota reservada
                 </label>
+            <div class="form-row" style="background:var(--bg-secondary);padding:10px;border-radius:8px;margin-bottom:12px;">
+                <div class="form-group" style="margin:0;">
+                    <label style="font-size:12px;font-weight:700;">Estado del Documento (CLI-005)</label>
+                    <select id="noteStatus" style="font-size:12.5px;padding:6px;">
+                        <option value="borrador">📝 Borrador (En redacción / Modificable)</option>
+                        <option value="firmada">✍️ Firmada (Inmutable - Cierre Oficial)</option>
+                    </select>
+                </div>
+                <div class="form-group" style="margin:0;">
+                    <label style="font-size:12px;font-weight:700;">Profesional Responsable</label>
+                    <input type="text" id="noteSignedBy" readonly style="font-size:12.5px;padding:6px;background:var(--bg-input);">
+                </div>
             </div>
+
+            <!-- SECCIÓN DE ADENDUMS PARA NOTAS FIRMADAS (CLI-005) -->
+            <div id="noteAddendumsSection" style="display:none;margin-bottom:14px;background:var(--bg-secondary);border:1px solid var(--border-color);border-left:4px solid var(--accent-primary);padding:12px;border-radius:8px;">
+                <div style="font-size:13px;font-weight:700;color:var(--text-primary);margin-bottom:6px;">
+                    📜 Historial de Anexos y Adendums Clínicos (Inmutabilidad del registro firmado)
+                </div>
+                <div id="noteAddendumsList" style="font-size:12px;color:var(--text-secondary);margin-bottom:10px;"></div>
+                <div class="form-group" style="margin:0;">
+                    <label style="font-size:12px;font-weight:600;">Añadir Nuevo Adendum / Anexo Aclaratorio</label>
+                    <textarea id="noteNewAddendum" rows="2" placeholder="Detalle aclaración o evolución posterior a la firma..."></textarea>
+                </div>
+            </div>
+
             <div class="modal-actions">
                 <button type="button" class="btn-secondary" onclick="closeModal('noteModal')">Cancelar</button>
                 <button type="button" class="btn-secondary" onclick="ClinicalHistorySystem.exportReporteAtencionPDF(document.getElementById('noteId').value)" title="Imprimir Reporte Oficial de Atención con membrete y firma">

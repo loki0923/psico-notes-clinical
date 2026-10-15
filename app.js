@@ -370,6 +370,10 @@ const CloudSyncManager = {
                 appointments: AppState.appointments || [],
                 notes: AppState.notes || [],
                 treatmentPlans: AppState.treatmentPlans || [],
+                billing: {
+                    config: typeof getBillingConfig === 'function' ? getBillingConfig() : null,
+                    invoices: typeof getInvoices === 'function' ? getInvoices() : []
+                },
                 settings: {
                     signature: localStorage.getItem('psico_therapist_signature') || '',
                     phone: localStorage.getItem('psico_therapist_phone') || '',
@@ -447,6 +451,21 @@ const CloudSyncManager = {
                     }
                     if (cloud.settings.phone) localStorage.setItem('psico_therapist_phone', cloud.settings.phone);
                     if (cloud.settings.institution) localStorage.setItem('psico_therapist_institution', cloud.settings.institution);
+                }
+
+                // Sincronización de facturación fiscal SENIAT (DB-002)
+                if (cloud.billing) {
+                    if (cloud.billing.config && typeof saveBillingConfig === 'function') {
+                        const cur = typeof getBillingConfig === 'function' ? getBillingConfig() : {};
+                        if (!cur.fiscalName && cloud.billing.config.fiscalName) {
+                            saveBillingConfig(cloud.billing.config);
+                        }
+                    }
+                    if (Array.isArray(cloud.billing.invoices) && typeof getInvoices === 'function' && typeof saveInvoices === 'function') {
+                        const localInvoices = getInvoices();
+                        const mergedInvoices = this.mergeCollections(localInvoices, cloud.billing.invoices);
+                        saveInvoices(mergedInvoices);
+                    }
                 }
 
                 // Guardar en el almacenamiento del navegador actual
@@ -4187,6 +4206,8 @@ function openReporteAtencionFromAppointment(appId) {
     openModal('noteModal');
 }
 
+window.openNoteEditorFromAppointment = openReporteAtencionFromAppointment;
+
 function renderNotes(filter = '') {
     const container = document.getElementById('notesList');
     if (!container) return;
@@ -4207,10 +4228,14 @@ function renderNotes(filter = '') {
         const riskBadge = n.risk && n.risk !== 'bajo' ? `<span class="status-badge status-cancelada">Riesgo: ${n.risk}</span>` : '';
         const scaleBadge = n.scaleResult ? `<span class="status-badge status-completada">Score: ${n.scaleResult.score}</span>` : '';
         const sessionBadge = `<span style="background:var(--accent-primary);color:#fff;font-size:11px;font-weight:700;padding:2px 8px;border-radius:12px;margin-right:6px;">Sesión #${n.sessionNum || 1}</span>`;
+        const isSigned = n.status === 'firmada' || n.isSigned;
+        const statusBadge = isSigned
+            ? `<span class="status-badge" style="background:#e0f2fe;color:#0369a1;font-weight:700;"><i class="fas fa-signature"></i> Firmada</span>`
+            : `<span class="status-badge" style="background:#fef3c7;color:#92400e;"><i class="fas fa-edit"></i> Borrador</span>`;
         return `<div class="note-card" onclick="editNote('${n.id}')">
             <div class="patient-avatar">${p ? getInitials(p.name) : '?'}</div>
             <div class="note-info">
-                <div class="note-title">${sessionBadge} ${n.title} ${riskBadge} ${scaleBadge}</div>
+                <div class="note-title">${sessionBadge} ${statusBadge} ${n.title} ${riskBadge} ${scaleBadge}</div>
                 <div class="note-meta">${p ? p.name : 'Paciente'} · ${formatDate(n.date)} ${n.mood ? '· ' + getMoodEmoji(n.mood) : ''} ${n.confidential ? '· 🔒' : ''}</div>
             </div>
             <div class="note-actions">
@@ -4350,6 +4375,133 @@ function toggleDictation(fieldId) {
     rec.start();
 }
 
+// GESTOR DE AUTOGUARDADO DE BORRADORES CLÍNICOS (UX-002)
+const NoteDraftManager = {
+    timer: null,
+
+    start() {
+        this.stop();
+        this.checkExistingDraft();
+        this.timer = setInterval(() => {
+            this.saveDraft();
+        }, 30000); // 30 segundos
+    },
+
+    stop() {
+        if (this.timer) {
+            clearInterval(this.timer);
+            this.timer = null;
+        }
+    },
+
+    saveDraft() {
+        const modal = document.getElementById('noteModal');
+        if (!modal || !modal.classList.contains('active')) return;
+
+        const noteId = document.getElementById('noteId')?.value;
+        const patientId = document.getElementById('notePatient')?.value;
+        const title = document.getElementById('noteTitle')?.value?.trim();
+        const desc = document.getElementById('noteSessionDescription')?.value?.trim();
+        const subj = document.getElementById('noteSubjetivo')?.value?.trim();
+
+        if (!patientId && !title && !desc && !subj) return;
+
+        const draft = {
+            noteId: noteId || '',
+            patientId: patientId || '',
+            date: document.getElementById('noteDate')?.value || '',
+            title: title || '',
+            sessionNum: document.getElementById('noteSessionNum')?.value || '1',
+            sessionGoals: document.getElementById('noteSessionGoals')?.value || '',
+            appliedTechniques: document.getElementById('noteAppliedTechniques')?.value || '',
+            sessionDescription: desc || '',
+            clinicalFindings: document.getElementById('noteClinicalFindings')?.value || '',
+            obtainedResults: document.getElementById('noteObtainedResults')?.value || '',
+            nextSessionsPlan: document.getElementById('noteNextSessionsPlan')?.value || '',
+            subjetivo: subj || '',
+            objetivo: document.getElementById('noteObjetivo')?.value || '',
+            analisis: document.getElementById('noteAnalisis')?.value || '',
+            plan: document.getElementById('notePlan')?.value || '',
+            risk: document.getElementById('noteRisk')?.value || 'bajo',
+            mood: document.getElementById('noteMood')?.value || '',
+            timestamp: Date.now()
+        };
+
+        try {
+            localStorage.setItem('psico_active_note_draft', JSON.stringify(draft));
+            const indicator = document.getElementById('noteAutosaveIndicator');
+            if (indicator) {
+                const timeStr = new Date().toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+                indicator.innerHTML = `<i class="fas fa-check-circle" style="color:var(--accent-primary);"></i> Borrador guardado localmente a las ${timeStr}`;
+            }
+        } catch (e) {}
+    },
+
+    checkExistingDraft() {
+        try {
+            const raw = localStorage.getItem('psico_active_note_draft');
+            const banner = document.getElementById('noteDraftRecoveryBanner');
+            if (!raw || !banner) return;
+            const draft = JSON.parse(raw);
+            const isFresh = (Date.now() - draft.timestamp) < (24 * 60 * 60 * 1000);
+            const currentNoteId = document.getElementById('noteId')?.value;
+            if (isFresh && (!currentNoteId || currentNoteId === draft.noteId)) {
+                banner.style.display = 'flex';
+            } else {
+                banner.style.display = 'none';
+            }
+        } catch (e) {}
+    },
+
+    restoreDraft() {
+        try {
+            const raw = localStorage.getItem('psico_active_note_draft');
+            if (!raw) return;
+            const draft = JSON.parse(raw);
+            if (draft.patientId) document.getElementById('notePatient').value = draft.patientId;
+            if (draft.date) document.getElementById('noteDate').value = draft.date;
+            if (draft.title) document.getElementById('noteTitle').value = draft.title;
+            if (draft.sessionNum && document.getElementById('noteSessionNum')) document.getElementById('noteSessionNum').value = draft.sessionNum;
+            if (draft.sessionGoals && document.getElementById('noteSessionGoals')) document.getElementById('noteSessionGoals').value = draft.sessionGoals;
+            if (draft.appliedTechniques && document.getElementById('noteAppliedTechniques')) document.getElementById('noteAppliedTechniques').value = draft.appliedTechniques;
+            if (draft.sessionDescription && document.getElementById('noteSessionDescription')) document.getElementById('noteSessionDescription').value = draft.sessionDescription;
+            if (draft.clinicalFindings && document.getElementById('noteClinicalFindings')) document.getElementById('noteClinicalFindings').value = draft.clinicalFindings;
+            if (draft.obtainedResults && document.getElementById('noteObtainedResults')) document.getElementById('noteObtainedResults').value = draft.obtainedResults;
+            if (draft.nextSessionsPlan && document.getElementById('noteNextSessionsPlan')) document.getElementById('noteNextSessionsPlan').value = draft.nextSessionsPlan;
+            if (draft.subjetivo) document.getElementById('noteSubjetivo').value = draft.subjetivo;
+            if (draft.objetivo) document.getElementById('noteObjetivo').value = draft.objetivo;
+            if (draft.analisis) document.getElementById('noteAnalisis').value = draft.analisis;
+            if (draft.plan) document.getElementById('notePlan').value = draft.plan;
+            if (draft.risk) document.getElementById('noteRisk').value = draft.risk;
+            if (draft.mood) document.getElementById('noteMood').value = draft.mood;
+
+            const banner = document.getElementById('noteDraftRecoveryBanner');
+            if (banner) banner.style.display = 'none';
+            showToast('Borrador restaurado con éxito', 'success');
+        } catch (e) {}
+    },
+
+    discardDraft() {
+        localStorage.removeItem('psico_active_note_draft');
+        const banner = document.getElementById('noteDraftRecoveryBanner');
+        if (banner) banner.style.display = 'none';
+        const indicator = document.getElementById('noteAutosaveIndicator');
+        if (indicator) indicator.innerHTML = '';
+        showToast('Borrador descartado', 'info');
+    },
+
+    clearDraft() {
+        localStorage.removeItem('psico_active_note_draft');
+        const banner = document.getElementById('noteDraftRecoveryBanner');
+        if (banner) banner.style.display = 'none';
+        const indicator = document.getElementById('noteAutosaveIndicator');
+        if (indicator) indicator.innerHTML = '';
+    }
+};
+
+window.restoreNoteDraft = () => NoteDraftManager.restoreDraft();
+window.discardNoteDraft = () => NoteDraftManager.discardDraft();
+
 function handleNoteSubmit(e) {
     e.preventDefault();
     const validTasks = tempIntersessionTasks.filter(t => t.title.trim());
@@ -4383,8 +4535,14 @@ function handleNoteSubmit(e) {
     if (!plan && finalNext) plan = finalNext;
     if (!finalNext && plan) finalNext = plan;
 
-    const note = {
-        id: document.getElementById('noteId').value || generateId(),
+    const noteId = document.getElementById('noteId').value || generateId();
+    const existingIdx = AppState.notes.findIndex(n => n.id === noteId);
+    const existingNote = existingIdx >= 0 ? AppState.notes[existingIdx] : null;
+    const requestedStatus = document.getElementById('noteStatus')?.value || 'borrador';
+    const newAddendumText = document.getElementById('noteNewAddendum')?.value?.trim() || '';
+
+    let note = {
+        id: noteId,
         patientId: document.getElementById('notePatient').value,
         date: document.getElementById('noteDate').value,
         title: document.getElementById('noteTitle').value.trim() || finalGoals || `Sesión #${sessionNum}`,
@@ -4403,17 +4561,65 @@ function handleNoteSubmit(e) {
         mood: document.getElementById('noteMood').value,
         confidential: document.getElementById('noteConfidential').checked,
         intersessionTasks: validTasks,
-        createdAt: new Date().toISOString()
+        createdAt: existingNote ? existingNote.createdAt : new Date().toISOString()
     };
-    const idx = AppState.notes.findIndex(n => n.id === note.id);
-    if (idx >= 0) { AppState.notes[idx] = note; showToast('Reporte de Atención actualizado', 'success'); }
-    else { AppState.notes.push(note); showToast(`Reporte de Atención registrado (Sesión #${sessionNum})`, 'success'); }
+
+    // Control de inmutabilidad y firmas (CLI-005)
+    if (existingNote && (existingNote.status === 'firmada' || existingNote.isSigned)) {
+        // Preservar la nota firmada original; no sobrescribir silenciosamente
+        note.status = 'firmada';
+        note.isSigned = true;
+        note.signedBy = existingNote.signedBy;
+        note.signedAt = existingNote.signedAt;
+        note.signedRegistry = existingNote.signedRegistry;
+        note.addendums = Array.isArray(existingNote.addendums) ? [...existingNote.addendums] : [];
+
+        if (newAddendumText) {
+            note.addendums.push({
+                id: (typeof generateId === 'function') ? generateId() : 'ad_' + Date.now(),
+                date: new Date().toISOString(),
+                author: AppState.currentUser?.name || 'Psicólogo Clínico',
+                text: newAddendumText
+            });
+            showToast('✍️ Adendum clínico agregado al expediente firmado', 'success');
+        } else {
+            showToast('Documento firmado: registro inmutable preservado', 'info');
+        }
+    } else {
+        if (requestedStatus === 'firmada') {
+            note.status = 'firmada';
+            note.isSigned = true;
+            note.signedBy = AppState.currentUser?.name || 'Psicólogo Clínico';
+            note.signedAt = new Date().toISOString();
+            note.signedRegistry = localStorage.getItem('psico_therapist_registry') || 'FPV';
+            note.addendums = [];
+            showToast(`✍️ Reporte de Atención firmado oficialmente (Sesión #${sessionNum})`, 'success');
+        } else {
+            note.status = 'borrador';
+            note.isSigned = false;
+            note.addendums = [];
+            if (existingIdx >= 0) showToast('Borrador de atención actualizado', 'success');
+            else showToast(`Borrador registrado (Sesión #${sessionNum})`, 'success');
+        }
+    }
+
+    if (existingIdx >= 0) {
+        AppState.notes[existingIdx] = note;
+    } else {
+        AppState.notes.push(note);
+    }
+
+    if (typeof NoteDraftManager !== 'undefined') {
+        NoteDraftManager.clearDraft();
+    }
+
     saveData();
     saveTasksForPortal(note);
     closeModal('noteModal');
     renderNotes();
     updateCounts();
     updateDashboard();
+
     if (note.risk === 'alto') {
         const p = AppState.patients.find(x => x.id === note.patientId);
         if (typeof showCrisisProtocol === 'function' && p) {
@@ -4466,10 +4672,46 @@ function editNote(id) {
     document.getElementById('noteRisk').value = n.risk || 'bajo';
     document.getElementById('noteMood').value = n.mood || '';
     document.getElementById('noteConfidential').checked = n.confidential || false;
+
+    // Gestión de estado y firma (CLI-005)
+    const isSigned = n.status === 'firmada' || n.isSigned;
+    if (document.getElementById('noteStatus')) {
+        document.getElementById('noteStatus').value = isSigned ? 'firmada' : 'borrador';
+    }
+    if (document.getElementById('noteSignedBy')) {
+        document.getElementById('noteSignedBy').value = n.signedBy || AppState.currentUser?.name || 'Psicólogo Clínico';
+    }
+
+    // Renderizado de adendums si está firmada
+    const addendumsSec = document.getElementById('noteAddendumsSection');
+    const addendumsList = document.getElementById('noteAddendumsList');
+    if (addendumsSec && addendumsList) {
+        if (isSigned) {
+            addendumsSec.style.display = 'block';
+            const addendums = Array.isArray(n.addendums) ? n.addendums : [];
+            if (addendums.length === 0) {
+                addendumsList.innerHTML = '<div style="font-size:12px;color:var(--text-secondary);font-style:italic;">No se han emitido adendums posteriores a la firma original.</div>';
+            } else {
+                addendumsList.innerHTML = addendums.map((ad, idx) => `
+                    <div style="background:var(--bg-primary);padding:8px 12px;border-radius:6px;margin-bottom:6px;border-left:3px solid var(--accent-primary);">
+                        <div style="font-weight:700;font-size:11.5px;color:var(--text-primary);">
+                            Adendum #${idx + 1} · ${formatDate(ad.date)} por ${ad.author || 'Profesional'}
+                        </div>
+                        <div style="font-size:12px;color:var(--text-secondary);margin-top:2px;">${ad.text}</div>
+                    </div>
+                `).join('');
+            }
+        } else {
+            addendumsSec.style.display = 'none';
+        }
+    }
+
     tempIntersessionTasks = n.intersessionTasks ? JSON.parse(JSON.stringify(n.intersessionTasks)) : [];
     renderIntersessionTasksEditor();
     switchNoteFormat('fpv');
-    document.getElementById('noteModalTitle').textContent = `Editar Reporte de Atención — Sesión #${n.sessionNum || '1'}`;
+    document.getElementById('noteModalTitle').textContent = isSigned
+        ? `Reporte Firmado Oficial — Sesión #${n.sessionNum || '1'} (Inmutable)`
+        : `Editar Reporte de Atención — Sesión #${n.sessionNum || '1'}`;
     openModal('noteModal');
 }
 
@@ -5061,10 +5303,17 @@ function openModal(id) {
             document.getElementById('noteModalTitle').textContent = 'Reporte de Atención — Sesión de Terapia';
             document.getElementById('noteDate').value = toDateInputValue(new Date());
             if (document.getElementById('noteSessionNum')) document.getElementById('noteSessionNum').value = '1';
+            if (document.getElementById('noteStatus')) document.getElementById('noteStatus').value = 'borrador';
+            if (document.getElementById('noteSignedBy')) document.getElementById('noteSignedBy').value = AppState.currentUser?.name || 'Psicólogo Clínico';
+            const addendumsSec = document.getElementById('noteAddendumsSection');
+            if (addendumsSec) addendumsSec.style.display = 'none';
             updatePatientSelects();
             tempIntersessionTasks = [];
             renderIntersessionTasksEditor();
             switchNoteFormat('fpv');
+        }
+        if (typeof NoteDraftManager !== 'undefined') {
+            NoteDraftManager.start();
         }
     }
 }
@@ -5080,7 +5329,16 @@ function closeModal(id) {
         updateModalCategorySections('adult');
     }
     if (id === 'appointmentModal') { document.getElementById('appointmentId').value = ''; document.getElementById('appointmentForm').reset(); }
-    if (id === 'noteModal') { document.getElementById('noteId').value = ''; document.getElementById('noteForm').reset(); tempIntersessionTasks = []; }
+    if (id === 'noteModal') {
+        if (typeof NoteDraftManager !== 'undefined') {
+            NoteDraftManager.stop();
+        }
+        document.getElementById('noteId').value = '';
+        document.getElementById('noteForm').reset();
+        tempIntersessionTasks = [];
+        const addendumsSec = document.getElementById('noteAddendumsSection');
+        if (addendumsSec) addendumsSec.style.display = 'none';
+    }
 }
 
 function showToast(message, type = 'info') {

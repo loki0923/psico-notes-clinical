@@ -44,7 +44,10 @@ class DatabaseManager {
             clinical_notes: [],
             appointments: [],
             therapist_cloud_sync: {},
-            password_resets: {}
+            password_resets: {},
+            audit_logs: [],
+            billing_configs: {},
+            billing_invoices: []
         };
     }
 
@@ -362,6 +365,18 @@ class DatabaseManager {
         return patient;
     }
 
+    async syncPatients(patientsArray, therapistId = null) {
+        if (!Array.isArray(patientsArray)) return [];
+        const synced = [];
+        for (const p of patientsArray) {
+            const data = { ...p };
+            if (therapistId) data.therapist_id = therapistId;
+            const res = await this.upsertPatient(data);
+            synced.push(res);
+        }
+        return synced;
+    }
+
     async syncPatientsBatch(patientsArray, tasksArray = []) {
         for (const p of patientsArray) {
             await this.upsertPatient(p);
@@ -647,6 +662,199 @@ class DatabaseManager {
         }
 
         return true;
+    }
+
+    // ============================================
+    // AISLAMIENTO MULTI-TENANT & AUDITORÍA (SEC-002 / SEC-006)
+    // ============================================
+
+    async getPatientsByTherapist(therapistId) {
+        if (!therapistId) return [];
+        if (this.isPostgresConnected && this.pgPool) {
+            const res = await this.pgPool.query('SELECT * FROM patients WHERE therapist_id = $1 ORDER BY name ASC', [therapistId]);
+            return res.rows;
+        }
+        return this.localStore.patients.filter(p => !p.therapist_id || p.therapist_id === therapistId);
+    }
+
+    async getPatientById(patientId) {
+        if (!patientId) return null;
+        if (this.isPostgresConnected && this.pgPool) {
+            const res = await this.pgPool.query('SELECT * FROM patients WHERE id = $1', [patientId]);
+            return res.rows[0] || null;
+        }
+        return this.localStore.patients.find(p => p.id === patientId) || null;
+    }
+
+    async createAuditLog({ therapistId, patientId, action, resourceType, ipAddress, userAgent, details }) {
+        const logEntry = {
+            id: Date.now() + Math.floor(Math.random() * 1000),
+            therapist_id: therapistId || null,
+            patient_id: patientId || null,
+            action: action || 'UNKNOWN_ACTION',
+            resource_type: resourceType || 'SYSTEM',
+            ip_address: ipAddress || '127.0.0.1',
+            user_agent: (userAgent || '').substring(0, 255),
+            details: details || {},
+            created_at: new Date().toISOString()
+        };
+
+        if (this.isPostgresConnected && this.pgPool) {
+            try {
+                await this.pgPool.query(`
+                    INSERT INTO audit_logs (therapist_id, patient_id, action, resource_type, ip_address, user_agent, details, created_at)
+                    VALUES ($1, $2, $3, $4, $5, $6, $7, CURRENT_TIMESTAMP)
+                `, [logEntry.therapist_id, logEntry.patient_id, logEntry.action, logEntry.resource_type, logEntry.ip_address, logEntry.user_agent, JSON.stringify(logEntry.details)]);
+            } catch (err) {
+                console.warn('Fallo en escritura a audit_logs PostgreSQL:', err.message);
+            }
+        } else {
+            if (!this.localStore.audit_logs) this.localStore.audit_logs = [];
+            this.localStore.audit_logs.push(logEntry);
+            if (this.localStore.audit_logs.length > 500) this.localStore.audit_logs.shift();
+            this._persistLocalStore();
+        }
+        return logEntry;
+    }
+
+    // ============================================
+    // FACTURACIÓN SENIAT EN BASE DE DATOS (DB-002)
+    // ============================================
+
+    async saveBillingConfig(therapistId, config) {
+        if (!therapistId) return null;
+        const record = {
+            therapist_id: therapistId,
+            fiscal_name: config.fiscalName || config.fiscal_name || '',
+            rif: config.rif || 'V-',
+            address: config.address || '',
+            phone: config.phone || '',
+            invoice_prefix: config.invoicePrefix || config.invoice_prefix || 'FACT-',
+            next_number: config.nextNumber || config.next_number || 1,
+            iva_rate: config.ivaRate || config.iva_rate || 0,
+            apply_igtf: config.applyIGTF ?? config.apply_igtf ?? true,
+            updated_at: new Date().toISOString()
+        };
+
+        if (this.isPostgresConnected && this.pgPool) {
+            const query = `
+                INSERT INTO billing_config (therapist_id, fiscal_name, rif, address, phone, invoice_prefix, next_number, iva_rate, apply_igtf, updated_at)
+                VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, CURRENT_TIMESTAMP)
+                ON CONFLICT (therapist_id) DO UPDATE SET
+                    fiscal_name = EXCLUDED.fiscal_name,
+                    rif = EXCLUDED.rif,
+                    address = EXCLUDED.address,
+                    phone = EXCLUDED.phone,
+                    invoice_prefix = EXCLUDED.invoice_prefix,
+                    next_number = EXCLUDED.next_number,
+                    iva_rate = EXCLUDED.iva_rate,
+                    apply_igtf = EXCLUDED.apply_igtf,
+                    updated_at = CURRENT_TIMESTAMP
+                RETURNING *
+            `;
+            const res = await this.pgPool.query(query, [
+                record.therapist_id, record.fiscal_name, record.rif, record.address, record.phone,
+                record.invoice_prefix, record.next_number, record.iva_rate, record.apply_igtf
+            ]);
+            return res.rows[0];
+        }
+
+        if (!this.localStore.billing_configs) this.localStore.billing_configs = {};
+        this.localStore.billing_configs[therapistId] = record;
+        this._persistLocalStore();
+        return record;
+    }
+
+    async getBillingConfig(therapistId) {
+        if (!therapistId) return null;
+        let row = null;
+        if (this.isPostgresConnected && this.pgPool) {
+            const res = await this.pgPool.query('SELECT * FROM billing_config WHERE therapist_id = $1', [therapistId]);
+            row = res.rows[0] || null;
+        } else {
+            row = (this.localStore.billing_configs && this.localStore.billing_configs[therapistId]) || null;
+        }
+        if (!row) return null;
+        return {
+            ...row,
+            fiscalName: row.fiscal_name || row.fiscalName || '',
+            fiscal_name: row.fiscal_name || row.fiscalName || '',
+            invoicePrefix: row.invoice_prefix || row.invoicePrefix || 'FACT-',
+            invoice_prefix: row.invoice_prefix || row.invoicePrefix || 'FACT-',
+            nextNumber: row.next_number || row.nextNumber || 1,
+            next_number: row.next_number || row.nextNumber || 1,
+            ivaRate: row.iva_rate ?? row.ivaRate ?? 0,
+            iva_rate: row.iva_rate ?? row.ivaRate ?? 0,
+            applyIGTF: row.apply_igtf ?? row.applyIGTF ?? true,
+            apply_igtf: row.apply_igtf ?? row.applyIGTF ?? true
+        };
+    }
+
+    async saveBillingInvoice(therapistId, invoice) {
+        if (!therapistId || !invoice) return null;
+        const record = {
+            id: invoice.id || `inv_${Date.now()}`,
+            therapist_id: therapistId,
+            patient_id: invoice.patientId || invoice.patient_id || null,
+            invoice_number: invoice.number || invoice.invoice_number || 'FACT-0001',
+            issue_date: invoice.date || invoice.issue_date || new Date().toISOString().split('T')[0],
+            patient_name: invoice.patientName || invoice.patient_name || invoice.clientName || 'Paciente',
+            patient_rif: invoice.patientRif || invoice.patient_rif || invoice.clientRif || '',
+            subtotal: invoice.amountUSD ?? invoice.subtotal ?? 0,
+            iva_amount: invoice.ivaAmount ?? invoice.iva_amount ?? 0,
+            igtf_amount: invoice.igtfUSD ?? invoice.igtfAmount ?? invoice.igtf_amount ?? 0,
+            total_amount: invoice.totalUSD ?? invoice.total ?? invoice.total_amount ?? 0,
+            totalUSD: invoice.totalUSD ?? invoice.total ?? invoice.total_amount ?? 0,
+            amountUSD: invoice.amountUSD ?? invoice.subtotal ?? 0,
+            igtfUSD: invoice.igtfUSD ?? invoice.igtfAmount ?? invoice.igtf_amount ?? 0,
+            currency: invoice.currency || 'USD',
+            status: invoice.status || 'emitida',
+            created_at: invoice.created_at || new Date().toISOString()
+        };
+
+        if (this.isPostgresConnected && this.pgPool) {
+            const query = `
+                INSERT INTO billing_invoices (id, therapist_id, patient_id, invoice_number, issue_date, patient_name, patient_rif, subtotal, iva_amount, igtf_amount, total_amount, currency, status, created_at)
+                VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)
+                ON CONFLICT (id) DO UPDATE SET
+                    status = EXCLUDED.status,
+                    total_amount = EXCLUDED.total_amount
+                RETURNING *
+            `;
+            const res = await this.pgPool.query(query, [
+                record.id, record.therapist_id, record.patient_id, record.invoice_number, record.issue_date,
+                record.patient_name, record.patient_rif, record.subtotal, record.iva_amount, record.igtf_amount,
+                record.total_amount, record.currency, record.status, record.created_at
+            ]);
+            return res.rows[0];
+        }
+
+        if (!this.localStore.billing_invoices) this.localStore.billing_invoices = [];
+        const idx = this.localStore.billing_invoices.findIndex(i => i.id === record.id);
+        if (idx >= 0) this.localStore.billing_invoices[idx] = record;
+        else this.localStore.billing_invoices.push(record);
+        this._persistLocalStore();
+        return record;
+    }
+
+    async getBillingInvoices(therapistId) {
+        if (!therapistId) return [];
+        let rows = [];
+        if (this.isPostgresConnected && this.pgPool) {
+            const res = await this.pgPool.query('SELECT * FROM billing_invoices WHERE therapist_id = $1 ORDER BY issue_date DESC', [therapistId]);
+            rows = res.rows;
+        } else {
+            rows = (this.localStore.billing_invoices || []).filter(i => i.therapist_id === therapistId);
+        }
+        return rows.map(r => ({
+            ...r,
+            totalUSD: parseFloat(r.total_amount ?? r.totalUSD ?? r.total ?? 0),
+            total_amount: parseFloat(r.total_amount ?? r.totalUSD ?? r.total ?? 0),
+            amountUSD: parseFloat(r.subtotal ?? r.amountUSD ?? 0),
+            subtotal: parseFloat(r.subtotal ?? r.amountUSD ?? 0),
+            igtfUSD: parseFloat(r.igtf_amount ?? r.igtfUSD ?? 0),
+            igtf_amount: parseFloat(r.igtf_amount ?? r.igtfUSD ?? 0)
+        }));
     }
 }
 

@@ -213,10 +213,10 @@ document.addEventListener('DOMContentLoaded', async () => {
                         PortalState.patientId = data.patient.id;
                         PortalState.patientName = data.patient.name;
                         PortalState.therapistName = data.patient.therapistName || 'Tu terapeuta';
-                        PortalState.portalToken = data.patient.portalToken;
+                        PortalState.portalToken = data.patient.portalToken || queryToken;
                         localStorage.setItem('psico_portal_session', JSON.stringify({
                             patientId: data.patient.id,
-                            portalToken: data.patient.portalToken,
+                            portalToken: PortalState.portalToken,
                             patientName: data.patient.name,
                             therapistName: data.patient.therapistName
                         }));
@@ -316,10 +316,10 @@ async function handleAccess() {
                 PortalState.patientId = data.patient.id;
                 PortalState.patientName = data.patient.name;
                 PortalState.therapistName = data.patient.therapistName || 'Tu terapeuta';
-                PortalState.portalToken = data.patient.portalToken;
+                PortalState.portalToken = data.patient.portalToken || code;
                 localStorage.setItem('psico_portal_session', JSON.stringify({
                     patientId: data.patient.id,
-                    portalToken: data.patient.portalToken,
+                    portalToken: PortalState.portalToken,
                     patientName: data.patient.name,
                     therapistName: data.patient.therapistName
                 }));
