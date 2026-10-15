@@ -481,6 +481,46 @@ app.post('/api/v1/auth/login', async (req, res) => {
     }
 });
 
+// Solicitud de código de recuperación de contraseña
+app.post('/api/v1/auth/forgot-password', async (req, res) => {
+    try {
+        const { email } = req.body;
+        if (!email) {
+            return res.status(400).json({ error: 'Correo electrónico requerido' });
+        }
+
+        const resetRecord = await db.createPasswordReset(email);
+        res.json({
+            status: 'ok',
+            message: 'Código de recuperación generado con éxito.',
+            resetCode: resetRecord.code,
+            expiresAt: resetRecord.expiresAt
+        });
+    } catch (err) {
+        console.error('Error en forgot-password:', err.message);
+        res.status(400).json({ error: err.message });
+    }
+});
+
+// Restablecimiento de contraseña con código verificado
+app.post('/api/v1/auth/reset-password', async (req, res) => {
+    try {
+        const { email, code, newPasswordHash } = req.body;
+        if (!email || !code || !newPasswordHash) {
+            return res.status(400).json({ error: 'Email, código y nueva contraseña requeridos' });
+        }
+
+        await db.verifyAndResetPassword(email, code, newPasswordHash);
+        res.json({
+            status: 'ok',
+            message: 'Contraseña actualizada exitosamente en la base de datos.'
+        });
+    } catch (err) {
+        console.error('Error en reset-password:', err.message);
+        res.status(400).json({ error: err.message });
+    }
+});
+
 // ============================================
 // SINCRONIZACIÓN EN LA NUBE MULTI-DISPOSITIVO
 // ============================================

@@ -583,14 +583,176 @@ function initAuthEventListeners() {
     document.getElementById('showRegister').addEventListener('click', (e) => {
         e.preventDefault();
         document.getElementById('loginForm').style.display = 'none';
+        document.getElementById('forgotPasswordForm').style.display = 'none';
         document.getElementById('registerForm').style.display = '';
     });
     document.getElementById('showLogin').addEventListener('click', (e) => {
         e.preventDefault();
         document.getElementById('registerForm').style.display = 'none';
+        document.getElementById('forgotPasswordForm').style.display = 'none';
         document.getElementById('loginForm').style.display = '';
     });
     document.getElementById('logoutBtn').addEventListener('click', handleLogout);
+
+    // Eventos de Recuperación de Contraseña
+    const showForgotBtn = document.getElementById('showForgotPassword');
+    if (showForgotBtn) {
+        showForgotBtn.addEventListener('click', (e) => {
+            e.preventDefault();
+            document.getElementById('loginForm').style.display = 'none';
+            document.getElementById('registerForm').style.display = 'none';
+            const forgotForm = document.getElementById('forgotPasswordForm');
+            forgotForm.style.display = '';
+            document.getElementById('forgotStep1').style.display = '';
+            document.getElementById('forgotStep2').style.display = 'none';
+            document.getElementById('forgotError').classList.remove('visible');
+            document.getElementById('forgotSuccess').style.display = 'none';
+            const loginEmailVal = document.getElementById('loginEmail').value.trim();
+            if (loginEmailVal) document.getElementById('forgotEmail').value = loginEmailVal;
+        });
+    }
+
+    const cancelForgotBtn = document.getElementById('cancelForgotPassword');
+    if (cancelForgotBtn) {
+        cancelForgotBtn.addEventListener('click', (e) => {
+            e.preventDefault();
+            document.getElementById('forgotPasswordForm').style.display = 'none';
+            document.getElementById('registerForm').style.display = 'none';
+            document.getElementById('loginForm').style.display = '';
+        });
+    }
+
+    const btnRequestCode = document.getElementById('btnRequestResetCode');
+    if (btnRequestCode) {
+        btnRequestCode.addEventListener('click', handleRequestResetCode);
+    }
+
+    const btnSubmitNewPwd = document.getElementById('btnSubmitNewPassword');
+    if (btnSubmitNewPwd) {
+        btnSubmitNewPwd.addEventListener('click', handleSubmitNewPassword);
+    }
+}
+
+async function handleRequestResetCode(e) {
+    e.preventDefault();
+    const email = document.getElementById('forgotEmail').value.trim().toLowerCase();
+    const errorEl = document.getElementById('forgotError');
+    const successEl = document.getElementById('forgotSuccess');
+    errorEl.classList.remove('visible');
+    successEl.style.display = 'none';
+
+    if (!email) {
+        errorEl.textContent = 'Por favor ingresa tu correo electrónico registrado.';
+        errorEl.classList.add('visible');
+        return;
+    }
+
+    try {
+        const res = await fetch('/api/v1/auth/forgot-password', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ email })
+        });
+        const data = await res.json();
+
+        if (res.ok && data.status === 'ok') {
+            successEl.innerHTML = `<strong>✅ Código de verificación generado:</strong> <span style="font-size:16px;letter-spacing:2px;font-weight:700;">${data.resetCode}</span><br><small>Ingrésalo a continuación para establecer tu nueva clave.</small>`;
+            successEl.style.display = 'block';
+            document.getElementById('forgotCode').value = data.resetCode || '';
+            document.getElementById('forgotStep2').style.display = 'block';
+            document.getElementById('btnRequestResetCode').style.display = 'none';
+        } else {
+            errorEl.textContent = data.error || 'No se encontró una cuenta asociada a este correo.';
+            errorEl.classList.add('visible');
+        }
+    } catch (err) {
+        // Fallback local si el servidor no responde
+        const localUser = getUsers().find(u => u.email === email);
+        if (localUser) {
+            const fallbackCode = '777888';
+            successEl.innerHTML = `<strong>✅ Modo Respaldo Local:</strong> Código de verificación: <strong>${fallbackCode}</strong>`;
+            successEl.style.display = 'block';
+            document.getElementById('forgotCode').value = fallbackCode;
+            document.getElementById('forgotStep2').style.display = 'block';
+            document.getElementById('btnRequestResetCode').style.display = 'none';
+        } else {
+            errorEl.textContent = 'No se encontró ninguna cuenta registrada con este correo.';
+            errorEl.classList.add('visible');
+        }
+    }
+}
+
+async function handleSubmitNewPassword(e) {
+    e.preventDefault();
+    const email = document.getElementById('forgotEmail').value.trim().toLowerCase();
+    const code = document.getElementById('forgotCode').value.trim();
+    const p1 = document.getElementById('forgotNewPassword').value;
+    const p2 = document.getElementById('forgotNewPassword2').value;
+    const errorEl = document.getElementById('resetError');
+    errorEl.classList.remove('visible');
+
+    if (!code || code.length < 4) {
+        errorEl.textContent = 'Ingresa el código de verificación de 6 dígitos.';
+        errorEl.classList.add('visible');
+        return;
+    }
+    if (p1 !== p2) {
+        errorEl.textContent = 'Las contraseñas no coinciden.';
+        errorEl.classList.add('visible');
+        return;
+    }
+    if (p1.length < 6) {
+        errorEl.textContent = 'La nueva contraseña debe tener al menos 6 caracteres.';
+        errorEl.classList.add('visible');
+        return;
+    }
+
+    const newHash = await hashPassword(p1);
+
+    try {
+        const res = await fetch('/api/v1/auth/reset-password', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ email, code, newPasswordHash: newHash })
+        });
+        const data = await res.json();
+
+        if (res.ok && data.status === 'ok') {
+            // Actualizar también en caché local
+            const users = getUsers();
+            const u = users.find(user => user.email === email);
+            if (u) {
+                u.passwordHash = newHash;
+                saveUsers(users);
+            }
+
+            showToast('✅ Contraseña restablecida exitosamente. Ya puedes iniciar sesión.', 'success');
+            document.getElementById('forgotPasswordForm').style.display = 'none';
+            document.getElementById('loginForm').style.display = '';
+            document.getElementById('loginEmail').value = email;
+            document.getElementById('loginPassword').value = '';
+            document.getElementById('loginPassword').focus();
+        } else {
+            errorEl.textContent = data.error || 'Código incorrecto o expirado.';
+            errorEl.classList.add('visible');
+        }
+    } catch (err) {
+        // Fallback local
+        const users = getUsers();
+        const u = users.find(user => user.email === email);
+        if (u) {
+            u.passwordHash = newHash;
+            saveUsers(users);
+            showToast('✅ Contraseña actualizada localmente.', 'success');
+            document.getElementById('forgotPasswordForm').style.display = 'none';
+            document.getElementById('loginForm').style.display = '';
+            document.getElementById('loginEmail').value = email;
+            document.getElementById('loginPassword').focus();
+        } else {
+            errorEl.textContent = 'Error al restablecer contraseña: ' + err.message;
+            errorEl.classList.add('visible');
+        }
+    }
 }
 
 async function handleLogin(e) {

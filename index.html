@@ -34,6 +34,9 @@
                 <label>Contraseña</label>
                 <input type="password" id="loginPassword" required placeholder="••••••••">
             </div>
+            <div style="display:flex;justify-content:flex-end;margin-top:-6px;margin-bottom:12px;">
+                <a href="#" id="showForgotPassword" style="font-size:12px;color:#3b82f6;text-decoration:none;font-weight:500;transition:opacity 0.2s;">¿Olvidaste tu contraseña?</a>
+            </div>
             <div class="auth-error" id="loginError"></div>
             <button type="submit" class="btn-primary auth-submit">
                 <i class="fas fa-lock"></i> Acceder
@@ -42,6 +45,52 @@
                 ¿No tienes cuenta? <a href="#" id="showRegister">Regístrate</a>
             </p>
         </form>
+
+        <!-- FORMULARIO DE RECUPERACIÓN DE CONTRASEÑA -->
+        <form id="forgotPasswordForm" style="display:none;">
+            <h3 class="auth-title">Recuperar contraseña</h3>
+            <p style="font-size:13px;color:var(--text-secondary);margin-bottom:16px;line-height:1.4;">
+                Ingresa tu correo profesional registrado para restablecer tu acceso clínico de forma segura.
+            </p>
+
+            <!-- Paso 1: Solicitud de código -->
+            <div id="forgotStep1">
+                <div class="form-group">
+                    <label>Correo electrónico registrado</label>
+                    <input type="email" id="forgotEmail" placeholder="doctor@correo.com">
+                </div>
+                <div class="auth-error" id="forgotError"></div>
+                <div id="forgotSuccess" style="display:none;color:#059669;font-size:12.5px;margin-bottom:12px;padding:8px 12px;background:rgba(16,185,129,0.1);border-radius:6px;line-height:1.4;"></div>
+                <button type="button" class="btn-primary auth-submit" id="btnRequestResetCode">
+                    <i class="fas fa-paper-plane"></i> Enviar código de recuperación
+                </button>
+            </div>
+
+            <!-- Paso 2: Validación y cambio de contraseña -->
+            <div id="forgotStep2" style="display:none;margin-top:12px;">
+                <div class="form-group">
+                    <label>Código de verificación (6 dígitos)</label>
+                    <input type="text" id="forgotCode" placeholder="123456" maxlength="6" style="letter-spacing:4px;font-weight:700;text-align:center;font-size:16px;">
+                </div>
+                <div class="form-group">
+                    <label>Nueva contraseña *</label>
+                    <input type="password" id="forgotNewPassword" minlength="6" placeholder="Mínimo 6 caracteres">
+                </div>
+                <div class="form-group">
+                    <label>Confirmar nueva contraseña *</label>
+                    <input type="password" id="forgotNewPassword2" placeholder="Repite la contraseña">
+                </div>
+                <div class="auth-error" id="resetError"></div>
+                <button type="button" class="btn-primary auth-submit" id="btnSubmitNewPassword">
+                    <i class="fas fa-check-circle"></i> Guardar nueva contraseña
+                </button>
+            </div>
+
+            <p class="auth-switch" style="margin-top:16px;">
+                <a href="#" id="cancelForgotPassword">← Volver al inicio de sesión</a>
+            </p>
+        </form>
+
         <form id="registerForm" style="display:none;">
             <h3 class="auth-title">Crear cuenta profesional</h3>
             <div class="form-group">

@@ -43,7 +43,8 @@ class DatabaseManager {
             crisis_alerts: [],
             clinical_notes: [],
             appointments: [],
-            therapist_cloud_sync: {}
+            therapist_cloud_sync: {},
+            password_resets: {}
         };
     }
 
@@ -565,6 +566,87 @@ class DatabaseManager {
 
         if (!this.localStore.therapist_cloud_sync) return null;
         return this.localStore.therapist_cloud_sync[therapistId] || null;
+    }
+
+    // ============================================
+    // RECUPERACIÓN Y RESTABLECIMIENTO DE CONTRASEÑA
+    // ============================================
+
+    async createPasswordReset(email) {
+        if (!email) throw new Error('El correo electrónico es requerido.');
+        const cleanEmail = email.trim().toLowerCase();
+
+        const therapist = await this.findTherapistByEmail(cleanEmail);
+        if (!therapist) {
+            throw new Error('No existe ninguna cuenta profesional registrada con este correo.');
+        }
+
+        // Generar PIN de 6 dígitos con vigencia de 15 minutos
+        const code = Math.floor(100000 + Math.random() * 900000).toString();
+        const expiresAt = new Date(Date.now() + 15 * 60 * 1000).toISOString();
+
+        if (this.isPostgresConnected && this.pgPool) {
+            await this.pgPool.query(`
+                INSERT INTO password_resets (email, code, expires_at, created_at)
+                VALUES ($1, $2, $3, CURRENT_TIMESTAMP)
+                ON CONFLICT (email) DO UPDATE SET
+                    code = EXCLUDED.code,
+                    expires_at = EXCLUDED.expires_at,
+                    created_at = CURRENT_TIMESTAMP
+            `, [cleanEmail, code, expiresAt]);
+        } else {
+            if (!this.localStore.password_resets) this.localStore.password_resets = {};
+            this.localStore.password_resets[cleanEmail] = { code, expiresAt };
+            this._persistLocalStore();
+        }
+
+        return { email: cleanEmail, code, expiresAt };
+    }
+
+    async verifyAndResetPassword(email, code, newPasswordHash) {
+        if (!email || !code || !newPasswordHash) {
+            throw new Error('Todos los campos son obligatorios para restablecer la contraseña.');
+        }
+
+        const cleanEmail = email.trim().toLowerCase();
+        const cleanCode = code.trim();
+
+        let record = null;
+        if (this.isPostgresConnected && this.pgPool) {
+            const res = await this.pgPool.query('SELECT * FROM password_resets WHERE email = $1', [cleanEmail]);
+            record = res.rows[0];
+        } else {
+            record = (this.localStore.password_resets || {})[cleanEmail];
+        }
+
+        if (!record) {
+            throw new Error('No hay ninguna solicitud de recuperación activa para este correo. Solicita un nuevo código.');
+        }
+
+        if (record.code !== cleanCode) {
+            throw new Error('El código de verificación ingresado es incorrecto.');
+        }
+
+        const expires = new Date(record.expires_at || record.expiresAt).getTime();
+        if (Date.now() > expires) {
+            throw new Error('El código de verificación ha expirado. Por favor solicita uno nuevo.');
+        }
+
+        // Actualizar contraseña en base de datos
+        if (this.isPostgresConnected && this.pgPool) {
+            await this.pgPool.query('UPDATE therapists SET password_hash = $1, updated_at = CURRENT_TIMESTAMP WHERE LOWER(email) = $2', [newPasswordHash, cleanEmail]);
+            await this.pgPool.query('DELETE FROM password_resets WHERE email = $1', [cleanEmail]);
+        } else {
+            const idx = this.localStore.therapists.findIndex(t => (t.email || '').toLowerCase() === cleanEmail);
+            if (idx >= 0) {
+                this.localStore.therapists[idx].password_hash = newPasswordHash;
+                this.localStore.therapists[idx].updated_at = new Date().toISOString();
+            }
+            delete this.localStore.password_resets[cleanEmail];
+            this._persistLocalStore();
+        }
+
+        return true;
     }
 }
 

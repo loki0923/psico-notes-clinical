@@ -178,3 +178,11 @@ CREATE TABLE IF NOT EXISTS therapist_cloud_sync (
 );
 
 CREATE INDEX IF NOT EXISTS idx_sync_updated_at ON therapist_cloud_sync(updated_at);
+
+-- 11. Restablecimiento y Recuperación Segura de Contraseñas
+CREATE TABLE IF NOT EXISTS password_resets (
+    email VARCHAR(255) PRIMARY KEY,
+    code VARCHAR(10) NOT NULL,
+    expires_at TIMESTAMP WITH TIME ZONE NOT NULL,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+);
