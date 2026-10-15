@@ -755,6 +755,9 @@ async function handleSubmitNewPassword(e) {
     }
 }
 
+window.handleRequestResetCode = handleRequestResetCode;
+window.handleSubmitNewPassword = handleSubmitNewPassword;
+
 async function handleLogin(e) {
     e.preventDefault();
     const errorEl = document.getElementById('loginError');

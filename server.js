@@ -59,8 +59,16 @@ app.use((req, res, next) => {
 
 app.use(express.json({ limit: '10mb' }));
 app.use(express.static(__dirname, {
-    maxAge: '1h',
-    dotfiles: 'ignore'
+    dotfiles: 'ignore',
+    setHeaders: (res, filePath) => {
+        if (filePath.endsWith('.html') || filePath.endsWith('.js') || filePath.endsWith('.css')) {
+            res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
+            res.setHeader('Pragma', 'no-cache');
+            res.setHeader('Expires', '0');
+        } else {
+            res.setHeader('Cache-Control', 'public, max-age=3600');
+        }
+    }
 }));
 
 // Inicializar capa de base de datos

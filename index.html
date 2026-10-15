@@ -35,7 +35,7 @@
                 <input type="password" id="loginPassword" required placeholder="••••••••">
             </div>
             <div style="display:flex;justify-content:flex-end;margin-top:-6px;margin-bottom:12px;">
-                <a href="#" id="showForgotPassword" style="font-size:12px;color:#3b82f6;text-decoration:none;font-weight:500;transition:opacity 0.2s;">¿Olvidaste tu contraseña?</a>
+                <a href="javascript:void(0)" id="showForgotPassword" onclick="openForgotPasswordUI(event)" style="font-size:12px;color:#3b82f6;text-decoration:none;font-weight:600;cursor:pointer;padding:4px 0;">¿Olvidaste tu contraseña?</a>
             </div>
             <div class="auth-error" id="loginError"></div>
             <button type="submit" class="btn-primary auth-submit">
@@ -47,7 +47,7 @@
         </form>
 
         <!-- FORMULARIO DE RECUPERACIÓN DE CONTRASEÑA -->
-        <form id="forgotPasswordForm" style="display:none;">
+        <form id="forgotPasswordForm" style="display:none;" onsubmit="event.preventDefault();">
             <h3 class="auth-title">Recuperar contraseña</h3>
             <p style="font-size:13px;color:var(--text-secondary);margin-bottom:16px;line-height:1.4;">
                 Ingresa tu correo profesional registrado para restablecer tu acceso clínico de forma segura.
@@ -61,7 +61,7 @@
                 </div>
                 <div class="auth-error" id="forgotError"></div>
                 <div id="forgotSuccess" style="display:none;color:#059669;font-size:12.5px;margin-bottom:12px;padding:8px 12px;background:rgba(16,185,129,0.1);border-radius:6px;line-height:1.4;"></div>
-                <button type="button" class="btn-primary auth-submit" id="btnRequestResetCode">
+                <button type="button" class="btn-primary auth-submit" id="btnRequestResetCode" onclick="handleRequestResetCode(event)" style="cursor:pointer;">
                     <i class="fas fa-paper-plane"></i> Enviar código de recuperación
                 </button>
             </div>
@@ -81,15 +81,53 @@
                     <input type="password" id="forgotNewPassword2" placeholder="Repite la contraseña">
                 </div>
                 <div class="auth-error" id="resetError"></div>
-                <button type="button" class="btn-primary auth-submit" id="btnSubmitNewPassword">
+                <button type="button" class="btn-primary auth-submit" id="btnSubmitNewPassword" onclick="handleSubmitNewPassword(event)" style="cursor:pointer;">
                     <i class="fas fa-check-circle"></i> Guardar nueva contraseña
                 </button>
             </div>
 
             <p class="auth-switch" style="margin-top:16px;">
-                <a href="#" id="cancelForgotPassword">← Volver al inicio de sesión</a>
+                <a href="javascript:void(0)" id="cancelForgotPassword" onclick="closeForgotPasswordUI(event)" style="cursor:pointer;">← Volver al inicio de sesión</a>
             </p>
         </form>
+
+        <script>
+            function openForgotPasswordUI(e) {
+                if (e && e.preventDefault) e.preventDefault();
+                var loginF = document.getElementById('loginForm');
+                var regF = document.getElementById('registerForm');
+                var forgotF = document.getElementById('forgotPasswordForm');
+                if (loginF) loginF.style.display = 'none';
+                if (regF) regF.style.display = 'none';
+                if (forgotF) {
+                    forgotF.style.display = '';
+                    var s1 = document.getElementById('forgotStep1');
+                    var s2 = document.getElementById('forgotStep2');
+                    var err = document.getElementById('forgotError');
+                    var succ = document.getElementById('forgotSuccess');
+                    var btn1 = document.getElementById('btnRequestResetCode');
+                    if (s1) s1.style.display = '';
+                    if (s2) s2.style.display = 'none';
+                    if (err) err.classList.remove('visible');
+                    if (succ) succ.style.display = 'none';
+                    if (btn1) btn1.style.display = '';
+                    var lEmail = document.getElementById('loginEmail');
+                    var fEmail = document.getElementById('forgotEmail');
+                    if (lEmail && fEmail && lEmail.value) fEmail.value = lEmail.value.trim();
+                }
+            }
+            function closeForgotPasswordUI(e) {
+                if (e && e.preventDefault) e.preventDefault();
+                var loginF = document.getElementById('loginForm');
+                var regF = document.getElementById('registerForm');
+                var forgotF = document.getElementById('forgotPasswordForm');
+                if (forgotF) forgotF.style.display = 'none';
+                if (regF) regF.style.display = 'none';
+                if (loginF) loginF.style.display = '';
+            }
+            window.openForgotPasswordUI = openForgotPasswordUI;
+            window.closeForgotPasswordUI = closeForgotPasswordUI;
+        </script>
 
         <form id="registerForm" style="display:none;">
             <h3 class="auth-title">Crear cuenta profesional</h3>
@@ -1553,7 +1591,7 @@
 <script src="psychoed.js"></script>
 <script src="reports.js"></script>
 <script src="vademecum.js"></script>
-<script src="app.js"></script>
+<script src="app.js?v=6.4.0"></script>
 <script src="scales.js"></script>
 <script src="finance.js"></script>
 <script src="adm.js"></script>
@@ -1565,7 +1603,7 @@
 <script src="tests.js"></script>
 <script>
 if ('serviceWorker' in navigator) {
-    navigator.serviceWorker.register('/sw.js')
+    navigator.serviceWorker.register('/sw.js?v=6.4.0')
         .then(() => console.log('✅ ServiceWorker registrado'))
         .catch(err => console.log('SW Error:', err));
 }
