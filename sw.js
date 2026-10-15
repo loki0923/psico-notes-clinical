@@ -1,4 +1,4 @@
-const CACHE_VERSION = 'psico-v6.4';
+const CACHE_VERSION = 'psico-v6.5';
 const PRECACHE_ASSETS = [
   './',
   './index.html',

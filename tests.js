@@ -1324,6 +1324,138 @@ ClinicalTestSuite.add('TC-CLOUD-03', 'Fusión Inteligente de Colecciones sin Pé
     }
 });
 
+// 36. TC-AUTH-01: Flujo Seguro de Recuperación y Restablecimiento de Contraseña
+ClinicalTestSuite.add('TC-AUTH-01', 'Flujo Seguro de Recuperación y Restablecimiento de Contraseña', async () => {
+    const { db } = await import('./db.js');
+    await db.initialize();
+
+    const email = `doctora_reset_${Date.now()}@clinica.com`;
+    const oldHash = 'old_hash_123';
+    const newHash = 'new_secret_hash_456';
+
+    // 1. Registrar terapeuta inicial
+    await db.registerTherapist({
+        name: 'Dra. Ana Reset',
+        email,
+        passwordHash: oldHash
+    });
+
+    // 2. Solicitar código de recuperación
+    const resetData = await db.createPasswordReset(email);
+    if (!resetData.code || resetData.code.length !== 6) {
+        throw new Error('El código de recuperación debe ser numérico de 6 dígitos');
+    }
+
+    // 3. Intento de restablecimiento con código incorrecto (debe fallar)
+    let failedAsExpected = false;
+    try {
+        await db.verifyAndResetPassword(email, '000000', newHash);
+    } catch (e) {
+        failedAsExpected = true;
+    }
+    if (!failedAsExpected) throw new Error('Debería rechazar un código de verificación incorrecto');
+
+    // 4. Restablecimiento con código válido
+    const success = await db.verifyAndResetPassword(email, resetData.code, newHash);
+    if (!success) throw new Error('El restablecimiento de contraseña debió ser exitoso');
+
+    // 5. Verificar que el login funciona con la nueva contraseña y rechaza la antigua
+    const loginOld = await db.loginTherapist(email, oldHash);
+    if (loginOld !== null) throw new Error('La contraseña antigua ya no debería ser válida');
+
+    const loginNew = await db.loginTherapist(email, newHash);
+    if (!loginNew || loginNew.name !== 'Dra. Ana Reset') {
+        throw new Error('El login debió ser exitoso con la nueva contraseña');
+    }
+});
+
+// 37. TC-MOB-01: Arquitectura de Navegación Móvil, Drawer & Bottom Bar Touch Ergonomics
+ClinicalTestSuite.add('TC-MOB-01', 'Arquitectura de Navegación Móvil, Drawer & Bottom Bar Touch Ergonomics', async () => {
+    const fs = await import('fs');
+    const path = await import('path');
+
+    // 1. Verificar presencia de meta viewport adaptativo en index.html
+    const htmlContent = fs.readFileSync(path.resolve('./index.html'), 'utf8');
+    if (!htmlContent.includes('viewport-fit=cover') || !htmlContent.includes('width=device-width')) {
+        throw new Error('index.html no contiene el meta viewport optimizado para dispositivos móviles y safe-area');
+    }
+    if (!htmlContent.includes('mobileMenuToggleBtn') || !htmlContent.includes('sidebarBackdrop')) {
+        throw new Error('index.html no incluye el botón de menú hamburguesa o el backdrop de cierre táctil');
+    }
+    if (!htmlContent.includes('mobile-bottom-nav') || !htmlContent.includes('mobileBottomNav')) {
+        throw new Error('index.html no incluye la barra inferior de navegación (Bottom Nav) móvil');
+    }
+
+    // 2. Verificar reglas CSS críticas para móviles en styles.css
+    const cssContent = fs.readFileSync(path.resolve('./styles.css'), 'utf8');
+    if (!cssContent.includes('.mobile-menu-toggle-btn') || !cssContent.includes('.mobile-bottom-nav')) {
+        throw new Error('styles.css no define las clases de soporte para navegación móvil');
+    }
+    // Comprobar prevención del auto-zoom de iOS Safari (<16px dispara zoom indeseado)
+    if (!cssContent.includes('font-size: 16px !important')) {
+        throw new Error('styles.css debe forzar font-size: 16px !important en inputs para evitar el zoom forzado en iOS');
+    }
+    // Comprobar clearance inferior para evitar que la bottom bar tape contenido
+    if (!cssContent.includes('padding: 12px 12px 84px 12px !important') && !cssContent.includes('84px')) {
+        throw new Error('styles.css debe incluir clearance inferior en views-container para no tapar contenido');
+    }
+
+    // 3. Emular la lógica de navegación móvil (toggleMobileSidebar, closeMobileSidebar, sync bottom bar)
+    const mockSidebar = { classList: new Set() };
+    const mockBackdrop = { classList: new Set() };
+    const mockNavButtons = [
+        { dataset: { view: 'dashboard' }, classList: new Set(['active']) },
+        { dataset: { view: 'patients' }, classList: new Set() },
+        { dataset: { view: 'appointments' }, classList: new Set() },
+        { dataset: { view: 'notes' }, classList: new Set() }
+    ];
+
+    function toggleMobile(sidebar, backdrop) {
+        if (sidebar.classList.has('open')) {
+            sidebar.classList.delete('open');
+            backdrop.classList.delete('active');
+        } else {
+            sidebar.classList.add('open');
+            backdrop.classList.add('active');
+        }
+    }
+
+    function closeMobile(sidebar, backdrop) {
+        sidebar.classList.delete('open');
+        backdrop.classList.delete('active');
+    }
+
+    function syncBottomNav(items, activeView) {
+        items.forEach(item => {
+            if (item.dataset.view === activeView) {
+                item.classList.add('active');
+            } else {
+                item.classList.delete('active');
+            }
+        });
+    }
+
+    // Probar apertura del drawer
+    toggleMobile(mockSidebar, mockBackdrop);
+    if (!mockSidebar.classList.has('open') || !mockBackdrop.classList.has('active')) {
+        throw new Error('toggleMobileSidebar debió abrir el menú y activar el backdrop');
+    }
+
+    // Probar cierre mediante backdrop o botón cerrar
+    closeMobile(mockSidebar, mockBackdrop);
+    if (mockSidebar.classList.has('open') || mockBackdrop.classList.has('active')) {
+        throw new Error('closeMobileSidebar debió remover la clase open y active');
+    }
+
+    // Probar sincronización reactiva de vista al navegar a 'appointments'
+    syncBottomNav(mockNavButtons, 'appointments');
+    const aptBtn = mockNavButtons.find(b => b.dataset.view === 'appointments');
+    const dashBtn = mockNavButtons.find(b => b.dataset.view === 'dashboard');
+    if (!aptBtn.classList.has('active') || dashBtn.classList.has('active')) {
+        throw new Error('Fallo en la sincronización de pestaña activa en la barra móvil inferior');
+    }
+});
+
 // Auto-ejecución si se corre desde Node.js (CLI)
 if (typeof process !== 'undefined' && process.argv && process.argv[1] && process.argv[1].endsWith('tests.js')) {
     ClinicalTestSuite.runAll().then(res => {

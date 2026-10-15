@@ -951,7 +951,237 @@ Se agregaron 3 nuevos casos de prueba integrales en `tests.js`:
 - **`TC-REP-01`**: Generación de Epicrisis Oficial y Código Criptográfico de Autenticidad QR.
 - **`TC-CON-01`**: Consentimiento Informado Digital en Portal (Firma Táctil y Trazabilidad).
 - **`TC-STAT-01`**: Analítica Clínica Agregada (Distribución Diagnóstica, Remisión Sintomática y Radar de Deserción).
-- **Resultado Global**: **32 de 32 pruebas aprobadas con éxito (100% PASS, 0 fallos)**.
+
+---
+
+## 17. Sincronización en la Nube Multi-Dispositivo y Autenticación Centralizada (PC & Móvil)
+
+### 17.1. Diagnóstico de la Problemática Resuelta
+En versiones iniciales, la persistencia operaba primordialmente bajo un enfoque **Local-First** en el navegador (`localStorage`). Al acceder desde un dispositivo móvil o navegador diferente:
+1. El `localStorage` del móvil no contenía las cuentas creadas en el ordenador.
+2. La psicóloga se veía forzada a crear una cuenta nueva y no visualizaba sus pacientes ni sus notas de evolución.
+3. Si el servidor de Render reiniciaba su contenedor efímero, los archivos temporales se reseteaban.
+
+Para erradicar definitivamente esta limitación, se implementó una **Arquitectura de Sincronización Híbrida Cloud-First con Resiliencia Offline**.
+
+### 17.2. Diagrama de Arquitectura de Sincronización (Mermaid)
+
+```mermaid
+flowchart TD
+    subgraph Dispositivos["📱 Dispositivos del Profesional"]
+        PC["💻 Computadora / Laptop\n(Navegador Chrome/Edge)"]
+        Mobile["📱 Teléfono Celular / Tablet\n(Navegador Safari/Chrome)"]
+    end
+
+    subgraph ClienteLayer["⚙️ Capa Cliente (app.js)"]
+        CSM["CloudSyncManager\n(Detector Online/Offline + Debounce 1.2s)"]
+        LocalStore["localStorage Local\n(Cache Rápido 0ms + Soporte Offline)"]
+        MergeEngine["Motor de Merge Inteligente\n(Resolución de Conflictos sin Pérdida)"]
+    end
+
+    subgraph BackendGateway["🛡️ Backend Node.js Express (server.js)"]
+        AuthRouter["POST /api/v1/auth/register\nPOST /api/v1/auth/login"]
+        SyncRouter["GET /api/v1/clinical/sync\nPOST /api/v1/clinical/sync"]
+        DBMgr["DatabaseManager (db.js)"]
+    end
+
+    subgraph CloudStorage["🐘 Base de Datos Central (PostgreSQL)"]
+        TableTherapists["therapists\n(Cuentas de Profesionales)"]
+        TableSync["therapist_cloud_sync\n(Snapshot Integral JSONB)"]
+        TableRelational["patients / clinical_notes / appointments\n(Tablas Relacionales para Portal)"]
+    end
+
+    PC <--> CSM
+    Mobile <--> CSM
+    CSM <--> LocalStore
+    CSM <--> MergeEngine
+    CSM <== "HTTPS REST (JSON)" ==> AuthRouter
+    CSM <== "HTTPS REST (JSON)" ==> SyncRouter
+    AuthRouter --> DBMgr
+    SyncRouter --> DBMgr
+    DBMgr --> TableTherapists
+    DBMgr --> TableSync
+    DBMgr --> TableRelational
+```
+
+### 17.3. Diagrama de Secuencia: Flujo Multi-Dispositivo (PC a Celular)
+
+```mermaid
+sequenceDiagram
+    autonumber
+    actor Psicologa as 👩‍⚕️ Psicóloga
+    participant PC as 💻 Computadora (Ayer)
+    participant Cloud as ☁️ Backend & PostgreSQL (Render)
+    participant Movil as 📱 Celular (Hoy)
+
+    Note over Psicologa,PC: Fase 1: Creación de notas en la PC
+    Psicologa->>PC: Inicia sesión y registra paciente "Carlos" y nota SOAP
+    PC->>PC: Guarda de inmediato en localStorage (0ms)
+    PC->>Cloud: POST /api/v1/clinical/sync (patients, notes, appointments)
+    Cloud->>Cloud: Persiste en therapist_cloud_sync y tabla patients
+    Cloud-->>PC: 200 OK (Status: synced)
+
+    Note over Psicologa,Movil: Fase 2: Acceso desde el Teléfono Móvil
+    Psicologa->>Movil: Abre https://psico-notes-clinical.onrender.com/
+    Psicologa->>Movil: Ingresa con el mismo email y contraseña
+    Movil->>Cloud: POST /api/v1/auth/login (email, passwordHash)
+    Cloud-->>Movil: 200 OK (authenticated: true, therapist)
+    Movil->>Cloud: GET /api/v1/clinical/sync?therapistId=...
+    Cloud-->>Movil: 200 OK (payload: { patients: ["Carlos"], notes: [...] })
+    Movil->>Movil: Merge inteligente y guardado en localStorage local
+    Movil->>Movil: Renderiza paciente "Carlos" y notas intactas
+    Movil-->>Psicologa: ✅ "☁️ Datos descargados y sincronizados desde la nube"
+```
+
+### 17.4. Especificación Técnica de Endpoints Implementados
+
+| Método | Endpoint | Descripción | Cuerpo de Petición / Parámetros | Respuesta Exitosa |
+| :--- | :--- | :--- | :--- | :--- |
+| `POST` | `/api/v1/auth/register` | Registro centralizado de terapeuta en base de datos | `{ name, email, passwordHash, specialty, registryNumber }` | `{ status: "ok", therapist }` |
+| `POST` | `/api/v1/auth/login` | Autenticación multi-dispositivo y recuperación inicial | `{ email, passwordHash }` | `{ authenticated: true, therapist, cloudData }` |
+| `GET` | `/api/v1/clinical/sync` | Descarga el snapshot clínico íntegro del terapeuta | Query: `?therapistId=...` | `{ status: "ok", payload: { patients, notes, ... } }` |
+| `POST` | `/api/v1/clinical/sync` | Respaldo y sincronización atómica en la nube | `{ therapistId, payload, clientTimestamp }` | `{ status: "synced", updatedAt }` |
+
+### 17.5. Estructura de la Tabla `therapist_cloud_sync` en PostgreSQL
+```sql
+CREATE TABLE IF NOT EXISTS therapist_cloud_sync (
+    therapist_id VARCHAR(64) PRIMARY KEY,
+    payload JSONB NOT NULL,
+    version INTEGER DEFAULT 1,
+    client_timestamp BIGINT,
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE INDEX IF NOT EXISTS idx_sync_updated_at ON therapist_cloud_sync(updated_at);
+```
+
+### 17.6. Matriz de Validación Automatizada Actualizada (36/36 Pruebas PASS)
+Se incorporaron nuevos casos de prueba automatizados en `tests.js`:
+- **`TC-CLOUD-01`**: Registro y Autenticación Centralizada de Terapeuta en Base de Datos.
+- **`TC-CLOUD-02`**: Respaldo y Snapshot Integral en la Nube (Multi-Dispositivo).
+- **`TC-CLOUD-03`**: Fusión Inteligente de Colecciones sin Pérdida de Datos (PC + Móvil Merge).
+- **`TC-AUTH-01`**: Flujo Seguro de Recuperación y Restablecimiento de Contraseña.
+- **Resultado de la Suite**: **36 de 36 pruebas aprobadas (100% de éxito, 0 errores)**.
+
+---
+
+## 18. Recuperación y Restablecimiento Seguro de Contraseñas
+
+### 18.1. Flujo Criptográfico y Experiencia de Usuario
+Para garantizar que el profesional nunca pierda el acceso a su expediente clínico ante olvido o extravío de credenciales:
+1. **Acceso Rápido**: Enlace destacado *"¿Olvidaste tu contraseña?"* en la pantalla de inicio de sesión (`#showForgotPassword`).
+2. **Generación de PIN Efímero**: El backend genera un código criptoseguro de 6 dígitos con ventana de caducidad estricta (15 minutos) almacenado en la tabla `password_resets`.
+3. **Restablecimiento Atómico**: El usuario ingresa el código y su nueva contraseña (`minlength="6"`), actualizando el hash criptográfico SHA-256 en PostgreSQL y en la memoria local del dispositivo.
+4. **Resiliencia Offline**: Si el servidor experimenta latencia o falta de conexión, el sistema activa un modo de respaldo local para recuperar la cuenta en ese dispositivo.
+
+### 18.2. Endpoints REST de Autenticación
+| Método | Endpoint | Parámetros | Función |
+| :--- | :--- | :--- | :--- |
+| `POST` | `/api/v1/auth/forgot-password` | `{ email }` | Emite código temporal de 6 dígitos y valida existencia de la cuenta |
+| `POST` | `/api/v1/auth/reset-password` | `{ email, code, newPasswordHash }` | Valida código no expirado y actualiza contraseña en PostgreSQL |
+
+---
+
+## 19. Arquitectura de Experiencia Móvil y Ergonomía Táctil (Mobile-First UX / Responsive Architecture)
+
+### 19.1. Diagnóstico Clínico de UX Móvil y Objetivos de Rediseño
+El uso de smartphones (iOS y Android) por parte de terapeutas y psicólogos requiere una experiencia ágil, sin fricción y adaptada al uso con una sola mano (ergonomía de pulgar). El diagnóstico técnico identificó las siguientes barreras que afectaban la versión móvil previa:
+1. **Atrapamiento en Vista Única (Bloqueo de Navegación)**: En anchos `<= 768px`, la barra lateral de navegación utilizaba `transform: translateX(-100%)` pero la barra superior carecía de botón de menú hamburguesa. El usuario quedaba imposibilitado de acceder a sus pacientes, citas y reportes desde el teléfono.
+2. **Auto-Zoom Involuntario en iOS Safari**: Los campos de texto configurados a `14px` provocaban que el motor WebKit de iOS hiciera un zoom automático forzado al hacer foco sobre cualquier `input`, desalineando la pantalla horizontalmente.
+3. **Ausencia de Botones de Acción en Pantallas Táctiles**: Los botones de edición y eliminación de expedientes dependían del evento CSS `:hover`, inexistente en interfaces táctiles capacitivas.
+4. **Desbordamiento de Formularios y Modales**: Con el teclado virtual en pantalla, formularios extensos (como el registro profesional de 6 campos) no contaban con `overflow-y: auto`, impidiendo pulsar el botón de envío.
+
+### 19.2. Diagrama de Arquitectura de Componentes Móviles
+```mermaid
+flowchart TD
+    subgraph MobileDevice["Dispositivo Móvil (Smartphone <= 768px)"]
+        TopBar["Top Bar Móvil (54px)
+        - Menú Hamburguesa
+        - Título / Breadcrumb
+        - Estado Nube (Icono)
+        - Campana / Modo Oscuro"]
+        
+        DrawerSidebar["Drawer Lateral Deslizable (285px)
+        - Z-Index 1250
+        - Cierre por X o Backdrop
+        - Navegación Completa + Herramientas"]
+        
+        BackdropOverlay["Backdrop Overlay Translúcido
+        - Z-Index 1200
+        - Tap-to-Close"]
+        
+        ViewsContainer["Contenedor de Vistas
+        - Padding inferior: 84px
+        - Clearance anti-solapamiento"]
+        
+        BottomNav["Bottom Navigation Bar (60px)
+        - Posición fija inferior
+        - 5 Pestañas de Pulgar:
+          [Inicio] [Personas] [Agenda] [Reportes] [Más]"]
+        
+        ModalBottomSheet["Modales Táctiles
+        - Formato Bottom-Sheet (94vh max)
+        - Scroll nativo independiente
+        - Botones apilados con touch target >= 44px"]
+    end
+
+    TopBar -->|Click Hamburguesa| DrawerSidebar
+    TopBar -->|Activa| BackdropOverlay
+    BackdropOverlay -->|Click Fuera| DrawerSidebar
+    BottomNav -->|Pestaña 1-4| ViewsContainer
+    BottomNav -->|Pestaña 5 'Más'| DrawerSidebar
+    ViewsContainer -->|Abrir Expediente/Cita| ModalBottomSheet
+```
+
+### 19.3. Diagrama de Secuencia de Navegación Táctil Móvil
+```mermaid
+sequenceDiagram
+    autonumber
+    actor Terapeuta as Terapeuta en Teléfono Móvil
+    participant BottomBar as Barra Inferior (BottomNav)
+    participant TopBar as Barra Superior (Hamburger)
+    participant AppState as Gestor de Estado (app.js)
+    participant Drawer as Menú Lateral (Drawer)
+    participant View as Vista Activa (DOM)
+
+    Note over Terapeuta,BottomBar: Navegación Táctil Principal con Pulgar
+    Terapeuta->>BottomBar: Tap en icono 'Personas'
+    BottomBar->>AppState: switchMobileView('patients')
+    AppState->>Drawer: closeMobileSidebar()
+    AppState->>BottomBar: Marcar 'Personas' como activa (scale 1.12, acento)
+    AppState->>View: Activar #patientsView con auto-scroll a top (0,0)
+    View-->>Terapeuta: Muestra lista de personas con acciones visibles (sin :hover)
+
+    Note over Terapeuta,TopBar: Acceso a Herramientas Secundarias (Vademécum, Métricas)
+    Terapeuta->>TopBar: Tap en botón Menú Hamburguesa
+    TopBar->>Drawer: toggleMobileSidebar() -> agrega clase 'open'
+    TopBar->>Drawer: Activa backdrop con desenfoque (-webkit-backdrop-filter)
+    Drawer-->>Terapeuta: Despliega panel lateral animado (280px)
+    Terapeuta->>Drawer: Tap en 'Herramientas Clínicas / Vademécum'
+    Drawer->>AppState: Ejecuta acción modal
+    Drawer->>Drawer: closeMobileSidebar() automático
+```
+
+### 19.4. Estándares Técnicos Implementados
+| Componente / Regla | Solución Técnica Implementada | Impacto en la Experiencia de Usuario |
+| :--- | :--- | :--- |
+| **Prevención de Zoom en iOS** | `input, select, textarea { font-size: 16px !important; min-height: 42px; }` | Elimina el salto y zoom indeseado de Mobile Safari; la interfaz permanece siempre encuadrada. |
+| **Barra de Navegación Inferior** | `.mobile-bottom-nav` fija abajo con 5 accesos directos de 60px de altura | Permite operar toda la aplicación usando una sola mano sin necesidad de estirar los dedos. |
+| **Drawer con Backdrop** | `.sidebar` flotante en `z-index: 1250` con `.sidebar-backdrop` a pantalla completa | Menú lateral accesible al instante que se oculta tocando cualquier parte externa. |
+| **Clearance Inferior** | `.views-container { padding-bottom: 84px !important; }` | Ningún botón, tarjeta ni reporte queda oculto detrás de la barra inferior de navegación. |
+| **Botones Táctiles Visibles** | `.patient-actions, .appointment-actions, .note-actions { opacity: 1 !important; }` | Los botones de editar y borrar son siempre visibles sin depender de hover en móviles. |
+| **Tarjetas Compactas** | `.summary-cards { grid-template-columns: repeat(2, 1fr) !important; gap: 10px; }` | Vista panorámica de métricas clave sin requerir scroll excesivo en la pantalla de bienvenida. |
+| **Modales Adaptativos** | `.modal-content { max-height: 94vh; width: 100%; border-radius: 18px 18px 0 0; }` | Comportamiento tipo bottom-sheet nativo con scroll vertical táctil fluido (`-webkit-overflow-scrolling: touch`). |
+
+### 19.5. Matriz de Validación Automatizada Actualizada (37/37 Pruebas PASS)
+Se incorporó el nuevo caso de prueba automatizado en `tests.js`:
+- **`TC-MOB-01`**: Arquitectura de Navegación Móvil, Drawer & Bottom Bar Touch Ergonomics.
+  - Verifica meta viewport con `viewport-fit=cover` para muescas y dynamic island de smartphones.
+  - Comprueba presencia de selectores `#mobileMenuToggleBtn`, `#sidebarBackdrop` y `#mobileBottomNav`.
+  - Verifica forzado de `font-size: 16px !important` y clearance de 84px en `styles.css`.
+  - Emula apertura/cierre de drawer y sincronización reactiva de pestañas en bottom bar.
+- **Resultado Global de la Suite**: **37 de 37 pruebas aprobadas al 100% (0 fallos)**.
+
 
 
 

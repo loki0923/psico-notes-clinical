@@ -2,17 +2,19 @@
 <html lang="es">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, viewport-fit=cover">
     <title>Psico Notes - Gestión Clínica Avanzada</title>
     <link rel="manifest" href="manifest.json">
-    <meta name="theme-color" content="#6b9080">
+    <meta name="theme-color" content="#1e5a52">
+    <meta name="mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="default">
     <link rel="apple-touch-icon" href="icon-192.png">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Playfair+Display:wght@500;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <link rel="stylesheet" href="styles.css?v=6.5">
+    <link rel="stylesheet" href="styles.css?v=6.5.0">
 </head>
 <body>
 
@@ -125,8 +127,23 @@
                 if (regF) regF.style.display = 'none';
                 if (loginF) loginF.style.display = '';
             }
+            function goToRegisterWithEmail(email) {
+                var forgotF = document.getElementById('forgotPasswordForm');
+                var loginF = document.getElementById('loginForm');
+                var regF = document.getElementById('registerForm');
+                if (forgotF) forgotF.style.display = 'none';
+                if (loginF) loginF.style.display = 'none';
+                if (regF) {
+                    regF.style.display = '';
+                    var regEmail = document.getElementById('registerEmail');
+                    if (regEmail && email) regEmail.value = email;
+                    var regName = document.getElementById('registerName');
+                    if (regName) regName.focus();
+                }
+            }
             window.openForgotPasswordUI = openForgotPasswordUI;
             window.closeForgotPasswordUI = closeForgotPasswordUI;
+            window.goToRegisterWithEmail = goToRegisterWithEmail;
         </script>
 
         <form id="registerForm" style="display:none;">
@@ -173,8 +190,11 @@
             <span class="logo-icon">🧠</span>
             <span class="logo-text">Psico Notes</span>
         </div>
-        <button class="sidebar-toggle" id="sidebarToggle">
+        <button class="sidebar-toggle" id="sidebarToggle" title="Plegar menú">
             <i class="fas fa-chevron-left"></i>
+        </button>
+        <button class="mobile-sidebar-close" id="mobileSidebarClose" onclick="closeMobileSidebar()" title="Cerrar menú">
+            <i class="fas fa-times"></i>
         </button>
     </div>
     <nav class="sidebar-nav">
@@ -281,11 +301,19 @@
     </div>
 </aside>
 
+<!-- OVERLAY BACKDROP PARA SIDEBAR EN MÓVIL -->
+<div class="sidebar-backdrop" id="sidebarBackdrop" onclick="closeMobileSidebar()"></div>
+
 <!-- MAIN CONTENT -->
 <main class="main-content" id="mainContent">
     <div class="top-bar">
-        <div class="breadcrumb" id="breadcrumb">
-            <i class="fas fa-home"></i> <span>Mi Consulta</span>
+        <div class="top-bar-left">
+            <button class="mobile-menu-toggle-btn" id="mobileMenuToggleBtn" onclick="toggleMobileSidebar()" aria-label="Abrir Menú de Navegación" title="Menú">
+                <i class="fas fa-bars"></i>
+            </button>
+            <div class="breadcrumb" id="breadcrumb">
+                <i class="fas fa-home"></i> <span>Mi Consulta</span>
+            </div>
         </div>
         <div class="top-bar-actions">
             <!-- BOTÓN DE ESTADO DE SINCRONIZACIÓN EN LA NUBE (MULTI-DISPOSITIVO) -->
@@ -675,6 +703,30 @@
         </div>
     </div>
 </main>
+
+<!-- BARRA DE NAVEGACIÓN INFERIOR PARA TELÉFONOS (BOTTOM NAVIGATION) -->
+<nav class="mobile-bottom-nav" id="mobileBottomNav" aria-label="Navegación Móvil Principal">
+    <button class="mobile-nav-item active" data-view="dashboard" onclick="switchMobileView('dashboard')" title="Mi Consulta">
+        <i class="fas fa-home"></i>
+        <span>Inicio</span>
+    </button>
+    <button class="mobile-nav-item" data-view="patients" onclick="switchMobileView('patients')" title="Personas y Expedientes">
+        <i class="fas fa-users"></i>
+        <span>Personas</span>
+    </button>
+    <button class="mobile-nav-item" data-view="appointments" onclick="switchMobileView('appointments')" title="Agenda y Calendario">
+        <i class="fas fa-calendar-alt"></i>
+        <span>Agenda</span>
+    </button>
+    <button class="mobile-nav-item" data-view="notes" onclick="switchMobileView('notes')" title="Reportes Clínicos">
+        <i class="fas fa-file-invoice"></i>
+        <span>Reportes</span>
+    </button>
+    <button class="mobile-nav-item" id="mobileBottomMoreBtn" onclick="toggleMobileSidebar()" title="Menú Completo y Herramientas">
+        <i class="fas fa-bars"></i>
+        <span>Más</span>
+    </button>
+</nav>
 
 <!-- PATIENT MODAL -->
 <div class="modal" id="patientModal">
@@ -1591,7 +1643,7 @@
 <script src="psychoed.js"></script>
 <script src="reports.js"></script>
 <script src="vademecum.js"></script>
-<script src="app.js?v=6.4.0"></script>
+<script src="app.js?v=6.5.0"></script>
 <script src="scales.js"></script>
 <script src="finance.js"></script>
 <script src="adm.js"></script>
@@ -1603,7 +1655,7 @@
 <script src="tests.js"></script>
 <script>
 if ('serviceWorker' in navigator) {
-    navigator.serviceWorker.register('/sw.js?v=6.4.0')
+    navigator.serviceWorker.register('/sw.js?v=6.5.0')
         .then(() => console.log('✅ ServiceWorker registrado'))
         .catch(err => console.log('SW Error:', err));
 }

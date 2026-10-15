@@ -662,7 +662,8 @@ async function handleRequestResetCode(e) {
             document.getElementById('forgotStep2').style.display = 'block';
             document.getElementById('btnRequestResetCode').style.display = 'none';
         } else {
-            errorEl.textContent = data.error || 'No se encontró una cuenta asociada a este correo.';
+            errorEl.innerHTML = (data.error || 'No existe ninguna cuenta registrada con este correo.') + 
+                `<br><a href="javascript:void(0)" onclick="goToRegisterWithEmail('${email}')" style="color:#38bdf8;text-decoration:underline;display:inline-block;margin-top:8px;font-weight:600;">👉 Crear mi cuenta profesional con este correo</a>`;
             errorEl.classList.add('visible');
         }
     } catch (err) {
@@ -676,11 +677,27 @@ async function handleRequestResetCode(e) {
             document.getElementById('forgotStep2').style.display = 'block';
             document.getElementById('btnRequestResetCode').style.display = 'none';
         } else {
-            errorEl.textContent = 'No se encontró ninguna cuenta registrada con este correo.';
+            errorEl.innerHTML = 'No se encontró ninguna cuenta registrada con este correo.<br><a href="javascript:void(0)" onclick="goToRegisterWithEmail(\'' + email + '\')" style="color:#38bdf8;text-decoration:underline;display:inline-block;margin-top:8px;font-weight:600;">👉 Crear mi cuenta profesional con este correo</a>';
             errorEl.classList.add('visible');
         }
     }
 }
+
+function goToRegisterWithEmail(email) {
+    var forgotForm = document.getElementById('forgotPasswordForm');
+    var loginForm = document.getElementById('loginForm');
+    var regForm = document.getElementById('registerForm');
+    if (forgotForm) forgotForm.style.display = 'none';
+    if (loginForm) loginForm.style.display = 'none';
+    if (regForm) {
+        regForm.style.display = '';
+        var regEmail = document.getElementById('registerEmail');
+        if (regEmail && email) regEmail.value = email;
+        var regName = document.getElementById('registerName');
+        if (regName) regName.focus();
+    }
+}
+window.goToRegisterWithEmail = goToRegisterWithEmail;
 
 async function handleSubmitNewPassword(e) {
     e.preventDefault();
@@ -1158,6 +1175,17 @@ function initEventListeners() {
 function navigateTo(view) {
     AppState.currentView = view;
     document.querySelectorAll('.nav-item').forEach(item => item.classList.toggle('active', item.dataset.view === view));
+    
+    // Sincronizar barra de navegación inferior móvil
+    document.querySelectorAll('.mobile-nav-item').forEach(item => {
+        if (item.dataset.view) {
+            item.classList.toggle('active', item.dataset.view === view);
+        }
+    });
+
+    // Cerrar menú móvil si está abierto
+    closeMobileSidebar();
+
     document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
     const targetView = document.getElementById(view + 'View');
     if (targetView) targetView.classList.add('active');
@@ -1172,7 +1200,18 @@ function navigateTo(view) {
         search: 'Búsqueda Global',
         stats: 'Métricas'
     };
-    document.getElementById('breadcrumb').innerHTML = `<span>${titles[view] || 'Inicio'}</span>`;
+    const breadcrumb = document.getElementById('breadcrumb');
+    if (breadcrumb) {
+        breadcrumb.innerHTML = `<span>${titles[view] || 'Inicio'}</span>`;
+    }
+    
+    // Auto-scroll al inicio en cambios de pantalla
+    try {
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+    } catch (e) {
+        window.scrollTo(0, 0);
+    }
+
     if (view === 'dashboard') updateDashboard();
     if (view === 'patients') renderPatients();
     if (view === 'appointments') { renderCalendar(); renderAppointments(); }
@@ -1182,6 +1221,40 @@ function navigateTo(view) {
     if (view === 'billing' && typeof openInvoicesList === 'function') openInvoicesList();
     if (view === 'stats') updateStats();
 }
+
+// CONTROLADORES DE NAVEGACIÓN MÓVIL (DRAWER & BOTTOM NAV)
+function toggleMobileSidebar() {
+    const sidebar = document.getElementById('sidebar');
+    const backdrop = document.getElementById('sidebarBackdrop');
+    if (!sidebar) return;
+    const isOpen = sidebar.classList.contains('open');
+    if (isOpen) {
+        sidebar.classList.remove('open');
+        if (backdrop) backdrop.classList.remove('active');
+    } else {
+        sidebar.classList.add('open');
+        if (backdrop) backdrop.classList.add('active');
+    }
+}
+
+function closeMobileSidebar() {
+    const sidebar = document.getElementById('sidebar');
+    const backdrop = document.getElementById('sidebarBackdrop');
+    if (sidebar) sidebar.classList.remove('open');
+    if (backdrop) backdrop.classList.remove('active');
+}
+
+function switchMobileView(view) {
+    closeMobileSidebar();
+    navigateTo(view);
+}
+
+// Listener para cerrar drawer al cambiar orientación o agrandar ventana
+window.addEventListener('resize', function() {
+    if (window.innerWidth > 768) {
+        closeMobileSidebar();
+    }
+});
 
 function toggleSidebar() {
     AppState.sidebarCollapsed = !AppState.sidebarCollapsed;
