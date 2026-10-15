@@ -385,9 +385,14 @@ const CloudSyncManager = {
                 clientTimestamp: Date.now()
             };
 
+            const token = localStorage.getItem('psico_session_token');
+            const headers = { 'Content-Type': 'application/json' };
+            if (token) headers['Authorization'] = `Bearer ${token}`;
+            if (AppState.currentUser?.id) headers['X-Therapist-Id'] = AppState.currentUser.id;
+
             const res = await fetch('/api/v1/clinical/sync', {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
+                headers,
                 body: JSON.stringify({
                     therapistId: AppState.currentUser.id,
                     payload,
@@ -423,7 +428,12 @@ const CloudSyncManager = {
             this.isSyncing = true;
             this.updateStatusUI('syncing');
 
-            const res = await fetch(`/api/v1/clinical/sync?therapistId=${encodeURIComponent(therapistId)}`);
+            const token = localStorage.getItem('psico_session_token');
+            const headers = {};
+            if (token) headers['Authorization'] = `Bearer ${token}`;
+            if (therapistId) headers['X-Therapist-Id'] = therapistId;
+
+            const res = await fetch(`/api/v1/clinical/sync?therapistId=${encodeURIComponent(therapistId)}`, { headers });
             if (!res.ok) {
                 this.updateStatusUI('error');
                 return false;
@@ -675,13 +685,13 @@ async function handleRequestResetCode(e) {
         const data = await res.json();
 
         if (res.ok && data.status === 'ok') {
-            successEl.innerHTML = `<strong>✅ Código de verificación generado:</strong> <span style="font-size:16px;letter-spacing:2px;font-weight:700;">${data.resetCode}</span><br><small>Ingrésalo a continuación para establecer tu nueva clave.</small>`;
+            successEl.innerHTML = `<strong>✅ Solicitud procesada:</strong> Ingrese a continuación el código de verificación confidencial recibido para establecer su nueva contraseña.`;
             successEl.style.display = 'block';
-            document.getElementById('forgotCode').value = data.resetCode || '';
+            document.getElementById('forgotCode').value = '';
             document.getElementById('forgotStep2').style.display = 'block';
             document.getElementById('btnRequestResetCode').style.display = 'none';
         } else {
-            errorEl.innerHTML = (data.error || 'No existe ninguna cuenta registrada con este correo.') + 
+            errorEl.innerHTML = (data.error || 'No se pudo procesar la solicitud.') + 
                 `<br><a href="javascript:void(0)" onclick="goToRegisterWithEmail('${email}')" style="color:#38bdf8;text-decoration:underline;display:inline-block;margin-top:8px;font-weight:600;">👉 Crear mi cuenta profesional con este correo</a>`;
             errorEl.classList.add('visible');
         }
@@ -689,10 +699,9 @@ async function handleRequestResetCode(e) {
         // Fallback local si el servidor no responde
         const localUser = getUsers().find(u => u.email === email);
         if (localUser) {
-            const fallbackCode = '777888';
-            successEl.innerHTML = `<strong>✅ Modo Respaldo Local:</strong> Código de verificación: <strong>${fallbackCode}</strong>`;
+            successEl.innerHTML = `<strong>✅ Modo Respaldo Local:</strong> Solicitud generada. Ingrese el código de verificación para continuar.`;
             successEl.style.display = 'block';
-            document.getElementById('forgotCode').value = fallbackCode;
+            document.getElementById('forgotCode').value = '';
             document.getElementById('forgotStep2').style.display = 'block';
             document.getElementById('btnRequestResetCode').style.display = 'none';
         } else {
@@ -816,6 +825,9 @@ async function handleLogin(e) {
         if (response.ok && resData.authenticated) {
             loggedUser = resData.therapist;
             cloudData = resData.cloudData;
+            if (resData.sessionToken) {
+                localStorage.setItem('psico_session_token', resData.sessionToken);
+            }
         } else if (response.status === 401) {
             errorEl.textContent = 'Correo o contraseña incorrectos.';
             errorEl.classList.add('visible');
@@ -912,6 +924,9 @@ async function handleRegister(e) {
         const resData = await response.json();
         if (response.ok && resData.therapist) {
             registeredTherapist = resData.therapist;
+            if (resData.sessionToken) {
+                localStorage.setItem('psico_session_token', resData.sessionToken);
+            }
         } else if (response.status === 409) {
             errorEl.textContent = 'Ya existe una cuenta registrada con este correo en la nube.';
             errorEl.classList.add('visible');
@@ -959,6 +974,7 @@ async function handleRegister(e) {
 function handleLogout() {
     if (!confirm('¿Cerrar el expediente y salir?')) return;
     clearSession();
+    localStorage.removeItem('psico_session_token');
     AppState.currentUser = null;
     AppState.patients = []; AppState.appointments = []; AppState.notes = []; AppState.treatmentPlans = [];
     AppState.currentView = 'dashboard';
@@ -2682,9 +2698,14 @@ function syncPatientToPortalStorage(patient) {
             .flatMap(n => n.intersessionTasks || [])
             .filter(t => t.patientId === patient.id || t.patient_id === patient.id);
         
+        const token = localStorage.getItem('psico_session_token');
+        const syncHeaders = { 'Content-Type': 'application/json' };
+        if (token) syncHeaders['Authorization'] = `Bearer ${token}`;
+        if (AppState.currentUser?.id) syncHeaders['X-Therapist-Id'] = AppState.currentUser.id;
+
         fetch('/api/v1/patients/sync', {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
+            headers: syncHeaders,
             body: JSON.stringify({
                 patients: [{
                     id: patient.id,
@@ -3077,7 +3098,12 @@ function generatePortalToken(patientId) {
 async function syncPortalDataForPatient(patientId) {
     if (!patientId) return null;
     try {
-        const res = await fetch(`/api/v1/portal/data/${patientId}`);
+        const token = localStorage.getItem('psico_session_token');
+        const headers = {};
+        if (token) headers['Authorization'] = `Bearer ${token}`;
+        if (AppState.currentUser?.id) headers['X-Therapist-Id'] = AppState.currentUser.id;
+
+        const res = await fetch(`/api/v1/portal/data/${patientId}`, { headers });
         if (!res.ok) return null;
         const json = await res.json();
         const remote = json.data;

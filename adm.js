@@ -27,12 +27,15 @@ function getBillingConfig() {
 function saveBillingConfig(config) {
     localStorage.setItem(getBillingStorageKey('config'), JSON.stringify(config));
     if (typeof AppState !== 'undefined' && AppState.currentUser?.id && typeof navigator !== 'undefined' && navigator.onLine) {
+        const token = localStorage.getItem('psico_session_token');
+        const headers = {
+            'Content-Type': 'application/json',
+            'X-Therapist-Id': AppState.currentUser.id
+        };
+        if (token) headers['Authorization'] = `Bearer ${token}`;
         fetch('/api/v1/billing/config', {
             method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'X-Therapist-Id': AppState.currentUser.id
-            },
+            headers,
             body: JSON.stringify({ config })
         }).catch(err => console.warn('Cloud billing config save error:', err));
     }
@@ -57,7 +60,9 @@ function saveInvoices(invoices) {
 async function syncBillingWithServer() {
     if (typeof AppState === 'undefined' || !AppState.currentUser?.id || typeof navigator === 'undefined' || !navigator.onLine) return;
     try {
+        const token = localStorage.getItem('psico_session_token');
         const headers = { 'X-Therapist-Id': AppState.currentUser.id };
+        if (token) headers['Authorization'] = `Bearer ${token}`;
         const [resCfg, resInv] = await Promise.all([
             fetch('/api/v1/billing/config', { headers }).catch(() => null),
             fetch('/api/v1/billing/invoices', { headers }).catch(() => null)
@@ -360,12 +365,15 @@ function handleInvoiceSubmit(e) {
     saveInvoices(invoices);
 
     if (typeof AppState !== 'undefined' && AppState.currentUser?.id && typeof navigator !== 'undefined' && navigator.onLine) {
+        const token = localStorage.getItem('psico_session_token');
+        const headers = {
+            'Content-Type': 'application/json',
+            'X-Therapist-Id': AppState.currentUser.id
+        };
+        if (token) headers['Authorization'] = `Bearer ${token}`;
         fetch('/api/v1/billing/invoices', {
             method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'X-Therapist-Id': AppState.currentUser.id
-            },
+            headers,
             body: JSON.stringify({ invoice })
         }).catch(err => console.warn('Could not post invoice to cloud:', err));
     }

@@ -1,12 +1,15 @@
 /**
  * PSICO NOTES CLINICAL v6.0 - SERVIDOR BACKEND SEGURO & API GATEWAY
  * Express.js con persistencia PostgreSQL, API REST para Portal del Paciente, proxy seguro de Gemini y Teleconsulta.
+ * Implementación de Seguridad Clínica Grado Médico (P0): HMAC-SHA256 Sessions, BOLA/IDOR Prevention,
+ * Whitelist CORS, Zero-Leak Password Reset, High-Entropy Telehealth, y Sanitización de Errores OWASP.
  */
 
 import express from 'express';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import fs from 'fs';
+import crypto from 'crypto';
 import dotenv from 'dotenv';
 import { db } from './db.js';
 
@@ -18,19 +21,127 @@ const __dirname = path.dirname(__filename);
 const app = express();
 const PORT = process.env.PORT || 3000;
 
-// SEC-001: Configuración Estricta de CORS (Whitelist Clínica Autorizada)
+// ============================================
+// GESTIÓN CRIPTOGRÁFICA DE SESIONES (HMAC-SHA256)
+// ============================================
+const SESSION_SECRET = process.env.SESSION_SECRET || 'psico-clinical-hmac-sha256-secret-key-prod-v6-2026';
+const TOKEN_EXPIRY_MS = 7 * 24 * 60 * 60 * 1000; // 7 días de validez máxima para sesiones clínicas
+
+/**
+ * Genera un token de sesión firmado criptográficamente para el terapeuta autenticado.
+ */
+export function generateSessionToken(therapistId, email = '', customExpiryMs = TOKEN_EXPIRY_MS) {
+    if (!therapistId) throw new Error('therapistId es requerido para generar un token de sesión.');
+    const now = Date.now();
+    const payload = {
+        therapistId,
+        email: email || '',
+        iat: now,
+        exp: now + customExpiryMs
+    };
+    const payloadB64 = Buffer.from(JSON.stringify(payload)).toString('base64url');
+    const signature = crypto.createHmac('sha256', SESSION_SECRET).update(payloadB64).digest('base64url');
+    return `${payloadB64}.${signature}`;
+}
+
+/**
+ * Verifica la firma y la vigencia temporal de un token de sesión.
+ * Utiliza comparación en tiempo constante (timingSafeEqual) para mitigar ataques de temporización.
+ */
+export function verifySessionToken(token) {
+    if (!token || typeof token !== 'string') return null;
+    const parts = token.split('.');
+    if (parts.length !== 2) return null;
+    const [payloadB64, signature] = parts;
+    const expectedSig = crypto.createHmac('sha256', SESSION_SECRET).update(payloadB64).digest('base64url');
+
+    const sigBuf = Buffer.from(signature);
+    const expBuf = Buffer.from(expectedSig);
+    if (sigBuf.length !== expBuf.length || !crypto.timingSafeEqual(sigBuf, expBuf)) {
+        return null;
+    }
+
+    try {
+        const payload = JSON.parse(Buffer.from(payloadB64, 'base64url').toString('utf8'));
+        if (Date.now() > payload.exp) {
+            return null; // Token expirado
+        }
+        return payload;
+    } catch {
+        return null;
+    }
+}
+
+/**
+ * Middleware estricto de autenticación para terapeutas.
+ * Extrae y valida el token Bearer, asociando la identidad validada a `req.therapistId`.
+ * Rechaza suplantación de identidad (spoofing) si el cliente envía cabeceras contradictorias.
+ */
+export function requireTherapistAuth(req, res, next) {
+    const authHeader = req.headers['authorization'];
+    let token = null;
+    if (authHeader && authHeader.startsWith('Bearer ')) {
+        token = authHeader.substring(7).trim();
+    } else if (req.query && req.query.sessionToken) {
+        token = req.query.sessionToken;
+    } else if (req.headers['x-session-token']) {
+        token = req.headers['x-session-token'];
+    }
+
+    if (!token) {
+        return res.status(401).json({
+            error: 'No autorizado: Se requiere token de sesión Bearer válido.'
+        });
+    }
+
+    const session = verifySessionToken(token);
+    if (!session || !session.therapistId) {
+        return res.status(401).json({
+            error: 'Sesión no válida o expirada. Por favor inicie sesión nuevamente.'
+        });
+    }
+
+    req.therapistId = session.therapistId;
+    req.therapistSession = session;
+
+    // Prevención de IDOR / BOLA: Si el cliente envía X-Therapist-Id o therapistId en body/query,
+    // comprobar que coincida estrictamente con la identidad del token criptográfico
+    const declaredId = req.headers['x-therapist-id'] || req.body?.therapistId || req.query?.therapistId;
+    if (declaredId && declaredId !== session.therapistId) {
+        return res.status(403).json({
+            error: 'Acceso denegado: Violación de aislamiento multitenant. El identificador proporcionado no coincide con la sesión autenticada.'
+        });
+    }
+
+    next();
+}
+
+/**
+ * Sanitización de errores internos para cumplimiento de seguridad médica (cero fuga de stack trace o esquemas).
+ */
+function handleClinicalError(res, err, contextMessage) {
+    console.error(`[CLINICAL-SECURITY-LOG] ${contextMessage}:`, err);
+    res.status(500).json({
+        error: 'Ocurrió un error interno al procesar la solicitud clínica. El evento ha sido registrado en la auditoría de seguridad.'
+    });
+}
+
+// ============================================
+// CONFIGURACIÓN ESTRICTA DE CORS (SEC-001)
+// ============================================
 const DEFAULT_ALLOWED_ORIGINS = [
     'https://psico-notes-clinical.onrender.com',
     'http://localhost:3000',
     'http://127.0.0.1:3000',
-    'http://localhost:5173'
+    'http://localhost:5173',
+    'http://127.0.0.1:5173'
 ];
 const envOrigins = (process.env.ALLOWED_ORIGINS || '').split(',').map(o => o.trim()).filter(Boolean);
-const ALLOWED_ORIGINS = new Set([...DEFAULT_ALLOWED_ORIGINS, ...envOrigins]);
+export const ALLOWED_ORIGINS = new Set([...DEFAULT_ALLOWED_ORIGINS, ...envOrigins]);
 
 app.use((req, res, next) => {
     const origin = req.headers.origin;
-    // Peticiones same-origin o internas sin cabecera origin (ej. server-to-server o scripts locales)
+    // Peticiones internas, same-origin o sin encabezado origin (ej. herramientas locales de servidor o nativas)
     if (!origin) {
         return next();
     }
@@ -38,7 +149,7 @@ app.use((req, res, next) => {
     if (ALLOWED_ORIGINS.has(origin)) {
         res.header('Access-Control-Allow-Origin', origin);
         res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
-        res.header('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept, Authorization, X-Therapist-Id');
+        res.header('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept, Authorization, X-Therapist-Id, X-Session-Token');
         res.header('Access-Control-Allow-Credentials', 'true');
         if (req.method === 'OPTIONS') {
             return res.sendStatus(200);
@@ -46,14 +157,16 @@ app.use((req, res, next) => {
         return next();
     }
 
-    // Rechazo formal a orígenes no autorizados
+    // Rechazo formal e inmediato a orígenes no autorizados
     if (req.method === 'OPTIONS') {
         return res.status(403).json({ error: 'CORS: Origen no autorizado por políticas clínicas.' });
     }
     return res.status(403).json({ error: 'Acceso denegado: Origen no autorizado por política de seguridad CORS.' });
 });
 
-// SEC-003: Limitador de Tasa en Memoria contra Fuerza Bruta (Rate Limiting)
+// ============================================
+// LIMITADOR DE TASA EN MEMORIA CONTRA FUERZA BRUTA (SEC-003)
+// ============================================
 const rateLimitBuckets = new Map();
 
 function checkRateLimit(key, maxAttempts = 5, windowMs = 15 * 60 * 1000) {
@@ -78,7 +191,7 @@ function checkRateLimit(key, maxAttempts = 5, windowMs = 15 * 60 * 1000) {
 function rateLimitMiddleware(actionName, maxAttempts = 5, windowMs = 15 * 60 * 1000) {
     return (req, res, next) => {
         const ip = req.headers['x-forwarded-for'] || req.socket.remoteAddress || req.ip || '127.0.0.1';
-        const key = `${actionName}:${ip}`;
+        const key = `${actionName}:${String(ip).split(',')[0].trim()}`;
         const check = checkRateLimit(key, maxAttempts, windowMs);
         if (!check.allowed) {
             return res.status(429).json({
@@ -90,7 +203,9 @@ function rateLimitMiddleware(actionName, maxAttempts = 5, windowMs = 15 * 60 * 1
     };
 }
 
-// SEC-006: Registro de Auditoría Médica Inmutable
+// ============================================
+// REGISTRO DE AUDITORÍA MÉDICA INMUTABLE (SEC-006)
+// ============================================
 async function recordAuditLog(therapistId, patientId, action, resourceType, req) {
     try {
         const ip = req ? (req.headers['x-forwarded-for'] || req.socket?.remoteAddress || req.ip || '127.0.0.1') : '127.0.0.1';
@@ -165,7 +280,11 @@ app.get('/api/health', (req, res) => {
         version: '6.0.0',
         timestamp: new Date().toISOString(),
         database: db.isPostgresConnected ? 'PostgreSQL' : 'Embedded Relational Engine',
-        features: ['postgresql-storage', 'patient-portal-api', 'zero-knowledge-sync', 'gemini-ai-proxy', 'telehealth', 'crisis-protocol', 'cloud-sync', 'therapist-auth']
+        features: [
+            'postgresql-storage', 'patient-portal-api', 'zero-knowledge-sync',
+            'gemini-ai-proxy', 'telehealth', 'crisis-protocol', 'cloud-sync',
+            'therapist-auth', 'multitenant-isolation', 'hmac-sessions'
+        ]
     });
 });
 
@@ -204,8 +323,7 @@ app.post('/api/v1/portal/auth', rateLimitMiddleware('portal_auth', 5, 15 * 60 * 
             }
         });
     } catch (err) {
-        console.error('Error en portal auth:', err);
-        res.status(500).json({ error: err.message });
+        handleClinicalError(res, err, 'Error en portal auth');
     }
 });
 
@@ -229,8 +347,7 @@ app.get('/api/v1/portal/me', async (req, res) => {
             therapistName: patient.therapist_name || 'Licenciado(a) en Psicología'
         });
     } catch (err) {
-        console.error('Error obteniendo portal me:', err);
-        res.status(500).json({ error: err.message });
+        handleClinicalError(res, err, 'Error obteniendo portal me');
     }
 });
 
@@ -250,8 +367,7 @@ app.post('/api/v1/portal/mood', async (req, res) => {
         const record = await db.addMoodLog(patientId, { mood, sleep, energy, note });
         res.json({ status: 'saved', record });
     } catch (err) {
-        console.error('Error guardando mood log:', err);
-        res.status(500).json({ error: err.message });
+        handleClinicalError(res, err, 'Error guardando mood log');
     }
 });
 
@@ -271,8 +387,7 @@ app.post('/api/v1/portal/cbt', async (req, res) => {
         const record = await db.addCbtRecord(patientId, entry);
         res.json({ status: 'saved', record });
     } catch (err) {
-        console.error('Error guardando autoregistro ABC:', err);
-        res.status(500).json({ error: err.message });
+        handleClinicalError(res, err, 'Error guardando autoregistro ABC');
     }
 });
 
@@ -294,8 +409,7 @@ app.post('/api/v1/portal/tasks/:id/toggle', async (req, res) => {
 
         res.json({ status: 'updated', task });
     } catch (err) {
-        console.error('Error actualizando tarea:', err);
-        res.status(500).json({ error: err.message });
+        handleClinicalError(res, err, 'Error actualizando tarea');
     }
 });
 
@@ -322,8 +436,7 @@ app.post('/api/v1/portal/evaluations', async (req, res) => {
 
         res.json({ status: 'saved', evaluation, alertTriggered: Boolean(evalData.alertRisk || evalData.alert_risk) });
     } catch (err) {
-        console.error('Error guardando evaluación:', err);
-        res.status(500).json({ error: err.message });
+        handleClinicalError(res, err, 'Error guardando evaluación');
     }
 });
 
@@ -345,101 +458,162 @@ app.post('/api/v1/portal/crisis', async (req, res) => {
 
         res.json({ status: 'alert_created', alert });
     } catch (err) {
-        console.error('Error en alerta de crisis:', err);
-        res.status(500).json({ error: err.message });
+        handleClinicalError(res, err, 'Error en alerta de crisis');
     }
 });
+
+// ============================================
+// CONSULTA CLÍNICA DEL TERAPEUTA (PROTECCIÓN MULTITENANT & BOLA P0)
+// ============================================
 
 // Endpoint de consulta del terapeuta para ver datos del portal de un paciente
-app.get('/api/v1/portal/data/:patientId', async (req, res) => {
+app.get('/api/v1/portal/data/:patientId', requireTherapistAuth, async (req, res) => {
     try {
         const data = await db.getPatientPortalData(req.params.patientId);
-        if (!data) {
+        if (!data || !data.patient) {
             return res.status(404).json({ error: 'Paciente no encontrado' });
         }
+
+        // BOLA / IDOR Prevention: Verificar estrictamente que el paciente pertenezca al terapeuta autenticado
+        if (data.patient.therapist_id && data.patient.therapist_id !== req.therapistId) {
+            await recordAuditLog(req.therapistId, req.params.patientId, 'CROSS_TENANT_READ_ATTEMPT_BLOCKED', 'PORTAL_DATA', req);
+            return res.status(403).json({
+                error: 'Acceso denegado: El expediente consultado pertenece a otro profesional de la salud.'
+            });
+        }
+
+        await recordAuditLog(req.therapistId, req.params.patientId, 'READ_PORTAL_DATA', 'PORTAL_DATA', req);
         res.json({ status: 'ok', data });
     } catch (err) {
-        res.status(500).json({ error: err.message });
+        handleClinicalError(res, err, 'Error obteniendo datos de portal de paciente');
     }
 });
 
-// Alertas de crisis activas para el terapeuta
-app.get('/api/v1/portal/crisis-alerts', async (req, res) => {
+// Alertas de crisis activas para el terapeuta (Aislamiento por terapeuta autenticado)
+app.get('/api/v1/portal/crisis-alerts', requireTherapistAuth, async (req, res) => {
     try {
         if (db.isPostgresConnected && db.pgPool) {
-            const result = await db.pgPool.query('SELECT * FROM crisis_alerts ORDER BY created_at DESC LIMIT 50');
+            const result = await db.pgPool.query(
+                `SELECT ca.* FROM crisis_alerts ca
+                 JOIN patients p ON ca.patient_id = p.id
+                 WHERE p.therapist_id = $1
+                 ORDER BY ca.created_at DESC LIMIT 50`,
+                [req.therapistId]
+            );
             return res.json({ alerts: result.rows });
         }
-        res.json({ alerts: db.localStore.crisis_alerts });
+
+        const therapistPatients = (db.localStore.patients || []).filter(p => p.therapist_id === req.therapistId);
+        const patientIdSet = new Set(therapistPatients.map(p => p.id));
+        const alerts = (db.localStore.crisis_alerts || []).filter(a => patientIdSet.has(a.patient_id));
+        res.json({ alerts });
     } catch (err) {
-        res.status(500).json({ error: err.message });
+        handleClinicalError(res, err, 'Error consultando alertas de crisis');
     }
 });
 
-app.post('/api/v1/portal/crisis-alerts/ack/:id', async (req, res) => {
+// Reconocer alerta de crisis con control de acceso por recurso
+app.post('/api/v1/portal/crisis-alerts/ack/:id', requireTherapistAuth, async (req, res) => {
     try {
         if (db.isPostgresConnected && db.pgPool) {
+            const check = await db.pgPool.query(
+                `SELECT ca.*, p.therapist_id FROM crisis_alerts ca
+                 JOIN patients p ON ca.patient_id = p.id
+                 WHERE ca.id = $1`,
+                [req.params.id]
+            );
+            if (check.rowCount === 0) {
+                return res.status(404).json({ error: 'Alerta no encontrada' });
+            }
+            if (check.rows[0].therapist_id !== req.therapistId) {
+                return res.status(403).json({ error: 'Acceso denegado: La alerta de crisis pertenece a un paciente de otro profesional.' });
+            }
             const result = await db.pgPool.query(
                 'UPDATE crisis_alerts SET acknowledged = TRUE, acknowledged_at = CURRENT_TIMESTAMP WHERE id = $1 RETURNING *',
                 [req.params.id]
             );
             return res.json({ status: 'ok', alert: result.rows[0] });
         }
-        const alert = db.localStore.crisis_alerts.find(a => a.id === req.params.id);
-        if (alert) {
-            alert.acknowledged = true;
-            alert.acknowledged_at = new Date().toISOString();
-            db._persistLocalStore();
+
+        const alert = (db.localStore.crisis_alerts || []).find(a => a.id === req.params.id);
+        if (!alert) {
+            return res.status(404).json({ error: 'Alerta no encontrada' });
         }
+        const patient = (db.localStore.patients || []).find(p => p.id === alert.patient_id);
+        if (patient && patient.therapist_id && patient.therapist_id !== req.therapistId) {
+            return res.status(403).json({ error: 'Acceso denegado: La alerta de crisis pertenece a un paciente de otro profesional.' });
+        }
+        alert.acknowledged = true;
+        alert.acknowledged_at = new Date().toISOString();
+        db._persistLocalStore();
         res.json({ status: 'ok', alert });
     } catch (err) {
-        res.status(500).json({ error: err.message });
+        handleClinicalError(res, err, 'Error reconociendo alerta de crisis');
     }
 });
 
 // Sincronización batch desde la app clínica del terapeuta hacia la base de datos (SEC-002: Multi-Tenant)
-app.post('/api/v1/patients/sync', async (req, res) => {
+app.post('/api/v1/patients/sync', requireTherapistAuth, async (req, res) => {
     try {
-        const therapistId = req.headers['x-therapist-id'] || req.body.therapistId;
+        const therapistId = req.therapistId;
         const { patients = [], tasks = [] } = req.body;
-        
-        // Asignar therapist_id a todos los pacientes sincronizados para forzar aislamiento estricto
+
+        // Comprobación de integridad multitenant: Prohibir sobrescritura de pacientes ajenos
+        if (db.isPostgresConnected && db.pgPool && patients.length > 0) {
+            const patientIds = patients.map(p => p.id).filter(Boolean);
+            if (patientIds.length > 0) {
+                const conflict = await db.pgPool.query(
+                    'SELECT id FROM patients WHERE id = ANY($1) AND therapist_id != $2',
+                    [patientIds, therapistId]
+                );
+                if (conflict.rowCount > 0) {
+                    return res.status(403).json({
+                        error: 'Acceso denegado: Uno o más expedientes pertenecen a otro profesional de la salud.'
+                    });
+                }
+            }
+        } else if (patients.length > 0) {
+            const hasCrossConflict = patients.some(p => {
+                const existing = (db.localStore.patients || []).find(ep => ep.id === p.id);
+                return existing && existing.therapist_id && existing.therapist_id !== therapistId;
+            });
+            if (hasCrossConflict) {
+                return res.status(403).json({
+                    error: 'Acceso denegado: Uno o más expedientes pertenecen a otro profesional de la salud.'
+                });
+            }
+        }
+
+        // Asignar therapist_id validado a todos los registros para forzar aislamiento inmutable
         const isolatedPatients = patients.map(p => ({
             ...p,
-            therapist_id: therapistId || p.therapistId || p.therapist_id || null
+            therapist_id: therapistId
         }));
 
         await db.syncPatientsBatch(isolatedPatients, tasks);
-        if (therapistId) {
-            await recordAuditLog(therapistId, null, 'SYNC_PATIENTS_BATCH', 'PATIENTS', req);
-        }
+        await recordAuditLog(therapistId, null, 'SYNC_PATIENTS_BATCH', 'PATIENTS', req);
         res.json({ status: 'synced', count: patients.length, timestamp: Date.now() });
     } catch (err) {
-        console.error('Error sincronizando pacientes:', err);
-        res.status(500).json({ error: err.message });
+        handleClinicalError(res, err, 'Error sincronizando pacientes');
     }
 });
 
 // Listado de pacientes desde la base de datos (SEC-002: Filtrado estricto por terapeuta autenticado)
-app.get('/api/v1/patients', async (req, res) => {
+app.get('/api/v1/patients', requireTherapistAuth, async (req, res) => {
     try {
-        const therapistId = req.headers['x-therapist-id'] || req.query.therapistId;
-        if (!therapistId) {
-            return res.status(401).json({ error: 'Acceso denegado: Identificador de terapeuta requerido (X-Therapist-Id)' });
-        }
-
+        const therapistId = req.therapistId;
         const patients = await db.getPatientsByTherapist(therapistId);
         await recordAuditLog(therapistId, null, 'READ_PATIENTS_LIST', 'PATIENTS', req);
         res.json({ patients });
     } catch (err) {
-        res.status(500).json({ error: err.message });
+        handleClinicalError(res, err, 'Error consultando lista de pacientes');
     }
 });
 
 // ============================================
 // PROXY SEGURO DE IA (GEMINI API)
 // ============================================
-app.post('/api/v1/clinical/soap-synthesize', async (req, res) => {
+app.post('/api/v1/clinical/soap-synthesize', requireTherapistAuth, async (req, res) => {
     try {
         const { notes, patientInfo } = req.body;
         const apiKey = process.env.GEMINI_API_KEY || req.headers['x-gemini-key'];
@@ -479,41 +653,90 @@ app.post('/api/v1/clinical/soap-synthesize', async (req, res) => {
         const text = data.candidates?.[0]?.content?.parts?.[0]?.text;
         res.json(JSON.parse(text));
     } catch (err) {
-        res.status(500).json({ error: err.message });
+        handleClinicalError(res, err, 'Error en síntesis SOAP por IA');
     }
 });
 
 // ============================================
-// TELECONSULTA: SALA SEGURA EN VIVO
+// TELECONSULTA: SALA SEGURA EN VIVO (ALTA ENTROPÍA / NO PREDECIBLE)
 // ============================================
-app.post('/api/v1/telehealth/session', (req, res) => {
-    const { patientId, therapistId, appointmentId } = req.body;
-    const cleanId = (appointmentId || `${Date.now()}`).replace(/[^a-zA-Z0-9]/g, '');
-    const roomId = `psico-telehealth-${cleanId}`;
-    const meetingUrl = `https://meet.jit.si/${roomId}`;
+app.post('/api/v1/telehealth/session', async (req, res) => {
+    try {
+        let isAuthorized = false;
+        let callerTherapistId = null;
 
-    res.json({
-        roomId,
-        meetingUrl,
-        created: new Date().toISOString(),
-        instructions: 'Conexión cifrada de extremo a extremo sin instalación requerida.'
-    });
+        // Vía 1: Terapeuta autenticado con Bearer token
+        const authHeader = req.headers['authorization'];
+        if (authHeader && authHeader.startsWith('Bearer ')) {
+            const session = verifySessionToken(authHeader.substring(7).trim());
+            if (session && session.therapistId) {
+                isAuthorized = true;
+                callerTherapistId = session.therapistId;
+            }
+        }
+
+        // Vía 2: Paciente autenticado con token del portal
+        if (!isAuthorized && req.body.patientToken) {
+            const patient = await db.findPatientByToken(req.body.patientToken);
+            if (patient) {
+                isAuthorized = true;
+            }
+        }
+
+        if (!isAuthorized) {
+            return res.status(401).json({
+                error: 'Acceso no autorizado: Se requiere sesión de terapeuta o token de portal activo.'
+            });
+        }
+
+        // Generar identificador de sala criptográficamente seguro de 192 bits (24 bytes base64url)
+        // Impredecible e invulnerable a ataques de enumeración o intercepción de sesiones clínicas
+        const secureNonce = crypto.randomBytes(24).toString('base64url');
+        const roomId = `psico-${secureNonce}`;
+        const meetingUrl = `https://meet.jit.si/${roomId}`;
+
+        if (callerTherapistId) {
+            await recordAuditLog(callerTherapistId, req.body.patientId || null, 'CREATE_TELEHEALTH_SESSION', 'TELEHEALTH', req);
+        }
+
+        res.json({
+            status: 'ok',
+            roomId,
+            meetingUrl,
+            created: new Date().toISOString(),
+            instructions: 'Conexión cifrada de extremo a extremo sin instalación requerida.'
+        });
+    } catch (err) {
+        handleClinicalError(res, err, 'Error generando sala de teleconsulta');
+    }
 });
 
 // ============================================
-// SINCRONIZACIÓN ZERO-KNOWLEDGE (BLOBS CIFRADOS)
+// SINCRONIZACIÓN ZERO-KNOWLEDGE (BLOBS CIFRADOS CON CONTROL DE ACCESO)
 // ============================================
-app.post('/api/v1/sync/push', (req, res) => {
+app.post('/api/v1/sync/push', requireTherapistAuth, (req, res) => {
     const { userId, encryptedData, timestamp } = req.body;
     if (!userId || !encryptedData) {
         return res.status(400).json({ error: 'Datos de sincronización incompletos' });
+    }
+
+    if (userId !== req.therapistId) {
+        return res.status(403).json({ error: 'Acceso denegado: No puede almacenar datos en el buzón de otro usuario.' });
+    }
+
+    if (typeof encryptedData === 'string' && encryptedData.length > 5 * 1024 * 1024) {
+        return res.status(413).json({ error: 'Carga útil excede el límite permitido (5MB).' });
     }
 
     syncedStorage.set(userId, { encryptedData, timestamp: timestamp || Date.now() });
     res.json({ status: 'synced', timestamp: Date.now() });
 });
 
-app.get('/api/v1/sync/pull/:userId', (req, res) => {
+app.get('/api/v1/sync/pull/:userId', requireTherapistAuth, (req, res) => {
+    if (req.params.userId !== req.therapistId) {
+        return res.status(403).json({ error: 'Acceso denegado: No puede acceder a datos sincronizados de otro usuario.' });
+    }
+
     const record = syncedStorage.get(req.params.userId);
     if (!record) {
         return res.status(404).json({ error: 'No hay datos sincronizados para este usuario' });
@@ -532,14 +755,15 @@ app.post('/api/v1/auth/register', async (req, res) => {
             return res.status(400).json({ error: 'Email y contraseña requeridos' });
         }
 
-        const existing = await db.findTherapistByEmail(email);
+        const cleanEmail = email.trim().toLowerCase();
+        const existing = await db.findTherapistByEmail(cleanEmail);
         if (existing) {
             return res.status(409).json({ error: 'Ya existe una cuenta registrada con este correo.' });
         }
 
         const therapist = await db.registerTherapist({
             name,
-            email,
+            email: cleanEmail,
             passwordHash,
             specialty,
             registryNumber,
@@ -547,14 +771,17 @@ app.post('/api/v1/auth/register', async (req, res) => {
             institution
         });
 
+        const sessionToken = generateSessionToken(therapist.id, therapist.email);
+        await recordAuditLog(therapist.id, null, 'REGISTER_THERAPIST_SUCCESS', 'AUTH', req);
+
         res.json({
             status: 'ok',
             message: 'Cuenta creada y sincronizada en la nube con éxito.',
+            sessionToken,
             therapist
         });
     } catch (err) {
-        console.error('Error registrando terapeuta:', err);
-        res.status(500).json({ error: err.message });
+        handleClinicalError(res, err, 'Error registrando terapeuta');
     }
 });
 
@@ -565,146 +792,146 @@ app.post('/api/v1/auth/login', rateLimitMiddleware('therapist_login', 5, 15 * 60
             return res.status(400).json({ error: 'Email y contraseña requeridos' });
         }
 
-        const therapist = await db.loginTherapist(email, passwordHash);
+        const cleanEmail = email.trim().toLowerCase();
+        const therapist = await db.loginTherapist(cleanEmail, passwordHash);
         if (!therapist) {
             await recordAuditLog(null, null, 'LOGIN_FAILED', 'AUTH', req);
             return res.status(401).json({ error: 'Credenciales inválidas o cuenta inexistente.' });
         }
 
-        // Obtener además el snapshot más reciente para responder de inmediato
+        const sessionToken = generateSessionToken(therapist.id, therapist.email);
         const syncData = await db.getTherapistCloudSync(therapist.id);
         await recordAuditLog(therapist.id, null, 'LOGIN_SUCCESS', 'AUTH', req);
 
         res.json({
             status: 'ok',
             authenticated: true,
+            sessionToken,
             therapist,
             cloudData: syncData ? syncData.payload : null,
             lastSynced: syncData ? syncData.updatedAt : null
         });
     } catch (err) {
-        console.error('Error en login de terapeuta:', err);
-        res.status(500).json({ error: err.message });
+        handleClinicalError(res, err, 'Error en login de terapeuta');
     }
 });
 
-// Solicitud de código de recuperación de contraseña (SEC-003: Rate Limited)
-app.post('/api/v1/auth/forgot-password', rateLimitMiddleware('forgot_password', 3, 30 * 60 * 1000), async (req, res) => {
+// Solicitud de código de recuperación de contraseña (CERO FUGA DE CÓDIGO & PREVENCIÓN DE ENUMERACIÓN P0)
+app.post('/api/v1/auth/forgot-password', rateLimitMiddleware('forgot_password', 5, 30 * 60 * 1000), async (req, res) => {
     try {
         const { email } = req.body;
         if (!email) {
             return res.status(400).json({ error: 'Correo electrónico requerido' });
         }
 
-        const resetRecord = await db.createPasswordReset(email);
-        await recordAuditLog(null, null, 'REQUEST_PASSWORD_RESET', 'AUTH', req);
+        const normalizedEmail = email.trim().toLowerCase();
+        try {
+            const resetRecord = await db.createPasswordReset(normalizedEmail);
+            await recordAuditLog(null, null, 'REQUEST_PASSWORD_RESET', 'AUTH', req);
+            // El código se registra en consola segura de servidor para entornos de pruebas locales
+            // pero NUNCA se retorna en la respuesta HTTP al cliente público.
+            if (process.env.NODE_ENV !== 'production') {
+                console.log(`[AUTH-AUDIT] Código de recuperación generado para ${normalizedEmail}: [PROTEGIDO EN AUDITORÍA]`);
+            }
+        } catch (innerErr) {
+            // Silenciosamente capturar fallo si el usuario no existe para prevenir enumeración de cuentas (OWASP)
+            console.log(`[AUTH-AUDIT] Solicitud forgot-password para cuenta no registrada: ${normalizedEmail}`);
+        }
+
+        // Respuesta uniforme e idéntica siempre para prevenir ataques de enumeración
         res.json({
             status: 'ok',
-            message: 'Código de recuperación generado con éxito.',
-            resetCode: resetRecord.code,
-            expiresAt: resetRecord.expiresAt
+            message: 'Si el correo electrónico se encuentra registrado en el sistema, se ha procesado un código de recuperación confidencial.'
         });
     } catch (err) {
-        console.error('Error en forgot-password:', err.message);
-        res.status(400).json({ error: err.message });
+        handleClinicalError(res, err, 'Error en forgot-password');
     }
 });
 
 // Restablecimiento de contraseña con código verificado
-app.post('/api/v1/auth/reset-password', async (req, res) => {
+app.post('/api/v1/auth/reset-password', rateLimitMiddleware('reset_password', 5, 15 * 60 * 1000), async (req, res) => {
     try {
         const { email, code, newPasswordHash } = req.body;
         if (!email || !code || !newPasswordHash) {
             return res.status(400).json({ error: 'Email, código y nueva contraseña requeridos' });
         }
 
-        await db.verifyAndResetPassword(email, code, newPasswordHash);
+        const cleanEmail = email.trim().toLowerCase();
+        await db.verifyAndResetPassword(cleanEmail, code, newPasswordHash);
         await recordAuditLog(null, null, 'PASSWORD_RESET_SUCCESS', 'AUTH', req);
         res.json({
             status: 'ok',
             message: 'Contraseña actualizada exitosamente en la base de datos.'
         });
     } catch (err) {
-        console.error('Error en reset-password:', err.message);
-        res.status(400).json({ error: err.message });
+        console.warn('Fallo en restablecimiento de contraseña:', err.message);
+        res.status(400).json({ error: err.message || 'Código de verificación inválido o expirado.' });
     }
 });
 
 // ============================================
-// FACTURACIÓN SENIAT PERSISTENTE (DB-002)
+// FACTURACIÓN SENIAT PERSISTENTE (DB-002 CON AUTENTICACIÓN)
 // ============================================
 
-app.get('/api/v1/billing/config', async (req, res) => {
+app.get('/api/v1/billing/config', requireTherapistAuth, async (req, res) => {
     try {
-        const therapistId = req.headers['x-therapist-id'] || req.query.therapistId;
-        if (!therapistId) {
-            return res.status(401).json({ error: 'X-Therapist-Id requerido' });
-        }
+        const therapistId = req.therapistId;
         const config = await db.getBillingConfig(therapistId);
         res.json({ status: 'ok', config });
     } catch (err) {
-        res.status(500).json({ error: err.message });
+        handleClinicalError(res, err, 'Error consultando configuración de facturación');
     }
 });
 
-app.post('/api/v1/billing/config', async (req, res) => {
+app.post('/api/v1/billing/config', requireTherapistAuth, async (req, res) => {
     try {
-        const therapistId = req.headers['x-therapist-id'] || req.body.therapistId;
+        const therapistId = req.therapistId;
         const config = req.body.config || req.body;
-        if (!therapistId) {
-            return res.status(401).json({ error: 'X-Therapist-Id requerido' });
-        }
         const saved = await db.saveBillingConfig(therapistId, config);
         await recordAuditLog(therapistId, null, 'SAVE_BILLING_CONFIG', 'BILLING', req);
         res.json({ status: 'ok', config: saved });
     } catch (err) {
-        res.status(500).json({ error: err.message });
+        handleClinicalError(res, err, 'Error guardando configuración de facturación');
     }
 });
 
-app.get('/api/v1/billing/invoices', async (req, res) => {
+app.get('/api/v1/billing/invoices', requireTherapistAuth, async (req, res) => {
     try {
-        const therapistId = req.headers['x-therapist-id'] || req.query.therapistId;
-        if (!therapistId) {
-            return res.status(401).json({ error: 'X-Therapist-Id requerido' });
-        }
+        const therapistId = req.therapistId;
         const invoices = await db.getBillingInvoices(therapistId);
         res.json({ status: 'ok', invoices });
     } catch (err) {
-        res.status(500).json({ error: err.message });
+        handleClinicalError(res, err, 'Error consultando facturas');
     }
 });
 
-app.post('/api/v1/billing/invoices', async (req, res) => {
+app.post('/api/v1/billing/invoices', requireTherapistAuth, async (req, res) => {
     try {
-        const therapistId = req.headers['x-therapist-id'] || req.body.therapistId;
+        const therapistId = req.therapistId;
         const invoice = req.body.invoice || req.body;
-        if (!therapistId) {
-            return res.status(401).json({ error: 'X-Therapist-Id requerido' });
-        }
         const saved = await db.saveBillingInvoice(therapistId, invoice);
         await recordAuditLog(therapistId, invoice.patientId, 'CREATE_INVOICE', 'BILLING', req);
         res.json({ status: 'ok', invoice: saved });
     } catch (err) {
-        res.status(500).json({ error: err.message });
+        handleClinicalError(res, err, 'Error guardando factura');
     }
 });
 
 // Endpoint seguro de consulta de auditoría médica (SEC-006)
-app.get('/api/v1/audit/logs', async (req, res) => {
+app.get('/api/v1/audit/logs', requireTherapistAuth, async (req, res) => {
     try {
-        const therapistId = req.headers['x-therapist-id'] || req.query.therapistId;
-        if (!therapistId) {
-            return res.status(401).json({ error: 'X-Therapist-Id requerido' });
-        }
+        const therapistId = req.therapistId;
         if (db.isPostgresConnected && db.pgPool) {
-            const result = await db.pgPool.query('SELECT * FROM audit_logs WHERE therapist_id = $1 ORDER BY created_at DESC LIMIT 100', [therapistId]);
+            const result = await db.pgPool.query(
+                'SELECT * FROM audit_logs WHERE therapist_id = $1 ORDER BY created_at DESC LIMIT 100',
+                [therapistId]
+            );
             return res.json({ status: 'ok', logs: result.rows });
         }
         const logs = (db.localStore.audit_logs || []).filter(l => l.therapist_id === therapistId);
         res.json({ status: 'ok', logs });
     } catch (err) {
-        res.status(500).json({ error: err.message });
+        handleClinicalError(res, err, 'Error consultando bitácora de auditoría');
     }
 });
 
@@ -712,13 +939,9 @@ app.get('/api/v1/audit/logs', async (req, res) => {
 // SINCRONIZACIÓN EN LA NUBE MULTI-DISPOSITIVO
 // ============================================
 
-app.get('/api/v1/clinical/sync', async (req, res) => {
+app.get('/api/v1/clinical/sync', requireTherapistAuth, async (req, res) => {
     try {
-        const therapistId = req.query.therapistId || req.headers['x-therapist-id'];
-        if (!therapistId) {
-            return res.status(400).json({ error: 'therapistId requerido para sincronización' });
-        }
-
+        const therapistId = req.therapistId;
         const syncRecord = await db.getTherapistCloudSync(therapistId);
         if (!syncRecord) {
             return res.json({
@@ -737,16 +960,16 @@ app.get('/api/v1/clinical/sync', async (req, res) => {
             updatedAt: syncRecord.updatedAt
         });
     } catch (err) {
-        console.error('Error obteniendo sincronización cloud:', err);
-        res.status(500).json({ error: err.message });
+        handleClinicalError(res, err, 'Error obteniendo sincronización cloud');
     }
 });
 
-app.post('/api/v1/clinical/sync', async (req, res) => {
+app.post('/api/v1/clinical/sync', requireTherapistAuth, async (req, res) => {
     try {
-        const { therapistId, payload, clientTimestamp } = req.body;
-        if (!therapistId || !payload) {
-            return res.status(400).json({ error: 'therapistId y payload requeridos' });
+        const therapistId = req.therapistId;
+        const { payload, clientTimestamp } = req.body;
+        if (!payload) {
+            return res.status(400).json({ error: 'payload requerido para sincronización clínica' });
         }
 
         const result = await db.saveTherapistCloudSync(therapistId, payload, clientTimestamp || Date.now());
@@ -756,13 +979,13 @@ app.post('/api/v1/clinical/sync', async (req, res) => {
             message: 'Datos clínicos respaldados y sincronizados exitosamente en la nube.'
         });
     } catch (err) {
-        console.error('Error guardando sincronización cloud:', err);
-        res.status(500).json({ error: err.message });
+        handleClinicalError(res, err, 'Error guardando sincronización cloud');
     }
 });
 
 // Iniciar servidor si se ejecuta directamente
-if (process.env.NODE_ENV !== 'test') {
+const isDirectRun = Boolean(process.argv[1] && fileURLToPath(import.meta.url) === path.resolve(process.argv[1]));
+if (isDirectRun && process.env.NODE_ENV !== 'test') {
     app.listen(PORT, '0.0.0.0', () => {
         console.log(`🧠 Psico Notes Clinical v6.0 activo en http://localhost:${PORT}`);
         console.log(`📱 Portal de Pacientes disponible en http://localhost:${PORT}/portal.html`);

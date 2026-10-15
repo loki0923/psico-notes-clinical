@@ -59,6 +59,12 @@ const ClinicalTestSuite = {
 
         htmlReport += '</div></div>';
 
+        if (typeof testServerInstance !== 'undefined' && testServerInstance) {
+            testServerInstance.close();
+            testServerInstance = null;
+            testServerBaseUrl = '';
+        }
+
         return {
             total,
             passed,
@@ -1754,6 +1760,390 @@ ClinicalTestSuite.add('TC-NOTE-01', 'Inmutabilidad de Reportes Firmados y Gesti�
     }
     if (signedNote.addendums.length !== 1 || !signedNote.addendums[0].text.includes('Aclaratoria posterior')) {
         throw new Error('El adendum no fue registrado en el historial inmutable');
+    }
+});
+
+// ============================================
+// SUITE DE INTEGRACIÓN HTTP DE SEGURIDAD P0 (OWASP & AUDITORÍA CLÍNICA)
+// ============================================
+
+let testServerInstance = null;
+let testServerBaseUrl = '';
+
+async function ensureTestServer() {
+    if (testServerBaseUrl) return testServerBaseUrl;
+    process.env.NODE_ENV = 'test';
+    const { default: app } = await import('./server.js');
+    return new Promise((resolve, reject) => {
+        try {
+            testServerInstance = app.listen(0, '127.0.0.1', () => {
+                const port = testServerInstance.address().port;
+                testServerBaseUrl = `http://127.0.0.1:${port}`;
+                resolve(testServerBaseUrl);
+            });
+        } catch (e) {
+            reject(e);
+        }
+    });
+}
+
+// 45. TC-SEC-07: Acceso no autenticado a endpoints clínicos protegidos (HTTP 401)
+ClinicalTestSuite.add('TC-SEC-07', 'Acceso no autenticado a endpoints clínicos protegidos responde HTTP 401', async () => {
+    const baseUrl = await ensureTestServer();
+    const unauthEndpoints = [
+        { path: '/api/v1/patients', method: 'GET' },
+        { path: '/api/v1/portal/data/pat_test_nonexistent', method: 'GET' },
+        { path: '/api/v1/portal/crisis-alerts', method: 'GET' },
+        { path: '/api/v1/patients/sync', method: 'POST', body: { patients: [] } },
+        { path: '/api/v1/clinical/sync', method: 'GET' },
+        { path: '/api/v1/clinical/sync', method: 'POST', body: { payload: {} } },
+        { path: '/api/v1/billing/config', method: 'GET' },
+        { path: '/api/v1/billing/invoices', method: 'GET' },
+        { path: '/api/v1/audit/logs', method: 'GET' },
+        { path: '/api/v1/sync/push', method: 'POST', body: { userId: 'u1', encryptedData: 'xyz' } },
+        { path: '/api/v1/sync/pull/u1', method: 'GET' }
+    ];
+
+    for (const ep of unauthEndpoints) {
+        const opts = { method: ep.method, headers: { 'Content-Type': 'application/json' } };
+        if (ep.body) opts.body = JSON.stringify(ep.body);
+        const res = await fetch(`${baseUrl}${ep.path}`, opts);
+        if (res.status !== 401) {
+            throw new Error(`Endpoint ${ep.method} ${ep.path} permitió acceso sin token (status: ${res.status}, esperado: 401)`);
+        }
+    }
+});
+
+// 46. TC-SEC-08: Prevención de acceso cruzado BOLA/IDOR a datos de pacientes ajenos (HTTP 403)
+ClinicalTestSuite.add('TC-SEC-08', 'Prevención de acceso cruzado BOLA/IDOR a datos de pacientes ajenos (HTTP 403)', async () => {
+    const baseUrl = await ensureTestServer();
+    const { generateSessionToken } = await import('./server.js');
+    const { db } = await import('./db.js');
+
+    const therapistA = 'dr_alpha_' + Date.now();
+    const therapistB = 'dr_beta_' + Date.now();
+    const tokenA = generateSessionToken(therapistA, 'alpha@clinica.com');
+    const tokenB = generateSessionToken(therapistB, 'beta@clinica.com');
+
+    const patientA = {
+        id: 'pat_isolated_alpha_' + Date.now(),
+        name: 'Paciente Confidencial de Alpha',
+        diagnosis: 'F41.0 Trastorno de Pánico',
+        therapist_id: therapistA
+    };
+    await db.syncPatients([patientA], therapistA);
+
+    // Terapeuta B intenta acceder a los datos del paciente de Terapeuta A
+    const resB = await fetch(`${baseUrl}/api/v1/portal/data/${patientA.id}`, {
+        headers: { 'Authorization': `Bearer ${tokenB}` }
+    });
+
+    if (resB.status !== 403) {
+        throw new Error(`FALLO BOLA/IDOR: Terapeuta B pudo consultar paciente ajeno (status: ${resB.status}, esperado: 403)`);
+    }
+    const errData = await resB.json();
+    if (!errData.error || !errData.error.toLowerCase().includes('pertenece a otro')) {
+        throw new Error('Respuesta 403 debe contener mensaje de aislamiento multitenant');
+    }
+
+    // Terapeuta A consulta su propio paciente: debe tener éxito (200 OK)
+    const resA = await fetch(`${baseUrl}/api/v1/portal/data/${patientA.id}`, {
+        headers: { 'Authorization': `Bearer ${tokenA}` }
+    });
+    if (resA.status !== 200) {
+        throw new Error(`Terapeuta A debe tener acceso a su propio paciente (status: ${resA.status})`);
+    }
+});
+
+// 47. TC-SEC-09: Aislamiento multitenant de alertas de crisis y rechazo de ACK cruzado (HTTP 403)
+ClinicalTestSuite.add('TC-SEC-09', 'Aislamiento de alertas de crisis y rechazo de ACK cruzado (HTTP 403)', async () => {
+    const baseUrl = await ensureTestServer();
+    const { generateSessionToken } = await import('./server.js');
+    const { db } = await import('./db.js');
+
+    const therapistA = 'dr_crisis_a_' + Date.now();
+    const therapistB = 'dr_crisis_b_' + Date.now();
+    const tokenA = generateSessionToken(therapistA, 'crisisa@clinica.com');
+    const tokenB = generateSessionToken(therapistB, 'crisisb@clinica.com');
+
+    const patientA = {
+        id: 'pat_crisis_a_' + Date.now(),
+        name: 'Paciente en Crisis de A',
+        therapist_id: therapistA
+    };
+    await db.syncPatients([patientA], therapistA);
+
+    const alert = await db.createCrisisAlert(
+        patientA.id,
+        patientA.name,
+        'Ideación autolítica activa con plan estructurado',
+        'ALTO'
+    );
+
+    // 1. Terapeuta B consulta alertas: la alerta de paciente A NO debe aparecer
+    const resAlertsB = await fetch(`${baseUrl}/api/v1/portal/crisis-alerts`, {
+        headers: { 'Authorization': `Bearer ${tokenB}` }
+    });
+    const dataAlertsB = await resAlertsB.json();
+    const foundAlert = (dataAlertsB.alerts || []).find(a => a.id === alert.id);
+    if (foundAlert) {
+        throw new Error('FUGA DE DATOS CRÍTICOS: Terapeuta B vio la alerta de crisis del paciente de Terapeuta A');
+    }
+
+    // 2. Terapeuta B intenta reconocer la alerta de Terapeuta A
+    const resAckB = await fetch(`${baseUrl}/api/v1/portal/crisis-alerts/ack/${alert.id}`, {
+        method: 'POST',
+        headers: { 'Authorization': `Bearer ${tokenB}` }
+    });
+    if (resAckB.status !== 403) {
+        throw new Error(`FALLO DE AUTORIZACIÓN: Terapeuta B pudo reconocer alerta ajena (status: ${resAckB.status}, esperado: 403)`);
+    }
+
+    // 3. Terapeuta A reconoce su propia alerta: éxito
+    const resAckA = await fetch(`${baseUrl}/api/v1/portal/crisis-alerts/ack/${alert.id}`, {
+        method: 'POST',
+        headers: { 'Authorization': `Bearer ${tokenA}` }
+    });
+    if (resAckA.status !== 200) {
+        throw new Error(`Terapeuta A debió poder reconocer su propia alerta (status: ${resAckA.status})`);
+    }
+});
+
+// 48. TC-SEC-10: Prevención de sobreescritura cruzada de expedientes en sincronización batch (HTTP 403)
+ClinicalTestSuite.add('TC-SEC-10', 'Prevención de sobreescritura cruzada de expedientes en sincronización batch (HTTP 403)', async () => {
+    const baseUrl = await ensureTestServer();
+    const { generateSessionToken } = await import('./server.js');
+    const { db } = await import('./db.js');
+
+    const therapistA = 'dr_owner_a_' + Date.now();
+    const therapistB = 'dr_hijacker_b_' + Date.now();
+    const tokenB = generateSessionToken(therapistB, 'hijacker@clinica.com');
+
+    const patientA = {
+        id: 'pat_legit_a_' + Date.now(),
+        name: 'Expediente Legítimo de A',
+        diagnosis: 'Trastorno Adaptativo',
+        therapist_id: therapistA
+    };
+    await db.syncPatients([patientA], therapistA);
+
+    // Terapeuta B intenta sincronizar / sobrescribir el paciente de Terapeuta A
+    const resSync = await fetch(`${baseUrl}/api/v1/patients/sync`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${tokenB}`
+        },
+        body: JSON.stringify({
+            patients: [{
+                id: patientA.id,
+                name: 'Nombre Alterado Maliciosamente por B',
+                diagnosis: 'Diagnóstico Suplantado'
+            }]
+        })
+    });
+
+    if (resSync.status !== 403) {
+        throw new Error(`FALLO MULTITENANT: Servidor no rechazó sobreescritura cruzada de expediente (status: ${resSync.status}, esperado: 403)`);
+    }
+
+    // Verificar que el paciente original sigue perteneciendo a Terapeuta A y no fue alterado
+    const checkPatient = (await db.getPatientsByTherapist(therapistA)).find(p => p.id === patientA.id);
+    if (!checkPatient || checkPatient.name !== 'Expediente Legítimo de A') {
+        throw new Error('CORRUPCIÓN DE DATOS: El expediente fue modificado a pesar del aislamiento');
+    }
+});
+
+// 49. TC-SEC-11: Cero fuga de resetCode en forgot-password y prevención de enumeración (OWASP)
+ClinicalTestSuite.add('TC-SEC-11', 'Cero fuga de resetCode en forgot-password y prevención de enumeración (OWASP)', async () => {
+    const baseUrl = await ensureTestServer();
+    const { db } = await import('./db.js');
+
+    const testEmail = `psicologa_${Date.now()}@clinica.com`;
+    await db.registerTherapist({
+        name: 'Dra. María Verificación',
+        email: testEmail,
+        passwordHash: 'dummy_hash_123',
+        specialty: 'Psicología Clínica'
+    });
+
+    // 1. Solicitud para usuario registrado
+    const resExist = await fetch(`${baseUrl}/api/v1/auth/forgot-password`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: testEmail })
+    });
+
+    if (resExist.status !== 200) {
+        throw new Error(`forgot-password falló con status ${resExist.status}`);
+    }
+    const dataExist = await resExist.json();
+
+    // Verificación estricta de CERO FUGA de código
+    if ('resetCode' in dataExist || 'code' in dataExist || 'pin' in dataExist) {
+        throw new Error('VULNERABILIDAD CRÍTICA P0: El código de recuperación fue filtrado en la respuesta HTTP pública');
+    }
+    if (!dataExist.message || !dataExist.message.includes('Si el correo electrónico se encuentra registrado')) {
+        throw new Error('Mensaje no sigue estándar de respuesta neutral contra enumeración');
+    }
+
+    // 2. Solicitud para usuario inexistente
+    const resNonExist = await fetch(`${baseUrl}/api/v1/auth/forgot-password`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: `inexistente_${Date.now()}@gmail.com` })
+    });
+    const dataNonExist = await resNonExist.json();
+
+    if (dataNonExist.message !== dataExist.message) {
+        throw new Error('ENUMERACIÓN DE CUENTAS: El servidor devolvió mensajes diferentes para correos existentes e inexistentes');
+    }
+});
+
+// 50. TC-SEC-12: Teleconsulta genera salas criptográficas de alta entropía (>=192 bits) y rechaza no autenticados
+ClinicalTestSuite.add('TC-SEC-12', 'Teleconsulta genera salas criptográficas de alta entropía (>=192 bits) y rechaza no autenticados', async () => {
+    const baseUrl = await ensureTestServer();
+    const { generateSessionToken } = await import('./server.js');
+
+    const therapistId = 'dr_telehealth_' + Date.now();
+    const token = generateSessionToken(therapistId, 'tele@clinica.com');
+
+    // 1. Rechazo sin autenticación
+    const unauthRes = await fetch(`${baseUrl}/api/v1/telehealth/session`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({})
+    });
+    if (unauthRes.status !== 401) {
+        throw new Error(`Teleconsulta debe requerir autenticación (status obtenido: ${unauthRes.status}, esperado: 401)`);
+    }
+
+    // 2. Creación autorizada y verificación de entropía
+    const rooms = new Set();
+    for (let i = 0; i < 5; i++) {
+        const res = await fetch(`${baseUrl}/api/v1/telehealth/session`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${token}`
+            },
+            body: JSON.stringify({ appointmentId: 'apt_123' })
+        });
+        if (res.status !== 200) throw new Error(`Teleconsulta autorizada falló con status ${res.status}`);
+        const data = await res.json();
+        
+        if (!data.roomId || !data.roomId.startsWith('psico-')) {
+            throw new Error('Identificador de sala de teleconsulta debe comenzar por "psico-"');
+        }
+        if (data.roomId.includes('apt_123')) {
+            throw new Error('INSEGURIDAD: El roomId contiene el appointmentId predecible enviado por el cliente');
+        }
+        const tokenPart = data.roomId.replace('psico-', '');
+        if (tokenPart.length < 30) {
+            throw new Error(`Entropía insuficiente en roomId: longitud ${tokenPart.length} menor a 30 caracteres base64url`);
+        }
+        rooms.add(data.roomId);
+    }
+
+    if (rooms.size !== 5) {
+        throw new Error('Colisión detectada en generación de identificadores de sala');
+    }
+});
+
+// 51. TC-SEC-13: Validación estricta de tokens: firma manipulada, token vencido y spoofing de ID (HTTP 401/403)
+ClinicalTestSuite.add('TC-SEC-13', 'Validación estricta de tokens: firma manipulada, token vencido y spoofing de ID (HTTP 401/403)', async () => {
+    const baseUrl = await ensureTestServer();
+    const { generateSessionToken } = await import('./server.js');
+
+    const validId = 'dr_valid_' + Date.now();
+    const validToken = generateSessionToken(validId, 'valid@clinica.com');
+
+    // 1. Token con firma HMAC manipulada
+    const tamperedToken = validToken.substring(0, validToken.length - 4) + 'abcd';
+    const resTampered = await fetch(`${baseUrl}/api/v1/patients`, {
+        headers: { 'Authorization': `Bearer ${tamperedToken}` }
+    });
+    if (resTampered.status !== 401) {
+        throw new Error(`Token con firma adulterada no fue rechazado con 401 (status: ${resTampered.status})`);
+    }
+
+    // 2. Token expirado
+    const expiredToken = generateSessionToken(validId, 'valid@clinica.com', -10000);
+    const resExpired = await fetch(`${baseUrl}/api/v1/patients`, {
+        headers: { 'Authorization': `Bearer ${expiredToken}` }
+    });
+    if (resExpired.status !== 401) {
+        throw new Error(`Token expirado no fue rechazado con 401 (status: ${resExpired.status})`);
+    }
+
+    // 3. Suplantación de ID (X-Therapist-Id contradictorio con el token)
+    const resSpoofed = await fetch(`${baseUrl}/api/v1/patients`, {
+        headers: {
+            'Authorization': `Bearer ${validToken}`,
+            'X-Therapist-Id': 'dr_other_victim_999'
+        }
+    });
+    if (resSpoofed.status !== 403) {
+        throw new Error(`Intento de spoofing de ID debió ser rechazado con 403 (status: ${resSpoofed.status})`);
+    }
+});
+
+// 52. TC-SEC-14: Aislamiento de buzón criptográfico Zero-Knowledge sync/push y sync/pull (HTTP 403)
+ClinicalTestSuite.add('TC-SEC-14', 'Aislamiento de buzón criptográfico Zero-Knowledge sync/push y sync/pull (HTTP 403)', async () => {
+    const baseUrl = await ensureTestServer();
+    const { generateSessionToken } = await import('./server.js');
+
+    const userA = 'user_zk_a_' + Date.now();
+    const userB = 'user_zk_b_' + Date.now();
+    const tokenA = generateSessionToken(userA, 'a@zk.com');
+    const tokenB = generateSessionToken(userB, 'b@zk.com');
+
+    // 1. Usuario A almacena blob cifrado
+    const pushRes = await fetch(`${baseUrl}/api/v1/sync/push`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${tokenA}`
+        },
+        body: JSON.stringify({
+            userId: userA,
+            encryptedData: 'ENCRYPTED_BLOB_AES_GCM_ALPHA_DATA_12345'
+        })
+    });
+    if (pushRes.status !== 200) throw new Error(`Push legítimo falló con status ${pushRes.status}`);
+
+    // 2. Usuario B intenta descargar el blob de Usuario A
+    const pullResB = await fetch(`${baseUrl}/api/v1/sync/pull/${userA}`, {
+        headers: { 'Authorization': `Bearer ${tokenB}` }
+    });
+    if (pullResB.status !== 403) {
+        throw new Error(`FALLO DE AISLAMIENTO ZK: Usuario B pudo consultar buzón de Usuario A (status: ${pullResB.status}, esperado: 403)`);
+    }
+
+    // 3. Usuario B intenta sobrescribir el blob de Usuario A
+    const spoofPush = await fetch(`${baseUrl}/api/v1/sync/push`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${tokenB}`
+        },
+        body: JSON.stringify({
+            userId: userA,
+            encryptedData: 'MALICIOUS_OVERWRITE_DATA'
+        })
+    });
+    if (spoofPush.status !== 403) {
+        throw new Error(`FALLO DE AISLAMIENTO ZK: Usuario B pudo sobrescribir buzón de Usuario A (status: ${spoofPush.status}, esperado: 403)`);
+    }
+
+    // 4. Usuario A descarga su propio blob íntegramente
+    const pullResA = await fetch(`${baseUrl}/api/v1/sync/pull/${userA}`, {
+        headers: { 'Authorization': `Bearer ${tokenA}` }
+    });
+    if (pullResA.status !== 200) throw new Error(`Pull legítimo de Usuario A falló con status ${pullResA.status}`);
+    const dataA = await pullResA.json();
+    if (dataA.encryptedData !== 'ENCRYPTED_BLOB_AES_GCM_ALPHA_DATA_12345') {
+        throw new Error('Los datos recuperados por el usuario no coinciden con los guardados');
     }
 });
 

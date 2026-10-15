@@ -3,77 +3,110 @@
 **Documento Oficial de Estrategia de Pruebas y Validación Automatizada**  
 *Autor:* Agente 4 — Ingeniero de QA y DevOps  
 *Aprobado por:* Agente 1 — Arquitecto de Software y PM  
-*Fecha:* Octubre 2026  
+*Fecha:* Octubre 2026 (Auditoría Correctiva de Seguridad P0)  
 
 ---
 
 ## 1. Alcance y Estrategia de Pruebas
 
-El presente documento define la matriz exhaustiva de pruebas unitarias, de integración, de seguridad criptográfica y de interfaz de usuario para **Psico Notes Clinical v6.0**.
+El presente documento define la matriz exhaustiva de pruebas unitarias, de integración HTTP, de seguridad criptográfica y de interfaz de usuario para **Psico Notes Clinical v6.0**.
 
-### Objetivos de Calidad:
-- **100% de Aprobación en Pruebas Unitarias de Lógica Crítica**: Criptografía AES-GCM, anonimización PHI, cálculo de escalas psicométricas (PHQ-9, GAD-7) y finanzas.
-- **Cero Fugas de Datos PHI**: Garantizar que ningún dato identificable (nombre, cédula, teléfono, email) viaje en texto plano a modelos de IA.
-- **Disponibilidad Offline y Resiliencia**: La aplicación debe operar sin errores aún sin conexión a internet ni API Key de Gemini (con fallback asistido determinista).
+### Objetivos de Calidad y Criterios P0:
+- **100% de Aprobación en Suite Automatizada**: Todas las 52 pruebas pasan con status `PASSED` (0 errores).
+- **Aislamiento Multitenant Estricto**: Ningún terapeuta puede leer, modificar ni eliminar expedientes ajenos, incluso manipulando parámetros o identificadores en peticiones a la API (prevención de BOLA/IDOR).
+- **Cero Fuga de Credenciales o Códigos**: `resetCode` jamás se expone en respuestas HTTP públicas; endpoints de autenticación no devuelven datos de contacto privados (PII).
+- **Tokens de Sesión Firmados Criptográficamente**: Sesiones HMAC-SHA256 con expiración y validación en tiempo constante.
+- **Salas de Teleconsulta de Alta Entropía**: Identificadores criptográficos CSPRNG de 192 bits sin IDs predecibles.
+- **Disponibilidad Offline y Resiliencia**: Operación clínica completa en modo local con sincronización y resolución de conflictos.
 
 ---
 
-## 2. Matriz de Casos de Prueba Automatizados
+## 2. Matriz de Casos de Prueba Automatizados (52/52)
 
 | ID | Módulo | Caso de Prueba | Criterio de Éxito |
 |---|---|---|---|
-| **TC-SEC-01** | Criptografía | Cifrado y Descifrado Web Crypto AES-GCM 256-bit | Texto descifrado idéntico al texto original; ciphertext ininteligible |
-| **TC-SEC-02** | Anonimizador | Detección y sustitución de nombres y teléfonos (PHI De-identifier) | Nombres y números convertidos a tokens `[PACIENTE_A]`, `[TEL_01]`; reconstrucción limpia |
-| **TC-PSY-01** | Psicometría | Calificación automática PHQ-9 y severidad | Puntuación exacta (0-27); categorías Leve, Moderada, Severa correctas |
-| **TC-PSY-02** | Psicometría | Detección de Riesgo Suicida en Ítem 9 PHQ-9 | Puntuación > 0 en ítem 9 activa `alertRisk: true` y despliega protocolo |
-| **TC-PSY-03** | Psicometría | Calificación automática GAD-7 y rangos de ansiedad | Puntuación exacta (0-21); umbrales clínicos exactos |
-| **TC-AI-01** | Asistente IA | Generación SOAP estructurado (Fallback Simulado / Gemini) | Retorna objeto JSON con llaves exactas: `subjetivo`, `objetivo`, `analisis`, `plan` |
-| **TC-AI-02** | Asistente IA | Copiloto diagnóstico DSM-5-TR / CIE-11 | Retorna sugerencias clínicas estructuradas con diagnósticos diferenciales |
-| **TC-FIN-01** | Finanzas | Cálculo de balance, ingresos cobrados y pendientes | Sumatorias matemáticas exactas sin desbordamiento decimal |
-| **TC-POR-01** | Portal Paciente | Registro y validación de Autoregistro Cognitivo (ABC de Beck) | Estructura guardada con situación, pensamiento y emoción (0-100%) |
-| **TC-POR-02** | Portal Paciente | Activación de Botón SOS / Protocolo de Crisis | Generación de alerta inmediata y presentación de líneas 24/7 |
-| **TC-VITAL-01** | Ciclo Vital | Inferencia y Clasificación por Etapa Vital (Niñez, Adolescencia, Adultez) | Mapeo exacto <12a (child), 12-17a (adolescent), 18+a (adult) y fallback |
-| **TC-VITAL-02** | Acompañamiento en la Niñez | Integridad de Expediente Pediátrico (Tutoría, Escuela, Neurodesarrollo) | Presencia de tutor legal, vínculo, escuela y consentimiento parental |
-| **TC-VITAL-03** | Acompañamiento en Adolescencia | Marco Ético de Confidencialidad y Asentimiento Adolescente | Registro de alianza de confidencialidad y perspectiva propia del menor |
-| **TC-VITAL-04** | Ciclo Vital | Filtrado Reactivo y Cómputo por Etapa Vital | Conteo exacto y filtrado multidimensional sin pérdida de expedientes |
-| **TC-HIST-01** | Anamnesis Infantil | Integridad Perinatal, Parto, Hitos 0-3a y Ficha Biparental | Presencia de datos de ambos padres, tipo parto, somatometría e hitos motores |
-| **TC-HIST-02** | Anamnesis Adolescente | Entrevista Confidencial, Identidad de Género y Metas | Validación del espacio reservado para afecto, sexualidad y metas propias |
-| **TC-HIST-03** | Anamnesis Adulto | Áreas de Vida Adulta, Vivienda y Hábitos Psicobiológicos | Registro de esfera laboral, legal, dinámicas habitacionales, sueño y fobias |
-| **TC-HIST-04** | Evolución de Sesión | Hoja de Evolución Oficial Protocolizada (Dual SOAP y Membrete Dinámico) | Estructuración de Objetivos, Técnicas, Hallazgos Clínicos y Próximas Sesiones con Membrete y Colegiatura |
-| **TC-HIST-05** | Onboarding Digital | Ingesta y Parser Inteligente de Google Forms | Extracción y mapeo automático de campos tabulados a la ficha del paciente |
-| **TC-HIST-06** | Pre-consulta In-App | Llenado Directo de Pre-consulta en la App e Integración al Expediente | Validación de formulario interno (18/32 campos) para creación y actualización inmediata sin enlaces externos |
-| **TC-HIST-07** | Reporte de Atención | Reporte de Atención por Sesión de Terapia (Cálculo correlativo y mapeo oficial) | Validación del llenado obligatorio por sesión, cálculo automático de sesión correlativa, sincronización SOAP y exportación PDF |
-| **TC-CAL-01** | Calendario Clínico | Calendario Clínico Multi-Vista (Día, Semana, Mes, Año y Citas en Cuadrícula) | Conmutación fluida entre 4 modos, pills de citas visibles en cada celda mensual, timeline diario 08:00-19:00, vista semanal de 7 columnas, mapa anual y zoom |
-| **TC-POR-03** | Portal Paciente | Generación de Credenciales, Sincronización y Acceso Directo por Token | Token formato `PN-XXXXXXXX`, sincronización de datos y auto-login sin contraseña |
-| **TC-DB-01** | Persistencia DB | Validación de Persistencia y Estructura de Base de Datos Relacional | Conexión, inicialización DDL, upsert de pacientes y búsqueda por token |
-| **TC-DB-02** | Persistencia DB | Flujo Integral de Tareas, Autoregistro ABC y Monitoreo de Ánimo | Persistencia transaccional de tareas, autoregistros ABC, estados de ánimo y alertas SOS |
+| **TC-SEC-01** | Criptografía | Cifrado y Descifrado Web Crypto AES-GCM 256-bit | Texto descifrado idéntico al original; ciphertext ininteligible |
+| **TC-SEC-02** | Anonimizador | Detección y sustitución de datos sensibles PHI | Nombres y números convertidos a tokens `[PACIENTE_A]`, `[TEL_01]` |
+| **TC-PSY-01** | Psicometría | Calificación automática PHQ-9 y severidad | Puntuación exacta (0-27); categorías normal, leve, moderada, severa |
+| **TC-PSY-02** | Psicometría | Detección de Riesgo Suicida en Ítem 9 PHQ-9 | Puntuación > 0 activa `alertRisk: true` y protocolo de crisis |
+| **TC-PSY-03** | Psicometría | Calificación automática GAD-7 y umbrales | Puntuación exacta (0-21); corte clínico verificado |
+| **TC-AI-01** | Asistente IA | Generación SOAP estructurado (Fallback / Gemini) | Retorna llaves JSON exactas: `subjetivo`, `objetivo`, `analisis`, `plan` |
+| **TC-FIN-01** | Finanzas | Cálculo de balance, cobros e ingresos | Sumatorias matemáticas exactas sin desbordamiento |
+| **TC-POR-01** | Portal Paciente | Autoregistro Cognitivo ABC de Beck | Guardado con situación, creencia y emoción (0-100%) |
+| **TC-POR-02** | Portal Paciente | Activación de Botón SOS / Protocolo de Crisis | Generación de alerta inmediata y líneas de emergencia 24/7 |
+| **TC-VITAL-01** | Ciclo Vital | Inferencia por Etapa Vital (Niñez, Adolescencia, Adultez) | Mapeo exacto <12a, 12-17a, 18+a |
+| **TC-VITAL-02** | Niñez | Integridad Pediátrica (Tutoría, Escuela, Neurodesarrollo) | Tutor legal, escuela y consentimiento parental requeridos |
+| **TC-VITAL-03** | Adolescencia | Marco Ético de Confidencialidad y Asentimiento | Registro de confidencialidad y perspectiva propia del menor |
+| **TC-VITAL-04** | Ciclo Vital | Filtrado Reactivo Multidimensional | Conteo exacto y filtrado sin pérdida de expedientes |
+| **TC-HIST-01** | Anamnesis Infantil | Integridad Perinatal, Parto e Hitos 0-3a | Ficha biparental, somatometría e hitos motores |
+| **TC-HIST-02** | Adolescencia | Entrevista Confidencial y Metas Personales | Espacio reservado para afecto, sexualidad y metas propias |
+| **TC-HIST-03** | Adulto | Áreas de Vida, Vivienda y Hábitos Psicobiológicos | Esfera laboral, legal, dinámicas habitacionales y sueño |
+| **TC-HIST-04** | Evolución | Hoja de Evolución Protocolizada (Dual SOAP) | Membrete colegiado, objetivos, técnicas y hallazgos |
+| **TC-HIST-05** | Onboarding | Parser Inteligente de Google Forms | Extracción y mapeo automático de campos tabulados |
+| **TC-HIST-06** | Pre-consulta | Llenado Directo In-App e Integración al Expediente | Validación de formulario interno sin enlaces externos |
+| **TC-HIST-07** | Reporte Atención | Reporte de Atención por Sesión de Terapia | Sesión correlativa, mapeo oficial y exportación PDF |
+| **TC-CAL-01** | Calendario | Calendario Clínico Multi-Vista (Día, Semana, Mes, Año) | Conmutación fluida, pills de citas en cuadrícula mensual |
+| **TC-POR-03** | Portal Paciente | Credenciales Token, Sincronización y Auto-login | Token `PN-XXXXXXXX`, sincronización y acceso directo |
+| **TC-DB-01** | Persistencia DB | Estructura de Base de Datos Relacional | Inicialización DDL, upsert de pacientes y búsqueda por token |
+| **TC-DB-02** | Persistencia DB | Tareas, Autoregistro ABC y Monitoreo de Ánimo | Persistencia transaccional de tareas, estados de ánimo y SOS |
+| **TC-POR-04** | Portal Paciente | Botiquín de Calma (4-7-8 y 5-4-3-2-1) | Ejecución interactiva y registro en bitácora médica |
+| **TC-CHAR-01** | Analítica | Tablero Gráfico Longitudinal y Copiloto IA SOAP | Síntesis longitudinal, tendencias y correlación psicométrica |
+| **TC-SEC-03** | Seguridad | Políticas OWASP y Bloqueo de Archivos Sensibles | Bloqueo estricto de `.env`, `.sql`, `server.js`, `db.js` |
+| **TC-SYNC-01** | Resiliencia | Cola de Sincronización Offline (PWA) | Encolamiento offline y vaciado automático al recuperar red |
+| **TC-PRIV-01** | Privacidad | Bloqueo por Inactividad Médica (HIPAA) | Cierre automático tras 15 min de inactividad médica |
+| **TC-REP-01** | Informes | Epicrisis Oficial con QR de Autenticidad | Código criptográfico y firma digital de autenticidad |
+| **TC-CON-01** | Bioética | Consentimiento Informado con Firma Táctil | Trazabilidad de firma, IP, fecha y términos legales |
+| **TC-STAT-01** | Analítica | Distribución Diagnóstica y Remisión Sintomática | Métricas epidemiológicas y tasa de mejoría clínica |
+| **TC-CLOUD-01** | Nube | Registro y Login Centralizado de Terapeuta | Persistencia en base de datos y hash seguro de clave |
+| **TC-CLOUD-02** | Nube | Respaldo y Snapshot Integral Multi-Dispositivo | Almacenamiento cloud de pacientes, citas y notas |
+| **TC-CLOUD-03** | Nube | Fusión Inteligente de Colecciones (PC + Móvil) | Merge determinista sin duplicados ni pérdida de registros |
+| **TC-AUTH-01** | Seguridad | Flujo Seguro de Recuperación de Contraseña | Verificación de PIN de 6 dígitos con expiración a 15 min |
+| **TC-MOB-01** | Usabilidad | Navegación Móvil, Drawer & Bottom Bar Ergonomics | Viewport cover, drawer táctil, safe area y bottom bar |
+| **TC-SEC-04** | Seguridad | Whitelist CORS Estricta | Rechazo a dominios no autorizados (HTTP 403) |
+| **TC-SEC-05** | Privacidad | Cero Fuga de PII en Portal Auth | Omisión de teléfono, correo y token reflejado |
+| **TC-SEC-06** | Multitenant | Aislamiento de Expedientes por Terapeuta | Consultas filtradas estrictamente por `therapist_id` |
+| **TC-CLI-01** | Bioética | Evaluación C-SSRS y Directorio Localizado de Crisis | Detección de riesgo extremo y líneas 24/7 (FPVP VE) |
+| **TC-PSY-04** | Psicometría | Límites y Puntos de Corte PHQ-9 y GAD-7 | Validación de todos los rangos diagnósticos validados |
+| **TC-DB-03** | Fiscal | Facturación SENIAT Persistente (DB-002) | RIF, IVA exento, IGTF 3% y numeración correlativa |
+| **TC-NOTE-01** | Auditoría | Inmutabilidad de Reportes Firmados (CLI-005) | Prohibición de sobrescritura; gestión de adendums |
+| **TC-SEC-07** | Seguridad P0 | Acceso No Autenticado a Endpoints Clínicos | Todos los endpoints protegidos devuelven HTTP 401 |
+| **TC-SEC-08** | Seguridad P0 | Prevención BOLA/IDOR en Datos de Pacientes | Intento de consulta cruzada responde HTTP 403 Forbidden |
+| **TC-SEC-09** | Seguridad P0 | Aislamiento de Alertas de Crisis y ACK Cruzado | Terapeuta B no ve ni puede reconocer alertas de A (HTTP 403) |
+| **TC-SEC-10** | Seguridad P0 | Prevención de Sobreescritura Cruzada de Expedientes | Conflicto multitenant en `/patients/sync` responde HTTP 403 |
+| **TC-SEC-11** | Seguridad P0 | Cero Fuga de resetCode en Recuperación de Clave | JSON público no contiene el código; neutraliza enumeración |
+| **TC-SEC-12** | Seguridad P0 | Teleconsulta con Identificadores de Alta Entropía | Salas impredecibles de 192 bits; rechazo sin auth (401) |
+| **TC-SEC-13** | Seguridad P0 | Validación de Tokens: Manipulación y Expiración | Rechazo de firmas forjadas (401), vencidos (401) y spoofing (403) |
+| **TC-SEC-14** | Seguridad P0 | Aislamiento de Buzón Cifrado Zero-Knowledge | Prohibición de lectura/escritura cruzada en ZK sync (HTTP 403) |
 
 ---
 
 ## 3. Arquitectura del Runner de Pruebas
 
-Para garantizar compatibilidad universal sin dependencias externas pesadas, la suite se ejecutará mediante un motor de pruebas automatizado en JavaScript (`tests.js` / runner) con reportes detallados en consola y modal visual de QA integrado en la aplicación:
-
 ```mermaid
 flowchart TD
     Runner["🚀 Test Runner (tests.js)"]
-    Runner --> T1["TC-SEC: Criptografía & Anonimizador"]
-    Runner --> T2["TC-PSY: Psicometría PHQ-9 / GAD-7"]
-    Runner --> T3["TC-AI: Validación Estructura SOAP"]
-    Runner --> T4["TC-FIN: Cálculos Financieros"]
-    Runner --> T5["TC-POR: Autoregistros & Protocolo Crisis"]
-    Runner --> T6["TC-VITAL: Etapas del Ciclo Vital"]
-    Runner --> T7["TC-HIST: Historias Clínicas, Pre-consulta In-App & Reporte de Atención"]
-    Runner --> T8["TC-CAL: Calendario Clínico Multi-Vista"]
+    Runner --> T_Core["TC 01-44: Lógica Clínica, Psicometría, Cifrado, DB & UI"]
+    Runner --> T_SecHttp["TC 45-52: Suite de Integración HTTP de Seguridad P0 (OWASP)"]
     
-    T1 & T2 & T3 & T4 & T5 & T6 & T7 & T8 --> Assertions["Evaluación de Aserciones (100% Pass)"]
-    Assertions --> Report["Generación de Reporte y Validación Final (21/21 Tests Aprobados)"]
+    T_SecHttp --> Ephemeral["Servidor de Pruebas Efímero (server.js en puerto dinámico)"]
+    Ephemeral --> TC_401["TC-SEC-07: Verificación de HTTP 401 (Unauth)"]
+    Ephemeral --> TC_BOLA["TC-SEC-08: Prevención BOLA/IDOR (HTTP 403)"]
+    Ephemeral --> TC_Crisis["TC-SEC-09: Aislamiento Alertas Crisis (HTTP 403)"]
+    Ephemeral --> TC_Sync["TC-SEC-10: Rechazo Sobrescritura Batch (HTTP 403)"]
+    Ephemeral --> TC_Reset["TC-SEC-11: Cero Fuga resetCode & Anti-Enumeración"]
+    Ephemeral --> TC_Tele["TC-SEC-12: Teleconsulta CSPRNG 192 bits"]
+    Ephemeral --> TC_Token["TC-SEC-13: Tokens Forjados, Vencidos & Spoofing"]
+    Ephemeral --> TC_ZK["TC-SEC-14: Aislamiento Buzón Zero-Knowledge"]
+
+    T_Core & TC_401 & TC_BOLA & TC_Crisis & TC_Sync & TC_Reset & TC_Tele & TC_Token & TC_ZK --> Assertions["Evaluación Estricta de Aserciones"]
+    Assertions --> Report["Certificación 52/52 Tests Aprobados (100% Pass)"]
 ```
 
 ---
 
 ## 4. Criterios de Aceptación para Fase de Despliegue
 
-1. **Suite de pruebas**: Todas las pruebas automatizadas pasan con status `PASSED` (0 errores).
-2. **Compatibilidad cross-browser**: Funcionamiento verificado en Chrome, Edge, Firefox y Safari móvil.
-3. **PWA Lighthouse Score**: Rendimiento offline, PWA instalable y tiempos de carga instantáneos.
+1. **Suite de pruebas**: 52 de 52 pruebas ejecutadas con status `PASSED` (100%).
+2. **Seguridad P0 Certificada**: Cero vulnerabilidades BOLA, cero fuga de credenciales, CORS estricto y sesiones criptográficas HMAC.
+3. **Compatibilidad cross-browser**: Verificado en Chrome, Edge, Firefox y Safari móvil.
+4. **PWA Lighthouse Score**: Rendimiento offline, PWA instalable y tiempos de carga instantáneos.
