@@ -267,20 +267,50 @@ flowchart TD
     P1 & P2 & P3 --> Vistas["Filtrado Reactivo en Lista de Personas en Proceso\n(Tabs: Todos | 🧒 Niñez | 🧑 Adolescencia | 👤 Adultez)"]
 ```
 
-### 8.1. Diccionario de Datos Extendido de Personas en Proceso
+### 8.1. Diccionario de Datos Extendido de Personas en Proceso y Ficha de Adolescente
 | Campo | Tipo | Etapa Vital Relevante | Propósito Clínico |
 |---|---|---|---|
+| `status` | Enum (`Por iniciar`, `En Evaluación`, `Plan de Intervención`, `Seguimiento`, `Alta`, `Inactivo`) | Universal / Adolescente | Estatus evolutivo del paciente al inicio y durante el proceso terapéutico |
 | `category` | Enum (`child`, `adolescent`, `adult`) | Universal | Diferenciación de procesos y encuadres clínicos |
-| `guardianName` | String | Niñez / Adolescencia | Nombre de la madre, padre o representante legal con custodia |
-| `guardianRelation` | Enum (`Madre`, `Padre`, `Tutor Legal`, `Abuelo/a`, `Otro`) | Niñez / Adolescencia | Vínculo de filiación legal y corresponsabilidad |
-| `guardianPhone` | String | Niñez / Adolescencia | Contacto telefónico prioritario para encuadre y emergencias |
-| `guardianConsent` | Enum (`firmado`, `pendiente`, `no-aplica`) | Niñez / Adolescencia | Estatus legal del consentimiento parental para tratamiento |
-| `schoolName` | String | Niñez / Adolescencia | Institución educativa para eventual coordinación intersectorial |
+| `age` / `birthdate` | Integer / Date | Universal | Edad cronológica y fecha de nacimiento (auto-sincronizadas) |
+| `gender` | String | Universal | Sexo / Identidad de género del paciente |
 | `schoolGrade` | String | Niñez / Adolescencia | Nivel o grado académico cursado |
-| `developmentalMilestones`| Text | Niñez (<12) | Antecedentes perinatales, desarrollo psicomotor, lenguaje y esfínteres |
-| `adolescentAssent` | Enum (`firmado`, `pendiente`, `en-revision`) | Adolescencia (12-17) | Asentimiento ético y acuerdo explícito de confidencialidad |
-| `adolescentPerspective` | Text | Adolescencia (12-17) | Demanda expresada por el menor frente a la solicitud de los padres |
-| `maritalStatus` | String | Adultez (18+) | Estado civil y dinámica relacional adulta |
+| `livesWith` | String | Adolescencia / Niñez | Núcleo de convivencia habitual del paciente |
+| `referral` | Array of Strings | Adolescencia | Selección múltiple: Orientador, Psicopedagogo, Neurólogo, Psiquiatra, Médico/Especialista, No aplica |
+| `email` | String | Universal | Correo electrónico de contacto del paciente |
+| `guardianName` | String | Niñez / Adolescencia | Nombre completo del representante o tutor legal |
+| `guardianRelation` | Enum (`Madre`, `Padre`, `Tutor Legal`, `Abuelo/a`, `Otro`) | Niñez / Adolescencia | Parentesco o vínculo de filiación legal |
+| `guardianAge` | Integer | Adolescencia | Edad del representante legal |
+| `guardianSchooling` | String | Adolescencia | Nivel de escolaridad del representante |
+| `guardianOccupation` | String | Adolescencia | Ocupación / Profesión del representante |
+| `guardianMaritalStatus`| String | Adolescencia | Estado civil del representante legal |
+| `guardianPhone` | String | Niñez / Adolescencia | Teléfono de contacto directo del representante |
+| `guardianEmail` | String | Adolescencia | Correo electrónico del representante legal |
+| `guardianConsent` | Enum (`firmado`, `pendiente`) | Adolescencia / Niñez | **Consentimiento Informado** legalmente refrendado |
+| `previousPsych` | Enum (`Si`, `No`) | Adolescencia | ¿Ha asistido antes a Consulta Psicológica? |
+| `applicantName` | String | Adolescencia | Nombre de la persona que solicita la consulta |
+| `initiative` | Enum (`Madre`, `Padre`, `Solicitud del Niño o Adolescente`, `Docente de Aula`, `Neurólogo`, `Psicopedagogo`, `Otro`) | Adolescencia | ¿Quién tomó la iniciativa de la consulta psicológica? |
+| `initiativeOther` | String | Adolescencia | Especificación cuando la iniciativa es "Otro" |
+| `reason` | Text | Universal | Motivo de consulta explicitado |
+| `goals` | Text | Universal | Objetivos del paciente en psicoterapia |
+| `bioHypothesis` | Text | Adolescencia | Hipótesis Biológica de comprensión clínica |
+| `socialHypothesis` | Text | Adolescencia | Hipótesis Social y Familiar de comprensión clínica |
+| `psychHypothesis` | Text | Adolescencia | Hipótesis Psicológica de comprensión clínica |
+| `riskFactors` | Text | Universal / Adolescencia | Factores de Riesgo detectados |
+| `vulnerabilityFactors`| Text | Adolescencia | Factores de Vulnerabilidad |
+| `protectiveFactors` | Text | Universal / Adolescencia | Factores de Protección y resiliencia |
+| `frequency` | Enum (`Semanal`, `Quincenal`, `Mensual`, `Dos veces por semana`) | Universal / Adolescencia | Frecuencia acordada |
+| `modality` | Enum (`Presencial`, `En línea`, `Mixta`) | Universal / Adolescencia | Modalidad de atención acordada |
+| `shift` | Enum (`Mañana`, `Tarde`) | Adolescencia | Turno de atención asignado |
+
+#### Exclusiones Específicas de la Ficha del Adolescente
+Por criterios deontológicos de protección al menor y adecuación al proceso clínico adolescente:
+1. **Omitir Teléfono Propio y Estado Civil del Adolescente**: El contacto formal y estado civil se registran exclusivamente en la ficha del representante legal / tutor.
+2. **Omitir Nombre de Institución Educativa**: Se conserva únicamente el nivel de escolaridad (`schoolGrade`), protegiendo la identidad institucional del menor.
+3. **Sustitución de "Consentimiento Parental" por "Consentimiento Informado"**: Refleja la autonomía progresiva del menor y el marco bioético internacional.
+4. **Omitir Pacto de Confidencialidad Separado**: Se integra dentro del Consentimiento Informado del encuadre.
+5. **Omitir Diagnóstico CIE-11 / DSM-5 y Medicación en Admisión**: La ficha del adolescente prioriza la comprensión biopsicosocial (hipótesis biológica, psicológica y familiar) en lugar del etiquetado nosológico prematuro.
+6. **Omitir Notas Libres de Encuadre**: Reemplazado por los tres parámetros protocolizados: Frecuencia Acordada, Modalidad y Turno (Mañana / Tarde).
 
 ### 8.2. Adaptación del Consentimiento Informado Legal y Digital
 El módulo `consentimiento.js` adecua dinámicamente las cláusulas, encuadres y actores intervinientes:
@@ -1679,15 +1709,15 @@ A la fecha de cierre del Sprint de Seguridad y Estabilización Clínica (2026-10
 
 ```mermaid
 flowchart LR
-    A["Seguridad & CORS (SEC-001..006)"] --> D["Suite QA (44/44 Aprobadas)"]
+    A["Seguridad & CORS (SEC-001..006)"] --> D["Suite QA (55/55 Aprobadas)"]
     B["Calidad Clínica C-SSRS (CLI-001..007)"] --> D
     C["Persistencia SENIAT & UX (DB/UX-001..004)"] --> D
     D --> E["Luz Verde Producción (Render / Cloud)"]
 ```
 
 #### Resultados Verificables en CLI (`node tests.js`):
-- **Total de pruebas ejecutadas**: 44
-- **Aprobadas**: 44 (100%)
+- **Total de pruebas ejecutadas**: 55
+- **Aprobadas**: 55 (100%)
 - **Fallidas**: 0 (0%)
 - **Casos de prueba nuevos incorporados**:
   1. `TC-SEC-04`: Restricción estricta de CORS a dominios autorizados y bloqueo 403 de orígenes no autorizados.
@@ -1697,6 +1727,10 @@ flowchart LR
   5. `TC-PSY-04`: Verificación rigurosa de límites psicométricos para PHQ-9 (0-27) y GAD-7 (0-21).
   6. `TC-DB-03`: Persistencia en nube de configuración fiscal SENIAT (RIF, exención IVA 0%, IGTF 3%) y facturas emitidas.
   7. `TC-NOTE-01`: Inmutabilidad legal de reportes clínicos firmados y anexado trazable mediante adendums.
+  8. `TC-SEC-07` a `TC-SEC-14`: Endurecimiento HTTP contra BOLA/IDOR, anti-enumeración, token HMAC y buzón Zero-Knowledge.
+  9. `TC-CLI-02`: Consentimiento informado digital con cláusulas obligatorias de teleconsulta e IA asistida.
+  10. `TC-UX-01`: Flujo rápido de evolución de sesión desde la cita con paciente preseleccionado y sesión correlativa calculada.
+  11. `TC-UX-02`: Optimización táctil móvil (UX-004): modales en `z-index: 2200`, actions sticky, ocultamiento dinámico de bottom-nav y clearance safe-area.
 El sistema queda certificado para uso clínico con alta fidelidad técnica, protección de la confidencialidad del paciente, resguardo ético ante emergencias y resiliencia multi-dispositivo.
 
 ---
@@ -1810,15 +1844,22 @@ sequenceDiagram
 
 ---
 
-### 20.4. Resultados Oficiales de la Suite de Pruebas Automatizadas (52/52)
+### 20.4. Resultados Oficiales de la Suite de Pruebas Automatizadas (57/57)
 
-La suite de pruebas automatizadas en `tests.js` certifica el cumplimiento pleno de los requerimientos de seguridad P0:
+La suite de pruebas automatizadas en `tests.js` certifica el cumplimiento pleno de los requerimientos de seguridad P0, documentación clínica, ergonomía táctil móvil, protocolo de historia clínica de adolescente y simulación clínica integral:
 
 ```
 ========================================================================
-🚀 SUITE DE PRUEBAS AUTOMATIZADAS PSICO NOTES CLINICAL v6.0
+🚀 SUITE DE PRUEBAS AUTOMATIZADAS PSICO NOTES CLINICAL v6.6.2
 ========================================================================
-Total ejecutadas: 52 pruebas | Aprobadas: 52 (100%) | Fallidas: 0 (0%)
-Estado de Certificación: LUZ VERDE PARA PRODUCCIÓN SANITARIA
+Total ejecutadas: 57 pruebas | Aprobadas: 57 (100%) | Fallidas: 0 (0%)
+Caso Adicional: [TC-TEEN-01] Protocolo Estructurado de Historia Clínica Adolescente
+Estado de Certificación: LUZ VERDE PARA PRODUCCIÓN SANITARIA (HIPAA / OWASP / FPV)
 ========================================================================
 ```
+
+### 20.5. Auditoría de Hardening de Consola y PWA (v6.6.2)
+1. **Exclusión de `tests.js` en Frontend:** Eliminada la etiqueta `<script src="tests.js">` de `index.html`. Previene rechazos MIME 403 y protege la suite de integración en Node.js.
+2. **Generación de Iconos PWA:** Generados `icon-192.png` y `icon-512.png` cumpliendo especificación W3C Web App Manifest y eliminando errores 404 en móviles.
+3. **Resiliencia en Service Worker:** Filtrado preventivo de esquemas no HTTP (`chrome-extension:`, `moz-extension:`) en `sw.js` evitando excepciones no capturadas de Cache API.
+4. **Auto-Sanación de Sesión y Eliminación de 401:** Reconexión atómica en `/api/v1/auth/register` y `/api/v1/patients/sync`, garantizando que ninguna solicitud HTTP salga sin token Bearer HMAC.

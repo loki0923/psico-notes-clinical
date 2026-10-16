@@ -43,6 +43,12 @@ const ClinicalHistorySystem = {
         if (!patient) return {};
         const cat = typeof getPatientCategory === 'function' ? getPatientCategory(patient) : (patient.category || 'adult');
         return {
+            // Estatus del Paciente
+            status: patient.status || 'Por iniciar',
+            age: patient.age || (patient.birthdate && typeof calculateAge === 'function' ? calculateAge(patient.birthdate) : ''),
+            schoolGrade: patient.schoolGrade || '',
+            referral: Array.isArray(patient.referral) ? patient.referral : (patient.referral ? [patient.referral] : (patient.referredBy ? [patient.referredBy] : [])),
+
             // A. Identificación & Filiación
             ci: patient.ci || '',
             birthPlace: patient.birthPlace || '',
@@ -54,6 +60,34 @@ const ClinicalHistorySystem = {
             previousAttendanceDate: patient.previousAttendanceDate || '',
             consultationInitiative: patient.consultationInitiative || '',
             processExpectations: patient.processExpectations || '',
+
+            // Ficha Representante / Tutor Legal
+            guardianName: patient.guardianName || '',
+            guardianRelation: patient.guardianRelation || '',
+            guardianAge: patient.guardianAge || '',
+            guardianSchooling: patient.guardianSchooling || '',
+            guardianOccupation: patient.guardianOccupation || '',
+            guardianMaritalStatus: patient.guardianMaritalStatus || '',
+            guardianPhone: patient.guardianPhone || '',
+            guardianEmail: patient.guardianEmail || '',
+            guardianConsent: patient.guardianConsent || '',
+
+            // Consulta Psicológica & Hipótesis
+            previousPsych: patient.previousPsych || patient.hasAttendedBefore || 'No',
+            applicantName: patient.applicantName || '',
+            initiative: patient.initiative || patient.consultationInitiative || '',
+            initiativeOther: patient.initiativeOther || '',
+            bioHypothesis: patient.bioHypothesis || '',
+            socialHypothesis: patient.socialHypothesis || '',
+            psychHypothesis: patient.psychHypothesis || '',
+            vulnerabilityFactors: patient.vulnerabilityFactors || '',
+            riskFactors: patient.riskFactors || '',
+            protectiveFactors: patient.protectiveFactors || '',
+
+            // Encuadre
+            frequency: patient.frequency || '',
+            modality: patient.modality || '',
+            shift: patient.shift || '',
 
             // Padres y Hermanos
             motherName: patient.motherName || '',
@@ -201,6 +235,185 @@ const ClinicalHistorySystem = {
         };
     },
 
+    renderTeenHistoryIntegral(patient, h, therapist, regInfo) {
+        const getStatusChipClass = (st) => {
+            if (!st) return 'status-por-iniciar';
+            return 'status-' + st.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/\s+/g, '-');
+        };
+
+        const referralChips = (h.referral && h.referral.length > 0)
+            ? h.referral.map(r => `<span class="tag tag-sm" style="margin-right:4px;">${r}</span>`).join('')
+            : '<span style="color:var(--text-tertiary);">No especificado</span>';
+
+        return `
+            <div class="clinical-history-toolbar">
+                <div class="cht-title">
+                    <span class="cht-badge">🧑 Historia Clínica Adolescente</span>
+                    <small>Modelo Oficial Protocolizado · ${therapist.name} (${therapist.specialty}${regInfo})</small>
+                </div>
+                <div class="cht-actions">
+                    <button class="btn-primary" onclick="if(typeof editPatient==='function'){editPatient('${patient.id}'); closeModal('patientDetailModal');}">
+                        <i class="fas fa-edit"></i> Editar Ficha Adolescente
+                    </button>
+                    <button class="btn-secondary" onclick="ClinicalHistorySystem.exportHistoriaOficialPDF('${patient.id}')">
+                        <i class="fas fa-print"></i> PDF Oficial
+                    </button>
+                </div>
+            </div>
+
+            <!-- ESTATUS DEL PACIENTE AL INICIO -->
+            <div style="background:var(--bg-secondary);border:1px solid var(--border-secondary);border-radius:12px;padding:14px 18px;margin-bottom:16px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;">
+                <div>
+                    <span style="font-size:12px;color:var(--text-tertiary);text-transform:uppercase;letter-spacing:0.5px;font-weight:600;">Estatus del Paciente</span>
+                    <div style="margin-top:4px;">
+                        <span class="patient-status-chip ${getStatusChipClass(h.status)}" style="font-size:13px;padding:4px 12px;">
+                            <i class="fas fa-flag"></i> ${h.status}
+                        </span>
+                    </div>
+                </div>
+                <div style="display:flex;gap:16px;align-items:center;flex-wrap:wrap;">
+                    <span style="font-size:13px;color:var(--text-secondary);"><i class="fas fa-calendar-alt"></i> Frecuencia: <strong>${h.frequency || 'Por acordar'}</strong></span>
+                    <span style="font-size:13px;color:var(--text-secondary);"><i class="fas fa-laptop-house"></i> Modalidad: <strong>${h.modality || 'No definida'}</strong></span>
+                    <span style="font-size:13px;color:var(--text-secondary);"><i class="fas fa-sun"></i> Turno: <strong>${h.shift || 'No definido'}</strong></span>
+                </div>
+            </div>
+
+            <div class="accordion-history-container">
+                <!-- SECCIÓN 1: FICHA DEL PACIENTE -->
+                <div class="hist-acc-item active" id="acc_teen_1">
+                    <div class="hist-acc-header" onclick="ClinicalHistorySystem.toggleAccordion('acc_teen_1')">
+                        <div class="hist-acc-title">
+                            <span class="acc-num">1</span>
+                            <strong>📋 Ficha del Paciente (Adolescente)</strong>
+                        </div>
+                        <i class="fas fa-chevron-down acc-arrow"></i>
+                    </div>
+                    <div class="hist-acc-body">
+                        <div class="hist-grid-data">
+                            <div><strong>Nombre Completo:</strong> ${patient.name || 'Sin registrar'}</div>
+                            <div><strong>Edad:</strong> ${h.age ? `${h.age} años` : (patient.birthdate && typeof calculateAge === 'function' ? `${calculateAge(patient.birthdate)} años` : 'No registrada')}</div>
+                            <div><strong>Sexo:</strong> ${patient.gender || 'No registrado'}</div>
+                            <div><strong>Nivel de Escolaridad:</strong> ${h.schoolGrade || 'No registrado'}</div>
+                            <div><strong>Vive con:</strong> ${h.livesWith || 'No especificado'}</div>
+                            <div><strong>Correo Electrónico:</strong> ${patient.email ? `<a href="mailto:${patient.email}">${patient.email}</a>` : 'Sin registrar'}</div>
+                            <div style="grid-column: span 2;">
+                                <strong>Referido por:</strong> ${referralChips}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- SECCIÓN 2: FICHA DEL REPRESENTANTE / TUTOR LEGAL -->
+                <div class="hist-acc-item active" id="acc_teen_2">
+                    <div class="hist-acc-header" onclick="ClinicalHistorySystem.toggleAccordion('acc_teen_2')">
+                        <div class="hist-acc-title">
+                            <span class="acc-num">2</span>
+                            <strong>🛡️ Ficha del Representante / Tutor Legal</strong>
+                        </div>
+                        <i class="fas fa-chevron-down acc-arrow"></i>
+                    </div>
+                    <div class="hist-acc-body">
+                        <div class="hist-grid-data">
+                            <div><strong>Nombre Completo:</strong> ${h.guardianName || 'No registrado'}</div>
+                            <div><strong>Parentesco:</strong> ${h.guardianRelation || 'No registrado'}</div>
+                            <div><strong>Edad:</strong> ${h.guardianAge ? `${h.guardianAge} años` : 'No registrada'}</div>
+                            <div><strong>Nivel de Escolaridad:</strong> ${h.guardianSchooling || 'No registrado'}</div>
+                            <div><strong>Ocupación:</strong> ${h.guardianOccupation || 'No registrada'}</div>
+                            <div><strong>Estado Civil:</strong> ${h.guardianMaritalStatus || 'No registrado'}</div>
+                            <div><strong>Teléfono:</strong> ${h.guardianPhone ? `<a href="tel:${h.guardianPhone}">${h.guardianPhone}</a>` : 'Sin registrar'}</div>
+                            <div><strong>Correo Electrónico:</strong> ${h.guardianEmail ? `<a href="mailto:${h.guardianEmail}">${h.guardianEmail}</a>` : 'Sin registrar'}</div>
+                            <div style="grid-column: span 2; padding: 10px 14px; background: rgba(45, 212, 191, 0.08); border-radius: 8px; border: 1px solid rgba(45, 212, 191, 0.25);">
+                                <strong>Consentimiento Informado:</strong> 
+                                ${h.guardianConsent === 'firmado' ? '<span style="color:#059669; font-weight:600;"><i class="fas fa-check-circle"></i> Firmado y en custodia clínica</span>' : '<span style="color:#d97706; font-weight:600;"><i class="fas fa-clock"></i> Pendiente de firma y ratificación</span>'}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- SECCIÓN 3: INFORMACIÓN REFERENTE A LA CONSULTA PSICOLÓGICA -->
+                <div class="hist-acc-item active" id="acc_teen_3">
+                    <div class="hist-acc-header" onclick="ClinicalHistorySystem.toggleAccordion('acc_teen_3')">
+                        <div class="hist-acc-title">
+                            <span class="acc-num">3</span>
+                            <strong>🧠 Información Referente a la Consulta Psicológica</strong>
+                        </div>
+                        <i class="fas fa-chevron-down acc-arrow"></i>
+                    </div>
+                    <div class="hist-acc-body">
+                        <div class="hist-grid-data" style="margin-bottom: 14px;">
+                            <div><strong>¿Ha asistido antes a Consulta Psicológica?:</strong> <span class="tag ${h.previousPsych === 'Si' ? 'tag-warning' : 'tag-neutral'}">${h.previousPsych || 'No'}</span></div>
+                            <div><strong>Nombre de la Persona que solicita la Consulta:</strong> ${h.applicantName || 'No especificada'}</div>
+                            <div style="grid-column: span 2;">
+                                <strong>¿Quién tomó la iniciativa de la Consulta Psicológica?:</strong> 
+                                <span class="tag tag-primary">${h.initiative || 'No registrada'} ${h.initiative === 'Otro' && h.initiativeOther ? `(${h.initiativeOther})` : ''}</span>
+                            </div>
+                        </div>
+
+                        <div class="hist-field-block">
+                            <label><i class="fas fa-comment-medical"></i> Motivo de Consulta:</label>
+                            <p style="white-space:pre-line;">${patient.reason || 'Sin motivo explicitado aún.'}</p>
+                        </div>
+
+                        <div class="hist-field-block">
+                            <label><i class="fas fa-bullseye"></i> Objetivos del Paciente:</label>
+                            <p style="white-space:pre-line;">${patient.goals || 'Sin objetivos registrados.'}</p>
+                        </div>
+
+                        <div class="hist-sub-heading" style="margin-top:16px;"><i class="fas fa-project-diagram"></i> Hipótesis Biopsicosociales de Comprensión Clínica</div>
+                        <div style="display:grid;grid-template-columns:repeat(auto-fit, minmax(280px, 1fr));gap:12px;margin-bottom:16px;">
+                            <div class="teen-hypothesis-card">
+                                <div class="teen-hypothesis-title"><i class="fas fa-dna" style="color:#0284c7;"></i> Hipótesis Biológica</div>
+                                <p style="font-size:13px;line-height:1.45;color:var(--text-secondary);margin:0;white-space:pre-line;">${h.bioHypothesis || 'Sin hipótesis biológica registrada.'}</p>
+                            </div>
+                            <div class="teen-hypothesis-card">
+                                <div class="teen-hypothesis-title"><i class="fas fa-users" style="color:#0d9488;"></i> Hipótesis Social y Familiar</div>
+                                <p style="font-size:13px;line-height:1.45;color:var(--text-secondary);margin:0;white-space:pre-line;">${h.socialHypothesis || 'Sin hipótesis social y familiar registrada.'}</p>
+                            </div>
+                            <div class="teen-hypothesis-card" style="grid-column: 1 / -1;">
+                                <div class="teen-hypothesis-title"><i class="fas fa-brain" style="color:#7c3aed;"></i> Hipótesis Psicológica</div>
+                                <p style="font-size:13px;line-height:1.45;color:var(--text-secondary);margin:0;white-space:pre-line;">${h.psychHypothesis || 'Sin hipótesis psicológica registrada.'}</p>
+                            </div>
+                        </div>
+
+                        <div class="hist-sub-heading" style="margin-top:16px;"><i class="fas fa-shield-alt"></i> Factores de Riesgo, Vulnerabilidad y Protección</div>
+                        <div style="display:grid;grid-template-columns:repeat(auto-fit, minmax(240px, 1fr));gap:12px;">
+                            <div style="background:rgba(239, 68, 68, 0.08);border:1px solid rgba(239, 68, 68, 0.25);border-radius:8px;padding:12px;">
+                                <div style="font-weight:700;color:#dc2626;font-size:12.5px;margin-bottom:6px;"><i class="fas fa-exclamation-triangle"></i> Factores de Riesgo</div>
+                                <p style="font-size:12.5px;color:var(--text-secondary);margin:0;line-height:1.4;white-space:pre-line;">${h.riskFactors || 'Sin factores de riesgo registrados.'}</p>
+                            </div>
+                            <div style="background:rgba(245, 158, 11, 0.08);border:1px solid rgba(245, 158, 11, 0.25);border-radius:8px;padding:12px;">
+                                <div style="font-weight:700;color:#d97706;font-size:12.5px;margin-bottom:6px;"><i class="fas fa-bolt"></i> Factores de Vulnerabilidad</div>
+                                <p style="font-size:12.5px;color:var(--text-secondary);margin:0;line-height:1.4;white-space:pre-line;">${h.vulnerabilityFactors || 'Sin factores de vulnerabilidad registrados.'}</p>
+                            </div>
+                            <div style="background:rgba(16, 185, 129, 0.08);border:1px solid rgba(16, 185, 129, 0.25);border-radius:8px;padding:12px;">
+                                <div style="font-weight:700;color:#059669;font-size:12.5px;margin-bottom:6px;"><i class="fas fa-heart"></i> Factores de Protección</div>
+                                <p style="font-size:12.5px;color:var(--text-secondary);margin:0;line-height:1.4;white-space:pre-line;">${h.protectiveFactors || 'Sin factores de protección registrados.'}</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- SECCIÓN 4: ENCUADRE Y ACUERDOS DE CONSULTA -->
+                <div class="hist-acc-item active" id="acc_teen_4">
+                    <div class="hist-acc-header" onclick="ClinicalHistorySystem.toggleAccordion('acc_teen_4')">
+                        <div class="hist-acc-title">
+                            <span class="acc-num">4</span>
+                            <strong>🤝 Encuadre y Acuerdos de Consulta</strong>
+                        </div>
+                        <i class="fas fa-chevron-down acc-arrow"></i>
+                    </div>
+                    <div class="hist-acc-body">
+                        <div class="hist-grid-data">
+                            <div><strong>Frecuencia Acordada:</strong> ${h.frequency || 'Por acordar'}</div>
+                            <div><strong>Modalidad de Atención:</strong> ${h.modality || 'No definida'}</div>
+                            <div><strong>Turno Preferente:</strong> ${h.shift || 'No definido'}</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        `;
+    },
+
     // -------------------------------------------------------------
     // 2. RENDERIZADO DEL VISOR DE HISTORIA CLÍNICA EN ACORDEONES (8 BLOQUES)
     // -------------------------------------------------------------
@@ -211,10 +424,14 @@ const ClinicalHistorySystem = {
         const isTeen = cat === 'adolescent';
         const isAdult = cat === 'adult';
 
-        const stageTitle = isChild ? '🧒 Historia Clínica Infantil (7 Pág.)' : isTeen ? '🧑 Historia Clínica Adolescente (7 Pág.)' : '👤 Historia Clínica Adulto (5 Pág.)';
-
         const therapist = this.getTherapistInfo();
         const regInfo = therapist.registry ? ` · ${therapist.registry}` : '';
+
+        if (isTeen) {
+            return this.renderTeenHistoryIntegral(patient, h, therapist, regInfo);
+        }
+
+        const stageTitle = isChild ? '🧒 Historia Clínica Infantil (7 Pág.)' : '👤 Historia Clínica Adulto (5 Pág.)';
 
         return `
             <div class="clinical-history-toolbar">
@@ -915,6 +1132,159 @@ const ClinicalHistorySystem = {
     // -------------------------------------------------------------
     // 5. EXPORTACIÓN PDF OFICIAL PROTOCOLIZADA CON MEMBRETE Y SELLO
     // -------------------------------------------------------------
+    exportHistoriaOficialAdolescentePDF(patient, h, age, therapist) {
+        const referralText = (h.referral && h.referral.length > 0) ? h.referral.join(', ') : (h.referredBy || 'No aplica');
+        const displayAge = h.age ? `${h.age} años` : (age ? `${age} años` : '—');
+        const therapistRegistry = therapist.registry ? ` · ${therapist.registry}` : '';
+
+        const html = `<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <title>HISTORIA CLÍNICA ADOLESCENTE - ${patient.name}</title>
+    <style>
+        @page { size: letter; margin: 16mm; }
+        body { font-family: 'Times New Roman', Times, serif; color: #111; line-height: 1.35; font-size: 10.5pt; margin: 0; padding: 0; }
+        .official-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 10px; }
+        .psi-symbol { font-size: 38pt; line-height: 1; font-family: serif; }
+        .therapist-badge { text-align: right; font-size: 10pt; line-height: 1.25; }
+        h1.doc-title { text-align: center; font-size: 13.5pt; font-weight: bold; margin: 10px 0 14px 0; text-transform: uppercase; letter-spacing: 0.8px; border-bottom: 1.5px solid #000; padding-bottom: 4px; }
+        .status-bar { border: 1px solid #444; background: #f9f9f9; padding: 6px 10px; margin-bottom: 12px; font-size: 9.5pt; display: flex; justify-content: space-between; }
+        .section-header { font-weight: bold; text-transform: uppercase; font-size: 10pt; margin-top: 12px; margin-bottom: 5px; letter-spacing: 0.3px; background: #eee; padding: 3px 6px; border-left: 3px solid #000; }
+        table.clinical-table { width: 100%; border-collapse: collapse; margin-bottom: 10px; font-size: 9.5pt; }
+        table.clinical-table th, table.clinical-table td { border: 1px solid #222; padding: 4px 7px; vertical-align: top; }
+        table.clinical-table th { background-color: #f2f2f2; font-weight: bold; text-align: left; }
+        .box-container { border: 1px solid #222; padding: 6px 8px; margin-bottom: 8px; min-height: 38px; font-size: 9.5pt; line-height: 1.35; }
+        .page-break { page-break-after: always; }
+        .footer-seal { margin-top: 40px; text-align: center; font-size: 9.5pt; }
+        .seal-line { width: 260px; margin: 0 auto; border-top: 1px solid #000; padding-top: 4px; font-weight: bold; }
+        @media print { body { padding: 0; } }
+    </style>
+</head>
+<body>
+    <div class="official-header">
+        <div class="psi-symbol">Ψ</div>
+        <div class="therapist-badge">
+            ${therapist.specialty}<br>
+            <strong>${therapist.name}</strong><br>
+            ${therapist.registry}
+        </div>
+    </div>
+
+    <h1 class="doc-title">HISTORIA CLÍNICA ADOLESCENTE</h1>
+
+    <div class="status-bar">
+        <span><strong>Estatus del Paciente:</strong> ${h.status || 'Por iniciar'}</span>
+        <span><strong>Frecuencia:</strong> ${h.frequency || 'Por acordar'}</span>
+        <span><strong>Modalidad:</strong> ${h.modality || 'No definida'}</span>
+        <span><strong>Turno:</strong> ${h.shift || 'No definido'}</span>
+    </div>
+
+    <div class="section-header">1. FICHA DEL PACIENTE (ADOLESCENTE)</div>
+    <table class="clinical-table">
+        <tr>
+            <td colspan="2"><strong>Nombre Completo:</strong> ${patient.name}</td>
+            <td><strong>Edad:</strong> ${displayAge}</td>
+        </tr>
+        <tr>
+            <td><strong>Sexo / Género:</strong> ${patient.gender || '—'}</td>
+            <td><strong>Nivel de Escolaridad:</strong> ${h.schoolGrade || '—'}</td>
+            <td><strong>Vive con:</strong> ${h.livesWith || '—'}</td>
+        </tr>
+        <tr>
+            <td colspan="2"><strong>Referido por:</strong> ${referralText}</td>
+            <td><strong>Correo Electrónico:</strong> ${patient.email || '—'}</td>
+        </tr>
+    </table>
+
+    <div class="section-header">2. FICHA DEL REPRESENTANTE / TUTOR LEGAL</div>
+    <table class="clinical-table">
+        <tr>
+            <td colspan="2"><strong>Nombre Completo del Representante:</strong> ${h.guardianName || '—'}</td>
+            <td><strong>Parentesco:</strong> ${h.guardianRelation || '—'}</td>
+        </tr>
+        <tr>
+            <td><strong>Edad:</strong> ${h.guardianAge ? h.guardianAge + ' años' : '—'}</td>
+            <td><strong>Nivel de Escolaridad:</strong> ${h.guardianSchooling || '—'}</td>
+            <td><strong>Ocupación:</strong> ${h.guardianOccupation || '—'}</td>
+        </tr>
+        <tr>
+            <td><strong>Estado Civil:</strong> ${h.guardianMaritalStatus || '—'}</td>
+            <td><strong>Teléfono:</strong> ${h.guardianPhone || '—'}</td>
+            <td><strong>Correo Electrónico:</strong> ${h.guardianEmail || '—'}</td>
+        </tr>
+        <tr>
+            <td colspan="3"><strong>Consentimiento Informado:</strong> ${h.guardianConsent === 'firmado' ? 'SI [X]  FIRMADO Y EN CUSTODIA CLÍNICA' : 'PENDIENTE DE FIRMA'}</td>
+        </tr>
+    </table>
+
+    <div class="section-header">3. INFORMACIÓN REFERENTE A LA CONSULTA PSICOLÓGICA</div>
+    <table class="clinical-table">
+        <tr>
+            <td><strong>¿Ha asistido antes a Consulta Psicológica?:</strong> ${h.previousPsych === 'Si' ? 'SI [X]  NO [ ]' : 'SI [ ]  NO [X]'}</td>
+            <td><strong>Nombre de la Persona que solicita:</strong> ${h.applicantName || '—'}</td>
+        </tr>
+        <tr>
+            <td colspan="2"><strong>¿Quién tomó la iniciativa de la Consulta?:</strong> ${h.initiative || '—'} ${h.initiative === 'Otro' && h.initiativeOther ? '(' + h.initiativeOther + ')' : ''}</td>
+        </tr>
+    </table>
+
+    <div style="font-weight:bold; font-size:9.5pt; margin-top:6px;">Motivo de Consulta:</div>
+    <div class="box-container">${patient.reason || 'Sin motivo explicitado aún.'}</div>
+
+    <div style="font-weight:bold; font-size:9.5pt; margin-top:6px;">Objetivos del Paciente:</div>
+    <div class="box-container">${patient.goals || 'Sin objetivos explicitados aún.'}</div>
+
+    <div class="section-header">HIPÓTESIS BIOPSICOSOCIALES DE COMPRENSIÓN CLÍNICA</div>
+    <table class="clinical-table">
+        <tr><th style="width:30%;">Dimensión</th><th>Hipótesis Clínica</th></tr>
+        <tr><td><strong>Hipótesis Biológica</strong></td><td>${h.bioHypothesis || 'Sin hallazgos biológicos reportados.'}</td></tr>
+        <tr><td><strong>Hipótesis Social y Familiar</strong></td><td>${h.socialHypothesis || 'Dinámica y contexto social en evaluación.'}</td></tr>
+        <tr><td><strong>Hipótesis Psicológica</strong></td><td>${h.psychHypothesis || 'Comprensión psicológica intrapsíquica y vincular.'}</td></tr>
+    </table>
+
+    <div class="section-header">FACTORES DE RIESGO, VULNERABILIDAD Y PROTECCIÓN</div>
+    <table class="clinical-table">
+        <tr><th style="width:30%;">Factor</th><th>Evaluación Clínica</th></tr>
+        <tr><td><strong>Factores de Riesgo</strong></td><td>${h.riskFactors || 'Sin factores de riesgo reportados.'}</td></tr>
+        <tr><td><strong>Factores de Vulnerabilidad</strong></td><td>${h.vulnerabilityFactors || 'Sin factores de vulnerabilidad reportados.'}</td></tr>
+        <tr><td><strong>Factores de Protección</strong></td><td>${h.protectiveFactors || 'Red familiar, factores de resiliencia y recursos personales.'}</td></tr>
+    </table>
+
+    <div class="section-header">4. ENCUADRE Y ACUERDOS DE CONSULTA</div>
+    <table class="clinical-table">
+        <tr>
+            <td><strong>Frecuencia Acordada:</strong> ${h.frequency || 'Por acordar'}</td>
+            <td><strong>Modalidad:</strong> ${h.modality || 'No definida'}</td>
+            <td><strong>Turno Preferente:</strong> ${h.shift || 'No definido'}</td>
+        </tr>
+    </table>
+
+    <div class="footer-seal">
+        <br><br>
+        <div class="seal-line">
+            ${therapist.name}<br>
+            <span style="font-size:9pt; font-weight:normal;">${therapist.specialty}${therapistRegistry}</span>
+        </div>
+        <p style="font-size:8pt; color:#555; margin-top:6px;">Documento confidencial bajo secreto profesional. Ley de Ejercicio de la Psicología y Código de Deontología Médica.</p>
+    </div>
+</body>
+</html>`;
+
+        if (typeof window !== 'undefined' && window.open) {
+            const printWindow = window.open('', '_blank');
+            if (printWindow) {
+                printWindow.document.write(html);
+                printWindow.document.close();
+                setTimeout(() => {
+                    printWindow.focus();
+                    printWindow.print();
+                }, 600);
+            }
+        }
+        return html;
+    },
+
     exportHistoriaOficialPDF(patientId) {
         const patient = AppState.patients.find(p => p.id === patientId);
         if (!patient) return;
@@ -923,7 +1293,11 @@ const ClinicalHistorySystem = {
         const age = patient.birthdate && typeof calculateAge === 'function' ? calculateAge(patient.birthdate) : (h.age || '');
         const therapist = this.getTherapistInfo();
 
-        const docTitle = cat === 'child' ? 'HISTORIA CLÍNICA INFANTIL' : cat === 'adolescent' ? 'HISTORIA CLÍNICA ADOLESCENTE' : 'HISTORIA CLÍNICA ADULTO';
+        if (cat === 'adolescent') {
+            return this.exportHistoriaOficialAdolescentePDF(patient, h, age, therapist);
+        }
+
+        const docTitle = cat === 'child' ? 'HISTORIA CLÍNICA INFANTIL' : 'HISTORIA CLÍNICA ADULTO';
 
         const html = `<!DOCTYPE html>
 <html lang="es">

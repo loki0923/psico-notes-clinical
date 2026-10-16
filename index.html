@@ -14,7 +14,7 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Playfair+Display:wght@500;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <link rel="stylesheet" href="styles.css?v=6.5.0">
+    <link rel="stylesheet" href="styles.css?v=6.6.1">
 </head>
 <body>
 
@@ -740,8 +740,21 @@
         </div>
         <form id="patientForm" class="modal-form">
             <input type="hidden" id="patientId">
-            <div class="form-section-title">Etapa Vital y Datos de la Persona</div>
+
+            <!-- 1. ESTATUS Y ETAPA DEL CICLO VITAL -->
+            <div class="form-section-title">Estatus y Etapa del Ciclo Vital</div>
             <div class="form-row">
+                <div class="form-group">
+                    <label>Estatus del Paciente *</label>
+                    <select id="patientStatus" required>
+                        <option value="Por iniciar">🟡 Por iniciar</option>
+                        <option value="En Evaluación">🔍 En Evaluación</option>
+                        <option value="Plan de Intervención">🎯 Plan de Intervención</option>
+                        <option value="Seguimiento">🔄 Seguimiento</option>
+                        <option value="Alta">✅ Alta</option>
+                        <option value="Inactivo">⏸️ Inactivo</option>
+                    </select>
+                </div>
                 <div class="form-group">
                     <label>Etapa del Ciclo Vital *</label>
                     <select id="patientCategory" onchange="onPatientCategoryChange()">
@@ -755,32 +768,66 @@
                     <input type="date" id="patientBirthdate" onchange="onPatientBirthdateChange()" oninput="onPatientBirthdateChange()">
                 </div>
             </div>
+
+            <!-- 2. FICHA DEL PACIENTE -->
+            <div class="form-section-title" id="patientDataSectionTitle">Ficha del Paciente</div>
             <div class="form-row">
-                <div class="form-group">
-                    <label>Nombre Completo *</label>
-                    <input type="text" id="patientName" required>
+                <div class="form-group" style="flex: 2;">
+                    <label>Nombre Completo del Paciente *</label>
+                    <input type="text" id="patientName" required placeholder="Nombres y Apellidos">
                 </div>
-                <div class="form-group">
-                    <label>Identidad de Género</label>
+                <div class="form-group" id="teenAgeGroup" style="display:none; flex: 1;">
+                    <label>Edad (Años)</label>
+                    <input type="number" id="patientAge" min="0" max="120" placeholder="Ej: 15">
+                </div>
+                <div class="form-group" style="flex: 1;">
+                    <label>Sexo *</label>
                     <select id="patientGender">
                         <option value="">Seleccionar</option>
-                        <option>Femenino</option>
-                        <option>Masculino</option>
-                        <option>No binario</option>
-                        <option>Otro</option>
+                        <option value="Femenino">Femenino</option>
+                        <option value="Masculino">Masculino</option>
+                        <option value="No binario">No binario</option>
+                        <option value="Otro">Otro</option>
                     </select>
                 </div>
             </div>
-            <div class="form-row">
+
+            <!-- Fila para Nivel de Escolaridad y Vive Con (Adolescente) -->
+            <div class="form-row" id="teenSchoolLivesRow" style="display:none;">
                 <div class="form-group">
-                    <label>Email de Contacto</label>
-                    <input type="email" id="patientEmail" placeholder="Email del paciente o tutor">
+                    <label>Nivel de Escolaridad *</label>
+                    <input type="text" id="patientSchoolGrade" placeholder="Ej: 3er año de bachillerato / 9° grado">
                 </div>
                 <div class="form-group">
-                    <label>Teléfono de Contacto</label>
-                    <input type="tel" id="patientPhone" placeholder="Teléfono del paciente o tutor">
+                    <label>Vive con *</label>
+                    <input type="text" id="patientLivesWith" placeholder="Ej: Mamá, padrastro y 2 hermanos">
                 </div>
             </div>
+
+            <!-- Referido (Selección múltiple para adolescente) -->
+            <div class="form-group" id="teenReferralGroup" style="display:none;">
+                <label>Referido (Selección múltiple):</label>
+                <div class="referral-chips-grid">
+                    <label class="referral-chip"><input type="checkbox" name="patientReferral" value="Orientador" onchange="onReferralChange(this)"> <span>Orientador</span></label>
+                    <label class="referral-chip"><input type="checkbox" name="patientReferral" value="Psicopedagogo" onchange="onReferralChange(this)"> <span>Psicopedagogo</span></label>
+                    <label class="referral-chip"><input type="checkbox" name="patientReferral" value="Neurólogo" onchange="onReferralChange(this)"> <span>Neurólogo</span></label>
+                    <label class="referral-chip"><input type="checkbox" name="patientReferral" value="Psiquiatra" onchange="onReferralChange(this)"> <span>Psiquiatra</span></label>
+                    <label class="referral-chip"><input type="checkbox" name="patientReferral" value="Médico/Especialista" onchange="onReferralChange(this)"> <span>Médico/Especialista</span></label>
+                    <label class="referral-chip"><input type="checkbox" name="patientReferral" value="No aplica" onchange="onReferralChange(this)"> <span>No aplica</span></label>
+                </div>
+            </div>
+
+            <div class="form-row">
+                <div class="form-group" id="patientEmailWrapper">
+                    <label>Correo Electrónico</label>
+                    <input type="email" id="patientEmail" placeholder="correo@ejemplo.com">
+                </div>
+                <div class="form-group" id="patientPhoneWrapper">
+                    <label>Teléfono de Contacto</label>
+                    <input type="tel" id="patientPhone" placeholder="Teléfono de contacto">
+                </div>
+            </div>
+
             <div class="form-row" id="adultSpecificRow">
                 <div class="form-group">
                     <label>Ocupación / Actividad</label>
@@ -792,50 +839,81 @@
                 </div>
             </div>
 
-            <!-- SECCIÓN CONDICIONAL PEDIÁTRICA Y ADOLESCENTE -->
+            <!-- 3. FICHA DEL REPRESENTANTE / TUTOR LEGAL -->
             <div id="pediatricFieldsSection" class="pediatric-fields-container" style="display: none;">
                 <div class="form-section-title" style="margin-top:0;color:var(--accent-primary);">
-                    <i class="fas fa-user-friends"></i> Tutor Legal y Entorno Educativo
+                    <i class="fas fa-user-shield"></i> Ficha del Representante / Tutor Legal
                 </div>
                 <div class="form-row">
                     <div class="form-group">
-                        <label>Representante / Tutor Legal *</label>
+                        <label>Nombre Completo del Representante / Tutor Legal *</label>
                         <input type="text" id="patientGuardianName" placeholder="Madre, Padre o Tutor con custodia legal">
                     </div>
                     <div class="form-group">
-                        <label>Parentesco / Vínculo</label>
+                        <label>Parentesco *</label>
                         <select id="patientGuardianRelation">
                             <option value="">Seleccionar vínculo</option>
                             <option value="Madre">Madre</option>
                             <option value="Padre">Padre</option>
                             <option value="Tutor Legal">Tutor Legal</option>
                             <option value="Abuelo/a">Abuelo / Abuela</option>
+                            <option value="Tío/a">Tío / Tía</option>
                             <option value="Otro">Otro familiar a cargo</option>
                         </select>
                     </div>
                 </div>
-                <div class="form-row">
+
+                <!-- Campos detallados del representante (Adolescente) -->
+                <div class="form-row" id="teenGuardianDetailsRow" style="display:none;">
                     <div class="form-group">
-                        <label>Teléfono de Contacto del Tutor</label>
-                        <input type="tel" id="patientGuardianPhone" placeholder="Teléfono directo o WhatsApp del tutor">
+                        <label>Edad del Representante</label>
+                        <input type="number" id="patientGuardianAge" min="18" max="120" placeholder="Ej: 43">
                     </div>
                     <div class="form-group">
-                        <label>Consentimiento Parental Legal</label>
+                        <label>Nivel de Escolaridad</label>
+                        <input type="text" id="patientGuardianSchooling" placeholder="Ej: Universitaria / Secundaria">
+                    </div>
+                    <div class="form-group">
+                        <label>Ocupación</label>
+                        <input type="text" id="patientGuardianOccupation" placeholder="Ej: Docente / Comerciante">
+                    </div>
+                    <div class="form-group">
+                        <label>Estado Civil</label>
+                        <select id="patientGuardianMaritalStatus">
+                            <option value="">Seleccionar</option>
+                            <option value="Soltero/a">Soltero/a</option>
+                            <option value="Casado/a">Casado/a</option>
+                            <option value="Divorciado/a">Divorciado/a</option>
+                            <option value="Viudo/a">Viudo/a</option>
+                            <option value="Conviviente / Unión Libre">Conviviente / Unión Libre</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>Teléfono del Representante *</label>
+                        <input type="tel" id="patientGuardianPhone" placeholder="Teléfono directo o WhatsApp del tutor">
+                    </div>
+                    <div class="form-group" id="teenGuardianEmailWrapper">
+                        <label>Correo Electrónico del Representante</label>
+                        <input type="email" id="patientGuardianEmail" placeholder="correo.tutor@ejemplo.com">
+                    </div>
+                    <div class="form-group">
+                        <label>Consentimiento Informado *</label>
                         <select id="patientGuardianConsent">
-                            <option value="firmado">✅ Consentimiento Parental Firmado</option>
+                            <option value="firmado">✅ Consentimiento Informado Firmado</option>
                             <option value="pendiente">⏳ Pendiente de firma</option>
                             <option value="no-aplica">No aplica / Mayoría de edad</option>
                         </select>
                     </div>
                 </div>
-                <div class="form-row">
+
+                <!-- Escuela exclusiva de NIÑOS (<12) -->
+                <div class="form-row" id="patientSchoolNameWrapper" style="display:none;">
                     <div class="form-group">
                         <label>Institución Educativa / Escuela</label>
                         <input type="text" id="patientSchoolName" placeholder="Nombre de la escuela o colegio">
-                    </div>
-                    <div class="form-group">
-                        <label>Grado / Nivel Escolar</label>
-                        <input type="text" id="patientSchoolGrade" placeholder="Ej: 3° Básico, 1° Medio, etc.">
                     </div>
                 </div>
 
@@ -846,103 +924,169 @@
                         <textarea id="patientDevelopmentalMilestones" rows="2" placeholder="Parto, hitos psicomotores, adquisición del lenguaje, control de esfínteres, sueño y conducta lúdica..."></textarea>
                     </div>
                 </div>
+            </div>
 
-                <!-- SUBSECCIÓN ADOLESCENTES (12-17 AÑOS) -->
-                <div id="adolescentSpecificBlock" style="display: none;">
+            <!-- 4. INFORMACIÓN REFERENTE A LA CONSULTA PSICOLÓGICA -->
+            <div id="consultationInfoSection">
+                <div class="form-section-title">
+                    <i class="fas fa-stethoscope"></i> Información Referente a la Consulta Psicológica
+                </div>
+
+                <!-- Bloque inicial de Consulta (Adolescente) -->
+                <div id="teenConsultationInitialBlock" style="display:none;">
                     <div class="form-row">
                         <div class="form-group">
-                            <label>Pacto de Confidencialidad y Asentimiento</label>
-                            <select id="patientAdolescentAssent">
-                                <option value="firmado">🤝 Asentimiento y Alianza de Confidencialidad Acordada</option>
-                                <option value="pendiente">⏳ Pendiente de acordar en encuadre</option>
-                                <option value="en-revision">En revisión con familia</option>
+                            <label>¿Ha asistido antes a Consulta Psicológica? *</label>
+                            <select id="patientPreviousPsych">
+                                <option value="No">No</option>
+                                <option value="Sí">Sí</option>
                             </select>
                         </div>
+                        <div class="form-group">
+                            <label>Nombre de la Persona que solicita la Consulta *</label>
+                            <input type="text" id="patientApplicantName" placeholder="Nombre completo del solicitante">
+                        </div>
+                    </div>
+                    <div class="form-group" id="teenInitiativeGroup">
+                        <label>¿Quién tomó la iniciativa de la Consulta Psicológica? *</label>
+                        <select id="patientInitiative" onchange="onInitiativeChange()">
+                            <option value="">Seleccionar</option>
+                            <option value="Madre">Madre</option>
+                            <option value="Padre">Padre</option>
+                            <option value="Solicitud del Niño o Adolescente">Solicitud del Niño o Adolescente</option>
+                            <option value="Docente de Aula">Docente de Aula</option>
+                            <option value="Neurólogo">Neurólogo</option>
+                            <option value="Psicopedagogo">Psicopedagogo</option>
+                            <option value="Otro">Otro</option>
+                        </select>
+                        <input type="text" id="patientInitiativeOther" placeholder="Especifique quién tomó la iniciativa..." style="display:none;margin-top:6px;">
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label>Motivo de Consulta *</label>
+                    <textarea id="patientReason" rows="2" placeholder="Descripción detallada del motivo de consulta..."></textarea>
+                </div>
+                <div class="form-group">
+                    <label>Objetivos del Paciente *</label>
+                    <textarea id="patientGoals" rows="2" placeholder="Objetivos y expectativas expresadas para el proceso..."></textarea>
+                </div>
+
+                <!-- Hipótesis Clínicas y Vulnerabilidad (Adolescente) -->
+                <div id="teenHypothesisBlock" style="display:none;">
+                    <div class="form-group">
+                        <label>Hipótesis Biológica</label>
+                        <textarea id="patientBioHypothesis" rows="2" placeholder="Factores neurobiológicos, herencia genética, maduración, sueño, comorbilidades orgánicas..."></textarea>
                     </div>
                     <div class="form-group">
-                        <label>Perspectiva del Adolescente vs Demanda Familiar</label>
-                        <textarea id="patientAdolescentPerspective" rows="2" placeholder="¿Cómo percibe el/la adolescente su motivo de consulta y qué objetivos busca trabajar personalmente frente a la solicitud de los padres?"></textarea>
+                        <label>Hipótesis Social y Familiar</label>
+                        <textarea id="patientSocialHypothesis" rows="2" placeholder="Dinámica familiar, pautas de crianza, pares, entorno académico, red de apoyo..."></textarea>
+                    </div>
+                    <div class="form-group">
+                        <label>Hipótesis Psicológica</label>
+                        <textarea id="patientPsychHypothesis" rows="2" placeholder="Esquemas cognitivos, procesamiento emocional, mecanismos de defensa, recursos de afrontamiento..."></textarea>
+                    </div>
+                    <div class="form-group">
+                        <label>Factores de Vulnerabilidad</label>
+                        <textarea id="patientVulnerabilityFactors" rows="2" placeholder="Condiciones preexistentes que predisponen o incrementan la susceptibilidad..."></textarea>
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label>Factores de Riesgo</label>
+                    <textarea id="patientRiskFactors" rows="2" placeholder="Factores que amenazan el bienestar biopsicosocial o indican riesgo..."></textarea>
+                </div>
+                <div class="form-group">
+                    <label>Factores de Protección / Recursos</label>
+                    <textarea id="patientProtectiveFactors" rows="2" placeholder="Fortalezas, recursos individuales, familiares y redes protectoras..."></textarea>
+                </div>
+            </div>
+
+            <!-- 5. CONTACTO DE EMERGENCIA (Para adultos) -->
+            <div id="emergencyContactSection">
+                <div class="form-section-title">Contacto de Emergencia</div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>Nombre de Contacto</label>
+                        <input type="text" id="patientEmergency">
+                    </div>
+                    <div class="form-group">
+                        <label>Vínculo / Teléfono</label>
+                        <input type="text" id="patientEmergencyRelation">
                     </div>
                 </div>
             </div>
-            <div class="form-section-title">Contacto de Emergencia</div>
-            <div class="form-row">
-                <div class="form-group">
-                    <label>Nombre</label>
-                    <input type="text" id="patientEmergency">
+
+            <!-- 6. DIAGNÓSTICO Y MEDICACIÓN (Visible para Adulto y Niño; Omitido en Adolescente) -->
+            <div id="diagnosisMedicationSection">
+                <div class="form-section-title">Diagnóstico y Evaluación</div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>Diagnóstico Principal (CIE-11 / DSM-5)</label>
+                        <input type="text" id="patientDiagnosis" placeholder="Ej: F32.1 Trastorno depresivo moderado">
+                    </div>
+                    <div class="form-group">
+                        <label>Diagnóstico Secundario</label>
+                        <input type="text" id="patientDiagnosis2">
+                    </div>
                 </div>
                 <div class="form-group">
-                    <label>Vínculo / Teléfono</label>
-                    <input type="text" id="patientEmergencyRelation">
+                    <label>Medicación Actual</label>
+                    <textarea id="patientMedication" rows="2"></textarea>
                 </div>
             </div>
-            <div class="form-section-title">Motivo de Consulta</div>
-            <div class="form-group">
-                <label>En palabras del paciente</label>
-                <textarea id="patientReason" rows="2"></textarea>
-            </div>
-            <div class="form-group">
-                <label>Objetivos terapéuticos del paciente</label>
-                <textarea id="patientGoals" rows="2"></textarea>
-            </div>
-            <div class="form-section-title">Diagnóstico y Evaluación</div>
-            <div class="form-row">
+
+            <!-- 7. HISTORIA CLÍNICA GENERAL (Visible para Adulto y Niño; Omitido en Adolescente) -->
+            <div id="medicalHistorySection">
+                <div class="form-section-title">Antecedentes Clínicos</div>
                 <div class="form-group">
-                    <label>Diagnóstico Principal (CIE-11 / DSM-5)</label>
-                    <input type="text" id="patientDiagnosis" placeholder="Ej: F32.1 Trastorno depresivo moderado">
+                    <label>Antecedentes Personales Relevantes</label>
+                    <textarea id="patientMedical" rows="3"></textarea>
                 </div>
                 <div class="form-group">
-                    <label>Diagnóstico Secundario</label>
-                    <input type="text" id="patientDiagnosis2">
+                    <label>Historia Familiar</label>
+                    <textarea id="patientFamilyHistory" rows="2"></textarea>
                 </div>
             </div>
-            <div class="form-group">
-                <label>Medicación Actual</label>
-                <textarea id="patientMedication" rows="2"></textarea>
-            </div>
-            <div class="form-section-title">Historia Clínica</div>
-            <div class="form-group">
-                <label>Antecedentes Personales Relevantes</label>
-                <textarea id="patientMedical" rows="3"></textarea>
-            </div>
-            <div class="form-group">
-                <label>Historia Familiar</label>
-                <textarea id="patientFamilyHistory" rows="2"></textarea>
-            </div>
-            <div class="form-group">
-                <label>Factores de Riesgo</label>
-                <textarea id="patientRiskFactors" rows="2"></textarea>
-            </div>
-            <div class="form-group">
-                <label>Factores Protectores / Recursos</label>
-                <textarea id="patientProtectiveFactors" rows="2"></textarea>
-            </div>
-            <div class="form-section-title">Encuadre</div>
-            <div class="form-group">
-                <label>Notas de Encuadre / Acuerdos</label>
-                <textarea id="patientNotes" rows="2"></textarea>
-            </div>
-            <div class="form-row">
-                <div class="form-group">
-                    <label>Frecuencia acordada</label>
-                    <select id="patientFrequency">
-                        <option value="">Seleccionar</option>
-                        <option>Semanal</option>
-                        <option>Quincenal</option>
-                        <option>Mensual</option>
-                        <option>Bajo demanda</option>
-                    </select>
+
+            <!-- 8. ENCUADRE Y ACUERDOS -->
+            <div id="encuadreSection">
+                <div class="form-section-title">Encuadre y Acuerdos</div>
+                <div class="form-group" id="patientNotesWrapper">
+                    <label>Notas de Encuadre / Acuerdos</label>
+                    <textarea id="patientNotes" rows="2" placeholder="Acuerdos adicionales del encuadre terapéutico..."></textarea>
                 </div>
-                <div class="form-group">
-                    <label>Modalidad preferida</label>
-                    <select id="patientModality">
-                        <option value="">Seleccionar</option>
-                        <option>Presencial</option>
-                        <option>Online</option>
-                        <option>Mixta</option>
-                    </select>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>Frecuencia Acordada *</label>
+                        <select id="patientFrequency">
+                            <option value="">Seleccionar</option>
+                            <option value="Semanal">Semanal</option>
+                            <option value="Quincenal">Quincenal</option>
+                            <option value="Mensual">Mensual</option>
+                            <option value="Bajo demanda">Bajo demanda</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>Modalidad *</label>
+                        <select id="patientModality">
+                            <option value="">Seleccionar</option>
+                            <option value="Presencial">Presencial</option>
+                            <option value="Online">Online / En línea</option>
+                            <option value="Híbrida">Híbrida / Mixta</option>
+                        </select>
+                    </div>
+                    <div class="form-group" id="patientShiftGroup">
+                        <label>Turno</label>
+                        <select id="patientShift">
+                            <option value="">Seleccionar turno</option>
+                            <option value="Mañana">Mañana</option>
+                            <option value="Tarde">Tarde</option>
+                        </select>
+                    </div>
                 </div>
             </div>
+
             <div class="modal-actions">
                 <button type="button" class="btn-secondary" onclick="closeModal('patientModal')">Cancelar</button>
                 <button type="submit" class="btn-primary">
@@ -1676,7 +1820,7 @@
 <script src="psychoed.js"></script>
 <script src="reports.js"></script>
 <script src="vademecum.js"></script>
-<script src="app.js?v=6.5.0"></script>
+<script src="app.js?v=6.6.2"></script>
 <script src="scales.js"></script>
 <script src="finance.js"></script>
 <script src="adm.js"></script>
@@ -1685,10 +1829,9 @@
 <script src="crisis-protocol.js"></script>
 <script src="consentimiento.js"></script>
 <script src="historia-clinica.js"></script>
-<script src="tests.js"></script>
 <script>
 if ('serviceWorker' in navigator) {
-    navigator.serviceWorker.register('/sw.js?v=6.5.0')
+    navigator.serviceWorker.register('/sw.js?v=6.6.2')
         .then(() => console.log('✅ ServiceWorker registrado'))
         .catch(err => console.log('SW Error:', err));
 }

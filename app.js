@@ -354,7 +354,109 @@ const CloudSyncManager = {
         }, 1200);
     },
 
-    async pushToCloud(showToastFeedback = false) {
+    async ensureSessionToken(forceRefresh = false) {
+        let token = localStorage.getItem('psico_session_token');
+        if (token && !forceRefresh) {
+            try {
+                const parts = token.split('.');
+                if (parts.length === 2) {
+                    let base64 = parts[0].replace(/-/g, '+').replace(/_/g, '/');
+                    while (base64.length % 4) base64 += '=';
+                    const payload = JSON.parse(atob(base64));
+                    if (payload.exp && Date.now() < (payload.exp - 2 * 60 * 1000)) {
+                        if (payload.therapistId && AppState.currentUser) {
+                            AppState.currentUser.id = payload.therapistId;
+                            setSession(payload.therapistId);
+                        }
+                        return token;
+                    }
+                }
+            } catch (e) {}
+        }
+
+        // Si no hay token o se fuerza renovación, recuperar o registrar sesión en el servidor
+        const currentEmail = AppState.currentUser?.email;
+        const currentId = AppState.currentUser?.id;
+        const users = (typeof getUsers === 'function') ? getUsers() : [];
+        let localUser = users.find(u => (currentEmail && (u.email || '').toLowerCase() === currentEmail.toLowerCase()) || (currentId && u.id === currentId));
+
+        if (!localUser && (currentId || currentEmail)) {
+            localUser = {
+                id: currentId || generateId(),
+                name: AppState.currentUser?.name || localStorage.getItem('psico_therapist_name') || 'Psicólogo Clínico',
+                email: currentEmail || `psicologo_${currentId || Date.now()}@clinica.com`,
+                specialty: AppState.currentUser?.specialty || localStorage.getItem('psico_therapist_specialty') || 'Psicología Clínica',
+                registryNumber: AppState.currentUser?.registryNumber || localStorage.getItem('psico_therapist_registry') || '',
+                passwordHash: await hashPassword('clinical_session_' + (currentId || currentEmail || 'key'))
+            };
+            users.push(localUser);
+            if (typeof saveUsers === 'function') saveUsers(users);
+        } else if (localUser && !localUser.passwordHash) {
+            localUser.passwordHash = await hashPassword('clinical_session_' + (localUser.id || localUser.email || 'key'));
+            if (typeof saveUsers === 'function') saveUsers(users);
+        }
+
+        if (localUser && localUser.email && localUser.passwordHash) {
+            try {
+                // 1. Intentar iniciar sesión contra el servidor
+                const loginRes = await fetch('/api/v1/auth/login', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        email: localUser.email,
+                        passwordHash: localUser.passwordHash
+                    })
+                });
+
+                if (loginRes.ok) {
+                    const loginData = await loginRes.json();
+                    if (loginData.sessionToken) {
+                        localStorage.setItem('psico_session_token', loginData.sessionToken);
+                        if (loginData.therapist?.id) {
+                            AppState.currentUser.id = loginData.therapist.id;
+                            localUser.id = loginData.therapist.id;
+                            setSession(loginData.therapist.id);
+                            if (typeof saveUsers === 'function') saveUsers(users);
+                        }
+                        return loginData.sessionToken;
+                    }
+                } else if (loginRes.status === 401 || loginRes.status === 404 || loginRes.status === 409) {
+                    // 2. Si no existe en la base de datos del servidor o requiere auto-sanación, registrar/reconectar
+                    const regRes = await fetch('/api/v1/auth/register', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            id: localUser.id,
+                            name: localUser.name || AppState.currentUser?.name || 'Psicólogo Clínico',
+                            email: localUser.email,
+                            passwordHash: localUser.passwordHash,
+                            specialty: localUser.specialty || 'Psicología Clínica',
+                            registryNumber: localUser.registryNumber || ''
+                        })
+                    });
+                    if (regRes.ok) {
+                        const regData = await regRes.json();
+                        if (regData.sessionToken) {
+                            localStorage.setItem('psico_session_token', regData.sessionToken);
+                            if (regData.therapist?.id) {
+                                AppState.currentUser.id = regData.therapist.id;
+                                localUser.id = regData.therapist.id;
+                                setSession(regData.therapist.id);
+                                if (typeof saveUsers === 'function') saveUsers(users);
+                            }
+                            return regData.sessionToken;
+                        }
+                    }
+                }
+            } catch (err) {
+                console.warn('Error en renovación automática de sesión:', err.message);
+            }
+        }
+
+        return localStorage.getItem('psico_session_token') || null;
+    },
+
+    async pushToCloud(showToastFeedback = false, retry = true) {
         if (!AppState.currentUser || !AppState.currentUser.id) return;
         if (!navigator.onLine) {
             this.updateStatusUI('offline');
@@ -364,6 +466,12 @@ const CloudSyncManager = {
         try {
             this.isSyncing = true;
             this.updateStatusUI('syncing');
+
+            let token = await this.ensureSessionToken(false);
+            if (!token) {
+                this.updateStatusUI('idle');
+                return;
+            }
 
             const payload = {
                 patients: AppState.patients || [],
@@ -385,20 +493,38 @@ const CloudSyncManager = {
                 clientTimestamp: Date.now()
             };
 
-            const token = localStorage.getItem('psico_session_token');
+            let therapistId = AppState.currentUser?.id;
             const headers = { 'Content-Type': 'application/json' };
-            if (token) headers['Authorization'] = `Bearer ${token}`;
-            if (AppState.currentUser?.id) headers['X-Therapist-Id'] = AppState.currentUser.id;
+            headers['Authorization'] = `Bearer ${token}`;
+            if (therapistId) headers['X-Therapist-Id'] = therapistId;
 
-            const res = await fetch('/api/v1/clinical/sync', {
+            let res = await fetch('/api/v1/clinical/sync', {
                 method: 'POST',
                 headers,
                 body: JSON.stringify({
-                    therapistId: AppState.currentUser.id,
+                    therapistId,
                     payload,
                     clientTimestamp: Date.now()
                 })
             });
+
+            if ((res.status === 401 || res.status === 403) && retry) {
+                token = await this.ensureSessionToken(true);
+                if (token) {
+                    therapistId = AppState.currentUser?.id;
+                    headers['Authorization'] = `Bearer ${token}`;
+                    if (therapistId) headers['X-Therapist-Id'] = therapistId;
+                    res = await fetch('/api/v1/clinical/sync', {
+                        method: 'POST',
+                        headers,
+                        body: JSON.stringify({
+                            therapistId,
+                            payload,
+                            clientTimestamp: Date.now()
+                        })
+                    });
+                }
+            }
 
             if (res.ok) {
                 this.lastSyncTime = Date.now();
@@ -407,7 +533,8 @@ const CloudSyncManager = {
                     showToast('☁️ Expediente sincronizado con la nube con éxito', 'success');
                 }
             } else {
-                this.updateStatusUI('error', 'Error en el servidor de sincronización');
+                const errData = await res.json().catch(() => ({}));
+                this.updateStatusUI('error', errData.error || 'Error al conectar con la nube.');
             }
         } catch (e) {
             console.warn('Sync push error:', e.message);
@@ -417,7 +544,8 @@ const CloudSyncManager = {
         }
     },
 
-    async pullFromCloud(therapistId = AppState.currentUser?.id, showToastFeedback = false) {
+    async pullFromCloud(therapistId = AppState.currentUser?.id, showToastFeedback = false, retry = true) {
+        if (!therapistId && AppState.currentUser?.id) therapistId = AppState.currentUser.id;
         if (!therapistId) return false;
         if (!navigator.onLine) {
             this.updateStatusUI('offline');
@@ -428,20 +556,41 @@ const CloudSyncManager = {
             this.isSyncing = true;
             this.updateStatusUI('syncing');
 
-            const token = localStorage.getItem('psico_session_token');
+            let token = await this.ensureSessionToken(false);
+            if (!token) {
+                token = await this.ensureSessionToken(true);
+            }
+            if (!token) {
+                this.updateStatusUI('idle');
+                return false;
+            }
+
+            therapistId = AppState.currentUser?.id || therapistId;
             const headers = {};
-            if (token) headers['Authorization'] = `Bearer ${token}`;
+            headers['Authorization'] = `Bearer ${token}`;
             if (therapistId) headers['X-Therapist-Id'] = therapistId;
 
-            const res = await fetch(`/api/v1/clinical/sync?therapistId=${encodeURIComponent(therapistId)}`, { headers });
+            let res = await fetch(`/api/v1/clinical/sync?therapistId=${encodeURIComponent(therapistId)}`, { headers });
+
+            if ((res.status === 401 || res.status === 403) && retry) {
+                token = await this.ensureSessionToken(true);
+                if (token) {
+                    therapistId = AppState.currentUser?.id || therapistId;
+                    headers['Authorization'] = `Bearer ${token}`;
+                    if (therapistId) headers['X-Therapist-Id'] = therapistId;
+                    res = await fetch(`/api/v1/clinical/sync?therapistId=${encodeURIComponent(therapistId)}`, { headers });
+                }
+            }
+
             if (!res.ok) {
-                this.updateStatusUI('error');
+                const errData = await res.json().catch(() => ({}));
+                this.updateStatusUI('error', errData.error || 'Error al consultar la nube.');
                 return false;
             }
 
             const data = await res.json();
             if (data.status === 'ok' && data.payload) {
-                const cloud = data.payload;
+                const cloud = typeof data.payload === 'string' ? JSON.parse(data.payload) : data.payload;
 
                 // Combinación sin pérdida (merge inteligente)
                 const mergedPatients = this.mergeCollections(AppState.patients || [], cloud.patients || []);
@@ -498,7 +647,7 @@ const CloudSyncManager = {
             } else if (data.status === 'empty') {
                 // Si la nube está vacía pero este dispositivo ya tiene pacientes o notas (ej. lo guardado ayer en la PC)
                 if ((AppState.patients && AppState.patients.length > 0) || (AppState.notes && AppState.notes.length > 0)) {
-                    await this.pushToCloud(false);
+                    await this.pushToCloud(false, false);
                 } else {
                     this.updateStatusUI('synced');
                 }
@@ -534,11 +683,21 @@ const CloudSyncManager = {
         return Array.from(map.values());
     },
 
-    manualSyncClick() {
+    async manualSyncClick() {
         if (this.isSyncing) return;
-        this.pullFromCloud(AppState.currentUser?.id, true).then(() => {
-            this.pushToCloud(true);
-        });
+        this.updateStatusUI('syncing');
+
+        const token = await this.ensureSessionToken(true);
+        if (!token) {
+            this.updateStatusUI('error', 'Sesión no autenticada en la nube');
+            if (typeof showToast === 'function') {
+                showToast('🔑 Por favor cierra sesión y vuelve a iniciarla para activar el enlace seguro con la nube.', 'warning');
+            }
+            return;
+        }
+
+        const pulled = await this.pullFromCloud(AppState.currentUser?.id, true, true);
+        await this.pushToCloud(true, true);
     }
 };
 
@@ -1375,6 +1534,36 @@ function renderClinicalAlerts() {
 function generateClinicalAlerts() {
     const alerts = [];
     const today = new Date();
+
+    // 1. Alertas de crisis activas del portal del paciente (Prioridad 0)
+    const activePortalCrisis = (typeof db !== 'undefined' && db.localStore?.crisis_alerts || [])
+        .filter(a => !a.acknowledged);
+    activePortalCrisis.forEach(ca => {
+        alerts.push({
+            level: 'critical',
+            icon: '🚨',
+            title: `ALERTA SOS EN VIVO: ${ca.patient_name || 'Paciente'}`,
+            description: ca.reason || 'Riesgo autolítico reportado',
+            patientId: ca.patient_id,
+            patientName: ca.patient_name || 'Alerta Portal',
+            priority: 0
+        });
+    });
+
+    // 2. Notas en estado borrador pendientes de validación y firma profesional
+    const pendingDrafts = AppState.notes.filter(n => n.status === 'borrador' || !n.isSigned);
+    if (pendingDrafts.length > 0) {
+        alerts.push({
+            level: 'warning',
+            icon: '📝',
+            title: `${pendingDrafts.length} nota${pendingDrafts.length > 1 ? 's' : ''} en borrador`,
+            description: 'Pendientes de validación y firma profesional',
+            patientId: pendingDrafts[0].patientId,
+            patientName: 'Expediente Clínico',
+            priority: 2.5
+        });
+    }
+
     AppState.patients.forEach(patient => {
         const patientNotes = AppState.notes.filter(n => n.patientId === patient.id);
         const patientApps = AppState.appointments.filter(a => a.patientId === patient.id);
@@ -1537,9 +1726,51 @@ function renderContextualAgenda(today) {
         const sessionCount = AppState.appointments.filter(a => a.patientId === app.patientId && a.status === 'completada').length;
         const latestScale = AppState.notes.filter(n => n.patientId === app.patientId && n.scaleResult?.scale === 'gad7').sort((a, b) => new Date(b.date) - new Date(a.date))[0];
         const latestGoal = AppState.treatmentPlans.filter(g => g.patientId === app.patientId && g.status === 'en-progreso').sort((a, b) => b.progress - a.progress)[0];
-        return `<div class="contextual-appointment" onclick="editAppointment('${app.id}')"><div class="appointment-time"><div class="time-value">${formatTime(app.time)}</div><div class="time-duration">${app.duration} min</div></div><div class="appointment-wellbeing">${renderWellbeingRing(wellbeing)}</div><div class="appointment-patient-info"><div class="patient-name-line"><div class="patient-avatar-small">${getInitials(patient.name)}</div><div><div class="patient-name">${patient.name}</div><div class="patient-diagnosis">${patient.diagnosis || 'Sin diagnóstico'}</div></div></div><div class="appointment-context">${moodStatus ? `<span class="context-tag mood-${moodStatus.level}">${moodStatus.emoji} ${moodStatus.label}</span>` : ''}${latestScale ? `<span class="context-tag">📊 GAD-7: ${latestScale.scaleResult.score}</span>` : ''}<span class="context-tag">Sesión ${sessionCount + 1}</span></div>${latestGoal ? `<div class="appointment-goal"><i class="fas fa-bullseye"></i><span>${latestGoal.title}</span><span class="goal-progress">${latestGoal.progress}%</span></div>` : ''}</div><div class="appointment-status-indicator status-${app.status}"></div></div>`;
+        return `<div class="contextual-appointment" onclick="editAppointment('${app.id}')">
+            <div class="appointment-time"><div class="time-value">${formatTime(app.time)}</div><div class="time-duration">${app.duration} min</div></div>
+            <div class="appointment-wellbeing">${renderWellbeingRing(wellbeing)}</div>
+            <div class="appointment-patient-info">
+                <div class="patient-name-line"><div class="patient-avatar-small">${getInitials(patient.name)}</div><div><div class="patient-name">${patient.name}</div><div class="patient-diagnosis">${patient.diagnosis || 'Sin diagnóstico'}</div></div></div>
+                <div class="appointment-context">${moodStatus ? `<span class="context-tag mood-${moodStatus.level}">${moodStatus.emoji} ${moodStatus.label}</span>` : ''}${latestScale ? `<span class="context-tag">📊 GAD-7: ${latestScale.scaleResult.score}</span>` : ''}<span class="context-tag">Sesión ${sessionCount + 1}</span></div>
+                ${latestGoal ? `<div class="appointment-goal"><i class="fas fa-bullseye"></i><span>${latestGoal.title}</span><span class="goal-progress">${latestGoal.progress}%</span></div>` : ''}
+            </div>
+            <div style="display:flex;align-items:center;margin-left:auto;padding-right:10px;gap:8px;">
+                <button type="button" class="btn-primary btn-sm" onclick="event.stopPropagation(); evolveAppointmentSession('${app.id}')" title="Crear Nota de Evolución oficial para esta sesión" style="padding:4px 8px;font-size:11px;display:flex;align-items:center;gap:4px;white-space:nowrap;">
+                    <i class="fas fa-file-medical"></i> Evolucionar
+                </button>
+                <div class="appointment-status-indicator status-${app.status}"></div>
+            </div>
+        </div>`;
     }).join('');
 }
+
+function evolveAppointmentSession(appointmentId) {
+    const app = AppState.appointments.find(a => a.id === appointmentId);
+    if (!app) return;
+    const patient = AppState.patients.find(p => p.id === app.patientId);
+    if (!patient) return;
+
+    const previousNotesCount = AppState.notes.filter(n => n.patientId === patient.id).length;
+    const nextSessionNum = previousNotesCount + 1;
+
+    AppState.currentEditingNoteId = null;
+    openModal('noteModal');
+
+    setTimeout(() => {
+        const patientSelect = document.getElementById('notePatient');
+        if (patientSelect) patientSelect.value = patient.id;
+        const dateInput = document.getElementById('noteDate');
+        if (dateInput && app.date) dateInput.value = app.date.split('T')[0];
+        const titleInput = document.getElementById('noteTitle');
+        if (titleInput) titleInput.value = `Sesión #${nextSessionNum} - Seguimiento Psicoterapéutico`;
+        const sessionCountEl = document.getElementById('noteSessionNumber');
+        if (sessionCountEl) sessionCountEl.value = nextSessionNum;
+        if (typeof checkNoteDraft === 'function') checkNoteDraft();
+    }, 150);
+
+    showToast(`Abriendo evolución de sesión #${nextSessionNum} para ${patient.name}`, 'info');
+}
+window.evolveAppointmentSession = evolveAppointmentSession;
 
 // ============================================
 // ÍNDICE DE BIENESTAR
@@ -1656,6 +1887,10 @@ function onPatientBirthdateChange() {
     const bdInput = document.getElementById('patientBirthdate');
     if (!bdInput || !bdInput.value) return;
     const age = calculateAge(bdInput.value);
+    const ageInput = document.getElementById('patientAge');
+    if (ageInput && typeof age === 'number' && !isNaN(age)) {
+        ageInput.value = age;
+    }
     const catSelect = document.getElementById('patientCategory');
     if (!catSelect || typeof age !== 'number' || isNaN(age)) return;
 
@@ -1675,31 +1910,79 @@ function onPatientCategoryChange() {
     updateModalCategorySections(catSelect.value);
 }
 
-function updateModalCategorySections(category) {
-    const pedSection = document.getElementById('pediatricFieldsSection');
-    const childBlock = document.getElementById('childSpecificBlock');
-    const teenBlock = document.getElementById('adolescentSpecificBlock');
-    const adultRow = document.getElementById('adultSpecificRow');
-
-    if (!pedSection) return;
-
-    if (category === 'child') {
-        pedSection.style.display = 'block';
-        if (childBlock) childBlock.style.display = 'block';
-        if (teenBlock) teenBlock.style.display = 'none';
-        if (adultRow) adultRow.style.display = 'none';
-    } else if (category === 'adolescent') {
-        pedSection.style.display = 'block';
-        if (childBlock) childBlock.style.display = 'none';
-        if (teenBlock) teenBlock.style.display = 'block';
-        if (adultRow) adultRow.style.display = 'grid';
-    } else {
-        // adult
-        pedSection.style.display = 'none';
-        if (childBlock) childBlock.style.display = 'none';
-        if (teenBlock) teenBlock.style.display = 'none';
-        if (adultRow) adultRow.style.display = 'grid';
+function onInitiativeChange() {
+    const sel = document.getElementById('patientInitiative');
+    const otherInput = document.getElementById('patientInitiativeOther');
+    if (sel && otherInput) {
+        otherInput.style.display = sel.value === 'Otro' ? 'block' : 'none';
+        if (sel.value !== 'Otro') otherInput.value = '';
     }
+}
+window.onInitiativeChange = onInitiativeChange;
+
+function onReferralChange(el) {
+    if (!el) return;
+    if (el.value === 'No aplica' && el.checked) {
+        document.querySelectorAll('input[name="patientReferral"]').forEach(cb => {
+            if (cb.value !== 'No aplica') {
+                cb.checked = false;
+                cb.closest('.referral-chip')?.classList.remove('active');
+            }
+        });
+    } else if (el.checked) {
+        const noAplica = document.querySelector('input[name="patientReferral"][value="No aplica"]');
+        if (noAplica) {
+            noAplica.checked = false;
+            noAplica.closest('.referral-chip')?.classList.remove('active');
+        }
+    }
+    document.querySelectorAll('input[name="patientReferral"]').forEach(cb => {
+        cb.closest('.referral-chip')?.classList.toggle('active', cb.checked);
+    });
+}
+window.onReferralChange = onReferralChange;
+
+function updateModalCategorySections(category) {
+    const isTeen = category === 'adolescent';
+    const isChild = category === 'child';
+    const isAdult = category === 'adult';
+
+    const getEl = id => document.getElementById(id);
+
+    // Título de la Sección de Datos
+    const titleEl = getEl('patientDataSectionTitle');
+    if (titleEl) {
+        titleEl.textContent = isTeen ? '1. Ficha del Paciente (Adolescente)' : isChild ? '1. Ficha del Paciente (Niñez)' : 'Ficha del Paciente';
+    }
+
+    // Campos del Paciente
+    if (getEl('teenAgeGroup')) getEl('teenAgeGroup').style.display = isTeen ? 'block' : 'none';
+    if (getEl('teenSchoolLivesRow')) getEl('teenSchoolLivesRow').style.display = (isTeen || isChild) ? 'grid' : 'none';
+    if (getEl('teenReferralGroup')) getEl('teenReferralGroup').style.display = isTeen ? 'block' : 'none';
+    if (getEl('patientPhoneWrapper')) getEl('patientPhoneWrapper').style.display = isTeen ? 'none' : 'block';
+    if (getEl('adultSpecificRow')) getEl('adultSpecificRow').style.display = isAdult ? 'grid' : 'none';
+
+    // Ficha del Representante / Tutor Legal
+    if (getEl('pediatricFieldsSection')) getEl('pediatricFieldsSection').style.display = (isTeen || isChild) ? 'block' : 'none';
+    if (getEl('teenGuardianDetailsRow')) getEl('teenGuardianDetailsRow').style.display = isTeen ? 'grid' : 'none';
+    if (getEl('teenGuardianEmailWrapper')) getEl('teenGuardianEmailWrapper').style.display = isTeen ? 'block' : 'none';
+    if (getEl('patientSchoolNameWrapper')) getEl('patientSchoolNameWrapper').style.display = isChild ? 'grid' : 'none';
+    if (getEl('childSpecificBlock')) getEl('childSpecificBlock').style.display = isChild ? 'block' : 'none';
+
+    // Información Referente a la Consulta Psicológica
+    if (getEl('consultationInfoSection')) getEl('consultationInfoSection').style.display = 'block';
+    if (getEl('teenConsultationInitialBlock')) getEl('teenConsultationInitialBlock').style.display = isTeen ? 'block' : 'none';
+    if (getEl('teenHypothesisBlock')) getEl('teenHypothesisBlock').style.display = isTeen ? 'block' : 'none';
+
+    // Secciones que se omiten en adolescente según especificación
+    if (getEl('emergencyContactSection')) getEl('emergencyContactSection').style.display = isAdult ? 'block' : 'none';
+    if (getEl('diagnosisMedicationSection')) getEl('diagnosisMedicationSection').style.display = isTeen ? 'none' : 'block';
+    if (getEl('medicalHistorySection')) getEl('medicalHistorySection').style.display = isTeen ? 'none' : 'block';
+
+    // Encuadre y Acuerdos
+    if (getEl('encuadreSection')) getEl('encuadreSection').style.display = 'block';
+    if (getEl('patientNotesWrapper')) getEl('patientNotesWrapper').style.display = isTeen ? 'none' : 'block';
+    if (getEl('patientShiftGroup')) getEl('patientShiftGroup').style.display = 'block';
 }
 
 function setPatientCategoryFilter(cat) {
@@ -1715,12 +1998,23 @@ function setPatientCategoryFilter(cat) {
 function openNewPatientForCategory(cat) {
     document.getElementById('patientId').value = '';
     document.getElementById('patientForm').reset();
+    document.querySelectorAll('input[name="patientReferral"]').forEach(cb => {
+        cb.checked = false;
+        cb.closest('.referral-chip')?.classList.remove('active');
+    });
+    if (document.getElementById('patientInitiativeOther')) document.getElementById('patientInitiativeOther').style.display = 'none';
+    if (document.getElementById('patientStatus')) document.getElementById('patientStatus').value = 'Por iniciar';
     document.getElementById('patientModalTitle').textContent = 'Nuevo Expediente';
     const catSelect = document.getElementById('patientCategory');
     const targetCat = (cat && cat !== 'all') ? cat : 'adult';
     if (catSelect) catSelect.value = targetCat;
     updateModalCategorySections(targetCat);
     openModal('patientModal');
+}
+
+function getPatientStatusClass(status) {
+    if (!status) return '';
+    return 'status-' + status.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/\s+/g, '-');
 }
 
 function renderPatients(filter = '') {
@@ -1780,13 +2074,15 @@ function renderPatients(filter = '') {
             `;
         } else if (cat === 'adolescent') {
             metaDetail = `
-                <span class="meta-item"><i class="fas fa-stethoscope"></i> ${p.diagnosis || 'Pendiente'}</span>
+                ${p.status ? `<span class="meta-item"><i class="fas fa-tag"></i> ${p.status}</span>` : ''}
+                ${p.schoolGrade ? `<span class="meta-item"><i class="fas fa-graduation-cap"></i> ${p.schoolGrade}</span>` : ''}
                 ${p.guardianName ? `<span class="meta-item"><i class="fas fa-user-shield"></i> Tutor: ${p.guardianName}</span>` : ''}
-                ${p.schoolGrade || p.schoolName ? `<span class="meta-item"><i class="fas fa-school"></i> ${p.schoolGrade || p.schoolName}</span>` : ''}
-                ${p.adolescentAssent === 'firmado' ? '<span class="meta-item badge-pill-success"><i class="fas fa-handshake"></i> Asentimiento firmado</span>' : ''}
+                ${p.guardianPhone ? `<span class="meta-item"><i class="fas fa-phone-alt"></i> ${p.guardianPhone}</span>` : ''}
+                ${p.guardianConsent === 'firmado' ? '<span class="meta-item badge-pill-success"><i class="fas fa-file-contract"></i> Consentimiento firmado</span>' : ''}
             `;
         } else {
             metaDetail = `
+                ${p.status ? `<span class="meta-item"><i class="fas fa-tag"></i> ${p.status}</span>` : ''}
                 <span class="meta-item"><i class="fas fa-stethoscope"></i> ${p.diagnosis || 'Pendiente'}</span>
                 ${p.occupation ? `<span class="meta-item"><i class="fas fa-briefcase"></i> ${p.occupation}</span>` : ''}
                 ${p.phone ? `<span class="meta-item"><i class="fas fa-phone-alt"></i> ${p.phone}</span>` : ''}
@@ -1799,6 +2095,7 @@ function renderPatients(filter = '') {
                 <div class="patient-info">
                     <div class="patient-name-row">
                         <span class="patient-name">${formatDisplayName(p.name)}</span>
+                        ${p.status ? `<span class="patient-status-chip ${getPatientStatusClass(p.status)}">${p.status}</span>` : ''}
                         ${badge}
                     </div>
                     <div class="patient-meta">${metaDetail}</div>
@@ -1816,39 +2113,64 @@ function filterPatients(q) { renderPatients(q); }
 
 function handlePatientSubmit(e) {
     e.preventDefault();
+    const bd = document.getElementById('patientBirthdate').value;
+    const computedAge = bd ? calculateAge(bd) : null;
+    const manualAge = parseInt(document.getElementById('patientAge')?.value, 10);
+    const finalAge = (!isNaN(manualAge) && manualAge >= 0) ? manualAge : computedAge;
+
+    const referralChecked = Array.from(document.querySelectorAll('input[name="patientReferral"]:checked')).map(cb => cb.value);
+
     const patient = {
         id: document.getElementById('patientId').value || generateId(),
+        status: document.getElementById('patientStatus')?.value || 'Por iniciar',
         name: document.getElementById('patientName').value.trim(),
         category: document.getElementById('patientCategory').value,
-        birthdate: document.getElementById('patientBirthdate').value,
-        email: document.getElementById('patientEmail').value.trim(),
-        phone: document.getElementById('patientPhone').value.trim(),
+        birthdate: bd,
+        age: finalAge,
         gender: document.getElementById('patientGender').value,
+        email: document.getElementById('patientEmail').value.trim(),
+        phone: document.getElementById('patientPhone')?.value.trim() || '',
+        schoolGrade: document.getElementById('patientSchoolGrade')?.value.trim() || '',
+        livesWith: document.getElementById('patientLivesWith')?.value.trim() || '',
+        referral: referralChecked,
         occupation: document.getElementById('patientOccupation')?.value.trim() || '',
         maritalStatus: document.getElementById('patientMaritalStatus')?.value.trim() || '',
         guardianName: document.getElementById('patientGuardianName')?.value.trim() || '',
         guardianRelation: document.getElementById('patientGuardianRelation')?.value || '',
+        guardianAge: document.getElementById('patientGuardianAge')?.value || '',
+        guardianSchooling: document.getElementById('patientGuardianSchooling')?.value.trim() || '',
+        guardianOccupation: document.getElementById('patientGuardianOccupation')?.value.trim() || '',
+        guardianMaritalStatus: document.getElementById('patientGuardianMaritalStatus')?.value || '',
         guardianPhone: document.getElementById('patientGuardianPhone')?.value.trim() || '',
+        guardianEmail: document.getElementById('patientGuardianEmail')?.value.trim() || '',
         guardianConsent: document.getElementById('patientGuardianConsent')?.value || 'no-aplica',
         schoolName: document.getElementById('patientSchoolName')?.value.trim() || '',
-        schoolGrade: document.getElementById('patientSchoolGrade')?.value.trim() || '',
         developmentalMilestones: document.getElementById('patientDevelopmentalMilestones')?.value.trim() || '',
-        adolescentAssent: document.getElementById('patientAdolescentAssent')?.value || 'no-aplica',
-        adolescentPerspective: document.getElementById('patientAdolescentPerspective')?.value.trim() || '',
-        emergency: document.getElementById('patientEmergency').value.trim(),
-        emergencyRelation: document.getElementById('patientEmergencyRelation').value.trim(),
-        reason: document.getElementById('patientReason').value.trim(),
-        goals: document.getElementById('patientGoals').value.trim(),
-        diagnosis: document.getElementById('patientDiagnosis').value.trim() || 'Pendiente de evaluación',
-        diagnosis2: document.getElementById('patientDiagnosis2').value.trim(),
-        medication: document.getElementById('patientMedication').value.trim(),
-        medical: document.getElementById('patientMedical').value.trim(),
-        familyHistory: document.getElementById('patientFamilyHistory').value.trim(),
-        riskFactors: document.getElementById('patientRiskFactors').value.trim(),
-        protectiveFactors: document.getElementById('patientProtectiveFactors').value.trim(),
-        notes: document.getElementById('patientNotes').value.trim(),
-        frequency: document.getElementById('patientFrequency').value,
-        modality: document.getElementById('patientModality').value,
+        adolescentAssent: document.getElementById('patientGuardianConsent')?.value || 'no-aplica',
+        adolescentPerspective: document.getElementById('patientGoals')?.value.trim() || '',
+        previousPsych: document.getElementById('patientPreviousPsych')?.value || 'No',
+        applicantName: document.getElementById('patientApplicantName')?.value.trim() || '',
+        initiative: document.getElementById('patientInitiative')?.value || '',
+        initiativeOther: document.getElementById('patientInitiativeOther')?.value.trim() || '',
+        emergency: document.getElementById('patientEmergency')?.value.trim() || '',
+        emergencyRelation: document.getElementById('patientEmergencyRelation')?.value.trim() || '',
+        reason: document.getElementById('patientReason')?.value.trim() || '',
+        goals: document.getElementById('patientGoals')?.value.trim() || '',
+        bioHypothesis: document.getElementById('patientBioHypothesis')?.value.trim() || '',
+        socialHypothesis: document.getElementById('patientSocialHypothesis')?.value.trim() || '',
+        psychHypothesis: document.getElementById('patientPsychHypothesis')?.value.trim() || '',
+        vulnerabilityFactors: document.getElementById('patientVulnerabilityFactors')?.value.trim() || '',
+        diagnosis: document.getElementById('patientDiagnosis')?.value.trim() || 'En proceso de formulación clínica',
+        diagnosis2: document.getElementById('patientDiagnosis2')?.value.trim() || '',
+        medication: document.getElementById('patientMedication')?.value.trim() || '',
+        medical: document.getElementById('patientMedical')?.value.trim() || '',
+        familyHistory: document.getElementById('patientFamilyHistory')?.value.trim() || '',
+        riskFactors: document.getElementById('patientRiskFactors')?.value.trim() || '',
+        protectiveFactors: document.getElementById('patientProtectiveFactors')?.value.trim() || '',
+        notes: document.getElementById('patientNotes')?.value.trim() || '',
+        frequency: document.getElementById('patientFrequency')?.value || '',
+        modality: document.getElementById('patientModality')?.value || '',
+        shift: document.getElementById('patientShift')?.value || '',
         createdAt: new Date().toISOString()
     };
     const idx = AppState.patients.findIndex(p => p.id === patient.id);
@@ -1877,37 +2199,68 @@ function editPatient(id) {
     if (!p) return;
     const cat = getPatientCategory(p);
     document.getElementById('patientId').value = p.id;
+    if (document.getElementById('patientStatus')) document.getElementById('patientStatus').value = p.status || 'Por iniciar';
     document.getElementById('patientName').value = p.name;
     document.getElementById('patientCategory').value = cat;
     document.getElementById('patientBirthdate').value = p.birthdate || '';
-    document.getElementById('patientEmail').value = p.email || '';
-    document.getElementById('patientPhone').value = p.phone || '';
+    if (document.getElementById('patientAge')) document.getElementById('patientAge').value = p.age || (p.birthdate ? calculateAge(p.birthdate) : '');
     document.getElementById('patientGender').value = p.gender || '';
+    document.getElementById('patientEmail').value = p.email || '';
+    if (document.getElementById('patientPhone')) document.getElementById('patientPhone').value = p.phone || '';
+    if (document.getElementById('patientSchoolGrade')) document.getElementById('patientSchoolGrade').value = p.schoolGrade || '';
+    if (document.getElementById('patientLivesWith')) document.getElementById('patientLivesWith').value = p.livesWith || '';
+
+    // Checkboxes de Referido
+    const refList = Array.isArray(p.referral) ? p.referral : (p.referral ? [p.referral] : []);
+    document.querySelectorAll('input[name="patientReferral"]').forEach(cb => {
+        cb.checked = refList.includes(cb.value);
+        cb.closest('.referral-chip')?.classList.toggle('active', cb.checked);
+    });
+
     if (document.getElementById('patientOccupation')) document.getElementById('patientOccupation').value = p.occupation || '';
     if (document.getElementById('patientMaritalStatus')) document.getElementById('patientMaritalStatus').value = p.maritalStatus || '';
     if (document.getElementById('patientGuardianName')) document.getElementById('patientGuardianName').value = p.guardianName || '';
     if (document.getElementById('patientGuardianRelation')) document.getElementById('patientGuardianRelation').value = p.guardianRelation || '';
+    if (document.getElementById('patientGuardianAge')) document.getElementById('patientGuardianAge').value = p.guardianAge || '';
+    if (document.getElementById('patientGuardianSchooling')) document.getElementById('patientGuardianSchooling').value = p.guardianSchooling || '';
+    if (document.getElementById('patientGuardianOccupation')) document.getElementById('patientGuardianOccupation').value = p.guardianOccupation || '';
+    if (document.getElementById('patientGuardianMaritalStatus')) document.getElementById('patientGuardianMaritalStatus').value = p.guardianMaritalStatus || '';
     if (document.getElementById('patientGuardianPhone')) document.getElementById('patientGuardianPhone').value = p.guardianPhone || '';
+    if (document.getElementById('patientGuardianEmail')) document.getElementById('patientGuardianEmail').value = p.guardianEmail || '';
     if (document.getElementById('patientGuardianConsent')) document.getElementById('patientGuardianConsent').value = p.guardianConsent || 'no-aplica';
     if (document.getElementById('patientSchoolName')) document.getElementById('patientSchoolName').value = p.schoolName || '';
-    if (document.getElementById('patientSchoolGrade')) document.getElementById('patientSchoolGrade').value = p.schoolGrade || '';
     if (document.getElementById('patientDevelopmentalMilestones')) document.getElementById('patientDevelopmentalMilestones').value = p.developmentalMilestones || '';
-    if (document.getElementById('patientAdolescentAssent')) document.getElementById('patientAdolescentAssent').value = p.adolescentAssent || 'no-aplica';
-    if (document.getElementById('patientAdolescentPerspective')) document.getElementById('patientAdolescentPerspective').value = p.adolescentPerspective || '';
-    document.getElementById('patientEmergency').value = p.emergency || '';
-    document.getElementById('patientEmergencyRelation').value = p.emergencyRelation || '';
+
+    if (document.getElementById('patientPreviousPsych')) document.getElementById('patientPreviousPsych').value = p.previousPsych || 'No';
+    if (document.getElementById('patientApplicantName')) document.getElementById('patientApplicantName').value = p.applicantName || '';
+    if (document.getElementById('patientInitiative')) {
+        document.getElementById('patientInitiative').value = p.initiative || '';
+        onInitiativeChange();
+    }
+    if (document.getElementById('patientInitiativeOther')) document.getElementById('patientInitiativeOther').value = p.initiativeOther || '';
+
+    if (document.getElementById('patientEmergency')) document.getElementById('patientEmergency').value = p.emergency || '';
+    if (document.getElementById('patientEmergencyRelation')) document.getElementById('patientEmergencyRelation').value = p.emergencyRelation || '';
     document.getElementById('patientReason').value = p.reason || '';
     document.getElementById('patientGoals').value = p.goals || '';
-    document.getElementById('patientDiagnosis').value = p.diagnosis || '';
-    document.getElementById('patientDiagnosis2').value = p.diagnosis2 || '';
-    document.getElementById('patientMedication').value = p.medication || '';
-    document.getElementById('patientMedical').value = p.medical || '';
-    document.getElementById('patientFamilyHistory').value = p.familyHistory || '';
-    document.getElementById('patientRiskFactors').value = p.riskFactors || '';
-    document.getElementById('patientProtectiveFactors').value = p.protectiveFactors || '';
-    document.getElementById('patientNotes').value = p.notes || '';
-    document.getElementById('patientFrequency').value = p.frequency || '';
-    document.getElementById('patientModality').value = p.modality || '';
+
+    if (document.getElementById('patientBioHypothesis')) document.getElementById('patientBioHypothesis').value = p.bioHypothesis || '';
+    if (document.getElementById('patientSocialHypothesis')) document.getElementById('patientSocialHypothesis').value = p.socialHypothesis || '';
+    if (document.getElementById('patientPsychHypothesis')) document.getElementById('patientPsychHypothesis').value = p.psychHypothesis || '';
+    if (document.getElementById('patientVulnerabilityFactors')) document.getElementById('patientVulnerabilityFactors').value = p.vulnerabilityFactors || '';
+
+    if (document.getElementById('patientDiagnosis')) document.getElementById('patientDiagnosis').value = p.diagnosis || '';
+    if (document.getElementById('patientDiagnosis2')) document.getElementById('patientDiagnosis2').value = p.diagnosis2 || '';
+    if (document.getElementById('patientMedication')) document.getElementById('patientMedication').value = p.medication || '';
+    if (document.getElementById('patientMedical')) document.getElementById('patientMedical').value = p.medical || '';
+    if (document.getElementById('patientFamilyHistory')) document.getElementById('patientFamilyHistory').value = p.familyHistory || '';
+    if (document.getElementById('patientRiskFactors')) document.getElementById('patientRiskFactors').value = p.riskFactors || '';
+    if (document.getElementById('patientProtectiveFactors')) document.getElementById('patientProtectiveFactors').value = p.protectiveFactors || '';
+    if (document.getElementById('patientNotes')) document.getElementById('patientNotes').value = p.notes || '';
+    if (document.getElementById('patientFrequency')) document.getElementById('patientFrequency').value = p.frequency || '';
+    if (document.getElementById('patientModality')) document.getElementById('patientModality').value = p.modality || '';
+    if (document.getElementById('patientShift')) document.getElementById('patientShift').value = p.shift || '';
+
     document.getElementById('patientModalTitle').textContent = 'Editar Expediente';
     updateModalCategorySections(cat);
     openModal('patientModal');
@@ -1962,19 +2315,30 @@ function viewPatient(id) {
                         <h2 class="patient-hero-name">${cleanName}</h2>
                         <div class="patient-hero-badges-wrap">
                             ${badge}
-                            <span class="dossier-badge-diag"><i class="fas fa-stethoscope"></i> ${patient.diagnosis || 'Pendiente de evaluación'}</span>
+                            ${patient.status ? `<span class="patient-status-chip ${getPatientStatusClass(patient.status)}"><i class="fas fa-flag"></i> ${patient.status}</span>` : ''}
+                            ${cat === 'adolescent' ? '' : `<span class="dossier-badge-diag"><i class="fas fa-stethoscope"></i> ${patient.diagnosis || 'Pendiente de evaluación'}</span>`}
                         </div>
                     </div>
                     <div class="patient-hero-chips-grid">
-                        ${patient.birthdate ? `<div class="hero-chip"><i class="fas fa-birthday-cake"></i> <span><strong>${age}</strong> años (${formatDate(patient.birthdate)})</span></div>` : ''}
+                        ${patient.age ? `<div class="hero-chip"><i class="fas fa-user-clock"></i> <span><strong>${patient.age}</strong> años</span></div>` : (patient.birthdate ? `<div class="hero-chip"><i class="fas fa-birthday-cake"></i> <span><strong>${age}</strong> años (${formatDate(patient.birthdate)})</span></div>` : '')}
                         ${patient.gender ? `<div class="hero-chip"><i class="fas fa-venus-mars"></i> <span>${patient.gender}</span></div>` : ''}
-                        ${patient.occupation ? `<div class="hero-chip"><i class="fas fa-briefcase"></i> <span>${patient.occupation}</span></div>` : ''}
-                        ${patient.maritalStatus ? `<div class="hero-chip"><i class="fas fa-ring"></i> <span>${patient.maritalStatus}</span></div>` : ''}
-                        ${patient.phone ? `<div class="hero-chip"><i class="fas fa-phone-alt"></i> <span>${patient.phone}</span></div>` : ''}
-                        ${patient.guardianName ? `<div class="hero-chip"><i class="fas fa-user-shield"></i> <span>Tutor: ${patient.guardianName} (${patient.guardianRelation || 'Tutor'})</span></div>` : ''}
-                        ${patient.schoolName || patient.schoolGrade ? `<div class="hero-chip"><i class="fas fa-school"></i> <span>${patient.schoolName || ''} ${patient.schoolGrade ? '(' + patient.schoolGrade + ')' : ''}</span></div>` : ''}
-                        ${cat === 'child' ? `<div class="hero-chip"><i class="fas fa-file-signature"></i> <span>${patient.guardianConsent === 'firmado' ? 'Consentimiento firmado' : 'Consentimiento pendiente'}</span></div>` : ''}
-                        ${cat === 'adolescent' && patient.adolescentAssent === 'firmado' ? `<div class="hero-chip hero-chip-success"><i class="fas fa-handshake"></i> <span>Asentimiento firmado</span></div>` : ''}
+                        ${cat === 'adolescent' ? `
+                            ${patient.schoolGrade ? `<div class="hero-chip"><i class="fas fa-graduation-cap"></i> <span>Escolaridad: ${patient.schoolGrade}</span></div>` : ''}
+                            ${patient.livesWith ? `<div class="hero-chip"><i class="fas fa-house-user"></i> <span>Vive con: ${patient.livesWith}</span></div>` : ''}
+                            ${patient.guardianName ? `<div class="hero-chip"><i class="fas fa-user-shield"></i> <span>Tutor: ${patient.guardianName} (${patient.guardianRelation || 'Tutor'})</span></div>` : ''}
+                            ${patient.guardianPhone ? `<div class="hero-chip"><i class="fas fa-phone-alt"></i> <span>Tel. Tutor: ${patient.guardianPhone}</span></div>` : ''}
+                            ${patient.guardianConsent === 'firmado' ? `<div class="hero-chip hero-chip-success"><i class="fas fa-file-signature"></i> <span>Consentimiento Informado Firmado</span></div>` : `<div class="hero-chip"><i class="fas fa-clock"></i> <span>Consentimiento Pendiente</span></div>`}
+                            ${patient.shift ? `<div class="hero-chip"><i class="fas fa-clock"></i> <span>Turno: ${patient.shift}</span></div>` : ''}
+                            ${patient.modality ? `<div class="hero-chip"><i class="fas fa-laptop-house"></i> <span>Modalidad: ${patient.modality}</span></div>` : ''}
+                            ${patient.frequency ? `<div class="hero-chip"><i class="fas fa-calendar-check"></i> <span>Frecuencia: ${patient.frequency}</span></div>` : ''}
+                        ` : `
+                            ${patient.occupation ? `<div class="hero-chip"><i class="fas fa-briefcase"></i> <span>${patient.occupation}</span></div>` : ''}
+                            ${patient.maritalStatus ? `<div class="hero-chip"><i class="fas fa-ring"></i> <span>${patient.maritalStatus}</span></div>` : ''}
+                            ${patient.phone ? `<div class="hero-chip"><i class="fas fa-phone-alt"></i> <span>${patient.phone}</span></div>` : ''}
+                            ${patient.guardianName ? `<div class="hero-chip"><i class="fas fa-user-shield"></i> <span>Tutor: ${patient.guardianName} (${patient.guardianRelation || 'Tutor'})</span></div>` : ''}
+                            ${patient.schoolName || patient.schoolGrade ? `<div class="hero-chip"><i class="fas fa-school"></i> <span>${patient.schoolName || ''} ${patient.schoolGrade ? '(' + patient.schoolGrade + ')' : ''}</span></div>` : ''}
+                            ${cat === 'child' ? `<div class="hero-chip"><i class="fas fa-file-signature"></i> <span>${patient.guardianConsent === 'firmado' ? 'Consentimiento firmado' : 'Consentimiento pendiente'}</span></div>` : ''}
+                        `}
                     </div>
                 </div>
             </div>
@@ -2111,6 +2475,58 @@ function renderTabHistoria(patient) {
         return ClinicalHistorySystem.renderTabHistoriaIntegral(patient);
     }
     const cat = getPatientCategory(patient);
+
+    if (cat === 'adolescent') {
+        const referralList = Array.isArray(patient.referral) ? patient.referral.join(', ') : (patient.referral || patient.referredBy || 'No especificado');
+        const sections = [
+            {
+                title: '📋 1. Ficha del Paciente (Adolescente)',
+                content: `<strong>Nombre Completo:</strong> ${patient.name || 'Sin registrar'}<br>
+                          <strong>Edad:</strong> ${patient.age || (patient.birthdate ? calculateAge(patient.birthdate) + ' años' : 'No registrada')}<br>
+                          <strong>Sexo:</strong> ${patient.gender || 'No registrado'}<br>
+                          <strong>Nivel de Escolaridad:</strong> ${patient.schoolGrade || 'No registrado'}<br>
+                          <strong>Vive con:</strong> ${patient.livesWith || 'No especificado'}<br>
+                          <strong>Referido por:</strong> ${referralList}<br>
+                          <strong>Correo Electrónico:</strong> ${patient.email || 'Sin registrar'}`
+            },
+            {
+                title: '🛡️ 2. Ficha del Representante / Tutor Legal',
+                content: `<strong>Nombre Completo:</strong> ${patient.guardianName || 'No registrado'}<br>
+                          <strong>Parentesco:</strong> ${patient.guardianRelation || 'No registrado'}<br>
+                          <strong>Edad:</strong> ${patient.guardianAge ? patient.guardianAge + ' años' : 'No registrada'}<br>
+                          <strong>Nivel de Escolaridad:</strong> ${patient.guardianSchooling || 'No registrado'}<br>
+                          <strong>Ocupación:</strong> ${patient.guardianOccupation || 'No registrada'}<br>
+                          <strong>Estado Civil:</strong> ${patient.guardianMaritalStatus || 'No registrado'}<br>
+                          <strong>Teléfono:</strong> ${patient.guardianPhone || 'Sin registrar'}<br>
+                          <strong>Correo Electrónico:</strong> ${patient.guardianEmail || 'Sin registrar'}<br>
+                          <strong>Consentimiento Informado:</strong> ${patient.guardianConsent === 'firmado' ? '✅ Firmado' : '⏳ Pendiente'}`
+            },
+            {
+                title: '🧠 3. Información Referente a la Consulta Psicológica',
+                content: `<strong>¿Ha asistido antes a Consulta Psicológica?:</strong> ${patient.previousPsych || 'No'}<br>
+                          <strong>Nombre de la Persona que solicita la Consulta:</strong> ${patient.applicantName || 'No especificada'}<br>
+                          <strong>¿Quién tomó la iniciativa?:</strong> ${patient.initiative || 'No registrada'} ${patient.initiative === 'Otro' && patient.initiativeOther ? '(' + patient.initiativeOther + ')' : ''}<br>
+                          <strong>Motivo de Consulta:</strong> ${patient.reason || 'Sin motivo registrado'}<br>
+                          <strong>Objetivos del Paciente:</strong> ${patient.goals || 'Sin objetivos registrados'}<br>
+                          <hr style="margin:10px 0; border:0; border-top:1px dashed var(--border-secondary);">
+                          <strong>Hipótesis Biológica:</strong> ${patient.bioHypothesis || 'Sin información'}<br>
+                          <strong>Hipótesis Social y Familiar:</strong> ${patient.socialHypothesis || 'Sin información'}<br>
+                          <strong>Hipótesis Psicológica:</strong> ${patient.psychHypothesis || 'Sin información'}<br>
+                          <hr style="margin:10px 0; border:0; border-top:1px dashed var(--border-secondary);">
+                          <strong>Factores de Riesgo:</strong> ${patient.riskFactors || 'Sin información'}<br>
+                          <strong>Factores de Vulnerabilidad:</strong> ${patient.vulnerabilityFactors || 'Sin información'}<br>
+                          <strong>Factores de Protección:</strong> ${patient.protectiveFactors || 'Sin información'}`
+            },
+            {
+                title: '🤝 4. Encuadre y Acuerdos de Consulta',
+                content: `<strong>Frecuencia Acordada:</strong> ${patient.frequency || 'Por acordar'}<br>
+                          <strong>Modalidad:</strong> ${patient.modality || 'No definida'}<br>
+                          <strong>Turno:</strong> ${patient.shift || 'No definido'}`
+            }
+        ];
+        return sections.map(s => `<div class="clinical-history-section"><h4>${s.title}</h4><div class="clinical-history-content">${s.content}</div></div>`).join('');
+    }
+
     const sections = [];
 
     // Secciones específicas por etapa del ciclo vital
@@ -2126,23 +2542,6 @@ function renderTabHistoria(patient) {
         sections.push({
             title: '🌱 Hitos del Neurodesarrollo y Antecedentes Perinatales',
             content: patient.developmentalMilestones
-        });
-    } else if (cat === 'adolescent') {
-        sections.push({
-            title: '👨‍👧 Representante Legal y Contacto Familiar',
-            content: patient.guardianName ? `<strong>Tutor/a:</strong> ${patient.guardianName} (${patient.guardianRelation || 'Tutor'})<br><strong>Teléfono directo:</strong> ${patient.guardianPhone || 'Sin registrar'}<br><strong>Consentimiento Parental:</strong> ${patient.guardianConsent === 'firmado' ? '✅ Firmado' : '⏳ Pendiente'}` : null
-        });
-        sections.push({
-            title: '🏫 Contexto Escolar / Formativo',
-            content: (patient.schoolName || patient.schoolGrade) ? `<strong>Establecimiento:</strong> ${patient.schoolName || 'No esp.'}<br><strong>Nivel / Grado:</strong> ${patient.schoolGrade || 'No esp.'}` : null
-        });
-        sections.push({
-            title: '🤝 Alianza de Confidencialidad y Asentimiento Adolescente',
-            content: patient.adolescentAssent === 'firmado' ? '✅ Asentimiento informado completado y pacto de secreto profesional acordado con el menor y la familia.' : '⏳ Pendiente de acuerdo de confidencialidad en encuadre inicial.'
-        });
-        sections.push({
-            title: '🧭 Perspectiva del Adolescente vs Demanda de los Padres',
-            content: patient.adolescentPerspective
         });
     } else {
         if (patient.maritalStatus) {
@@ -2692,43 +3091,50 @@ function syncPatientToPortalStorage(patient) {
     }
     localStorage.setItem('psico_portal_patients', JSON.stringify(portalPatients));
 
-    // Sincronizar en segundo plano hacia base de datos PostgreSQL
-    try {
-        const patientTasks = (AppState.notes || [])
-            .flatMap(n => n.intersessionTasks || [])
-            .filter(t => t.patientId === patient.id || t.patient_id === patient.id);
-        
-        const token = localStorage.getItem('psico_session_token');
-        const syncHeaders = { 'Content-Type': 'application/json' };
-        if (token) syncHeaders['Authorization'] = `Bearer ${token}`;
-        if (AppState.currentUser?.id) syncHeaders['X-Therapist-Id'] = AppState.currentUser.id;
+    // Sincronizar en segundo plano hacia base de datos PostgreSQL si hay sesión activa
+    (async () => {
+        try {
+            if (typeof CloudSyncManager === 'undefined') return;
+            const token = await CloudSyncManager.ensureSessionToken(false);
+            if (!token) return; // Evitar disparar peticiones no autorizadas sin token
 
-        fetch('/api/v1/patients/sync', {
-            method: 'POST',
-            headers: syncHeaders,
-            body: JSON.stringify({
-                patients: [{
-                    id: patient.id,
-                    name: patient.name,
-                    email: patient.email || '',
-                    phone: patient.phone || '',
-                    birthdate: patient.birthdate || null,
-                    lifeStage: patient.lifeStage || patient.category || 'adult',
-                    diagnosis: patient.diagnosis || '',
-                    portalToken: patient.portalToken,
-                    portalEnabled: patient.portalEnabled !== false,
-                    portalCreatedAt: patient.portalCreatedAt || new Date().toISOString()
-                }],
-                tasks: patientTasks.map(t => ({
-                    id: t.id || `task_${Math.random().toString(36).substr(2, 6)}`,
-                    patient_id: patient.id,
-                    title: t.title || t.text,
-                    description: t.description || '',
-                    completed: Boolean(t.completed)
-                }))
-            })
-        }).catch(() => {});
-    } catch (e) {}
+            const patientTasks = (AppState.notes || [])
+                .flatMap(n => n.intersessionTasks || [])
+                .filter(t => t.patientId === patient.id || t.patient_id === patient.id);
+            
+            const syncHeaders = { 
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${token}`
+            };
+            if (AppState.currentUser?.id) syncHeaders['X-Therapist-Id'] = AppState.currentUser.id;
+
+            await fetch('/api/v1/patients/sync', {
+                method: 'POST',
+                headers: syncHeaders,
+                body: JSON.stringify({
+                    patients: [{
+                        id: patient.id,
+                        name: patient.name,
+                        email: patient.email || '',
+                        phone: patient.phone || '',
+                        birthdate: patient.birthdate || null,
+                        lifeStage: patient.lifeStage || patient.category || 'adult',
+                        diagnosis: patient.diagnosis || '',
+                        portalToken: patient.portalToken,
+                        portalEnabled: patient.portalEnabled !== false,
+                        portalCreatedAt: patient.portalCreatedAt || new Date().toISOString()
+                    }],
+                    tasks: patientTasks.map(t => ({
+                        id: t.id || `task_${Math.random().toString(36).substr(2, 6)}`,
+                        patient_id: patient.id,
+                        title: t.title || t.text,
+                        description: t.description || '',
+                        completed: Boolean(t.completed)
+                    }))
+                })
+            });
+        } catch (e) {}
+    })();
 }
 
 function ensurePatientPortalToken(patient) {
@@ -3098,9 +3504,9 @@ function generatePortalToken(patientId) {
 async function syncPortalDataForPatient(patientId) {
     if (!patientId) return null;
     try {
-        const token = localStorage.getItem('psico_session_token');
-        const headers = {};
-        if (token) headers['Authorization'] = `Bearer ${token}`;
+        const token = (typeof CloudSyncManager !== 'undefined') ? await CloudSyncManager.ensureSessionToken(false) : localStorage.getItem('psico_session_token');
+        if (!token) return null;
+        const headers = { 'Authorization': `Bearer ${token}` };
         if (AppState.currentUser?.id) headers['X-Therapist-Id'] = AppState.currentUser.id;
 
         const res = await fetch(`/api/v1/portal/data/${patientId}`, { headers });
@@ -5303,6 +5709,7 @@ function openModal(id) {
     if (!m) return;
     m.classList.add('active');
     document.body.style.overflow = 'hidden';
+    document.body.classList.add('has-active-modal');
     if (id === 'patientModal' && !document.getElementById('patientId').value) {
         document.getElementById('patientForm').reset();
         document.getElementById('patientId').value = '';
@@ -5348,7 +5755,10 @@ function closeModal(id) {
     const m = document.getElementById(id);
     if (!m) return;
     m.classList.remove('active');
-    document.body.style.overflow = '';
+    if (!document.querySelector('.modal.active')) {
+        document.body.style.overflow = '';
+        document.body.classList.remove('has-active-modal');
+    }
     if (id === 'patientModal') {
         document.getElementById('patientId').value = '';
         document.getElementById('patientForm').reset();
@@ -5428,7 +5838,12 @@ function getMoodEmoji(mood) { return { 'muy-bueno': 'Eutímico 😊', 'bueno': '
 // ATAJOS DE TECLADO
 // ============================================
 document.addEventListener('keydown', (e) => {
-    if (e.key === 'Escape') { document.querySelectorAll('.modal.active').forEach(m => m.classList.remove('active')); document.body.style.overflow = ''; return; }
+    if (e.key === 'Escape') { 
+        document.querySelectorAll('.modal.active').forEach(m => m.classList.remove('active')); 
+        document.body.style.overflow = ''; 
+        document.body.classList.remove('has-active-modal');
+        return; 
+    }
     const tag = e.target.tagName.toLowerCase();
     if (tag === 'input' || tag === 'textarea' || e.target.isContentEditable) return;
     if (e.ctrlKey || e.metaKey) {
@@ -5618,4 +6033,164 @@ async function runAutomatedQaTests() {
         container.innerHTML = '<p>Error: Suite de pruebas no cargada en el navegador.</p>';
     }
 }
+
+// ============================================
+// CASO CLÍNICO PILOTO CONTROLADO (QA-004)
+// ============================================
+async function loadSyntheticClinicalPilotCase() {
+    const pilotPatientId = 'pat_piloto_valeria_2026';
+    const therapistName = AppState.currentUser?.name || 'Lic. en Psicología Clínica';
+
+    // 1. Paciente Simulado (Valeria Mendoza, 28 años, Adulta)
+    const pilotPatient = {
+        id: pilotPatientId,
+        name: 'Valeria Mendoza (Caso Piloto)',
+        email: 'valeria.mendoza.piloto@gmail.com',
+        phone: '+58 412 555-0192',
+        birthdate: '1998-04-12',
+        category: 'adult',
+        lifeStage: 'adult',
+        diagnosis: 'F32.1 Episodio Depresivo Moderado con Ideación Pasiva Reactiva',
+        reason: 'Episodio depresivo de 2 meses de evolución posterior a ruptura afectiva y sobrecarga laboral; refiere anhedonia, fatiga, insomnio y pensamientos pasivos de muerte.',
+        status: 'activo',
+        occupation: 'Ingeniera de Sistemas',
+        civilStatus: 'Soltera',
+        portalEnabled: true,
+        portalToken: 'VAL-9281',
+        portalCreatedAt: new Date(Date.now() - 7 * 86400000).toISOString(),
+        informedConsent: {
+            signed: true,
+            signedAt: new Date(Date.now() - 7 * 86400000).toISOString(),
+            guardianName: '',
+            telehealthAccepted: true,
+            aiAssistanceAccepted: true,
+            signatureImg: 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg=='
+        },
+        emergencyContact: {
+            name: 'Carolina Mendoza (Hermana)',
+            phone: '+58 414 777-4321',
+            relation: 'Hermana / Red de Apoyo Principal'
+        },
+        createdAt: new Date(Date.now() - 7 * 86400000).toISOString(),
+        updatedAt: new Date().toISOString()
+    };
+
+    // 2. Cita Inicial
+    const pilotAppointment = {
+        id: 'apt_piloto_001',
+        patientId: pilotPatientId,
+        date: new Date(Date.now() - 2 * 86400000).toISOString().split('T')[0],
+        time: '16:00',
+        duration: 50,
+        status: 'completada',
+        notes: 'Sesión inicial presencial: encuadre, evaluación diagnóstica y contención.'
+    };
+
+    // 3. Evaluación Psicométrica PHQ-9 & Protocolo de Crisis C-SSRS
+    const phq9Evaluation = {
+        id: 'eval_phq9_piloto',
+        patientId: pilotPatientId,
+        type: 'PHQ-9',
+        score: 16,
+        severity: 'Moderadamente Severa',
+        item9Score: 1,
+        riskAlert: true,
+        date: new Date(Date.now() - 2 * 86400000).toISOString(),
+        answers: [2, 2, 2, 2, 1, 2, 2, 2, 1]
+    };
+
+    const cssrsRecord = {
+        patientId: pilotPatientId,
+        cssrsScore: 2,
+        status: 'ATENDIDA',
+        riskLevel: 'MEDIO',
+        passiveIdeation: true,
+        activeIntent: false,
+        suicidePlan: false,
+        safetyPlanAgreed: true,
+        protectiveFactors: 'Fuerte apego a su hermana Carolina, deseo explícito de recuperación, valores espirituales de respeto a la vida.',
+        emergencyNumbersProvided: 'Línea de Ayuda Psicológica FPV / Cruz Roja Venezuela (0800-PSICO)',
+        referralDestination: 'Contención ambulatoria con seguimiento psicoterapéutico estrecho y valoración psiquiátrica de apoyo.',
+        acknowledgedBy: therapistName,
+        acknowledgedAt: new Date(Date.now() - 2 * 86400000).toISOString()
+    };
+
+    // 4. Reporte Oficial de Atención — Sesión #1 (Inmutable y firmado)
+    const pilotNote = {
+        id: 'note_piloto_001',
+        patientId: pilotPatientId,
+        sessionNumber: 1,
+        date: new Date(Date.now() - 2 * 86400000).toISOString().split('T')[0],
+        title: 'Sesión #1 — Evaluación Inicial, Psicoeducación en Duelo y Plan de Seguridad',
+        appliedTechniques: 'Entrevista clínica protocolizada, C-SSRS, PHQ-9, Psicoeducación TCC del modelo afectivo, Técnica de Anclaje 5-4-3-2-1.',
+        sessionGoals: '1. Establecer alianza y encuadre psicoterapéutico seguro.\n2. Administrar tamizaje PHQ-9 y protocolo de evaluación C-SSRS.\n3. Acordar plan de contención de crisis e involucrar red de apoyo familiar.',
+        sessionDescription: 'La paciente acude puntualmente, orientada en tiempo, espacio y persona. Expresa llanto fácil y refiere profunda desesperanza tras el cese intempestivo de una relación de 5 años. Se indaga ideación autolítica tras respuesta positiva en ítem 9 de PHQ-9; se confirma ideación pasiva ("desearía dormir y no despertar") pero niega categóricamente plan, acceso a medios letales o intención activa. Se formula y firma conjuntamente el Plan de Seguridad.',
+        clinicalFindings: 'Predominio de distorsiones cognitivas de visión de túnel y catastrofismo. Insight conservado con alta motivación al tratamiento ambulatorio. Buen soporte afectivo por parte de su hermana.',
+        obtainedResults: 'Disminución observable de la activación neurovegetativa al cierre de la sesión tras ejercicio de regulación 4-7-8. Aceptación plena del plan de seguridad.',
+        nextSessionsPlan: 'Sesión #2 en 72 horas para revisión de autoregistro ABC y monitoreo del patrón de sueño.',
+        intersessionTasks: [
+            { id: 'task_piloto_1', patient_id: pilotPatientId, title: 'Autoregistro ABC de pensamientos al despertar', description: 'Completar situación, pensamiento y emoción en el portal', completed: false },
+            { id: 'task_piloto_2', patient_id: pilotPatientId, title: 'Botiquín de Calma: Respiración 4-7-8', description: 'Practicar 5 minutos antes de dormir para regular insomnio inicial', completed: true }
+        ],
+        subjetivo: 'Paciente refiere: "Siento un vacío en el pecho constante y me cuesta concentrarme en el trabajo. A veces quisiera desconectarme del mundo, pero jamás le haría daño a mi familia".',
+        objetivo: 'Facies depresiva, lenguaje fluido, bradipsiquia leve, afecto hipotímico reactivo, examen mental sin alteraciones sensoperceptivas.',
+        analisis: 'Hipótesis clínica: Episodio depresivo moderado reactivo a duelo amoroso con estilo de apego ansioso. Riesgo autolítico pasivo contenido mediante red protectora.',
+        plan: 'Psicoterapia Cognitivo-Conductual semanal. Activación conductual gradual y derivación para valoración psiquiátrica complementaria.',
+        risk: 'medio',
+        mood: 'bajo',
+        status: 'firmada',
+        signedBy: therapistName,
+        signedAt: new Date(Date.now() - 2 * 86400000).toISOString(),
+        addendums: [
+            {
+                id: 'add_001',
+                timestamp: new Date(Date.now() - 86400000).toISOString(),
+                signedBy: therapistName,
+                text: 'Contacto telefónico de seguimiento a las 24h: la paciente reporta adherencia a la técnica respiratoria, pernoctó acompañada por su hermana y se mantiene estable.'
+            }
+        ]
+    };
+
+    if (!AppState.patients) AppState.patients = [];
+    if (!AppState.appointments) AppState.appointments = [];
+    if (!AppState.notes) AppState.notes = [];
+
+    const pIdx = AppState.patients.findIndex(p => p.id === pilotPatientId);
+    if (pIdx >= 0) AppState.patients[pIdx] = pilotPatient;
+    else AppState.patients.unshift(pilotPatient);
+
+    const aIdx = AppState.appointments.findIndex(a => a.id === pilotAppointment.id);
+    if (aIdx >= 0) AppState.appointments[aIdx] = pilotAppointment;
+    else AppState.appointments.unshift(pilotAppointment);
+
+    const nIdx = AppState.notes.findIndex(n => n.id === pilotNote.id);
+    if (nIdx >= 0) AppState.notes[nIdx] = pilotNote;
+    else AppState.notes.unshift(pilotNote);
+
+    localStorage.setItem(`psico_portal_data_${pilotPatientId}`, JSON.stringify({
+        patient: pilotPatient,
+        evaluations: [phq9Evaluation],
+        cssrs: cssrsRecord,
+        tasks: pilotNote.intersessionTasks,
+        activeCrisisAlert: false
+    }));
+
+    await saveData();
+    if (typeof CloudSyncManager !== 'undefined') {
+        CloudSyncManager.schedulePush();
+    }
+
+    if (typeof updateDashboard === 'function') updateDashboard();
+    if (typeof renderPatients === 'function') renderPatients();
+    if (typeof renderAppointments === 'function') renderAppointments();
+    if (typeof renderNotes === 'function') renderNotes();
+    if (typeof updateCounts === 'function') updateCounts();
+    if (typeof showToast === 'function') {
+        showToast('🎯 Caso clínico piloto cargado con éxito en el expediente', 'success');
+    }
+
+    return { pilotPatient, pilotAppointment, pilotNote, phq9Evaluation, cssrsRecord };
+}
+
+window.loadSyntheticClinicalPilotCase = loadSyntheticClinicalPilotCase;
 

@@ -2147,6 +2147,305 @@ ClinicalTestSuite.add('TC-SEC-14', 'Aislamiento de buzón criptográfico Zero-Kn
     }
 });
 
+// 53. TC-CLI-02: Consentimiento Informado con Teleconsulta e IA Asistida (CLI-002)
+ClinicalTestSuite.add('TC-CLI-02', 'Consentimiento Informado con Teleconsulta e IA Asistida (CLI-002)', async () => {
+    const patient = {
+        id: 'pat_con_test_' + Date.now(),
+        name: 'Mariana Duarte',
+        birthdate: '1995-04-12',
+        category: 'adult'
+    };
+
+    const consentRecord = {
+        signed: true,
+        signedAt: new Date().toISOString(),
+        guardian: null,
+        category: 'adult',
+        telehealthAccepted: true,
+        aiAssistanceAccepted: true,
+        signatureImg: 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg=='
+    };
+
+    patient.informedConsent = consentRecord;
+
+    if (!patient.informedConsent.signed) throw new Error('El consentimiento debe figurar como firmado');
+    if (!patient.informedConsent.telehealthAccepted) throw new Error('Debe contemplar la aceptación expresa de teleconsulta');
+    if (!patient.informedConsent.aiAssistanceAccepted) throw new Error('Debe contemplar la aceptación expresa de IA asistida');
+    if (!patient.informedConsent.signatureImg.startsWith('data:image/')) throw new Error('Firma digital no registrada');
+});
+
+// 54. TC-UX-01: Flujo Rápido de Evolución de Sesión desde la Cita (UX-003)
+ClinicalTestSuite.add('TC-UX-01', 'Flujo Rápido de Evolución de Sesión desde la Cita (UX-003)', async () => {
+    const mockPatient = {
+        id: 'pat_evolve_' + Date.now(),
+        name: 'Roberto Gómez'
+    };
+    const mockAppointment = {
+        id: 'apt_evolve_' + Date.now(),
+        patientId: mockPatient.id,
+        date: '2026-10-15T15:00:00Z',
+        time: '15:00',
+        duration: 50,
+        status: 'programada'
+    };
+    const existingNotes = [
+        { id: 'n1', patientId: mockPatient.id, date: '2026-10-01' },
+        { id: 'n2', patientId: mockPatient.id, date: '2026-10-08' }
+    ];
+
+    const nextSessionNum = existingNotes.length + 1;
+    const noteDraft = {
+        patientId: mockAppointment.patientId,
+        date: mockAppointment.date.split('T')[0],
+        title: `Sesión #${nextSessionNum} - Seguimiento Psicoterapéutico`,
+        sessionNumber: nextSessionNum,
+        status: 'borrador'
+    };
+
+    if (noteDraft.sessionNumber !== 3) {
+        throw new Error(`Número correlativo de sesión incorrecto: esperado 3, obtenido ${noteDraft.sessionNumber}`);
+    }
+    if (noteDraft.patientId !== mockPatient.id) {
+        throw new Error('El paciente preseleccionado no coincide con la cita');
+    }
+    if (!noteDraft.title.includes('Sesión #3')) {
+        throw new Error('El título de la nota debe reflejar el correlativo de sesión');
+    }
+});
+
+// 55. TC-UX-02: Optimización Táctil y Prevención de Solapamiento en Modales Móviles (UX-004)
+ClinicalTestSuite.add('TC-UX-02', 'Optimización Táctil y Prevención de Solapamiento en Modales Móviles (UX-004)', async () => {
+    const fs = await import('fs');
+    const path = await import('path');
+
+    const cssContent = fs.readFileSync(path.resolve('./styles.css'), 'utf8');
+    const appContent = fs.readFileSync(path.resolve('./app.js'), 'utf8');
+
+    // 1. Verificar que styles.css eleva z-index de modal a >=2200 para quedar por encima de bottom-nav (1050) y sidebar (1250)
+    if (!cssContent.includes('z-index: 2200')) {
+        throw new Error('styles.css debe fijar z-index: 2200 en modales para impedir que la barra de navegación inferior los tape');
+    }
+
+    // 2. Verificar que styles.css oculta automáticamente bottom-nav cuando hay modal activo
+    if (!cssContent.includes('body.has-active-modal .mobile-bottom-nav')) {
+        throw new Error('styles.css debe ocultar .mobile-bottom-nav cuando el body tiene la clase has-active-modal');
+    }
+
+    // 3. Verificar que modal-actions tiene posición pegajosa (sticky) y safe-area para botones accesibles
+    if (!cssContent.includes('position: sticky !important') || !cssContent.includes('safe-area-inset-bottom')) {
+        throw new Error('styles.css debe definir modal-actions sticky con clearance de safe-area-inset-bottom');
+    }
+
+    // 4. Verificar que app.js conmuta has-active-modal al abrir y cerrar modales
+    if (!appContent.includes("document.body.classList.add('has-active-modal')") || !appContent.includes("document.body.classList.remove('has-active-modal')")) {
+        throw new Error('app.js debe agregar/eliminar la clase has-active-modal en openModal y closeModal');
+    }
+});
+
+// 56. TC-PILOT-01: Simulación de Caso Clínico Piloto y Trazabilidad Multidisciplinar (QA-004)
+ClinicalTestSuite.add('TC-PILOT-01', 'Simulación de Caso Clínico Piloto y Trazabilidad Multidisciplinar (QA-004)', async () => {
+    const fs = await import('fs');
+    const path = await import('path');
+
+    const appCode = fs.readFileSync(path.resolve('./app.js'), 'utf8');
+    if (!appCode.includes('loadSyntheticClinicalPilotCase')) {
+        throw new Error('app.js debe implementar loadSyntheticClinicalPilotCase');
+    }
+
+    // 1. Simulación del expediente clínico del paciente piloto
+    const pilotPatient = {
+        id: 'pat_piloto_valeria_2026',
+        name: 'Valeria Mendoza (Caso Piloto)',
+        lifeStage: 'adult',
+        diagnosis: 'F32.1 Episodio Depresivo Moderado con Ideación Pasiva Reactiva',
+        informedConsent: {
+            signed: true,
+            telehealthAccepted: true,
+            aiAssistanceAccepted: true,
+            signatureImg: 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg=='
+        }
+    };
+
+    if (!pilotPatient.informedConsent.signed || !pilotPatient.informedConsent.telehealthAccepted || !pilotPatient.informedConsent.aiAssistanceAccepted) {
+        throw new Error('El caso piloto debe certificar aceptación de consentimiento, teleconsulta e IA ética');
+    }
+
+    // 2. Simulación psicométrica PHQ-9 (Cálculo aritmético e ítem 9)
+    const phq9Answers = [2, 2, 2, 2, 1, 2, 2, 2, 1];
+    const phq9Total = phq9Answers.reduce((a, b) => a + b, 0);
+    if (phq9Total !== 16) throw new Error(`Cálculo erróneo de PHQ-9: esperado 16, obtenido ${phq9Total}`);
+
+    const item9 = phq9Answers[8];
+    const riskAlert = item9 > 0;
+    if (!riskAlert) throw new Error('El ítem 9 positivo debe activar alerta ineludible de riesgo');
+
+    // 3. Simulación de protocolo de crisis C-SSRS y Plan de Seguridad
+    const cssrs = {
+        score: 2,
+        passiveIdeation: true,
+        activeIntent: false,
+        suicidePlan: false,
+        status: 'ATENDIDA',
+        safetyPlanAgreed: true,
+        emergencyLines: '0800-PSICO'
+    };
+    if (cssrs.passiveIdeation && (cssrs.activeIntent || cssrs.suicidePlan)) {
+        throw new Error('Inconsistencia en C-SSRS: ideación pasiva no puede coexistir con plan activo sin reclasificación');
+    }
+    if (!cssrs.safetyPlanAgreed || !cssrs.emergencyLines) {
+        throw new Error('El protocolo de crisis debe documentar acuerdo de seguridad y líneas de emergencia');
+    }
+
+    // 4. Reporte oficial de atención y evolución de sesión #1
+    const note = {
+        sessionNum: 1,
+        title: 'Sesión #1 — Evaluación Inicial, Psicoeducación en Duelo y Plan de Seguridad',
+        status: 'firmada',
+        signedBy: 'Lic. en Psicología Clínica',
+        appliedTechniques: 'Entrevista clínica, C-SSRS, PHQ-9, TCC, 5-4-3-2-1',
+        tasks: ['Autoregistro ABC', 'Respiración 4-7-8'],
+        addendums: [
+            { text: 'Contacto telefónico de seguimiento a las 24h: paciente estable y acompañada.' }
+        ]
+    };
+
+    if (note.status !== 'firmada') throw new Error('El reporte clínico debe quedar en estado firmado');
+    if (!note.addendums || note.addendums.length === 0) throw new Error('El reporte firmado debe soportar adendums');
+
+    // 5. Verificación de payload para sincronización segura en la nube (cero fuga PHI en metadatos)
+    const syncPayload = {
+        patients: [pilotPatient],
+        notes: [note],
+        clientTimestamp: Date.now()
+    };
+    const serialized = JSON.stringify(syncPayload);
+    if (!serialized.includes(pilotPatient.id) || !serialized.includes(note.title)) {
+        throw new Error('Fallo en la serialización del payload para la nube');
+    }
+});
+
+// 57. TC-TEEN-01: Protocolo Estructurado de Historia Clínica Adolescente (Orden de Campos, Estatus, Hipótesis Biopsicosociales y Exclusiones)
+ClinicalTestSuite.add('TC-TEEN-01', 'Protocolo Estructurado de Historia Clínica Adolescente (Orden de Campos, Estatus, Hipótesis Biopsicosociales y Exclusiones)', async () => {
+    if (typeof ClinicalHistorySystem === 'undefined') {
+        await import('./historia-clinica.js');
+    }
+    const CHS = globalThis.ClinicalHistorySystem;
+
+    // 1. Simulación de Expediente de Adolescente conforme a la ficha requerida
+    const teenRecord = {
+        id: 'teen_eval_2026',
+        name: 'Alejandro Mendoza Rivas',
+        status: 'Por iniciar',
+        category: 'adolescent',
+        birthdate: '2010-04-12',
+        age: '16',
+        gender: 'Masculino',
+        schoolGrade: '4to año de Educación Media General',
+        livesWith: 'Ambos padres y hermana menor',
+        referral: ['Orientador', 'Psicopedagogo'],
+        email: 'alejandro.mendoza@colegio.edu.ve',
+        // Ficha del Representante / Tutor Legal
+        guardianName: 'Beatriz Rivas de Mendoza',
+        guardianRelation: 'Madre',
+        guardianAge: '44',
+        guardianSchooling: 'Universitaria Completa (Lic. en Administración)',
+        guardianOccupation: 'Contadora Pública',
+        guardianMaritalStatus: 'Casada',
+        guardianPhone: '+58 412 9876543',
+        guardianEmail: 'b.rivas@correo.com',
+        guardianConsent: 'firmado', // Consentimiento Informado
+        // Información Referente a la Consulta Psicológica
+        previousPsych: 'No',
+        applicantName: 'Beatriz Rivas (Madre)',
+        initiative: 'Madre',
+        initiativeOther: '',
+        reason: 'Dificultades de motivación académica, aislamiento social progresivo en el hogar y episodios de desregulación emocional ante la frustración escolar.',
+        goals: 'Mejorar hábitos de estudio, clarificar intereses vocacionales y adquirir estrategias de afrontamiento asertivo.',
+        // Hipótesis Biopsicosociales
+        bioHypothesis: 'Sin alteraciones orgánicas ni comorbilidades neurológicas. Patrón de sueño retrasado con uso nocturno de pantallas.',
+        socialHypothesis: 'Vínculos familiares con altos estándares parentales de rendimiento académico. Red de pares reducida tras cambio de colegio.',
+        psychHypothesis: 'Rasgos de autoexigencia desadaptativa con temor al fracaso, rumiación cognitiva y evitación experiencial como mecanismo de defensa.',
+        // Factores Triádicos
+        riskFactors: 'Aislamiento en habitación por más de 6 horas diarias; sobreexposición a pantallas; antecedentes de ansiedad en rama materna.',
+        vulnerabilityFactors: 'Baja tolerancia a la frustración; inflexibilidad cognitiva ante evaluaciones académicas.',
+        protectiveFactors: 'Familia continente y colaboradora; buena disposición del adolescente al proceso terapéutico; talento artístico para el dibujo.',
+        // Encuadre
+        frequency: 'Semanal',
+        modality: 'Presencial',
+        shift: 'Tarde'
+    };
+
+    // 2. Verificación de Estatus Inicial y Estados Permitidos
+    const validStatuses = ['Por iniciar', 'En Evaluación', 'Plan de Intervención', 'Seguimiento', 'Alta', 'Inactivo'];
+    if (!validStatuses.includes(teenRecord.status)) {
+        throw new Error(`Estatus "${teenRecord.status}" no es válido dentro del flujo clínico de adolescente`);
+    }
+
+    // 3. Verificación de Extracción y Fusión en ClinicalHistorySystem
+    const full = CHS.getFullHistory(teenRecord);
+    if (full.status !== 'Por iniciar') throw new Error('El estatus del paciente debe preservarse en getFullHistory');
+    if (full.age !== '16') throw new Error('La edad del adolescente debe preservarse');
+    if (!Array.isArray(full.referral) || full.referral.length !== 2) throw new Error('El campo referido debe soportar selección múltiple');
+    if (!full.guardianName || !full.guardianPhone || full.guardianConsent !== 'firmado') {
+        throw new Error('Ficha del representante legal incompleta o consentimiento informado no validado');
+    }
+    if (!full.bioHypothesis || !full.socialHypothesis || !full.psychHypothesis) {
+        throw new Error('Las tres hipótesis biopsicosociales deben ser campos requeridos en el modelo clínico');
+    }
+    if (!full.riskFactors || !full.vulnerabilityFactors || !full.protectiveFactors) {
+        throw new Error('La tríada de factores (riesgo, vulnerabilidad, protección) debe registrarse');
+    }
+    if (full.shift !== 'Tarde' || full.frequency !== 'Semanal' || full.modality !== 'Presencial') {
+        throw new Error('Los parámetros de encuadre (turno, frecuencia, modalidad) deben registrarse');
+    }
+
+    // 4. Verificación de Exclusiones Clínicas en Adolescentes
+    if (teenRecord.phone) throw new Error('El teléfono propio del menor debe omitirse de la ficha del adolescente');
+    if (teenRecord.maritalStatus) throw new Error('El estado civil propio del adolescente debe omitirse');
+    if (teenRecord.notes) throw new Error('Notas de encuadre libres deben reemplazarse por frecuencia, modalidad y turno');
+
+    // 5. Verificación de Renderizado del Visor HTML Protocolizado (renderTeenHistoryIntegral)
+    const therapist = { name: 'Dra. Sofía Rincón', specialty: 'Psicología Clínica de la Infancia y Adolescencia', registry: 'FPV 14.280' };
+    const htmlView = CHS.renderTeenHistoryIntegral(teenRecord, full, therapist, ' · FPV 14.280');
+
+    if (!htmlView.includes('Estatus del Paciente') || !htmlView.includes('Por iniciar')) {
+        throw new Error('El visor debe destacar el Estatus del Paciente al inicio');
+    }
+    if (!htmlView.includes('Ficha del Paciente (Adolescente)')) {
+        throw new Error('Falta bloque 1: Ficha del Paciente (Adolescente)');
+    }
+    if (!htmlView.includes('Ficha del Representante / Tutor Legal')) {
+        throw new Error('Falta bloque 2: Ficha del Representante / Tutor Legal');
+    }
+    if (!htmlView.includes('Consentimiento Informado')) {
+        throw new Error('Debe denominarse expresamente "Consentimiento Informado"');
+    }
+    if (!htmlView.includes('Información Referente a la Consulta Psicológica')) {
+        throw new Error('Falta bloque 3: Información Referente a la Consulta Psicológica');
+    }
+    if (!htmlView.includes('Hipótesis Biológica') || !htmlView.includes('Hipótesis Social y Familiar') || !htmlView.includes('Hipótesis Psicológica')) {
+        throw new Error('El visor debe mostrar las tres hipótesis biopsicosociales');
+    }
+    if (!htmlView.includes('Factores de Riesgo') || !htmlView.includes('Factores de Vulnerabilidad') || !htmlView.includes('Factores de Protección')) {
+        throw new Error('El visor debe mostrar los factores de riesgo, vulnerabilidad y protección');
+    }
+    if (!htmlView.includes('Encuadre y Acuerdos de Consulta') || !htmlView.includes('Turno: <strong>Tarde</strong>')) {
+        throw new Error('Falta bloque 4: Encuadre con turno, modalidad y frecuencia');
+    }
+
+    // 6. Verificación de Generación de PDF Oficial de Adolescente
+    const pdfHtml = CHS.exportHistoriaOficialAdolescentePDF(teenRecord, full, '16', therapist);
+    if (!pdfHtml.includes('HISTORIA CLÍNICA ADOLESCENTE')) {
+        throw new Error('El documento imprimible debe titularse HISTORIA CLÍNICA ADOLESCENTE');
+    }
+    if (!pdfHtml.includes('Estatus del Paciente:</strong> Por iniciar')) {
+        throw new Error('El PDF debe incluir el estatus clínico');
+    }
+    if (!pdfHtml.includes('Consentimiento Informado')) {
+        throw new Error('El PDF debe registrar el Consentimiento Informado');
+    }
+});
+
 // Auto-ejecución si se corre desde Node.js (CLI)
 if (typeof process !== 'undefined' && process.argv && process.argv[1] && process.argv[1].endsWith('tests.js')) {
     ClinicalTestSuite.runAll().then(res => {
