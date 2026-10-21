@@ -27,12 +27,23 @@ const EXTENDED_CLINICAL_SCALES = {
             { label: 'Más de la mitad de los días (2)', value: 2 },
             { label: 'Casi todos los días (3)', value: 3 }
         ],
-        interpret: (s) => {
-            if (s <= 4) return { level: 'Mínima / Sin depresión', color: '#4dab87', class: 'success', action: 'Seguimiento rutinario. No requiere intervención farmacológica.' };
-            if (s <= 9) return { level: 'Depresión Leve', color: '#7cb342', class: 'info', action: 'Psicoeducación, monitoreo activo y técnicas cognitivas iniciales.' };
-            if (s <= 14) return { level: 'Depresión Moderada', color: '#fdcb6e', class: 'warning', action: 'Plan de tratamiento activo en TCC o psicoterapia focalizada.' };
-            if (s <= 19) return { level: 'Depresión Moderadamente Severa', color: '#e67e22', class: 'warning', action: 'Intervención psicoterapéutica intensa + considerar interconsulta psiquiátrica.' };
-            return { level: 'Depresión Severa', color: '#e16259', class: 'danger', action: '⚠️ Evaluación de riesgo inminente, protocolo de crisis e interconsulta psiquiátrica urgente.' };
+        interpret: (s, answers) => {
+            const item9 = (answers && (answers[8] !== undefined)) ? parseInt(answers[8], 10) : 0;
+            let res;
+            if (s <= 4) res = { level: 'Mínima / Sin depresión', color: '#4dab87', class: 'success', action: 'Seguimiento rutinario. No requiere intervención farmacológica.' };
+            else if (s <= 9) res = { level: 'Depresión Leve', color: '#7cb342', class: 'info', action: 'Psicoeducación, monitoreo activo y técnicas cognitivas iniciales.' };
+            else if (s <= 14) res = { level: 'Depresión Moderada', color: '#fdcb6e', class: 'warning', action: 'Plan de tratamiento activo en TCC o psicoterapia focalizada.' };
+            else if (s <= 19) res = { level: 'Depresión Moderadamente Severa', color: '#e67e22', class: 'warning', action: 'Intervención psicoterapéutica intensa + considerar interconsulta psiquiátrica.' };
+            else res = { level: 'Depresión Severa', color: '#e16259', class: 'danger', action: '⚠️ Evaluación de riesgo inminente, protocolo de crisis e interconsulta psiquiátrica urgente.' };
+
+            if (item9 > 0) {
+                res.hasItem9Alert = true;
+                res.item9Score = item9;
+                res.level += ` 🚨 [Ítem 9: Ideación Autolítica ${item9}/3]`;
+                res.color = '#e16259';
+                res.action = `🚨 ALERTA CRÍTICA ÍTEM 9 (${item9}/3): Presencia de ideación de autolesión o muerte. Requiere evaluación inmediata de riesgo suicida y activar protocolo de crisis. ` + res.action;
+            }
+            return res;
         }
     },
     gad7: {
@@ -131,6 +142,7 @@ const EXTENDED_CLINICAL_SCALES = {
         shortName: 'Rosenberg',
         domain: 'Autoconcepto y Autoestima',
         maxScore: 40,
+        reverseItems: [5, 6, 7, 8, 9], // Ítems 6, 7, 8, 9, 10 (0-indexed). Inversión: 5 - valor (1->4, 2->3, 3->2, 4->1)
         questions: [
             'Siento que soy una persona digna de aprecio, al menos en igual medida que las demás',
             'Siento que tengo cualidades positivas',
@@ -161,6 +173,7 @@ const EXTENDED_CLINICAL_SCALES = {
         shortName: 'PSS-10',
         domain: 'Nivel de Estrés e Sobrecarga',
         maxScore: 40,
+        reverseItems: [3, 4, 5, 6, 8], // Ítems 4, 5, 6, 7, 9 (0-indexed). Inversión: 4 - valor (0->4, 1->3, 2->2, 3->1, 4->0)
         questions: [
             '¿Con qué frecuencia se ha sentido afectado/a por algo que ocurrió inesperadamente?',
             '¿Con qué frecuencia ha sentido que no podía controlar las cosas importantes en su vida?',
@@ -442,6 +455,30 @@ function switchModalScale(newScaleKey, patientId) {
     openInteractiveScaleModal(newScaleKey, patientId || document.getElementById('interactivePatientSelect')?.value);
 }
 
+function calculateScaleTotalScore(scaleKey, answers) {
+    if (!answers) return 0;
+    let totalScore = 0;
+    const isArray = Array.isArray(answers);
+    const scale = EXTENDED_CLINICAL_SCALES[scaleKey];
+    const numQuestions = scale ? scale.questions.length : (isArray ? answers.length : Object.keys(answers).length);
+
+    for (let i = 0; i < numQuestions; i++) {
+        let rawVal = isArray ? answers[i] : answers[i];
+        if (rawVal === undefined || rawVal === null) continue;
+        rawVal = parseInt(rawVal, 10);
+        if (isNaN(rawVal)) continue;
+
+        let finalVal = rawVal;
+        if (scaleKey === 'rosenberg' && [5, 6, 7, 8, 9].includes(i)) {
+            finalVal = 5 - rawVal; // Inversión ítem 6-10 (escala 1 a 4)
+        } else if (scaleKey === 'pss10' && [3, 4, 5, 6, 8].includes(i)) {
+            finalVal = 4 - rawVal; // Inversión ítem 4, 5, 6, 7, 9 (escala 0 a 4)
+        }
+        totalScore += finalVal;
+    }
+    return totalScore;
+}
+
 function updateLiveScaleScore(scaleKey, questionIndex, value) {
     if (!window._currentScaleAnswers) window._currentScaleAnswers = {};
     window._currentScaleAnswers[questionIndex] = parseInt(value, 10);
@@ -449,12 +486,8 @@ function updateLiveScaleScore(scaleKey, questionIndex, value) {
     const scale = EXTENDED_CLINICAL_SCALES[scaleKey];
     if (!scale) return;
 
-    let totalScore = 0;
-    Object.values(window._currentScaleAnswers).forEach(val => {
-        totalScore += val;
-    });
-
-    const interp = scale.interpret(totalScore);
+    const totalScore = calculateScaleTotalScore(scaleKey, window._currentScaleAnswers);
+    const interp = scale.interpret(totalScore, window._currentScaleAnswers);
 
     const scoreEl = document.getElementById('liveScaleScore');
     const levelEl = document.getElementById('liveScaleLevel');
@@ -483,10 +516,11 @@ function submitInteractiveScaleForm(scaleKey) {
         return;
     }
 
-    let totalScore = 0;
-    Object.values(answers).forEach(val => totalScore += val);
+    const totalScore = calculateScaleTotalScore(scaleKey, answers);
 
-    const interp = scale.interpret(totalScore);
+    const interp = scale.interpret(totalScore, answers);
+    const item9Score = scaleKey === 'phq9' ? (parseInt(answers[8], 10) || 0) : 0;
+    const hasItem9Alert = item9Score > 0;
 
     const scaleResult = {
         id: generateId(),
@@ -499,6 +533,9 @@ function submitInteractiveScaleForm(scaleKey) {
         interpretation: interp.level,
         action: interp.action,
         color: interp.color,
+        item9Score: item9Score,
+        item9Alert: hasItem9Alert,
+        answers: answers,
         date: new Date().toISOString()
     };
 
@@ -507,17 +544,21 @@ function submitInteractiveScaleForm(scaleKey) {
         id: generateId(),
         patientId: patientId,
         date: toDateInputValue(new Date()),
-        title: `Evaluación Psicométrica: ${scale.shortName} (${totalScore}/${scale.maxScore} pts)`,
-        subjetivo: `Aplicación de prueba estandarizada ${scale.name}.`,
-        objetivo: `Puntaje obtenido: ${totalScore} de ${scale.maxScore} puntos. Nivel: ${interp.level}.`,
+        title: `Evaluación Psicométrica: ${scale.shortName} (${totalScore}/${scale.maxScore} pts)${hasItem9Alert ? ' 🚨 [ÍTEM 9 ALERTA]' : ''}`,
+        subjetivo: `Aplicación de prueba estandarizada ${scale.name}.${hasItem9Alert ? ' Alerta: Marcó ítem 9 (pensamientos de hacerse daño).' : ''}`,
+        objetivo: `Puntaje obtenido: ${totalScore} de ${scale.maxScore} puntos. Nivel: ${interp.level}.${hasItem9Alert ? ` Ítem 9: ${item9Score}/3.` : ''}`,
         analisis: `El perfil psicométrico indica: ${interp.level}. ${interp.action}`,
         plan: `Continuar plan terapéutico considerando recomendaciones: ${interp.action}`,
-        risk: interp.color === '#e16259' ? 'alto' : (interp.color === '#fdcb6e' || interp.color === '#e67e22' ? 'medio' : 'bajo'),
+        risk: (hasItem9Alert || interp.color === '#e16259') ? 'alto' : (interp.color === '#fdcb6e' || interp.color === '#e67e22' ? 'medio' : 'bajo'),
         mood: '',
         confidential: false,
         scaleResult: scaleResult,
         createdAt: new Date().toISOString()
     };
+
+    if (hasItem9Alert) {
+        showToast(`🚨 ALERTA CRÍTICA: Paciente registró ${item9Score}/3 en Ítem 9 de PHQ-9 (Ideación Autolítica). Evalué protocolo de crisis.`, 'error');
+    }
 
     AppState.notes.push(note);
     saveData();

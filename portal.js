@@ -9,117 +9,8 @@ const PortalState = {
     tasks: [],
     evaluations: [],
     moodLog: [],
-    cbtRecords: [],
-    activeCrisisAlert: false,
     currentFilter: 'pending'
 };
-
-// ============================================
-// COLA DE SINCRONIZACIÓN FUERA DE LÍNEA (OFFLINE QUEUE)
-// ============================================
-const PortalOfflineQueue = {
-    QUEUE_KEY: 'psico_portal_offline_queue',
-
-    enqueue(endpoint, payload) {
-        try {
-            const queue = this.getQueue();
-            queue.push({
-                id: 'sync_' + Date.now() + '_' + Math.random().toString(36).substr(2, 6),
-                endpoint,
-                payload,
-                createdAt: new Date().toISOString()
-            });
-            localStorage.setItem(this.QUEUE_KEY, JSON.stringify(queue));
-            this.updateBadge();
-        } catch (e) {
-            console.warn('Error encolando operación offline:', e);
-        }
-    },
-
-    getQueue() {
-        try {
-            return JSON.parse(localStorage.getItem(this.QUEUE_KEY) || '[]');
-        } catch {
-            return [];
-        }
-    },
-
-    async flush() {
-        const queue = this.getQueue();
-        if (queue.length === 0) return;
-
-        const remaining = [];
-        let successCount = 0;
-
-        for (const item of queue) {
-            try {
-                const res = await fetch(item.endpoint, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify(item.payload)
-                });
-                if (res.ok) {
-                    successCount++;
-                } else if (res.status >= 500 || res.status === 408) {
-                    remaining.push(item);
-                }
-            } catch (err) {
-                remaining.push(item);
-            }
-        }
-
-        localStorage.setItem(this.QUEUE_KEY, JSON.stringify(remaining));
-        this.updateBadge();
-
-        if (successCount > 0 && typeof showToast === 'function') {
-            showToast(`🔄 Sincronizados ${successCount} registros pendientes con tu terapeuta`, 'success');
-        }
-    },
-
-    updateBadge() {
-        const queue = this.getQueue();
-        const badge = document.getElementById('offlineSyncBadge');
-        const countEl = document.getElementById('offlineSyncCount');
-        if (badge && countEl) {
-            if (queue.length > 0) {
-                badge.style.display = 'inline-flex';
-                countEl.textContent = queue.length;
-            } else {
-                badge.style.display = 'none';
-            }
-        }
-    }
-};
-
-window.PortalOfflineQueue = PortalOfflineQueue;
-
-async function sendPortalPost(endpoint, payload) {
-    if (typeof navigator !== 'undefined' && !navigator.onLine) {
-        PortalOfflineQueue.enqueue(endpoint, payload);
-        return false;
-    }
-    try {
-        const res = await fetch(endpoint, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(payload)
-        });
-        if (!res.ok) {
-            PortalOfflineQueue.enqueue(endpoint, payload);
-            return false;
-        }
-        return true;
-    } catch (err) {
-        PortalOfflineQueue.enqueue(endpoint, payload);
-        return false;
-    }
-}
-
-window.addEventListener('online', () => {
-    if (typeof showToast === 'function') showToast('Conexión reanudada. Sincronizando registros...', 'info');
-    PortalOfflineQueue.flush();
-});
-
 
 const REFLECTIONS = [
     "Cada pequeño paso cuenta. No necesitas ser perfecto, solo constante. 🌱",
@@ -161,6 +52,32 @@ const GAD7_QUESTIONS = [
     "Ha sentido miedo como si algo terrible fuera a pasar"
 ];
 
+const ROSENBERG_QUESTIONS = [
+    "Siento que soy una persona digna de aprecio, al menos en igual medida que las demás",
+    "Siento que tengo cualidades positivas",
+    "Soy capaz de hacer las cosas tan bien como la mayoría de la gente",
+    "Tengo una actitud positiva hacia mí mismo/a",
+    "En general, me siento satisfecho/a conmigo mismo/a",
+    "Siento que no tengo mucho de lo que estar orgulloso/a (Invertida)",
+    "En general, me inclino a pensar que soy un/a fracasado/a (Invertida)",
+    "Me gustaría tener más respeto por mí mismo/a (Invertida)",
+    "Hay veces que realmente pienso que no sirvo para nada (Invertida)",
+    "A veces me siento inútil (Invertida)"
+];
+
+const PSS10_QUESTIONS = [
+    "¿Con qué frecuencia se ha sentido afectado/a por algo que ocurrió inesperadamente?",
+    "¿Con qué frecuencia ha sentido que no podía controlar las cosas importantes en su vida?",
+    "¿Con qué frecuencia se ha sentido nervioso/a o estresado/a?",
+    "¿Con qué frecuencia ha manejado con éxito los pequeños problemas cotidianos? (Invertida)",
+    "¿Con qué frecuencia ha sentido que afrontaba efectivamente los cambios? (Invertida)",
+    "¿Con qué frecuencia se ha sentido seguro/a de su capacidad para manejar problemas? (Invertida)",
+    "¿Con qué frecuencia ha sentido que las cosas le iban bien? (Invertida)",
+    "¿Con qué frecuencia ha sentido que no podía afrontar todas las cosas que tenía que hacer?",
+    "¿Con qué frecuencia ha podido controlar las dificultades de su vida? (Invertida)",
+    "¿Con qué frecuencia ha sentido que las dificultades se acumulaban tanto que no podía superarlas?"
+];
+
 const MOOD_QUESTIONS = [
     {
         text: "¿Cómo describirías tu estado de ánimo hoy?",
@@ -194,65 +111,7 @@ const MOOD_QUESTIONS = [
     }
 ];
 
-document.addEventListener('DOMContentLoaded', async () => {
-    // Soporte para acceso directo por parámetro de URL (?token=PN-XXXXX o ?code=PN-XXXXX)
-    try {
-        const urlParams = new URLSearchParams(window.location.search);
-        const queryToken = (urlParams.get('token') || urlParams.get('code') || '').trim();
-        if (queryToken) {
-            // Intentar autenticación contra backend PostgreSQL
-            try {
-                const res = await fetch('/api/v1/portal/auth', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ token: queryToken })
-                });
-                if (res.ok) {
-                    const data = await res.json();
-                    if (data.authenticated && data.patient) {
-                        PortalState.patientId = data.patient.id;
-                        PortalState.patientName = data.patient.name;
-                        PortalState.therapistName = data.patient.therapistName || 'Tu terapeuta';
-                        PortalState.portalToken = data.patient.portalToken || queryToken;
-                        localStorage.setItem('psico_portal_session', JSON.stringify({
-                            patientId: data.patient.id,
-                            portalToken: PortalState.portalToken,
-                            patientName: data.patient.name,
-                            therapistName: data.patient.therapistName
-                        }));
-                        await enterPortal();
-                        return;
-                    }
-                }
-            } catch (netErr) {
-                console.warn('Backend no disponible, recurriendo a verificación local:', netErr);
-            }
-
-            // Fallback a almacenamiento local si no hay conexión al backend
-            const patients = loadPortalPatients();
-            const patient = patients.find(p => (p.portalToken || '').toUpperCase().trim() === queryToken.toUpperCase());
-            if (patient) {
-                PortalState.patientId = patient.id;
-                PortalState.patientName = patient.name;
-                PortalState.therapistName = patient.therapistName || 'Tu terapeuta';
-                PortalState.portalToken = patient.portalToken;
-                localStorage.setItem('psico_portal_session', JSON.stringify({
-                    patientId: patient.id,
-                    portalToken: patient.portalToken,
-                    patientName: patient.name,
-                    therapistName: patient.therapistName
-                }));
-                await enterPortal();
-                return;
-            } else {
-                const codeInput = document.getElementById('accessCode');
-                if (codeInput) codeInput.value = queryToken;
-            }
-        }
-    } catch (e) {
-        console.warn('Error procesando parámetros de URL en portal:', e);
-    }
-
+document.addEventListener('DOMContentLoaded', () => {
     checkExistingSession();
 });
 
@@ -262,12 +121,19 @@ function checkExistingSession() {
         try {
             const session = JSON.parse(saved);
             if (session.patientId && session.portalToken) {
-                PortalState.patientId = session.patientId;
-                PortalState.patientName = session.patientName || 'Paciente';
-                PortalState.therapistName = session.therapistName || 'Tu terapeuta';
-                PortalState.portalToken = session.portalToken;
-                showWelcomeBack();
-                return;
+                const patients = loadPortalPatients();
+                const patient = patients.find(p => 
+                    p.id === session.patientId && 
+                    p.portalToken === session.portalToken
+                );
+                if (patient) {
+                    PortalState.patientId = patient.id;
+                    PortalState.patientName = patient.name;
+                    PortalState.therapistName = patient.therapistName || 'Tu terapeuta';
+                    PortalState.portalToken = patient.portalToken;
+                    showWelcomeBack();
+                    return;
+                }
             }
         } catch (e) {
             console.error('Error leyendo sesión:', e);
@@ -286,11 +152,11 @@ function showWelcomeBack() {
     document.getElementById('accessScreen').style.display = 'flex';
     document.getElementById('accessForm').style.display = 'none';
     document.getElementById('welcomeBack').style.display = 'block';
-    document.getElementById('portalPatientName').textContent = `Hola, ${(PortalState.patientName || 'Paciente').split(' ')[0]}`;
+    document.getElementById('portalPatientName').textContent = `Hola, ${PortalState.patientName.split(' ')[0]}`;
     document.getElementById('portalPatientAvatar').textContent = getInitials(PortalState.patientName);
 }
 
-async function handleAccess() {
+function handleAccess() {
     const codeInput = document.getElementById('accessCode');
     const errorEl = document.getElementById('accessError');
     if (!codeInput) return;
@@ -302,36 +168,6 @@ async function handleAccess() {
         codeInput.classList.add('error');
         return;
     }
-
-    // 1. Intentar autenticar contra el servidor backend (PostgreSQL)
-    try {
-        const res = await fetch('/api/v1/portal/auth', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ token: code })
-        });
-        if (res.ok) {
-            const data = await res.json();
-            if (data.authenticated && data.patient) {
-                PortalState.patientId = data.patient.id;
-                PortalState.patientName = data.patient.name;
-                PortalState.therapistName = data.patient.therapistName || 'Tu terapeuta';
-                PortalState.portalToken = data.patient.portalToken || code;
-                localStorage.setItem('psico_portal_session', JSON.stringify({
-                    patientId: data.patient.id,
-                    portalToken: PortalState.portalToken,
-                    patientName: data.patient.name,
-                    therapistName: data.patient.therapistName
-                }));
-                await enterPortal();
-                return;
-            }
-        }
-    } catch (e) {
-        console.warn('Backend no disponible, recurriendo a verificación local:', e);
-    }
-
-    // 2. Fallback a lista local si el servidor estuviese offline
     const patients = loadPortalPatients();
     const patient = patients.find(p => {
         const patientToken = (p.portalToken || '').toUpperCase().trim();
@@ -353,7 +189,7 @@ async function handleAccess() {
         patientName: patient.name,
         therapistName: patient.therapistName
     }));
-    await enterPortal();
+    enterPortal();
 }
 
 function loadPortalPatients() {
@@ -366,21 +202,19 @@ function loadPortalPatients() {
     return [];
 }
 
-async function enterPortal() {
+function enterPortal() {
     document.getElementById('accessScreen').style.display = 'none';
     document.getElementById('portalApp').style.display = 'block';
     document.getElementById('portalApp').classList.add('active');
-    await loadPatientData();
+    loadPatientData();
     loadTasksFromNotes();
     updateHeader();
     updateDailyReflection();
     renderTasks();
     updateTestsLastResults();
     updateProgress();
-    checkConsentCard();
-    PortalOfflineQueue.updateBadge();
-    PortalOfflineQueue.flush();
-    showToast(`Bienvenido/a, ${(PortalState.patientName || 'Paciente').split(' ')[0]}`, 'success');
+    checkContainmentBanner();
+    showToast(`Bienvenido/a, ${PortalState.patientName.split(' ')[0]}`, 'success');
 }
 
 function logoutPortal() {
@@ -395,49 +229,7 @@ function logoutPortal() {
     }
 }
 
-async function loadPatientData() {
-    // 1. Intentar cargar desde el backend PostgreSQL si hay token de acceso
-    if (PortalState.portalToken) {
-        try {
-            const res = await fetch(`/api/v1/portal/me?token=${encodeURIComponent(PortalState.portalToken)}`);
-            if (res.ok) {
-                const data = await res.json();
-                if (data.status === 'ok') {
-                    if (data.tasks) PortalState.tasks = data.tasks;
-                    if (data.evaluations) PortalState.evaluations = data.evaluations;
-                    if (data.moodLogs) PortalState.moodLog = data.moodLogs.map(m => ({
-                        id: m.id,
-                        value: m.mood_score || m.value,
-                        date: m.created_at || m.date
-                    }));
-                    if (data.cbtRecords) PortalState.cbtRecords = data.cbtRecords.map(c => ({
-                        id: c.id,
-                        situation: c.situation,
-                        thought: c.thought,
-                        distortion: c.distortion,
-                        emotion: c.emotion,
-                        initialIntensity: c.initial_intensity,
-                        rationalThought: c.rational_thought,
-                        finalIntensity: c.final_intensity,
-                        date: c.created_at
-                    }));
-                    PortalState.activeCrisisAlert = Boolean(data.hasActiveCrisisAlert);
-                    if (data.therapistName) PortalState.therapistName = data.therapistName;
-
-                    savePatientDataLocally();
-                    return;
-                }
-            }
-        } catch (e) {
-            console.warn('Conexión con backend no disponible, cargando copia local:', e);
-        }
-    }
-
-    // 2. Fallback a localStorage
-    loadPatientDataLocally();
-}
-
-function loadPatientDataLocally() {
+function loadPatientData() {
     try {
         const stored = localStorage.getItem(`psico_portal_data_${PortalState.patientId}`);
         if (stored) {
@@ -445,22 +237,14 @@ function loadPatientDataLocally() {
             PortalState.tasks = data.tasks || [];
             PortalState.evaluations = data.evaluations || [];
             PortalState.moodLog = data.moodLog || [];
-            PortalState.cbtRecords = data.cbtRecords || [];
-            PortalState.activeCrisisAlert = Boolean(data.activeCrisisAlert);
         } else {
             PortalState.tasks = [];
             PortalState.evaluations = [];
             PortalState.moodLog = [];
-            PortalState.cbtRecords = [];
-            PortalState.activeCrisisAlert = false;
         }
     } catch (e) {
-        console.error('Error cargando datos locales del portal:', e);
+        console.error('Error cargando datos del portal:', e);
     }
-}
-
-function savePatientDataLocally() {
-    savePatientData();
 }
 
 function savePatientData() {
@@ -469,8 +253,6 @@ function savePatientData() {
             tasks: PortalState.tasks,
             evaluations: PortalState.evaluations,
             moodLog: PortalState.moodLog,
-            cbtRecords: PortalState.cbtRecords,
-            activeCrisisAlert: PortalState.activeCrisisAlert,
             lastUpdate: new Date().toISOString()
         };
         localStorage.setItem(`psico_portal_data_${PortalState.patientId}`, JSON.stringify(data));
@@ -479,7 +261,6 @@ function savePatientData() {
         if (PortalState.patientId) {
             localStorage.setItem(`psico_portal_results_${PortalState.patientId}`, JSON.stringify(PortalState.evaluations));
             localStorage.setItem(`psico_portal_mood_${PortalState.patientId}`, JSON.stringify(PortalState.moodLog));
-            localStorage.setItem(`psico_portal_cbt_${PortalState.patientId}`, JSON.stringify(PortalState.cbtRecords));
         }
     } catch (e) {
         console.error('Error guardando datos del portal:', e);
@@ -487,23 +268,63 @@ function savePatientData() {
 }
 
 function loadTasksFromNotes() {
+    if (!PortalState.patientId) return;
     try {
-        const bridge = JSON.parse(localStorage.getItem('psico_portal_tasks_bridge') || '{}');
-        const patientTasks = Object.values(bridge).filter(t => t.patientId === PortalState.patientId);
-        if (patientTasks.length === 0) {
-            return;
+        let bridge = {};
+        try {
+            bridge = JSON.parse(localStorage.getItem('psico_portal_tasks_bridge') || '{}');
+        } catch (e) {}
+
+        let patientTasks = Object.values(bridge).filter(t => String(t.patientId) === String(PortalState.patientId));
+
+        // Fallback: Check psico_portal_notes_backup if bridge was empty or missing tasks
+        try {
+            const backupNotes = JSON.parse(localStorage.getItem('psico_portal_notes_backup') || '[]');
+            const matchingNotes = backupNotes.filter(n => String(n.patientId) === String(PortalState.patientId));
+            
+            matchingNotes.forEach(note => {
+                if (Array.isArray(note.intersessionTasks)) {
+                    note.intersessionTasks.forEach(task => {
+                        if (task.title && task.title.trim()) {
+                            const taskId = task.id || `task_${note.id}_${Math.random().toString(36).substr(2, 5)}`;
+                            const taskKey = `${PortalState.patientId}_${taskId}`;
+                            if (!bridge[taskKey]) {
+                                bridge[taskKey] = {
+                                    id: taskId,
+                                    title: task.title,
+                                    description: task.description || '',
+                                    dueDate: task.dueDate || '',
+                                    completed: !!task.completed,
+                                    completedAt: task.completedAt || null,
+                                    patientId: PortalState.patientId,
+                                    noteId: note.id,
+                                    noteTitle: note.title,
+                                    noteDate: note.date,
+                                    assignedAt: new Date().toISOString()
+                                };
+                            }
+                        }
+                    });
+                }
+            });
+            patientTasks = Object.values(bridge).filter(t => String(t.patientId) === String(PortalState.patientId));
+            localStorage.setItem('psico_portal_tasks_bridge', JSON.stringify(bridge));
+        } catch (e) {
+            console.error('Error cargando notas de respaldo:', e);
         }
+
         const currentTasks = PortalState.tasks || [];
         patientTasks.forEach(task => {
-            const existing = currentTasks.find(t => t.id === task.id);
+            const existing = currentTasks.find(t => String(t.id) === String(task.id) || (t.title === task.title && t.dueDate === task.dueDate));
             if (existing) {
-                task.completed = existing.completed;
-                task.completedAt = existing.completedAt;
-            } else {
-                task.completed = false;
-                task.completedAt = null;
+                if (existing.completed) {
+                    task.completed = true;
+                    task.completedAt = existing.completedAt || new Date().toISOString();
+                }
+                if (existing.id) task.id = existing.id;
             }
         });
+
         PortalState.tasks = patientTasks;
         savePatientData();
     } catch (e) {
@@ -526,6 +347,7 @@ function switchView(viewName) {
     document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
     document.getElementById(`view${viewName.charAt(0).toUpperCase() + viewName.slice(1)}`).classList.add('active');
     document.querySelector(`.nav-btn[data-view="${viewName}"]`).classList.add('active');
+    if (viewName === 'home') checkContainmentBanner();
     if (viewName === 'tasks') renderTasks();
     if (viewName === 'tests') updateTestsLastResults();
     if (viewName === 'progress') updateProgress();
@@ -548,24 +370,17 @@ function selectMood(value) {
     };
     PortalState.moodLog.push(moodLog);
     savePatientData();
-
-    // Sincronizar en tiempo real con backend PostgreSQL (con soporte de cola offline)
-    if (PortalState.patientId && PortalState.portalToken) {
-        sendPortalPost('/api/v1/portal/mood', {
-            patientId: PortalState.patientId,
-            token: PortalState.portalToken,
-            mood: value,
-            sleep: 3,
-            energy: 3
-        });
-    }
-
+    checkContainmentBanner();
     document.getElementById('moodConfirmation').style.display = 'flex';
     setTimeout(() => {
         document.getElementById('moodConfirmation').style.display = 'none';
         document.querySelectorAll('.mood-btn').forEach(btn => btn.classList.remove('selected'));
     }, 3000);
-    showToast('Estado de ánimo registrado', 'success');
+    if (value === 1) {
+        showToast('🚨 Mensaje de contención: Contacta a tu terapeuta o llama al 0800-PSICO si te sientes en riesgo.', 'error');
+    } else {
+        showToast('Estado de ánimo registrado', 'success');
+    }
 }
 
 function renderTasks() {
@@ -624,7 +439,7 @@ function filterTasks(filter) {
 }
 
 function toggleTask(taskId) {
-    const task = PortalState.tasks.find(t => t.id === taskId);
+    const task = (PortalState.tasks || []).find(t => String(t.id) === String(taskId));
     if (!task) return;
     task.completed = !task.completed;
     task.completedAt = task.completed ? new Date().toISOString() : null;
@@ -633,14 +448,6 @@ function toggleTask(taskId) {
     renderTasks();
     if (task.completed) {
         showToast('¡Tarea completada! 🎉', 'success');
-    }
-
-    // Sincronizar en tiempo real con backend PostgreSQL (con soporte de cola offline)
-    if (PortalState.patientId && PortalState.portalToken) {
-        sendPortalPost(`/api/v1/portal/tasks/${taskId}/toggle`, {
-            patientId: PortalState.patientId,
-            token: PortalState.portalToken
-        });
     }
 }
 
@@ -651,7 +458,27 @@ function updateTaskInBridge(task) {
         if (bridge[taskKey]) {
             bridge[taskKey].completed = task.completed;
             bridge[taskKey].completedAt = task.completedAt;
-            localStorage.setItem('psico_portal_tasks_bridge', JSON.stringify(bridge));
+        } else {
+            bridge[taskKey] = { ...task };
+        }
+        localStorage.setItem('psico_portal_tasks_bridge', JSON.stringify(bridge));
+
+        // Also update psico_portal_notes_backup if present
+        const backupNotes = JSON.parse(localStorage.getItem('psico_portal_notes_backup') || '[]');
+        let updatedNotes = false;
+        backupNotes.forEach(note => {
+            if (Array.isArray(note.intersessionTasks)) {
+                note.intersessionTasks.forEach(t => {
+                    if (String(t.id) === String(task.id)) {
+                        t.completed = task.completed;
+                        t.completedAt = task.completedAt;
+                        updatedNotes = true;
+                    }
+                });
+            }
+        });
+        if (updatedNotes) {
+            localStorage.setItem('psico_portal_notes_backup', JSON.stringify(backupNotes));
         }
     } catch (e) {
         console.error('Error actualizando tarea en puente:', e);
@@ -661,59 +488,148 @@ function updateTaskInBridge(task) {
 function updateTestsLastResults() {
     const phq9 = PortalState.evaluations.filter(e => e.type === 'phq9').slice(-1)[0];
     const gad7 = PortalState.evaluations.filter(e => e.type === 'gad7').slice(-1)[0];
+    const rosenberg = PortalState.evaluations.filter(e => e.type === 'rosenberg').slice(-1)[0];
+    const pss10 = PortalState.evaluations.filter(e => e.type === 'pss10').slice(-1)[0];
     const mood = PortalState.moodLog.slice(-1)[0];
-    const cbt = (PortalState.cbtRecords || []).slice(-1)[0];
-    document.getElementById('lastPhq9').textContent = phq9 
-        ? `Último: ${formatDateSafe(phq9.date)} · Puntaje ${phq9.score}/27`
-        : 'Sin realizar aún';
-    document.getElementById('lastGad7').textContent = gad7
-        ? `Último: ${formatDateSafe(gad7.date)} · Puntaje ${gad7.score}/21`
-        : 'Sin realizar aún';
-    document.getElementById('lastMood').textContent = mood
-        ? `Hoy: ${getMoodLabel(mood.value)}`
-        : 'Sin registro hoy';
-    const lastCbtEl = document.getElementById('lastCbt');
-    if (lastCbtEl) {
-        lastCbtEl.textContent = cbt
-            ? `Último: ${formatDateSafe(cbt.date)} · ${cbt.emotion || 'Completado'}`
-            : 'Sin registro reciente';
+
+    const phqEl = document.getElementById('lastPhq9');
+    if (phqEl) phqEl.textContent = phq9 ? `Último: ${formatDateSafe(phq9.date)} · Puntaje ${phq9.score}/27` : 'Sin realizar aún';
+
+    const gadEl = document.getElementById('lastGad7');
+    if (gadEl) gadEl.textContent = gad7 ? `Último: ${formatDateSafe(gad7.date)} · Puntaje ${gad7.score}/21` : 'Sin realizar aún';
+
+    const rosEl = document.getElementById('lastRosenberg');
+    if (rosEl) rosEl.textContent = rosenberg ? `Último: ${formatDateSafe(rosenberg.date)} · Puntaje ${rosenberg.score}/40` : 'Sin realizar aún';
+
+    const pssEl = document.getElementById('lastPss10');
+    if (pssEl) pssEl.textContent = pss10 ? `Último: ${formatDateSafe(pss10.date)} · Puntaje ${pss10.score}/40` : 'Sin realizar aún';
+
+    const moodEl = document.getElementById('lastMood');
+    if (moodEl) moodEl.textContent = mood ? `Hoy: ${getMoodLabel(mood.value)}` : 'Sin registro hoy';
+}
+
+function canTakeTestThisWeek(testType) {
+    if (testType === 'mood') return { allowed: true };
+    if (window._overrideTestLimit === testType) return { allowed: true, isOverride: true };
+
+    const lastEval = PortalState.evaluations
+        .filter(e => e.type === testType)
+        .sort((a, b) => new Date(b.date || b.timestamp) - new Date(a.date || a.timestamp))[0];
+
+    if (!lastEval) return { allowed: true };
+
+    const ONE_WEEK_MS = 7 * 24 * 60 * 60 * 1000;
+    const lastTime = new Date(lastEval.date || lastEval.timestamp).getTime();
+    const timeSince = Date.now() - lastTime;
+
+    if (timeSince < ONE_WEEK_MS) {
+        const daysLeft = Math.ceil((ONE_WEEK_MS - timeSince) / (24 * 60 * 60 * 1000));
+        return {
+            allowed: false,
+            daysLeft: daysLeft,
+            lastDate: lastEval.date || new Date(lastTime).toISOString()
+        };
     }
+    return { allowed: true };
+}
+
+function enableTestOverride(testType) {
+    window._overrideTestLimit = testType;
+    showToast('Prueba habilitada por indicación terapéutica', 'info');
+    openTest(testType);
 }
 
 function openTest(testType) {
     const modal = document.getElementById('testModal');
     const title = document.getElementById('testModalTitle');
     const body = document.getElementById('testModalBody');
+
+    const check = canTakeTestThisWeek(testType);
+    if (!check.allowed) {
+        title.textContent = '⏳ Límite de Frecuencia Semanal';
+        body.innerHTML = `
+            <div style="text-align:center; padding:16px 8px;">
+                <div style="font-size:40px; margin-bottom:12px;">⏳</div>
+                <h4 style="margin:0 0 8px 0; color:var(--text-primary); font-size:16px;">Evaluación Completada Recientemente</h4>
+                <p style="font-size:13px; color:var(--text-secondary); line-height:1.5; margin-bottom:16px;">
+                    Completaste este cuestionario el <strong>${formatDateSafe(check.lastDate)}</strong>.
+                    Para garantizar la validez psicométrica y evitar la sobre-evaluación, se recomienda realizar las escalas sintomáticas con un intervalo mínimo de 1 semana (salvo indicación clínica explícita).
+                </p>
+                <div style="background:var(--bg-secondary); padding:12px; border-radius:var(--radius-md); border:1px solid var(--border-secondary); font-size:13px; font-weight:600; color:var(--accent-primary); margin-bottom:20px;">
+                    Próxima aplicación recomendada en aproximadamente <strong>${check.daysLeft} día(s)</strong>.
+                </div>
+                <div style="display:flex; flex-direction:column; gap:10px;">
+                    <button class="btn-primary full-width" onclick="closeTestModal()">Entendido</button>
+                    <button class="btn-secondary full-width" onclick="enableTestOverride('${testType}')" style="font-size:12px;">
+                        Tengo indicación directa de mi terapeuta para repetir la prueba hoy
+                    </button>
+                </div>
+            </div>
+        `;
+        modal.style.display = 'flex';
+        return;
+    }
+
     if (testType === 'phq9') {
         title.textContent = 'Evaluación del Estado de Ánimo (PHQ-9)';
         body.innerHTML = renderTestQuestions(PHQ9_QUESTIONS, 'phq9');
     } else if (testType === 'gad7') {
         title.textContent = 'Evaluación de Ansiedad (GAD-7)';
         body.innerHTML = renderTestQuestions(GAD7_QUESTIONS, 'gad7');
+    } else if (testType === 'rosenberg') {
+        title.textContent = 'Escala de Autoestima de Rosenberg';
+        body.innerHTML = renderTestQuestions(ROSENBERG_QUESTIONS, 'rosenberg');
+    } else if (testType === 'pss10') {
+        title.textContent = 'Escala de Estrés Percibido (PSS-10)';
+        body.innerHTML = renderTestQuestions(PSS10_QUESTIONS, 'pss10');
     } else if (testType === 'mood') {
         title.textContent = 'Registro de Ánimo Diario';
         body.innerHTML = renderMoodQuestions();
-    } else if (testType === 'cbt_thought') {
-        title.textContent = 'Registro de Pensamientos Automáticos (ABC)';
-        body.innerHTML = renderCbtQuestions();
     }
     modal.style.display = 'flex';
 }
 
 function renderTestQuestions(questions, testType) {
+    let options = [
+        { label: 'Nunca (0)', val: 0 },
+        { label: 'Varios días (1)', val: 1 },
+        { label: 'Más de la mitad de los días (2)', val: 2 },
+        { label: 'Casi todos los días (3)', val: 3 }
+    ];
+    let subtitle = 'En las últimas 2 semanas, ¿con qué frecuencia te han molestado los siguientes problemas?';
+
+    if (testType === 'rosenberg') {
+        subtitle = 'Por favor responde qué tan de acuerdo o en desacuerdo estás con cada afirmación:';
+        options = [
+            { label: 'Muy en desacuerdo (1)', val: 1 },
+            { label: 'En desacuerdo (2)', val: 2 },
+            { label: 'De acuerdo (3)', val: 3 },
+            { label: 'Muy de acuerdo (4)', val: 4 }
+        ];
+    } else if (testType === 'pss10') {
+        subtitle = 'En el último mes, ¿con qué frecuencia te has sentido de la siguiente manera?';
+        options = [
+            { label: 'Nunca (0)', val: 0 },
+            { label: 'Casi nunca (1)', val: 1 },
+            { label: 'A veces (2)', val: 2 },
+            { label: 'A menudo (3)', val: 3 },
+            { label: 'Muy a menudo (4)', val: 4 }
+        ];
+    }
+
     return `
         <p style="color: var(--text-secondary); font-size: 13px; margin-bottom: 16px;">
-            En las últimas 2 semanas, ¿con qué frecuencia te han molestado los siguientes problemas?
+            ${subtitle}
         </p>
         <form id="testForm">
             ${questions.map((q, i) => `
                 <div class="test-question">
                     <div class="test-question-text">${i + 1}. ${q}</div>
                     <div class="test-options">
-                        ${['Nunca (0)', 'Varios días (1)', 'Más de la mitad de los días (2)', 'Casi todos los días (3)'].map((opt, j) => `
-                            <label class="test-option" onclick="selectOption(this, '${testType}_${i}', ${j})">
-                                <input type="radio" name="${testType}_${i}" value="${j}">
-                                <span>${opt}</span>
+                        ${options.map((opt) => `
+                            <label class="test-option" onclick="selectOption(this, '${testType}_${i}', ${opt.val})">
+                                <input type="radio" name="${testType}_${i}" value="${opt.val}">
+                                <span>${opt.label}</span>
                             </label>
                         `).join('')}
                     </div>
@@ -762,111 +678,73 @@ function selectOption(element, name, value) {
     }
 }
 
-function renderCbtQuestions() {
+function getContainmentBoxHTML(reason = '') {
+    const therapist = PortalState.therapistName || 'tu terapeuta';
     return `
-        <p style="color: var(--text-secondary); font-size: 13px; margin-bottom: 16px;">
-            Identifica el pensamiento que te causó malestar y formula una alternativa constructiva.
-        </p>
-        <form id="cbtForm" onsubmit="event.preventDefault(); submitCbtRecord();">
-            <div class="test-question" style="margin-bottom:12px;">
-                <label style="font-weight:600;font-size:13px;">1. Situación:</label>
-                <input type="text" id="cbt_situation" placeholder="¿Qué ocurrió? ¿Dónde estabas?" required style="width:100%;margin-top:4px;padding:8px;border-radius:6px;border:1px solid var(--border-primary);">
+        <div class="containment-alert-box" style="background:#fdf2f2; border:1px solid #f8b4b4; border-left:6px solid #e16259; border-radius:12px; padding:16px; margin:16px 0; text-align:left; color:#5c1d1d;">
+            <div style="display:flex; align-items:center; gap:8px; font-weight:700; font-size:15px; color:#c53030; margin-bottom:8px;">
+                <span>🚨</span>
+                <span>Estamos aquí para acompañarte</span>
             </div>
-            <div class="test-question" style="margin-bottom:12px;">
-                <label style="font-weight:600;font-size:13px;">2. Pensamiento Automático:</label>
-                <textarea id="cbt_thought" rows="2" placeholder="¿Qué cruzó por tu mente? (Ej: 'No seré capaz', 'Todo saldrá mal')" required style="width:100%;margin-top:4px;padding:8px;border-radius:6px;border:1px solid var(--border-primary);"></textarea>
+            <p style="margin:0 0 10px 0; font-size:13px; color:#5c1d1d; line-height:1.5;">
+                ${reason || 'Hemos notado que estás pasando por un momento con el ánimo muy bajo o de alto malestar emocional. Recuerda que no estás solo/a y que tu seguridad y bienestar son lo más importante.'}
+            </p>
+            <div style="background:#ffffff; border:1px solid #fecaca; border-radius:8px; padding:12px; font-size:13px; line-height:1.6; color:#702424; margin-bottom:10px;">
+                <div style="font-weight:700; color:#9b2c2c; margin-bottom:6px;">📞 Contactos de Emergencia y Apoyo Inmediato:</div>
+                <div>• <strong>Tu Terapeuta:</strong> ${therapist} (Ponte en contacto directo o deja un mensaje)</div>
+                <div>• <strong>Línea de Crisis y Apoyo Emocional 24/7:</strong> 0800-PSICO / 0212-241-92-88</div>
+                <div>• <strong>Emergencias Generales:</strong> Llamar al 911 o acudir al centro de salud más cercano.</div>
             </div>
-            <div class="test-question" style="margin-bottom:12px;">
-                <label style="font-weight:600;font-size:13px;">3. Distorsión Cognitiva Principal:</label>
-                <select id="cbt_distortion" style="width:100%;margin-top:4px;padding:8px;border-radius:6px;border:1px solid var(--border-primary);">
-                    <option value="Catastrofismo">Catastrofismo (anticipar lo peor)</option>
-                    <option value="Filtro Negativo">Filtro Negativo (enfocarse solo en lo malo)</option>
-                    <option value="Todo o Nada">Pensamiento Todo o Nada (blanco o negro)</option>
-                    <option value="Lectura de Mente">Lectura de Mente (asumir lo que otros piensan)</option>
-                    <option value="Razonamiento Emocional">Razonamiento Emocional (sentirlo no lo hace real)</option>
-                    <option value="Personalización">Personalización (asumir culpa ajena)</option>
-                    <option value="Deberías">Exigencias Rígidas (los 'debería')</option>
-                </select>
+            <div style="font-size:12px; font-style:italic; color:#8c2b2b;">
+                Si sientes que estás en riesgo inminente o necesitas ayuda urgente, no dudes en comunicarte inmediatamente con estos servicios.
             </div>
-            <div class="test-question" style="margin-bottom:12px;">
-                <label style="font-weight:600;font-size:13px;">4. Emoción y Malestar Inicial (0 a 100%):</label>
-                <div style="display:flex;gap:8px;margin-top:4px;">
-                    <input type="text" id="cbt_emotion" placeholder="Ej: Ansiedad, Rabia, Tristeza" required style="flex:1;padding:8px;border-radius:6px;border:1px solid var(--border-primary);">
-                    <input type="number" id="cbt_intensity_initial" min="0" max="100" placeholder="80%" required style="width:75px;padding:8px;border-radius:6px;border:1px solid var(--border-primary);">
-                </div>
-            </div>
-            <div class="test-question" style="margin-bottom:12px;">
-                <label style="font-weight:600;font-size:13px;">5. Pensamiento Alternativo / Racional:</label>
-                <textarea id="cbt_rational" rows="2" placeholder="¿Qué perspectiva más realista y compasiva puedes tomar?" required style="width:100%;margin-top:4px;padding:8px;border-radius:6px;border:1px solid var(--border-primary);"></textarea>
-            </div>
-            <div class="test-question" style="margin-bottom:16px;">
-                <label style="font-weight:600;font-size:13px;">6. Intensidad Emocional Posterior (0 a 100%):</label>
-                <input type="number" id="cbt_intensity_final" min="0" max="100" placeholder="35%" required style="width:100%;margin-top:4px;padding:8px;border-radius:6px;border:1px solid var(--border-primary);">
-            </div>
-            <button type="submit" class="btn-primary full-width">
-                <i class="fas fa-check"></i> Guardar Autoregistro ABC
-            </button>
-        </form>
+        </div>
     `;
 }
 
-function submitCbtRecord() {
-    const situation = document.getElementById('cbt_situation')?.value.trim();
-    const thought = document.getElementById('cbt_thought')?.value.trim();
-    const distortion = document.getElementById('cbt_distortion')?.value;
-    const emotion = document.getElementById('cbt_emotion')?.value.trim();
-    const initIntensity = document.getElementById('cbt_intensity_initial')?.value;
-    const rational = document.getElementById('cbt_rational')?.value.trim();
-    const finalIntensity = document.getElementById('cbt_intensity_final')?.value;
+function checkContainmentBanner() {
+    const container = document.getElementById('containmentBannerContainer');
+    if (!container) return;
 
-    if (!situation || !thought || !emotion || !rational) {
-        showToast('Completa todos los campos del registro', 'warning');
-        return;
+    const lastMood = PortalState.moodLog.slice(-1)[0];
+    const lastPhq = PortalState.evaluations.filter(e => e.type === 'phq9').slice(-1)[0];
+
+    const isVeryLowMood = lastMood && lastMood.value === 1;
+    const isSeverePhq = lastPhq && (lastPhq.score >= 15 || lastPhq.item9Score > 0 || lastPhq.item9Alert);
+
+    if (isVeryLowMood || isSeverePhq) {
+        let msg = '';
+        if (isSeverePhq && (lastPhq.item9Score > 0 || lastPhq.item9Alert)) {
+            msg = 'Atención: Tu última evaluación registró ideación de hacerse daño o autolesión. Si te sientes en riesgo, por favor contacta a tu terapeuta o llama a las líneas de emergencia de inmediato.';
+        } else if (isSeverePhq) {
+            msg = 'Tus resultados indican un nivel de depresión o malestar severo. Si te sientes en riesgo o sobrepasado/a, comunícate con tu terapeuta o utiliza las líneas de crisis.';
+        } else {
+            msg = 'Registraste un estado de ánimo muy bajo. Queremos recordarte que no estás solo/a y estamos para apoyarte.';
+        }
+        container.innerHTML = getContainmentBoxHTML(msg);
+        container.style.display = 'block';
+    } else {
+        container.innerHTML = '';
+        container.style.display = 'none';
     }
-
-    const cbtEntry = {
-        id: generateId(),
-        situation,
-        thought,
-        distortion,
-        emotion,
-        initialIntensity: parseInt(initIntensity, 10) || 50,
-        rationalThought: rational,
-        finalIntensity: parseInt(finalIntensity, 10) || 30,
-        date: new Date().toISOString(),
-        timestamp: Date.now()
-    };
-
-    PortalState.cbtRecords.push(cbtEntry);
-    savePatientData();
-
-    // Sincronizar en tiempo real con backend PostgreSQL (con soporte de cola offline)
-    if (PortalState.patientId && PortalState.portalToken) {
-        sendPortalPost('/api/v1/portal/cbt', {
-            patientId: PortalState.patientId,
-            token: PortalState.portalToken,
-            situation,
-            thought,
-            distortion,
-            emotion,
-            initialIntensity: parseInt(initIntensity, 10) || 50,
-            rationalThought: rational,
-            finalIntensity: parseInt(finalIntensity, 10) || 30
-        });
-    }
-
-    closeTestModal();
-    updateTestsLastResults();
-    showToast('¡Autoregistro guardado exitosamente!', 'success');
 }
 
 function submitTest(testType, questionCount) {
     let total = 0;
     let answered = 0;
+    const answers = [];
     for (let i = 0; i < questionCount; i++) {
         const selected = document.querySelector(`input[name="${testType}_${i}"]:checked`);
         if (selected) {
-            total += parseInt(selected.value, 10);
+            const rawVal = parseInt(selected.value, 10);
+            let scoreVal = rawVal;
+            if (testType === 'rosenberg' && [5, 6, 7, 8, 9].includes(i)) {
+                scoreVal = 5 - rawVal; // Inversión: 1->4, 2->3, 3->2, 4->1
+            } else if (testType === 'pss10' && [3, 4, 5, 6, 8].includes(i)) {
+                scoreVal = 4 - rawVal; // Inversión: 0->4, 1->3, 2->2, 3->1, 4->0
+            }
+            total += scoreVal;
+            answers.push(rawVal);
             answered++;
         }
     }
@@ -875,95 +753,30 @@ function submitTest(testType, questionCount) {
         return;
     }
 
-    let alertRisk = false;
-    let riskReason = '';
+    window._overrideTestLimit = null; // Reiniciar override si se usó
 
-    if (testType === 'phq9') {
-        const item9Value = parseInt(document.querySelector('input[name="phq9_8"]:checked')?.value || '0', 10);
-        if (item9Value > 0) {
-            alertRisk = true;
-            riskReason = 'Ideación autolítica señalada en el ítem 9 del PHQ-9';
-        } else if (total >= 20) {
-            alertRisk = true;
-            riskReason = 'Depresión severa detectada (puntuación >= 20)';
-        }
-    }
+    const item9Score = testType === 'phq9' ? (answers[8] || 0) : 0;
+    const item9Alert = item9Score > 0;
+
+    let maxScore = questionCount * 3;
+    if (testType === 'rosenberg') maxScore = questionCount * 4;
+    else if (testType === 'pss10') maxScore = questionCount * 4;
 
     const evaluation = {
         id: generateId(),
         type: testType,
         score: total,
-        maxScore: questionCount * 3,
-        alertRisk,
-        riskReason,
+        maxScore: maxScore,
+        item9Score: item9Score,
+        item9Alert: item9Alert,
+        answers: answers,
         date: new Date().toISOString(),
         timestamp: Date.now()
     };
-
-    if (alertRisk) {
-        PortalState.activeCrisisAlert = true;
-        // Notificar al servidor PostgreSQL
-        sendPortalPost('/api/v1/portal/crisis', {
-            patientId: PortalState.patientId,
-            patientName: PortalState.patientName,
-            token: PortalState.portalToken,
-            severity: 'CRITICO',
-            reason: riskReason
-        });
-    }
-
     PortalState.evaluations.push(evaluation);
     savePatientData();
-
-    // Sincronizar evaluación con el backend PostgreSQL (con soporte de cola offline)
-    if (PortalState.patientId && PortalState.portalToken) {
-        sendPortalPost('/api/v1/portal/evaluations', {
-            patientId: PortalState.patientId,
-            token: PortalState.portalToken,
-            scaleType: testType,
-            score: total,
-            maxScore: questionCount * 3,
-            alertRisk,
-            riskReason,
-            answers: []
-        });
-    }
-
-    if (alertRisk) {
-        closeTestModal();
-        triggerPortalEmergencyHelp(riskReason);
-    } else {
-        showTestResult(testType, total, questionCount * 3);
-    }
-}
-
-function triggerPortalEmergencyHelp(reason) {
-    const modal = document.getElementById('crisisHelpModal');
-    if (modal) {
-        modal.style.display = 'flex';
-    }
-    PortalState.activeCrisisAlert = true;
-    savePatientData();
-
-    // Notificar al backend PostgreSQL
-    if (PortalState.patientId && PortalState.portalToken) {
-        fetch('/api/v1/portal/crisis', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-                patientId: PortalState.patientId,
-                token: PortalState.portalToken,
-                patientName: PortalState.patientName,
-                severity: 'CRITICO',
-                reason: reason || 'Solicitud de apoyo inmediato SOS por el paciente'
-            })
-        }).catch(() => {});
-    }
-}
-
-function closeCrisisHelpModal() {
-    const modal = document.getElementById('crisisHelpModal');
-    if (modal) modal.style.display = 'none';
+    checkContainmentBanner();
+    showTestResult(testType, total, maxScore, item9Score);
 }
 
 function submitMoodLog() {
@@ -978,38 +791,28 @@ function submitMoodLog() {
         showToast('Por favor responde todas las preguntas', 'warning');
         return;
     }
-    const moodLog = {
+    const avgMood = answers.reduce((a, b) => a + b, 0) / answers.length;
+    const roundMood = Math.round(avgMood);
+    const moodEntry = {
         id: generateId(),
-        mood: answers[0],
-        sleep: answers[1],
-        energy: answers[2],
+        value: roundMood,
+        details: answers,
         date: new Date().toISOString(),
         timestamp: Date.now()
     };
-    PortalState.moodLog.push({ id: moodLog.id, value: answers[0], date: moodLog.date });
+    PortalState.moodLog.push(moodEntry);
     savePatientData();
-
-    // Sincronizar en tiempo real con backend PostgreSQL
-    if (PortalState.patientId && PortalState.portalToken) {
-        fetch('/api/v1/portal/mood', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-                patientId: PortalState.patientId,
-                token: PortalState.portalToken,
-                mood: answers[0],
-                sleep: answers[1],
-                energy: answers[2]
-            })
-        }).catch(e => console.warn('Sync mood offline:', e));
-    }
-
     closeTestModal();
-    updateTestsLastResults();
-    showToast('¡Registro de bienestar guardado!', 'success');
+    checkContainmentBanner();
+
+    if (roundMood <= 1.5) {
+        showToast('🚨 Mensaje de contención: Contacta a tu terapeuta o llama al 0800-PSICO si te sientes en riesgo.', 'error');
+    } else {
+        showToast('Registro guardado con éxito', 'success');
+    }
 }
 
-function showTestResult(testType, score, maxScore) {
+function showTestResult(testType, score, maxScore, item9Score = 0) {
     const body = document.getElementById('testModalBody');
     let level, message, icon;
     if (testType === 'phq9') {
@@ -1024,12 +827,23 @@ function showTestResult(testType, score, maxScore) {
         else if (score <= 14) { level = 'Ansiedad moderada'; message = 'Te recomendamos compartir estos resultados. 🌊'; icon = '🌊'; }
         else { level = 'Ansiedad alta'; message = 'Es importante que tu terapeuta lo sepa. ⚠️'; icon = '⚠️'; }
     }
+
+    const isContainmentNeeded = (testType === 'phq9' && (score >= 15 || item9Score > 0));
+    let containmentHtml = '';
+    if (isContainmentNeeded) {
+        const reason = item9Score > 0
+            ? '🚨 ALERTA CRÍTICA: Has indicado presencia de pensamientos de hacerte daño o ideación de muerte (Ítem 9 del PHQ-9). Por favor comunícate de inmediato con tu terapeuta o con la línea de ayuda de emergencia.'
+            : 'Resultados de depresión severa registrados. Recuerda que cuentas con el apoyo de tu terapeuta y líneas de atención rápida.';
+        containmentHtml = getContainmentBoxHTML(reason);
+    }
+
     body.innerHTML = `
         <div class="test-result">
             <div class="test-result-icon">${icon}</div>
-            <div class="test-result-title">${level}</div>
+            <div class="test-result-title">${level}${item9Score > 0 ? ' 🚨' : ''}</div>
             <div class="test-result-score">${score} / ${maxScore}</div>
             <div class="test-result-message">${message}</div>
+            ${containmentHtml}
             <button class="btn-primary full-width" onclick="closeTestModal()">
                 <i class="fas fa-check"></i> Entendido
             </button>
@@ -1129,506 +943,3 @@ setInterval(() => {
         loadTasksFromNotes();
     }
 }, 30000);
-
-// ============================================
-// AUDIO SINTETIZADO DE CALMA (WEB AUDIO API)
-// ============================================
-let audioCtx = null;
-let soundEnabled = true;
-
-function toggleBreathingSound() {
-    soundEnabled = !soundEnabled;
-    const btn = document.getElementById('breathingSoundBtn');
-    if (btn) {
-        btn.innerHTML = soundEnabled 
-            ? '<i class="fas fa-volume-high"></i> Sonido suave' 
-            : '<i class="fas fa-volume-xmark"></i> Silencio';
-    }
-}
-
-function playCalmTone(freq = 432, duration = 0.8) {
-    if (!soundEnabled) return;
-    try {
-        if (!audioCtx) {
-            audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-        }
-        if (audioCtx.state === 'suspended') {
-            audioCtx.resume();
-        }
-        const osc = audioCtx.createOscillator();
-        const gain = audioCtx.createGain();
-        osc.type = 'sine';
-        osc.frequency.setValueAtTime(freq, audioCtx.currentTime);
-        gain.gain.setValueAtTime(0.001, audioCtx.currentTime);
-        gain.gain.exponentialRampToValueAtTime(0.12, audioCtx.currentTime + 0.1);
-        gain.gain.exponentialRampToValueAtTime(0.0001, audioCtx.currentTime + duration);
-        osc.connect(gain);
-        gain.connect(audioCtx.destination);
-        osc.start();
-        osc.stop(audioCtx.currentTime + duration);
-    } catch (e) {}
-}
-
-// ============================================
-// RESPIRACIÓN GUIADA 4-7-8
-// ============================================
-const BreathingController = {
-    isRunning: false,
-    interval: null,
-    currentCycle: 1,
-    maxCycles: 4,
-    phase: 'idle', // 'inhale', 'hold', 'exhale'
-    secondsRemaining: 4
-};
-
-function openBreathingExercise() {
-    resetBreathingSession();
-    const modal = document.getElementById('breathingModal');
-    if (modal) modal.style.display = 'flex';
-}
-
-function closeBreathingExercise() {
-    stopBreathingSession();
-    const modal = document.getElementById('breathingModal');
-    if (modal) modal.style.display = 'none';
-}
-
-function resetBreathingSession() {
-    stopBreathingSession();
-    BreathingController.currentCycle = 1;
-    BreathingController.phase = 'idle';
-    BreathingController.secondsRemaining = 4;
-    updateBreathingUI('Listo para comenzar', '4', 'Presiona Iniciar para activar la respiración 4-7-8');
-    const orb = document.getElementById('breathingOrb');
-    if (orb) orb.className = 'breathing-circle-inner';
-    const counter = document.getElementById('breathingCycleCounter');
-    if (counter) counter.textContent = `1 / ${BreathingController.maxCycles}`;
-    const btn = document.getElementById('btnBreathingToggle');
-    if (btn) btn.innerHTML = '<i class="fas fa-play"></i> Iniciar Ejercicio';
-}
-
-function toggleBreathingSession() {
-    if (BreathingController.isRunning) {
-        stopBreathingSession();
-        const btn = document.getElementById('btnBreathingToggle');
-        if (btn) btn.innerHTML = '<i class="fas fa-play"></i> Continuar Ejercicio';
-    } else {
-        startBreathingSession();
-        const btn = document.getElementById('btnBreathingToggle');
-        if (btn) btn.innerHTML = '<i class="fas fa-pause"></i> Pausar';
-    }
-}
-
-function startBreathingSession() {
-    BreathingController.isRunning = true;
-    runInhalePhase();
-}
-
-function stopBreathingSession() {
-    BreathingController.isRunning = false;
-    if (BreathingController.interval) {
-        clearInterval(BreathingController.interval);
-        BreathingController.interval = null;
-    }
-}
-
-function updateBreathingUI(instruction, countdown, guide) {
-    const instEl = document.getElementById('breathingInstruction');
-    const countEl = document.getElementById('breathingCountdown');
-    const guideEl = document.getElementById('breathingPhaseGuide');
-    if (instEl) instEl.textContent = instruction;
-    if (countEl) countEl.textContent = countdown;
-    if (guideEl) guideEl.textContent = guide;
-}
-
-function runInhalePhase() {
-    if (!BreathingController.isRunning) return;
-    BreathingController.phase = 'inhale';
-    BreathingController.secondsRemaining = 4;
-    const orb = document.getElementById('breathingOrb');
-    if (orb) orb.className = 'breathing-circle-inner inhale';
-    updateBreathingUI('Inhala', BreathingController.secondsRemaining, 'Inhala lentamente y con calma por la nariz (4s)');
-    playCalmTone(392, 0.8);
-    if (navigator.vibrate) navigator.vibrate(80);
-
-    BreathingController.interval = setInterval(() => {
-        BreathingController.secondsRemaining--;
-        if (BreathingController.secondsRemaining > 0) {
-            const countEl = document.getElementById('breathingCountdown');
-            if (countEl) countEl.textContent = BreathingController.secondsRemaining;
-        } else {
-            clearInterval(BreathingController.interval);
-            runHoldPhase();
-        }
-    }, 1000);
-}
-
-function runHoldPhase() {
-    if (!BreathingController.isRunning) return;
-    BreathingController.phase = 'hold';
-    BreathingController.secondsRemaining = 7;
-    const orb = document.getElementById('breathingOrb');
-    if (orb) orb.className = 'breathing-circle-inner hold';
-    updateBreathingUI('Sostén', BreathingController.secondsRemaining, 'Mantén el aire suspendido en tus pulmones con suavidad (7s)');
-    playCalmTone(432, 0.6);
-
-    BreathingController.interval = setInterval(() => {
-        BreathingController.secondsRemaining--;
-        if (BreathingController.secondsRemaining > 0) {
-            const countEl = document.getElementById('breathingCountdown');
-            if (countEl) countEl.textContent = BreathingController.secondsRemaining;
-        } else {
-            clearInterval(BreathingController.interval);
-            runExhalePhase();
-        }
-    }, 1000);
-}
-
-function runExhalePhase() {
-    if (!BreathingController.isRunning) return;
-    BreathingController.phase = 'exhale';
-    BreathingController.secondsRemaining = 8;
-    const orb = document.getElementById('breathingOrb');
-    if (orb) orb.className = 'breathing-circle-inner exhale';
-    updateBreathingUI('Exhala', BreathingController.secondsRemaining, 'Suelta todo el aire lentamente por la boca en un suave suspiro (8s)');
-    playCalmTone(330, 1.0);
-    if (navigator.vibrate) navigator.vibrate(100);
-
-    BreathingController.interval = setInterval(() => {
-        BreathingController.secondsRemaining--;
-        if (BreathingController.secondsRemaining > 0) {
-            const countEl = document.getElementById('breathingCountdown');
-            if (countEl) countEl.textContent = BreathingController.secondsRemaining;
-        } else {
-            clearInterval(BreathingController.interval);
-            // Siguiente ciclo o finalización
-            if (BreathingController.currentCycle < BreathingController.maxCycles) {
-                BreathingController.currentCycle++;
-                const counter = document.getElementById('breathingCycleCounter');
-                if (counter) counter.textContent = `${BreathingController.currentCycle} / ${BreathingController.maxCycles}`;
-                runInhalePhase();
-            } else {
-                finishBreathingSession();
-            }
-        }
-    }, 1000);
-}
-
-function finishBreathingSession() {
-    stopBreathingSession();
-    playCalmTone(528, 1.5);
-    updateBreathingUI('¡Completado!', '✨', 'Excelente. Tu ritmo cardíaco se ha desacelerado y tu cuerpo está en calma.');
-    const orb = document.getElementById('breathingOrb');
-    if (orb) orb.className = 'breathing-circle-inner';
-    const btn = document.getElementById('btnBreathingToggle');
-    if (btn) btn.innerHTML = '<i class="fas fa-rotate-right"></i> Repetir Ejercicio';
-
-    showToast('¡Sesión de respiración 4-7-8 completada con éxito! 🌱', 'success');
-    syncCalmIntervention('Respiración Guiada 4-7-8', 'Completó 4 ciclos de respiración profunda parasimpática');
-}
-
-// ============================================
-// ANCLAJE SENSORIAL GROUNDING 5-4-3-2-1
-// ============================================
-let currentGroundingStep = 0;
-const GroundingSteps = [
-    { num: 5, icon: '👁️', title: '5 cosas que puedes VER', desc: 'Mira a tu alrededor detenidamente y nombra 5 objetos que llamen tu atención.', placeholder: 'Ej: la lámpara, el marco de la puerta, la textura de la mesa...' },
-    { num: 4, icon: '✋', title: '4 cosas que puedes TOCAR o SENTIR', desc: 'Nota 4 sensaciones táctiles físicas en tu cuerpo en este preciso instante.', placeholder: 'Ej: la suavidad de mi ropa, el respaldo de la silla, el frío del suelo...' },
-    { num: 3, icon: '👂', title: '3 sonidos que puedes ESCUCHAR', desc: 'Guarda silencio unos segundos y detecta 3 sonidos presentes en tu entorno.', placeholder: 'Ej: el zumbido del ventilador, un pájaro afuera, mi propia respiración...' },
-    { num: 2, icon: '👃', title: '2 olores que puedes PERCIBIR', desc: 'Inhala suavemente y busca 2 olores en el aire o en tu piel.', placeholder: 'Ej: olor a café, jabón en mis manos, aire fresco...' },
-    { num: 1, icon: '👅', title: '1 sabor que tienes en tu boca', desc: 'Enfoca tu atención en el sabor actual en tu paladar o toma un sorbo de agua.', placeholder: 'Ej: sabor a pasta dental, sorbo de agua fresca, neutral...' }
-];
-
-function openGroundingExercise() {
-    currentGroundingStep = 0;
-    renderGroundingStep();
-    const modal = document.getElementById('groundingModal');
-    if (modal) modal.style.display = 'flex';
-}
-
-function closeGroundingExercise() {
-    const modal = document.getElementById('groundingModal');
-    if (modal) modal.style.display = 'none';
-}
-
-function renderGroundingStep() {
-    const container = document.getElementById('groundingModalBody');
-    if (!container) return;
-
-    if (currentGroundingStep >= GroundingSteps.length) {
-        container.innerHTML = `
-            <div class="grounding-step-card">
-                <div class="grounding-step-icon">🧘✨</div>
-                <div class="grounding-step-title">¡Anclaje Completado!</div>
-                <p class="grounding-step-desc">
-                    Has traído tu mente al presente. El momento de crisis ha pasado y estás a salvo aquí y ahora.
-                </p>
-                <button class="btn-primary full-width" onclick="finishGroundingExercise()">
-                    <i class="fas fa-check"></i> Finalizar y Guardar en mi Registro
-                </button>
-            </div>
-        `;
-        return;
-    }
-
-    const step = GroundingSteps[currentGroundingStep];
-    container.innerHTML = `
-        <div class="grounding-step-card">
-            <span class="grounding-step-num">Paso ${currentGroundingStep + 1} de 5</span>
-            <div class="grounding-step-icon">${step.icon}</div>
-            <div class="grounding-step-title">${step.title}</div>
-            <p class="grounding-step-desc">${step.desc}</p>
-            <div class="grounding-input-list">
-                <input type="text" class="grounding-input" id="groundingInput" placeholder="${step.placeholder}" autofocus>
-            </div>
-            <div style="display: flex; gap: 10px;">
-                ${currentGroundingStep > 0 ? `<button class="btn-secondary" onclick="currentGroundingStep--; renderGroundingStep();">Atrás</button>` : ''}
-                <button class="btn-primary full-width" onclick="nextGroundingStep()">
-                    Siguiente <i class="fas fa-arrow-right"></i>
-                </button>
-            </div>
-        </div>
-    `;
-    setTimeout(() => {
-        const inp = document.getElementById('groundingInput');
-        if (inp) inp.focus();
-    }, 100);
-}
-
-function nextGroundingStep() {
-    playCalmTone(440 + currentGroundingStep * 40, 0.4);
-    if (navigator.vibrate) navigator.vibrate(50);
-    currentGroundingStep++;
-    renderGroundingStep();
-}
-
-function finishGroundingExercise() {
-    closeGroundingExercise();
-    showToast('¡Anclaje 5-4-3-2-1 completado! Estás en calma y presente 🌱', 'success');
-    syncCalmIntervention('Anclaje Sensorial 5-4-3-2-1', 'Ejercicio sensorial completado para desacelerar la mente');
-}
-
-// ============================================
-// REGISTRO DE INTERVENCIONES DE CALMA EN BACKEND
-// ============================================
-function syncCalmIntervention(technique, detail) {
-    if (!PortalState.patientId) return;
-
-    // Guardar en cbt_records para que el terapeuta lo vea
-    const entry = {
-        id: generateId(),
-        situation: `Técnica de Autorregulación: ${technique}`,
-        thought: 'Activación autónoma de herramientas de calma en el portal',
-        distortion: 'Manejo adaptativo del estrés',
-        emotion: 'Calma / Alivio',
-        initialIntensity: 75,
-        rationalThought: detail,
-        finalIntensity: 25,
-        date: new Date().toISOString(),
-        timestamp: Date.now()
-    };
-    PortalState.cbtRecords.push(entry);
-    savePatientData();
-
-    // Sincronizar con PostgreSQL (con soporte de cola offline)
-    if (PortalState.portalToken) {
-        sendPortalPost('/api/v1/portal/cbt', {
-            patientId: PortalState.patientId,
-            token: PortalState.portalToken,
-            situation: entry.situation,
-            thought: entry.thought,
-            distortion: entry.distortion,
-            emotion: entry.emotion,
-            initialIntensity: entry.initialIntensity,
-            rationalThought: entry.rationalThought,
-            finalIntensity: entry.finalIntensity
-        });
-    }
-}
-
-// ============================================
-// PWA INSTALL BANNER CONTROLLER
-// ============================================
-let deferredPrompt = null;
-
-window.addEventListener('beforeinstallprompt', (e) => {
-    e.preventDefault();
-    deferredPrompt = e;
-    const banner = document.getElementById('pwaInstallBanner');
-    if (banner && !sessionStorage.getItem('pwa_dismissed')) {
-        banner.style.display = 'flex';
-    }
-});
-
-function promptPwaInstall() {
-    if (deferredPrompt) {
-        deferredPrompt.prompt();
-        deferredPrompt.userChoice.then((choiceResult) => {
-            if (choiceResult.outcome === 'accepted') {
-                showToast('¡App instalada en tu pantalla de inicio!', 'success');
-            }
-            deferredPrompt = null;
-            dismissPwaBanner();
-        });
-    } else {
-        // Instrucción para iOS Safari
-        alert('Para instalar en iPhone: presiona el botón Compartir (cuadrado con flecha) y selecciona "Agregar a la pantalla de inicio" 📲');
-    }
-}
-
-function dismissPwaBanner() {
-    const banner = document.getElementById('pwaInstallBanner');
-    if (banner) banner.style.display = 'none';
-    sessionStorage.setItem('pwa_dismissed', 'true');
-}
-
-// Registrar Service Worker para PWA offline
-if ('serviceWorker' in navigator) {
-    window.addEventListener('load', () => {
-        navigator.serviceWorker.register('./sw.js')
-            .then(() => console.log('✅ ServiceWorker de Mi Espacio activo'))
-            .catch((err) => console.warn('SW register error:', err));
-    });
-}
-
-// ============================================
-// CONSENTIMIENTO INFORMADO DIGITAL EN PORTAL
-// ============================================
-let portalConsentSignatureCtx = null;
-let isPortalConsentDrawing = false;
-
-function checkConsentCard() {
-    const card = document.getElementById('consentCardPortal');
-    if (!card) return;
-
-    const saved = localStorage.getItem(`psico_portal_consent_${PortalState.patientId}`);
-    if (saved) {
-        card.style.display = 'flex';
-        card.classList.add('signed');
-        const titleEl = document.getElementById('consentCardTitle');
-        const descEl = document.getElementById('consentCardDesc');
-        const btn = document.getElementById('btnConsentAction');
-        if (titleEl) titleEl.textContent = '✅ Acuerdo Terapéutico Firmado';
-        if (descEl) descEl.textContent = 'Tu consentimiento y marco de confidencialidad están formalmente vigentes.';
-        if (btn) btn.style.display = 'none';
-    } else {
-        card.style.display = 'flex';
-        card.classList.remove('signed');
-        const titleEl = document.getElementById('consentCardTitle');
-        const descEl = document.getElementById('consentCardDesc');
-        const btn = document.getElementById('btnConsentAction');
-        if (titleEl) titleEl.textContent = 'Acuerdo Terapéutico y Confidencialidad';
-        if (descEl) descEl.textContent = 'Revisa y firma digitalmente el marco de confidencialidad con tu terapeuta.';
-        if (btn) btn.style.display = 'inline-flex';
-    }
-}
-
-function openPortalConsentModal() {
-    const modal = document.getElementById('consentModalPortal');
-    if (modal) modal.style.display = 'flex';
-    setTimeout(() => initPortalConsentSignaturePad(), 80);
-}
-
-function closePortalConsentModal() {
-    const modal = document.getElementById('consentModalPortal');
-    if (modal) modal.style.display = 'none';
-}
-
-function initPortalConsentSignaturePad() {
-    const canvas = document.getElementById('portalConsentSignaturePad');
-    if (!canvas) return;
-    portalConsentSignatureCtx = canvas.getContext('2d');
-    portalConsentSignatureCtx.lineWidth = 2.5;
-    portalConsentSignatureCtx.lineCap = 'round';
-    portalConsentSignatureCtx.lineJoin = 'round';
-    portalConsentSignatureCtx.strokeStyle = '#4f46e5';
-
-    const getPos = (e) => {
-        const rect = canvas.getBoundingClientRect();
-        const clientX = e.touches ? e.touches[0].clientX : e.clientX;
-        const clientY = e.touches ? e.touches[0].clientY : e.clientY;
-        const scaleX = canvas.width / rect.width;
-        const scaleY = canvas.height / rect.height;
-        return {
-            x: (clientX - rect.left) * scaleX,
-            y: (clientY - rect.top) * scaleY
-        };
-    };
-
-    const startDraw = (e) => {
-        e.preventDefault();
-        isPortalConsentDrawing = true;
-        const pos = getPos(e);
-        portalConsentSignatureCtx.beginPath();
-        portalConsentSignatureCtx.moveTo(pos.x, pos.y);
-    };
-
-    const draw = (e) => {
-        if (!isPortalConsentDrawing) return;
-        e.preventDefault();
-        const pos = getPos(e);
-        portalConsentSignatureCtx.lineTo(pos.x, pos.y);
-        portalConsentSignatureCtx.stroke();
-    };
-
-    const stopDraw = () => {
-        if (isPortalConsentDrawing) {
-            isPortalConsentDrawing = false;
-        }
-    };
-
-    canvas.onmousedown = startDraw;
-    canvas.onmousemove = draw;
-    window.onmouseup = stopDraw;
-
-    canvas.ontouchstart = startDraw;
-    canvas.ontouchmove = draw;
-    canvas.ontouchend = stopDraw;
-
-    portalConsentSignatureCtx.clearRect(0, 0, canvas.width, canvas.height);
-}
-
-function clearPortalSignaturePad() {
-    const canvas = document.getElementById('portalConsentSignaturePad');
-    if (canvas && portalConsentSignatureCtx) {
-        portalConsentSignatureCtx.clearRect(0, 0, canvas.width, canvas.height);
-    }
-}
-
-function confirmPortalConsentSignature() {
-    const canvas = document.getElementById('portalConsentSignaturePad');
-    if (!canvas) return;
-
-    let signatureData = '';
-    try {
-        signatureData = canvas.toDataURL();
-    } catch (e) {}
-
-    const consentRecord = {
-        patientId: PortalState.patientId,
-        signedAt: new Date().toISOString(),
-        signature: signatureData
-    };
-
-    localStorage.setItem(`psico_portal_consent_${PortalState.patientId}`, JSON.stringify(consentRecord));
-
-    // Sincronizar hacia el backend y expediente del terapeuta
-    if (PortalState.portalToken) {
-        sendPortalPost('/api/v1/portal/cbt', {
-            patientId: PortalState.patientId,
-            token: PortalState.portalToken,
-            situation: 'Acuerdo Terapéutico y Secreto Profesional Firmado Digitalmente',
-            thought: 'Consentimiento firmado en pantalla móvil por el consultante',
-            distortion: 'Marco Ético Homologado',
-            emotion: 'Asentimiento Terapéutico',
-            initialIntensity: 100,
-            rationalThought: `Firmado digitalmente el ${new Date().toLocaleDateString('es-ES')}`,
-            finalIntensity: 100
-        });
-    }
-
-    closePortalConsentModal();
-    checkConsentCard();
-    showToast('¡Acuerdo firmado con éxito! Gracias por tu compromiso.', 'success');
-}
-
