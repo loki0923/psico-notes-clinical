@@ -63,17 +63,39 @@
                 <div class="portal-patient-name" id="headerName">Paciente</div>
             </div>
         </div>
-        <button class="btn-icon" onclick="logoutPortal()" title="Salir">
-            <i class="fas fa-sign-out-alt"></i>
-        </button>
+        <div style="display: flex; align-items: center; gap: 10px;">
+            <span id="offlineSyncBadge" class="offline-sync-badge" style="display: none;" title="Registros pendientes de sincronizar con el terapeuta. Clic para sincronizar ahora." onclick="PortalOfflineQueue.flush()">
+                <i class="fas fa-cloud-arrow-up"></i> <span id="offlineSyncCount">0</span>
+            </span>
+            <button class="btn-sos" onclick="triggerPortalEmergencyHelp()" title="Obtener ayuda inmediata en crisis">
+                <i class="fas fa-life-ring"></i> SOS
+            </button>
+            <button class="btn-icon" onclick="logoutPortal()" title="Salir">
+                <i class="fas fa-sign-out-alt"></i>
+            </button>
+        </div>
     </header>
+
+    <!-- BANNER PWA INSTALABLE -->
+    <div id="pwaInstallBanner" class="pwa-install-banner" style="display: none;">
+        <div class="pwa-banner-content">
+            <span class="pwa-banner-icon">📲</span>
+            <div>
+                <strong>Instala la App en tu Celular</strong>
+                <small>Acceso directo con un solo toque desde tu pantalla de inicio</small>
+            </div>
+        </div>
+        <div class="pwa-banner-actions">
+            <button class="btn-sm btn-pwa-install" onclick="promptPwaInstall()">Instalar</button>
+            <button class="btn-sm btn-pwa-dismiss" onclick="dismissPwaBanner()">✕</button>
+        </div>
+    </div>
 
     <!-- CONTENIDO -->
     <main class="portal-content">
         
         <!-- VISTA INICIO -->
         <div class="portal-view active" id="viewHome">
-            <div id="containmentBannerContainer" style="display: none;"></div>
             <div class="mood-check-in">
                 <h2>¿Cómo te sientes hoy?</h2>
                 <p class="mood-subtitle">Tómate un momento para conectar contigo</p>
@@ -105,6 +127,20 @@
                 </div>
             </div>
 
+            <!-- TARJETA DE CONSENTIMIENTO INFORMADO -->
+            <div id="consentCardPortal" class="portal-consent-card" style="display: none;">
+                <div class="consent-card-left">
+                    <span class="consent-badge-icon">📜</span>
+                    <div>
+                        <strong id="consentCardTitle">Acuerdo Terapéutico y Confidencialidad</strong>
+                        <p id="consentCardDesc" style="margin:2px 0 0 0;font-size:12px;color:var(--text-secondary);">Revisa y firma digitalmente el marco de confidencialidad.</p>
+                    </div>
+                </div>
+                <button class="btn-sm btn-consent-action" id="btnConsentAction" onclick="openPortalConsentModal()">
+                    <i class="fas fa-signature"></i> Firmar
+                </button>
+            </div>
+
             <div class="quick-stats">
                 <div class="quick-stat">
                     <div class="stat-icon">📋</div>
@@ -118,6 +154,36 @@
                     <div class="stat-info">
                         <div class="stat-value" id="nextSessionText">—</div>
                         <div class="stat-label">Próxima sesión</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- BOTIQUÍN DE CALMA Y REGULACIÓN EMOCIONAL -->
+            <div class="calm-kit-card">
+                <div class="calm-kit-header">
+                    <div>
+                        <span class="calm-kit-badge">✨ BOTIQUÍN EMOCIONAL</span>
+                        <h3 class="calm-kit-title">Herramientas de Calma Inmediata</h3>
+                        <p class="calm-kit-subtitle">Técnicas clínicas para regular la ansiedad y desacelerar tu mente</p>
+                    </div>
+                </div>
+                <div class="calm-kit-grid">
+                    <div class="calm-tool-btn" onclick="openBreathingExercise()">
+                        <div class="calm-tool-icon">🫁</div>
+                        <div class="calm-tool-info">
+                            <strong>Respiración 4-7-8</strong>
+                            <small>Reduce taquicardia y estrés en 2 min</small>
+                        </div>
+                        <i class="fas fa-play calm-tool-play"></i>
+                    </div>
+
+                    <div class="calm-tool-btn" onclick="openGroundingExercise()">
+                        <div class="calm-tool-icon">⚓</div>
+                        <div class="calm-tool-info">
+                            <strong>Anclaje 5-4-3-2-1</strong>
+                            <small>Frena pensamientos intrusivos y pánico</small>
+                        </div>
+                        <i class="fas fa-play calm-tool-play"></i>
                     </div>
                 </div>
             </div>
@@ -184,32 +250,22 @@
                     <i class="fas fa-chevron-right"></i>
                 </div>
 
-                <div class="test-card" onclick="openTest('rosenberg')">
-                    <div class="test-icon">🪞</div>
-                    <div class="test-info">
-                        <h3>Autoestima (Rosenberg)</h3>
-                        <p>10 preguntas · 3 minutos</p>
-                        <div class="test-last" id="lastRosenberg">Sin realizar aún</div>
-                    </div>
-                    <i class="fas fa-chevron-right"></i>
-                </div>
-
-                <div class="test-card" onclick="openTest('pss10')">
-                    <div class="test-icon">⚖️</div>
-                    <div class="test-info">
-                        <h3>Estrés Percibido (PSS-10)</h3>
-                        <p>10 preguntas · 3 minutos</p>
-                        <div class="test-last" id="lastPss10">Sin realizar aún</div>
-                    </div>
-                    <i class="fas fa-chevron-right"></i>
-                </div>
-
                 <div class="test-card" onclick="openTest('mood')">
                     <div class="test-icon">💭</div>
                     <div class="test-info">
                         <h3>Registro de Ánimo Diario</h3>
                         <p>3 preguntas · 1 minuto</p>
                         <div class="test-last" id="lastMood">Sin registro hoy</div>
+                    </div>
+                    <i class="fas fa-chevron-right"></i>
+                </div>
+
+                <div class="test-card" onclick="openTest('cbt_thought')">
+                    <div class="test-icon">🧠</div>
+                    <div class="test-info">
+                        <h3>Registro de Pensamientos (ABC)</h3>
+                        <p>Identifica pensamientos, distorsiones y emociones · 3 min</p>
+                        <div class="test-last" id="lastCbt">Sin registro reciente</div>
                     </div>
                     <i class="fas fa-chevron-right"></i>
                 </div>
@@ -304,6 +360,155 @@
         </div>
         <div class="modal-body" id="testModalBody">
             <!-- Contenido dinámico -->
+        </div>
+    </div>
+</div>
+
+<!-- MODAL DE EMERGENCIA / PROTOCOLO SOS -->
+<div id="crisisHelpModal" class="modal" style="display: none;">
+    <div class="modal-overlay" onclick="closeCrisisHelpModal()"></div>
+    <div class="modal-content" style="border-top: 6px solid #e16259; max-width: 500px;">
+        <div class="modal-header">
+            <h2 style="color: #e16259; display: flex; align-items: center; gap: 8px;">
+                🚨 Apoyo Inmediato en Crisis
+            </h2>
+            <button class="btn-icon" onclick="closeCrisisHelpModal()">
+                <i class="fas fa-times"></i>
+            </button>
+        </div>
+        <div class="modal-body" style="padding: 16px 0;">
+            <div class="crisis-callout">
+                <h3>No estás solo/a. Hay ayuda disponible ahora mismo.</h3>
+                <p style="font-size: 13px; color: #4a5568; margin-bottom: 12px;">
+                    Si estás experimentando una sobrecarga emocional intensa o pensamientos de hacerte daño, por favor contacta a uno de estos servicios de contención gratuitos y confidenciales:
+                </p>
+                <div class="crisis-line-item">
+                    <div>
+                        <strong>🇻🇪 Línea FPVP / Ayuda Psicológica</strong><br>
+                        <small>Atención 24/7 en crisis</small>
+                    </div>
+                    <a href="tel:02122419288">📞 0212-241-92-88</a>
+                </div>
+                <div class="crisis-line-item">
+                    <div>
+                        <strong>🇻🇪 UCV Línea de Crisis</strong><br>
+                        <small>Orientación gratuita</small>
+                    </div>
+                    <a href="tel:02126052800">📞 0212-605-28-00</a>
+                </div>
+                <div class="crisis-line-item">
+                    <div>
+                        <strong>🌎 Emergencias Generales</strong><br>
+                        <small>Ambulancia y guardia médica</small>
+                    </div>
+                    <a href="tel:911">📞 911</a>
+                </div>
+            </div>
+
+            <div style="background: var(--bg-secondary); padding: 12px; border-radius: 8px; font-size: 13px; margin-bottom: 16px;">
+                <strong>Tu terapeuta ha sido notificado/a</strong> de tu solicitud de apoyo. Si es posible, comunícate también con tu familiar de confianza.
+            </div>
+
+            <button class="btn-primary full-width" onclick="closeCrisisHelpModal()">
+                Entendido, mantengo la calma
+            </button>
+        </div>
+    </div>
+</div>
+
+<!-- MODAL DE RESPIRACIÓN GUIADA 4-7-8 -->
+<div id="breathingModal" class="modal" style="display: none;">
+    <div class="modal-overlay" onclick="closeBreathingExercise()"></div>
+    <div class="modal-content modal-breathing-content">
+        <div class="modal-header">
+            <div>
+                <h2>Respiración Guiada 4-7-8</h2>
+                <small style="color: var(--text-secondary);">Técnica parasimpática de relajación profunda</small>
+            </div>
+            <button class="btn-icon" onclick="closeBreathingExercise()">
+                <i class="fas fa-times"></i>
+            </button>
+        </div>
+        <div class="modal-body breathing-modal-body">
+            <!-- ORBE DE RESPIRACIÓN ANIMADO -->
+            <div class="breathing-stage">
+                <div class="breathing-circle-outer">
+                    <div class="breathing-circle-inner" id="breathingOrb">
+                        <span class="breathing-countdown" id="breathingCountdown">4</span>
+                        <span class="breathing-instruction" id="breathingInstruction">Inhala</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- CONTROLES Y ESTADO -->
+            <div class="breathing-meta-bar">
+                <div class="breathing-chip">
+                    <span>Ciclo:</span> <strong id="breathingCycleCounter">1 / 4</strong>
+                </div>
+                <div class="breathing-chip">
+                    <button class="btn-sound-toggle" id="breathingSoundBtn" onclick="toggleBreathingSound()">
+                        <i class="fas fa-volume-high"></i> Sonido suave
+                    </button>
+                </div>
+            </div>
+
+            <div class="breathing-phase-guide" id="breathingPhaseGuide">
+                Inhala lentamente por la nariz llenando tu abdomen
+            </div>
+
+            <!-- BOTONES DE ACCIÓN -->
+            <div class="breathing-actions">
+                <button class="btn-primary full-width" id="btnBreathingToggle" onclick="toggleBreathingSession()">
+                    <i class="fas fa-play"></i> Iniciar Ejercicio
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- MODAL DE ANCLAJE GROUNDING 5-4-3-2-1 -->
+<div id="groundingModal" class="modal" style="display: none;">
+    <div class="modal-overlay" onclick="closeGroundingExercise()"></div>
+    <div class="modal-content modal-grounding-content">
+        <div class="modal-header">
+            <div>
+                <h2>Anclaje Sensorial 5-4-3-2-1</h2>
+                <small style="color: var(--text-secondary);">Conecta con el aquí y el ahora para detener la ansiedad</small>
+            </div>
+            <button class="btn-icon" onclick="closeGroundingExercise()">
+                <i class="fas fa-times"></i>
+            </button>
+        </div>
+        <div class="modal-body grounding-modal-body" id="groundingModalBody">
+            <!-- Paso dinámico renderizado por JS -->
+        </div>
+    </div>
+</div>
+
+<!-- MODAL DE FIRMA DIGITAL DE CONSENTIMIENTO EN EL PORTAL -->
+<div class="modal" id="consentModalPortal" style="display: none;">
+    <div class="modal-overlay" onclick="closePortalConsentModal()"></div>
+    <div class="modal-content" style="max-width: 440px;">
+        <div class="modal-header">
+            <h3>📜 Acuerdo Terapéutico y Secreto Profesional</h3>
+            <button class="btn-icon" onclick="closePortalConsentModal()">✕</button>
+        </div>
+        <div class="modal-body" style="padding: 16px;">
+            <div style="background:var(--bg-secondary); padding:12px; border-radius:var(--radius-sm); font-size:12px; line-height:1.5; max-height:150px; overflow-y:auto; margin-bottom:14px; border:1px solid var(--border-secondary);">
+                <p><strong>1. Secreto Profesional:</strong> Toda la información compartida durante nuestras sesiones está amparada por la confidencialidad médica y psicológica, salvo riesgo inminente para tu integridad o la de terceros.</p>
+                <p><strong>2. Compromiso:</strong> Las sesiones tienen una duración de 50 minutos. Si necesitas reagendar, por favor avisa con al menos 24 horas de antelación.</p>
+                <p><strong>3. Voluntariedad:</strong> Participas libremente en tu proceso y puedes revisar o acordar nuevos objetivos de cambio con tu terapeuta.</p>
+            </div>
+            <label style="font-size:12px; font-weight:700; color:var(--text-primary); display:flex; justify-content:space-between; margin-bottom:6px;">
+                <span>✍️ Firma con tu dedo en la pantalla:</span>
+                <button type="button" class="btn-sm btn-secondary" onclick="clearPortalSignaturePad()">Limpiar</button>
+            </label>
+            <div style="border: 2px dashed #6366f1; border-radius: var(--radius-sm); background: white; overflow: hidden; margin-bottom: 14px;">
+                <canvas id="portalConsentSignaturePad" width="380" height="130" style="width: 100%; height: 130px; display: block; cursor: crosshair; touch-action: none;"></canvas>
+            </div>
+            <button class="btn-primary" style="width:100%; justify-content:center; padding:12px;" onclick="confirmPortalConsentSignature()">
+                <i class="fas fa-check"></i> Confirmar y Firmar Acuerdo
+            </button>
         </div>
     </div>
 </div>

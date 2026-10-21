@@ -77,6 +77,10 @@ El presente documento define la matriz exhaustiva de pruebas unitarias, de integ
 | **TC-SEC-12** | Seguridad P0 | Teleconsulta con Identificadores de Alta Entropía | Salas impredecibles de 192 bits; rechazo sin auth (401) |
 | **TC-SEC-13** | Seguridad P0 | Validación de Tokens: Manipulación y Expiración | Rechazo de firmas forjadas (401), vencidos (401) y spoofing (403) |
 | **TC-SEC-14** | Seguridad P0 | Aislamiento de Buzón Cifrado Zero-Knowledge | Prohibición de lectura/escritura cruzada en ZK sync (HTTP 403) |
+| **TC-CLI-02** | Consentimiento | Consentimiento con Teleconsulta e IA Asistida (CLI-002) | Registro de aceptación expresa de teleconsulta, IA y firma |
+| **TC-UX-01** | Ergonomía | Flujo Rápido de Evolución de Sesión desde la Cita (UX-003) | Prellenado inmediato de paciente, fecha y sesión correlativa |
+| **TC-UX-02** | Ergonomía Táctil | Optimización Táctil y Prevención de Solapamiento Móvil (UX-004) | Modales en z-index 2200, actions sticky, ocultamiento de bottom-nav y clearance safe-area |
+| **TC-PILOT-01** | Caso Piloto | Simulación de Caso Clínico Piloto y Trazabilidad (QA-004) | Validación integral de consentimiento, PHQ-9, C-SSRS, evolución y notas firmadas con adendum |
 
 ---
 
@@ -87,6 +91,8 @@ flowchart TD
     Runner["🚀 Test Runner (tests.js)"]
     Runner --> T_Core["TC 01-44: Lógica Clínica, Psicometría, Cifrado, DB & UI"]
     Runner --> T_SecHttp["TC 45-52: Suite de Integración HTTP de Seguridad P0 (OWASP)"]
+    Runner --> T_ClinUx["TC 53-55: Flujos Clínicos y Ergonomía Móvil (CLI-002, UX-003, UX-004)"]
+    Runner --> T_Pilot["TC 56: Caso Clínico Piloto Sintético E2E (QA-004)"]
     
     T_SecHttp --> Ephemeral["Servidor de Pruebas Efímero (server.js en puerto dinámico)"]
     Ephemeral --> TC_401["TC-SEC-07: Verificación de HTTP 401 (Unauth)"]
@@ -98,15 +104,16 @@ flowchart TD
     Ephemeral --> TC_Token["TC-SEC-13: Tokens Forjados, Vencidos & Spoofing"]
     Ephemeral --> TC_ZK["TC-SEC-14: Aislamiento Buzón Zero-Knowledge"]
 
-    T_Core & TC_401 & TC_BOLA & TC_Crisis & TC_Sync & TC_Reset & TC_Tele & TC_Token & TC_ZK --> Assertions["Evaluación Estricta de Aserciones"]
-    Assertions --> Report["Certificación 52/52 Tests Aprobados (100% Pass)"]
+    T_Core & TC_401 & TC_BOLA & TC_Crisis & TC_Sync & TC_Reset & TC_Tele & TC_Token & TC_ZK & T_ClinUx & T_Pilot --> Assertions["Evaluación Estricta de Aserciones"]
+    Assertions --> Report["Certificación 56/56 Tests Aprobados (100% Pass)"]
 ```
 
 ---
 
 ## 4. Criterios de Aceptación para Fase de Despliegue
 
-1. **Suite de pruebas**: 52 de 52 pruebas ejecutadas con status `PASSED` (100%).
+1. **Suite de pruebas**: 56 de 56 pruebas ejecutadas con status `PASSED` (100%).
 2. **Seguridad P0 Certificada**: Cero vulnerabilidades BOLA, cero fuga de credenciales, CORS estricto y sesiones criptográficas HMAC.
-3. **Compatibilidad cross-browser**: Verificado en Chrome, Edge, Firefox y Safari móvil.
+3. **Compatibilidad cross-browser y móvil**: Verificado en Chrome, Edge, Firefox, Safari iOS y Chrome Android con ergonomía táctil (44px min touch target, safe-area env).
 4. **PWA Lighthouse Score**: Rendimiento offline, PWA instalable y tiempos de carga instantáneos.
+5. **Validación Clínica E2E**: Caso piloto simulado ejecutado con consentimiento informado, tamizaje PHQ-9, protocolo de crisis C-SSRS y reporte de atención inmutable firmado.

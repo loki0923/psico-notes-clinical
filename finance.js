@@ -139,22 +139,10 @@ function renderFinanceView() {
     const netBalance = totalIncome - totalExpense;
 
     container.innerHTML = `
-        <div style="background: rgba(107, 144, 128, 0.1); border: 1px solid rgba(107, 144, 128, 0.25); border-left: 4px solid var(--accent-primary); border-radius: var(--radius-md); padding: 12px 16px; margin-bottom: 20px; display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap;">
-            <div>
-                <strong style="color: var(--text-primary); font-size: 14px;"><i class="fas fa-wallet" style="color:var(--accent-primary); margin-right:6px;"></i> MÓDULO DE FINANZAS INTERNAS (USO PRIVADO)</strong>
-                <p style="margin: 2px 0 0 0; font-size: 12px; color: var(--text-secondary);">
-                    Gestión contable personal e interna del consultorio (honorarios, egresos, metas y control de deudas). Este módulo no genera comprobantes fiscales legales.
-                </p>
-            </div>
-            <button class="btn-secondary btn-sm" onclick="navigateTo('billing')" style="font-size: 12px; white-space: nowrap;">
-                <i class="fas fa-file-invoice"></i> Ir a Facturación Fiscal (SENIAT)
-            </button>
-        </div>
-
         <div class="page-header">
             <div class="page-header-left">
-                <h1 class="page-title">Finanzas Internas del Consultorio</h1>
-                <p class="page-subtitle">Control administrativo privado: Ingresos, egresos, tarifas por tiempo y metas</p>
+                <h1 class="page-title">Finanzas de la Consulta</h1>
+                <p class="page-subtitle">Control de ingresos, egresos, tarifas por tiempo y metas de facturación</p>
             </div>
             <div style="display:flex;gap:8px;flex-wrap:wrap;">
                 ${currentTab === 'transactions' ? `

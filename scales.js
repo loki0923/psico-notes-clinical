@@ -27,23 +27,12 @@ const EXTENDED_CLINICAL_SCALES = {
             { label: 'Más de la mitad de los días (2)', value: 2 },
             { label: 'Casi todos los días (3)', value: 3 }
         ],
-        interpret: (s, answers) => {
-            const item9 = (answers && (answers[8] !== undefined)) ? parseInt(answers[8], 10) : 0;
-            let res;
-            if (s <= 4) res = { level: 'Mínima / Sin depresión', color: '#4dab87', class: 'success', action: 'Seguimiento rutinario. No requiere intervención farmacológica.' };
-            else if (s <= 9) res = { level: 'Depresión Leve', color: '#7cb342', class: 'info', action: 'Psicoeducación, monitoreo activo y técnicas cognitivas iniciales.' };
-            else if (s <= 14) res = { level: 'Depresión Moderada', color: '#fdcb6e', class: 'warning', action: 'Plan de tratamiento activo en TCC o psicoterapia focalizada.' };
-            else if (s <= 19) res = { level: 'Depresión Moderadamente Severa', color: '#e67e22', class: 'warning', action: 'Intervención psicoterapéutica intensa + considerar interconsulta psiquiátrica.' };
-            else res = { level: 'Depresión Severa', color: '#e16259', class: 'danger', action: '⚠️ Evaluación de riesgo inminente, protocolo de crisis e interconsulta psiquiátrica urgente.' };
-
-            if (item9 > 0) {
-                res.hasItem9Alert = true;
-                res.item9Score = item9;
-                res.level += ` 🚨 [Ítem 9: Ideación Autolítica ${item9}/3]`;
-                res.color = '#e16259';
-                res.action = `🚨 ALERTA CRÍTICA ÍTEM 9 (${item9}/3): Presencia de ideación de autolesión o muerte. Requiere evaluación inmediata de riesgo suicida y activar protocolo de crisis. ` + res.action;
-            }
-            return res;
+        interpret: (s) => {
+            if (s <= 4) return { level: 'Mínima / Sin depresión', color: '#4dab87', class: 'success', action: 'Seguimiento rutinario. No requiere intervención farmacológica.' };
+            if (s <= 9) return { level: 'Depresión Leve', color: '#7cb342', class: 'info', action: 'Psicoeducación, monitoreo activo y técnicas cognitivas iniciales.' };
+            if (s <= 14) return { level: 'Depresión Moderada', color: '#fdcb6e', class: 'warning', action: 'Plan de tratamiento activo en TCC o psicoterapia focalizada.' };
+            if (s <= 19) return { level: 'Depresión Moderadamente Severa', color: '#e67e22', class: 'warning', action: 'Intervención psicoterapéutica intensa + considerar interconsulta psiquiátrica.' };
+            return { level: 'Depresión Severa', color: '#e16259', class: 'danger', action: '⚠️ Evaluación de riesgo inminente, protocolo de crisis e interconsulta psiquiátrica urgente.' };
         }
     },
     gad7: {
@@ -142,7 +131,6 @@ const EXTENDED_CLINICAL_SCALES = {
         shortName: 'Rosenberg',
         domain: 'Autoconcepto y Autoestima',
         maxScore: 40,
-        reverseItems: [5, 6, 7, 8, 9], // Ítems 6, 7, 8, 9, 10 (0-indexed). Inversión: 5 - valor (1->4, 2->3, 3->2, 4->1)
         questions: [
             'Siento que soy una persona digna de aprecio, al menos en igual medida que las demás',
             'Siento que tengo cualidades positivas',
@@ -173,7 +161,6 @@ const EXTENDED_CLINICAL_SCALES = {
         shortName: 'PSS-10',
         domain: 'Nivel de Estrés e Sobrecarga',
         maxScore: 40,
-        reverseItems: [3, 4, 5, 6, 8], // Ítems 4, 5, 6, 7, 9 (0-indexed). Inversión: 4 - valor (0->4, 1->3, 2->2, 3->1, 4->0)
         questions: [
             '¿Con qué frecuencia se ha sentido afectado/a por algo que ocurrió inesperadamente?',
             '¿Con qué frecuencia ha sentido que no podía controlar las cosas importantes en su vida?',
@@ -202,6 +189,43 @@ const EXTENDED_CLINICAL_SCALES = {
 };
 
 // -------------------------------------------------------------
+// ESCALAS PERSONALIZADAS Y DINÁMICAS (ALMACENAMIENTO LOCAL)
+// -------------------------------------------------------------
+
+function getCustomScales() {
+    try {
+        const uid = (typeof AppState !== 'undefined' && AppState.currentUser) ? AppState.currentUser.id : 'default';
+        const raw = localStorage.getItem(`psico_custom_scales_${uid}`);
+        if (raw) return JSON.parse(raw);
+    } catch (e) {}
+    return {};
+}
+
+function saveCustomScales(scales) {
+    const uid = (typeof AppState !== 'undefined' && AppState.currentUser) ? AppState.currentUser.id : 'default';
+    localStorage.setItem(`psico_custom_scales_${uid}`, JSON.stringify(scales));
+}
+
+function getAllClinicalScales() {
+    const custom = getCustomScales();
+    const merged = { ...EXTENDED_CLINICAL_SCALES };
+    Object.keys(custom).forEach(k => {
+        const c = custom[k];
+        merged[k] = {
+            ...c,
+            interpret: (typeof c.interpret === 'function') ? c.interpret : function(s) {
+                const mild = c.cutoffs?.mild || Math.round(c.maxScore * 0.33);
+                const mod = c.cutoffs?.moderate || Math.round(c.maxScore * 0.66);
+                if (s <= mild) return { level: 'Puntaje Bajo / Mínimo', color: '#4dab87', class: 'success', action: 'Nivel adaptativo. Mantener seguimiento psicoterapéutico rutinario.' };
+                if (s <= mod) return { level: 'Puntaje Moderado', color: '#fdcb6e', class: 'warning', action: 'Sintomatología moderada. Abordaje focalizado en el plan de intervención.' };
+                return { level: 'Puntaje Alto / Severo', color: '#e16259', class: 'danger', action: '⚠️ Sintomatología severa o elevada. Priorizar técnicas de estabilización y reevaluación.' };
+            }
+        };
+    });
+    return merged;
+}
+
+// -------------------------------------------------------------
 // VISTA DE ESCALAS Y TESTS EN NAVEGACIÓN
 // -------------------------------------------------------------
 
@@ -209,6 +233,7 @@ function renderScalesView() {
     const container = document.getElementById('scalesView');
     if (!container) return;
 
+    const allScales = getAllClinicalScales();
     const allNotes = AppState.notes || [];
     const evaluations = allNotes.filter(n => n.scaleResult).map(n => n.scaleResult);
 
@@ -221,9 +246,12 @@ function renderScalesView() {
                 <h1 class="page-title">Escalas y Evaluaciones Psicométricas</h1>
                 <p class="page-subtitle">Aplicación e interpretación automatizada de cuestionarios estandarizados</p>
             </div>
-            <div>
+            <div style="display:flex;gap:10px;flex-wrap:wrap;">
+                <button class="btn-secondary" onclick="openScaleEditorModal()">
+                    <i class="fas fa-plus-circle"></i> + Nueva Escala / Test
+                </button>
                 <button class="btn-primary" onclick="openInteractiveScaleModal()">
-                    <i class="fas fa-plus"></i> Aplicar Nueva Escala
+                    <i class="fas fa-file-signature"></i> Aplicar Escala
                 </button>
             </div>
         </div>
@@ -249,17 +277,22 @@ function renderScalesView() {
                 <div class="summary-icon">🧠</div>
                 <div class="summary-info">
                     <h3>Catálogo Disponible</h3>
-                    <div class="summary-value">6 Escalas</div>
-                    <div class="summary-label">PHQ-9, GAD-7, BDI, BAI, Rosenberg, PSS-10</div>
+                    <div class="summary-value">${Object.keys(allScales).length} Escalas</div>
+                    <div class="summary-label">Estandarizadas y personalizadas</div>
                 </div>
             </div>
         </div>
 
         <!-- CATÁLOGO DE ESCALAS -->
         <div class="section-block" style="margin-top:24px;">
-            <h2 class="section-title"><i class="fas fa-th-large"></i> Catálogo de Escalas Psicológicas</h2>
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;flex-wrap:wrap;gap:10px;">
+                <h2 class="section-title" style="margin:0;"><i class="fas fa-th-large"></i> Catálogo de Escalas Psicológicas</h2>
+                <button class="btn-secondary btn-sm" onclick="openScaleEditorModal()">
+                    <i class="fas fa-plus"></i> Añadir Escala
+                </button>
+            </div>
             <div style="display:grid;grid-template-columns:repeat(auto-fit, minmax(320px, 1fr));gap:16px;">
-                ${Object.values(EXTENDED_CLINICAL_SCALES).map(s => `
+                ${Object.values(allScales).map(s => `
                     <div class="finance-goal-card" style="justify-content:space-between;">
                         <div>
                             <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
@@ -267,7 +300,7 @@ function renderScalesView() {
                                     ${s.domain}
                                 </span>
                                 <span style="font-size:12px;color:var(--text-tertiary);font-weight:600;">
-                                    ${s.questions.length} ítems
+                                    ${s.questions ? s.questions.length : 0} ítems
                                 </span>
                             </div>
                             <h3 style="margin:0 0 6px 0;font-size:16px;font-weight:700;color:var(--text-primary);">${s.name}</h3>
@@ -275,9 +308,12 @@ function renderScalesView() {
                                 Rango de puntuación: 0 a ${s.maxScore} pts. Genera diagnóstico situacional e informe automático.
                             </p>
                         </div>
-                        <div style="margin-top:14px;display:flex;justify-content:flex-end;">
+                        <div style="margin-top:14px;display:flex;justify-content:flex-end;gap:8px;">
+                            <button class="btn-secondary btn-sm" onclick="openScaleEditorModal('${s.id}')" title="Editar escala o test">
+                                <i class="fas fa-edit"></i> Editar
+                            </button>
                             <button class="btn-primary btn-sm" onclick="openInteractiveScaleModal('${s.id}')">
-                                <i class="fas fa-file-signature"></i> Aplicar Escala
+                                <i class="fas fa-file-signature"></i> Aplicar
                             </button>
                         </div>
                     </div>
@@ -379,7 +415,8 @@ function filterScalesHistory(text) {
 // -------------------------------------------------------------
 
 function openInteractiveScaleModal(scaleKey = 'phq9', preselectedPatientId = null) {
-    const scale = EXTENDED_CLINICAL_SCALES[scaleKey] || EXTENDED_CLINICAL_SCALES.phq9;
+    const allScales = getAllClinicalScales();
+    const scale = allScales[scaleKey] || allScales.phq9 || Object.values(allScales)[0];
     const patients = AppState.patients || [];
 
     const body = document.getElementById('scaleModalBody');
@@ -394,7 +431,7 @@ function openInteractiveScaleModal(scaleKey = 'phq9', preselectedPatientId = nul
                 <div class="form-group">
                     <label>Seleccionar Escala Psicológica *</label>
                     <select id="interactiveScaleSelect" onchange="switchModalScale(this.value, '${preselectedPatientId || ''}')" style="font-weight:600;">
-                        ${Object.values(EXTENDED_CLINICAL_SCALES).map(s => `
+                        ${Object.values(allScales).map(s => `
                             <option value="${s.id}" ${s.id === scale.id ? 'selected' : ''}>${s.name}</option>
                         `).join('')}
                     </select>
@@ -455,30 +492,6 @@ function switchModalScale(newScaleKey, patientId) {
     openInteractiveScaleModal(newScaleKey, patientId || document.getElementById('interactivePatientSelect')?.value);
 }
 
-function calculateScaleTotalScore(scaleKey, answers) {
-    if (!answers) return 0;
-    let totalScore = 0;
-    const isArray = Array.isArray(answers);
-    const scale = EXTENDED_CLINICAL_SCALES[scaleKey];
-    const numQuestions = scale ? scale.questions.length : (isArray ? answers.length : Object.keys(answers).length);
-
-    for (let i = 0; i < numQuestions; i++) {
-        let rawVal = isArray ? answers[i] : answers[i];
-        if (rawVal === undefined || rawVal === null) continue;
-        rawVal = parseInt(rawVal, 10);
-        if (isNaN(rawVal)) continue;
-
-        let finalVal = rawVal;
-        if (scaleKey === 'rosenberg' && [5, 6, 7, 8, 9].includes(i)) {
-            finalVal = 5 - rawVal; // Inversión ítem 6-10 (escala 1 a 4)
-        } else if (scaleKey === 'pss10' && [3, 4, 5, 6, 8].includes(i)) {
-            finalVal = 4 - rawVal; // Inversión ítem 4, 5, 6, 7, 9 (escala 0 a 4)
-        }
-        totalScore += finalVal;
-    }
-    return totalScore;
-}
-
 function updateLiveScaleScore(scaleKey, questionIndex, value) {
     if (!window._currentScaleAnswers) window._currentScaleAnswers = {};
     window._currentScaleAnswers[questionIndex] = parseInt(value, 10);
@@ -486,8 +499,12 @@ function updateLiveScaleScore(scaleKey, questionIndex, value) {
     const scale = EXTENDED_CLINICAL_SCALES[scaleKey];
     if (!scale) return;
 
-    const totalScore = calculateScaleTotalScore(scaleKey, window._currentScaleAnswers);
-    const interp = scale.interpret(totalScore, window._currentScaleAnswers);
+    let totalScore = 0;
+    Object.values(window._currentScaleAnswers).forEach(val => {
+        totalScore += val;
+    });
+
+    const interp = scale.interpret(totalScore);
 
     const scoreEl = document.getElementById('liveScaleScore');
     const levelEl = document.getElementById('liveScaleLevel');
@@ -500,7 +517,7 @@ function updateLiveScaleScore(scaleKey, questionIndex, value) {
 }
 
 function submitInteractiveScaleForm(scaleKey) {
-    const scale = EXTENDED_CLINICAL_SCALES[scaleKey];
+    const scale = getAllClinicalScales()[scaleKey];
     const patientId = document.getElementById('interactivePatientSelect')?.value;
 
     if (!patientId) {
@@ -516,11 +533,10 @@ function submitInteractiveScaleForm(scaleKey) {
         return;
     }
 
-    const totalScore = calculateScaleTotalScore(scaleKey, answers);
+    let totalScore = 0;
+    Object.values(answers).forEach(val => totalScore += val);
 
-    const interp = scale.interpret(totalScore, answers);
-    const item9Score = scaleKey === 'phq9' ? (parseInt(answers[8], 10) || 0) : 0;
-    const hasItem9Alert = item9Score > 0;
+    const interp = scale.interpret(totalScore);
 
     const scaleResult = {
         id: generateId(),
@@ -533,9 +549,6 @@ function submitInteractiveScaleForm(scaleKey) {
         interpretation: interp.level,
         action: interp.action,
         color: interp.color,
-        item9Score: item9Score,
-        item9Alert: hasItem9Alert,
-        answers: answers,
         date: new Date().toISOString()
     };
 
@@ -544,21 +557,17 @@ function submitInteractiveScaleForm(scaleKey) {
         id: generateId(),
         patientId: patientId,
         date: toDateInputValue(new Date()),
-        title: `Evaluación Psicométrica: ${scale.shortName} (${totalScore}/${scale.maxScore} pts)${hasItem9Alert ? ' 🚨 [ÍTEM 9 ALERTA]' : ''}`,
-        subjetivo: `Aplicación de prueba estandarizada ${scale.name}.${hasItem9Alert ? ' Alerta: Marcó ítem 9 (pensamientos de hacerse daño).' : ''}`,
-        objetivo: `Puntaje obtenido: ${totalScore} de ${scale.maxScore} puntos. Nivel: ${interp.level}.${hasItem9Alert ? ` Ítem 9: ${item9Score}/3.` : ''}`,
+        title: `Evaluación Psicométrica: ${scale.shortName} (${totalScore}/${scale.maxScore} pts)`,
+        subjetivo: `Aplicación de prueba estandarizada ${scale.name}.`,
+        objetivo: `Puntaje obtenido: ${totalScore} de ${scale.maxScore} puntos. Nivel: ${interp.level}.`,
         analisis: `El perfil psicométrico indica: ${interp.level}. ${interp.action}`,
         plan: `Continuar plan terapéutico considerando recomendaciones: ${interp.action}`,
-        risk: (hasItem9Alert || interp.color === '#e16259') ? 'alto' : (interp.color === '#fdcb6e' || interp.color === '#e67e22' ? 'medio' : 'bajo'),
+        risk: interp.color === '#e16259' ? 'alto' : (interp.color === '#fdcb6e' || interp.color === '#e67e22' ? 'medio' : 'bajo'),
         mood: '',
         confidential: false,
         scaleResult: scaleResult,
         createdAt: new Date().toISOString()
     };
-
-    if (hasItem9Alert) {
-        showToast(`🚨 ALERTA CRÍTICA: Paciente registró ${item9Score}/3 en Ítem 9 de PHQ-9 (Ideación Autolítica). Evalué protocolo de crisis.`, 'error');
-    }
 
     AppState.notes.push(note);
     saveData();
@@ -679,3 +688,117 @@ function renderScaleSparklineSvg(list, maxScore) {
         </div>
     `;
 }
+
+// -------------------------------------------------------------
+// GESTIÓN Y EDICIÓN DE ESCALAS Y TESTS
+// -------------------------------------------------------------
+
+function openScaleEditorModal(scaleId = null) {
+    const allScales = getAllClinicalScales();
+    const scale = scaleId ? allScales[scaleId] : null;
+
+    document.getElementById('scaleEditorModalTitle').textContent = scale ? `Editar Escala: ${scale.shortName}` : '🧪 Crear Nueva Escala o Test Psicológico';
+    document.getElementById('customScaleEditId').value = scale ? scale.id : '';
+    document.getElementById('scaleFormName').value = scale ? scale.name : '';
+    document.getElementById('scaleFormShortName').value = scale ? scale.shortName : '';
+    document.getElementById('scaleFormDomain').value = scale ? scale.domain : '';
+    document.getElementById('scaleFormMaxScore').value = scale ? scale.maxScore : '';
+    document.getElementById('scaleFormQuestions').value = scale && scale.questions ? scale.questions.join('\n') : '';
+
+    if (scale && scale.cutoffs) {
+        if (document.getElementById('scaleCutoffMild')) document.getElementById('scaleCutoffMild').value = scale.cutoffs.mild;
+        if (document.getElementById('scaleCutoffMod')) document.getElementById('scaleCutoffMod').value = scale.cutoffs.moderate;
+        if (document.getElementById('scaleCutoffSev')) document.getElementById('scaleCutoffSev').value = scale.cutoffs.severe;
+    } else if (scale) {
+        if (document.getElementById('scaleCutoffMild')) document.getElementById('scaleCutoffMild').value = Math.round(scale.maxScore * 0.33);
+        if (document.getElementById('scaleCutoffMod')) document.getElementById('scaleCutoffMod').value = Math.round(scale.maxScore * 0.66);
+        if (document.getElementById('scaleCutoffSev')) document.getElementById('scaleCutoffSev').value = Math.round(scale.maxScore * 0.67);
+    }
+
+    openModal('scaleEditorModal');
+}
+window.openScaleEditorModal = openScaleEditorModal;
+
+function handleSaveCustomScale(e) {
+    e.preventDefault();
+    const editId = document.getElementById('customScaleEditId').value.trim();
+    const name = document.getElementById('scaleFormName').value.trim();
+    const shortName = document.getElementById('scaleFormShortName').value.trim();
+    const domain = document.getElementById('scaleFormDomain').value.trim();
+    const questionsRaw = document.getElementById('scaleFormQuestions').value.trim();
+    const optionsType = document.getElementById('scaleFormOptionsType').value;
+
+    const questions = questionsRaw.split('\n').map(q => q.trim()).filter(q => q.length > 0);
+    if (questions.length === 0) {
+        showToast('Debe ingresar al menos una pregunta para la escala', 'warning');
+        return;
+    }
+
+    let options = [
+        { label: 'Nunca (0)', value: 0 },
+        { label: 'Varios días (1)', value: 1 },
+        { label: 'Más de la mitad (2)', value: 2 },
+        { label: 'Casi siempre (3)', value: 3 }
+    ];
+    let maxOptionVal = 3;
+
+    if (optionsType === 'likert_4_14') {
+        options = [
+            { label: 'Totalmente en desacuerdo (1)', value: 1 },
+            { label: 'En desacuerdo (2)', value: 2 },
+            { label: 'De acuerdo (3)', value: 3 },
+            { label: 'Totalmente de acuerdo (4)', value: 4 }
+        ];
+        maxOptionVal = 4;
+    } else if (optionsType === 'likert_5_04') {
+        options = [
+            { label: 'Nunca (0)', value: 0 },
+            { label: 'Casi nunca (1)', value: 1 },
+            { label: 'A veces (2)', value: 2 },
+            { label: 'Frecuentemente (3)', value: 3 },
+            { label: 'Casi siempre (4)', value: 4 }
+        ];
+        maxOptionVal = 4;
+    } else if (optionsType === 'yes_no_01') {
+        options = [
+            { label: 'No (0)', value: 0 },
+            { label: 'Sí (1)', value: 1 }
+        ];
+        maxOptionVal = 1;
+    }
+
+    const calculatedMax = questions.length * maxOptionVal;
+    const manualMax = parseInt(document.getElementById('scaleFormMaxScore').value, 10);
+    const maxScore = (!isNaN(manualMax) && manualMax > 0) ? manualMax : calculatedMax;
+
+    const mildCutoff = parseInt(document.getElementById('scaleCutoffMild').value, 10) || Math.round(maxScore * 0.33);
+    const modCutoff = parseInt(document.getElementById('scaleCutoffMod').value, 10) || Math.round(maxScore * 0.66);
+    const sevCutoff = parseInt(document.getElementById('scaleCutoffSev').value, 10) || (modCutoff + 1);
+
+    const scaleId = editId || ('custom_' + shortName.toLowerCase().replace(/[^a-z0-9]/g, '_') + '_' + Math.random().toString(36).substr(2, 4));
+
+    const scaleObj = {
+        id: scaleId,
+        name: name,
+        shortName: shortName,
+        domain: domain,
+        maxScore: maxScore,
+        questions: questions,
+        options: options,
+        cutoffs: {
+            mild: mildCutoff,
+            moderate: modCutoff,
+            severe: sevCutoff
+        },
+        isCustom: true
+    };
+
+    const custom = getCustomScales();
+    custom[scaleId] = scaleObj;
+    saveCustomScales(custom);
+
+    closeModal('scaleEditorModal');
+    if (typeof renderScalesView === 'function') renderScalesView();
+    showToast(`✅ Escala "${shortName}" guardada exitosamente`, 'success');
+}
+window.handleSaveCustomScale = handleSaveCustomScale;

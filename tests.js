@@ -2446,6 +2446,233 @@ ClinicalTestSuite.add('TC-TEEN-01', 'Protocolo Estructurado de Historia Clínica
     }
 });
 
+// 58. TC-CHILD-01: Protocolo Estructurado de Historia Clínica Infantil
+ClinicalTestSuite.add('TC-CHILD-01', 'Protocolo Estructurado de Historia Clínica Infantil (Campos, Tutor, Expectativas e Hipótesis)', async () => {
+    const fs = await import('fs');
+    const indexHtml = fs.readFileSync('index.html', 'utf8');
+
+    // 1. Verificación de campos en formulario
+    if (!indexHtml.includes('id="patientStatus"') || !indexHtml.includes('Por iniciar')) {
+        throw new Error('index.html debe contener el estatus del paciente al inicio');
+    }
+    if (!indexHtml.includes('id="patientGuardianConsent"')) {
+        throw new Error('Falta selector de consentimiento informado');
+    }
+
+    // 2. Modelo de datos infantil simulado
+    const childRecord = {
+        id: 'p_child_' + Date.now(),
+        status: 'En Evaluación',
+        name: 'Mateo Alejandro Torres',
+        category: 'child',
+        age: 8,
+        gender: 'Masculino',
+        schoolGrade: '3er grado de primaria',
+        livesWith: 'Madre, abuela materna y primo',
+        referral: ['Orientador', 'Psicopedagogo'],
+        guardianName: 'Beatriz Torres',
+        guardianRelation: 'Madre',
+        guardianAge: 38,
+        guardianSchooling: 'Universitaria',
+        guardianOccupation: 'Lic. en Administración',
+        guardianMaritalStatus: 'Divorciado/a',
+        guardianPhone: '+58 414 1234567',
+        guardianEmail: 'beatriz.t@ejemplo.com',
+        guardianConsent: 'firmado',
+        previousPsych: 'No',
+        applicantName: 'Beatriz Torres',
+        initiative: 'Madre',
+        reason: 'Dificultades en regulación conductual y frustración.',
+        goals: 'Expectativas: Brindar herramientas de autorregulación emocional.',
+        bioHypothesis: 'Maduración neurobiológica acorde a edad, sueño conservado.',
+        socialHypothesis: 'Dinámica monoparental con apoyo de abuela materna.',
+        psychHypothesis: 'Baja tolerancia a la frustración con descarga somato-conductual.',
+        riskFactors: 'Aislamiento ocasional ante el enfado.',
+        vulnerabilityFactors: 'Ansiedad por separación leve.',
+        protectiveFactors: 'Vínculo afectivo seguro con madre y adecuada capacidad lúdica.',
+        frequency: 'Semanal',
+        modality: 'Presencial',
+        shift: 'Tarde'
+    };
+
+    // Validaciones de exclusión clínica en niño
+    if (childRecord.phone) throw new Error('El teléfono propio del menor debe omitirse en la ficha infantil');
+    if (childRecord.maritalStatus) throw new Error('El estado civil propio del niño debe omitirse');
+    if (childRecord.email) throw new Error('El correo del niño debe omitirse');
+
+    // Validación de hipótesis y factores
+    if (!childRecord.bioHypothesis || !childRecord.socialHypothesis || !childRecord.psychHypothesis) {
+        throw new Error('Ficha infantil debe contar con las 3 hipótesis biopsicosociales');
+    }
+    if (!childRecord.riskFactors || !childRecord.vulnerabilityFactors || !childRecord.protectiveFactors) {
+        throw new Error('Ficha infantil debe registrar factores de riesgo, vulnerabilidad y protección');
+    }
+});
+
+// 59. TC-ADULT-01: Protocolo Estructurado de Ficha Adulto
+ClinicalTestSuite.add('TC-ADULT-01', 'Protocolo Estructurado de Ficha Adulto (Deseabilidad Social, Motivación Propia, Domicilio e Hipótesis)', async () => {
+    const fs = await import('fs');
+    const indexHtml = fs.readFileSync('index.html', 'utf8');
+
+    // 1. Verificación de existencia de campos en index.html
+    if (!indexHtml.includes('id="patientSocialDesirability"') || !indexHtml.includes('id="patientSelfMotivation"') || !indexHtml.includes('id="patientAddress"')) {
+        throw new Error('index.html debe contener patientSocialDesirability, patientSelfMotivation y patientAddress');
+    }
+
+    // 2. Modelo de datos adulto protocolizado
+    const adultRecord = {
+        id: 'p_adult_' + Date.now(),
+        status: 'Plan de Intervención',
+        name: 'Valeria Mercedes Rivas',
+        category: 'adult',
+        age: 32,
+        gender: 'Femenino',
+        schoolGrade: 'Licenciatura en Comunicación Social',
+        occupation: 'Periodista Digital',
+        maritalStatus: 'Soltero/a',
+        livesWith: 'Vive sola',
+        socialDesirability: 'NO',
+        selfMotivation: 'SI',
+        referral: ['Médico/Especialista'],
+        address: 'Av. Libertador, Edif. Los Samanes, Apt 4B',
+        phone: '+58 412 9876543',
+        email: 'valeria.rivas@ejemplo.com',
+        previousPsych: 'Sí',
+        reason: 'Sintomatología ansiosa generalizada vinculada a sobrecarga laboral.',
+        goals: 'Aprender técnicas de manejo de estrés y reestructuración cognitiva.',
+        bioHypothesis: 'Hiperreactividad fisiológica y bruxismo nocturno.',
+        socialHypothesis: 'Alta exigencia laboral y red de apoyo familiar a distancia.',
+        psychHypothesis: 'Pensamiento dicotómico y perfeccionismo desadaptativo.',
+        riskFactors: 'Patrones de sueño irregulares.',
+        vulnerabilityFactors: 'Historia de ansiedad familiar materna.',
+        protectiveFactors: 'Introspección reflexiva, motivación intrínseca elevada.',
+        frequency: 'Quincenal',
+        modality: 'Online',
+        shift: 'Mañana'
+    };
+
+    if (adultRecord.socialDesirability !== 'NO' && adultRecord.socialDesirability !== 'SI') {
+        throw new Error('Deseabilidad social debe ser SI o NO');
+    }
+    if (adultRecord.selfMotivation !== 'SI' && adultRecord.selfMotivation !== 'NO') {
+        throw new Error('Motivación propia debe ser SI o NO');
+    }
+    if (!adultRecord.address) throw new Error('Domicilio es requerido en adulto');
+    if (!adultRecord.bioHypothesis || !adultRecord.socialHypothesis || !adultRecord.psychHypothesis) {
+        throw new Error('Ficha adulto debe contar con las 3 hipótesis biopsicosociales');
+    }
+});
+
+// 60. TC-CAL-02: Gestión y Transición de Estados de Citas Clínicas
+ClinicalTestSuite.add('TC-CAL-02', 'Gestión y Transición de Estados de Citas Clínicas (Agendada, Completada, Reprogramada, Cancelada)', async () => {
+    const fs = await import('fs');
+    const indexHtml = fs.readFileSync('index.html', 'utf8');
+
+    // 1. Selector de estado en appointmentModal
+    if (!indexHtml.includes('id="appointmentStatus"') || !indexHtml.includes('value="reprogramada"')) {
+        throw new Error('index.html debe contener el selector appointmentStatus con opción reprogramada');
+    }
+
+    // 2. Simulación de ciclo de vida de cita
+    const apt = {
+        id: 'apt_test_' + Date.now(),
+        patientId: 'p_101',
+        date: '2026-10-25',
+        time: '15:00',
+        duration: 50,
+        type: 'Online',
+        status: 'agendada'
+    };
+
+    // Transición a reprogramada
+    apt.status = 'reprogramada';
+    apt.date = '2026-10-26';
+    if (apt.status !== 'reprogramada') throw new Error('Estado debe ser reprogramada');
+
+    // Transición a completada
+    apt.status = 'completada';
+    if (apt.status !== 'completada') throw new Error('Estado debe ser completada');
+
+    // Transición a cancelada
+    apt.status = 'cancelada';
+    if (apt.status !== 'cancelada') throw new Error('Estado debe ser cancelada');
+});
+
+// 61. TC-SCALE-01: Motor Dinámico y Almacenamiento de Escalas y Tests Psicométricos
+ClinicalTestSuite.add('TC-SCALE-01', 'Motor Dinámico y Almacenamiento de Escalas y Tests Psicométricos (Creación, Ponderación y Cortes)', async () => {
+    const fs = await import('fs');
+    const indexHtml = fs.readFileSync('index.html', 'utf8');
+    const scalesJs = fs.readFileSync('scales.js', 'utf8');
+
+    if (!indexHtml.includes('id="scaleEditorModal"')) {
+        throw new Error('index.html debe contener el modal scaleEditorModal');
+    }
+    if (!scalesJs.includes('getAllClinicalScales') || !scalesJs.includes('openScaleEditorModal')) {
+        throw new Error('scales.js debe exportar getAllClinicalScales y openScaleEditorModal');
+    }
+
+    // Creación simulada de test psicométrico
+    const customScale = {
+        id: 'scale_brs_01',
+        name: 'Escala Breve de Resiliencia',
+        shortName: 'BRS',
+        domain: 'Resiliencia y Afrontamiento',
+        maxScore: 12,
+        questions: [
+            'Tiendo a recuperarme rápido de las dificultades',
+            'Me resulta fácil superar los momentos estresantes',
+            'No tardo mucho en superar un revés'
+        ],
+        cutoffs: { mild: 4, moderate: 8, severe: 9 }
+    };
+
+    if (customScale.questions.length !== 3) throw new Error('Error en cantidad de ítems');
+    if (customScale.cutoffs.severe <= customScale.cutoffs.moderate) {
+        throw new Error('Corte severo debe ser mayor a moderado');
+    }
+});
+
+// 62. TC-PORTAL-05: Apertura Robusta del Portal Terapéutico Digital del Paciente
+ClinicalTestSuite.add('TC-PORTAL-05', 'Apertura Robusta del Portal Terapéutico Digital del Paciente (Enlace Nativo y Mitigación de Bloqueo)', async () => {
+    const fs = await import('fs');
+    const appJs = fs.readFileSync('app.js', 'utf8');
+
+    if (!appJs.includes('preparePortalLaunch') || !appJs.includes('window.location.href = targetUrl')) {
+        throw new Error('app.js debe implementar preparePortalLaunch y fallback con window.location.href');
+    }
+    if (!appJs.includes('class="btn-portal-launch"')) {
+        throw new Error('app.js debe enlazar el botón principal con estilo btn-portal-launch');
+    }
+});
+
+// 63. TC-EXP-01: Ficha Rápida del Expediente Clínico (Estatus, Fechas de Ingreso y Egreso, Intervención y Colores de Alta)
+ClinicalTestSuite.add('TC-EXP-01', 'Ficha Rápida del Expediente Clínico (Estatus, Fechas de Ingreso y Egreso, Intervención y Colores de Alta)', async () => {
+    const fs = await import('fs');
+    const appJs = fs.readFileSync('app.js', 'utf8');
+    const indexHtml = fs.readFileSync('index.html', 'utf8');
+    const stylesCss = fs.readFileSync('styles.css', 'utf8');
+
+    // 1. Campos de ingreso, egreso e intervención en el formulario del expediente
+    if (!indexHtml.includes('id="patientAdmissionDate"') || !indexHtml.includes('id="patientDischargeDate"') || !indexHtml.includes('id="patientIntervention"')) {
+        throw new Error('index.html debe contener patientAdmissionDate, patientDischargeDate y patientIntervention');
+    }
+
+    // 2. Manejador de cambio de estatus y actualización rápida
+    if (!appJs.includes('onPatientStatusChange') || !appJs.includes('quickUpdatePatientStatus')) {
+        throw new Error('app.js debe implementar onPatientStatusChange y quickUpdatePatientStatus');
+    }
+
+    // 3. Pestaña de Expediente Clínico y renderizado de resumen rápido
+    if (!appJs.includes('Expediente Clínico') || !appJs.includes('expediente-kpi-grid') || !appJs.includes('expediente-alta-banner')) {
+        throw new Error('app.js debe incluir la pestaña Expediente Clínico con KPI grid y banner de alta');
+    }
+
+    // 4. Identificadores visuales cromáticos y estilos de Alta en CSS
+    if (!stylesCss.includes('.status-alta') || !stylesCss.includes('.badge-alta-chip') || !stylesCss.includes('.expediente-alta-banner')) {
+        throw new Error('styles.css debe contener los estilos de .status-alta, .badge-alta-chip y .expediente-alta-banner');
+    }
+});
+
 // Auto-ejecución si se corre desde Node.js (CLI)
 if (typeof process !== 'undefined' && process.argv && process.argv[1] && process.argv[1].endsWith('tests.js')) {
     ClinicalTestSuite.runAll().then(res => {

@@ -1,11 +1,11 @@
 {
-  "name": "Psico Notes Clinical",
+  "name": "Psico Notes Clinical - Gestión Avanzada",
   "short_name": "Psico Notes",
-  "description": "Gestión clínica avanzada para psicólogos",
-  "start_url": "/",
+  "description": "Espacio clínico privado e inteligente para profesionales de la salud mental",
+  "start_url": "index.html",
   "display": "standalone",
-  "background_color": "#faf8f5",
-  "theme_color": "#6b9080",
+  "background_color": "#090d16",
+  "theme_color": "#0d9488",
   "orientation": "any",
   "icons": [
     {

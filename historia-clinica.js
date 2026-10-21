@@ -83,6 +83,9 @@ const ClinicalHistorySystem = {
             vulnerabilityFactors: patient.vulnerabilityFactors || '',
             riskFactors: patient.riskFactors || '',
             protectiveFactors: patient.protectiveFactors || '',
+            socialDesirability: patient.socialDesirability || 'NO',
+            selfMotivation: patient.selfMotivation || 'SI',
+            address: patient.address || '',
 
             // Encuadre
             frequency: patient.frequency || '',

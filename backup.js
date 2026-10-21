@@ -82,7 +82,10 @@ function openBackupModal() {
         </div>
 
         <div style="display:flex;flex-direction:column;gap:12px;">
-            <button class="btn-primary" onclick="exportBackupFile()" style="padding:12px;display:flex;align-items:center;justify-content:center;gap:8px;">
+            <button class="btn-primary" onclick="if(window.CloudSyncManager) window.CloudSyncManager.manualSyncClick()" style="padding:12px;display:flex;align-items:center;justify-content:center;gap:8px;background:#3b82f6;color:white;border:none;border-radius:var(--radius-md);cursor:pointer;font-weight:600;">
+                <i class="fas fa-cloud-upload-alt"></i> Sincronizar Todo con la Nube Ahora (PC y Móvil)
+            </button>
+            <button class="btn-secondary" onclick="exportBackupFile()" style="padding:12px;display:flex;align-items:center;justify-content:center;gap:8px;">
                 <i class="fas fa-download"></i> Descargar Copia de Seguridad Físico (.json)
             </button>
             <button class="btn-secondary" onclick="importBackup()" style="padding:12px;display:flex;align-items:center;justify-content:center;gap:8px;">
@@ -90,8 +93,12 @@ function openBackupModal() {
             </button>
         </div>
 
-        <div style="margin-top:20px;padding:12px;background:var(--bg-secondary);border-radius:var(--radius-md);font-size:12px;color:var(--text-tertiary);">
-            🔒 Cifrado activo para la cuenta: <strong>${AppState.currentUser?.email || 'Sesión actíva'}</strong>
+        <div style="margin-top:16px;padding:12px;background:rgba(59, 130, 246, 0.08);border:1px solid rgba(59, 130, 246, 0.2);border-radius:var(--radius-md);font-size:12px;color:var(--text-secondary);line-height:1.4;">
+            ☁️ <strong>Sincronización Multi-Dispositivo:</strong> Tu usuario y tus expedientes se respaldan automáticamente en la nube. Al ingresar desde tu celular o computadora con tu mismo correo y contraseña, tus datos se sincronizarán al instante.
+        </div>
+
+        <div style="margin-top:12px;padding:12px;background:var(--bg-secondary);border-radius:var(--radius-md);font-size:12px;color:var(--text-tertiary);">
+            🔒 Cifrado activo para la cuenta: <strong>${AppState.currentUser?.email || 'Sesión activa'}</strong>
         </div>
     `;
 

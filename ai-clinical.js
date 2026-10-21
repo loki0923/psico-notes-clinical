@@ -166,7 +166,8 @@ Responde ÚNICAMENTE con el objeto JSON válido.`;
 
         const sysPrompt = `Eres un consultor experto en psicopatología clínica, DSM-5-TR y CIE-11.
 Analiza la información clínica y genera un análisis de hipótesis diagnósticas, criterios cumplidos, diagnósticos diferenciales y sugerencias terapéuticas.
-Mantén un tono profesional, ético y recordando siempre que son orientaciones de apoyo para el terapeuta tratante.
+NUNCA emitas diagnósticos confirmados definitivos ni categóricos. Todas las impresiones deben presentarse rigurosamente como HIPÓTESIS CLÍNICAS SUJETAS A CONTRASTACIÓN por parte del profesional tratante colegiado.
+Incluye obligatoriamente al inicio el aviso clínico de que la IA actúa exclusivamente como apoyo consultivo sin capacidad de diagnóstico autónomo.
 Formato de respuesta: Markdown estructurado con títulos claros, viñetas y recomendaciones de intervención.`;
 
         const userPrompt = `Expediente del Paciente:
@@ -277,11 +278,13 @@ Consulta del terapeuta:
     simulateDiagnosticHypotheses(patient, scales) {
         return new Promise(resolve => {
             setTimeout(() => {
-                resolve(`### 🧠 Análisis de Hipótesis Diagnósticas (Modo Asistido)
+                resolve(`### 🧠 Análisis de Hipótesis Diagnósticas (Asistencia Clínica)
+
+> ⚠️ **AVISO CLÍNICO ÉTICO Y LEGAL**: Las hipótesis diagnósticas generadas son sugerencias de apoyo asistido basadas en modelos de lenguaje probabilísticos. **NO constituyen un diagnóstico médico o psicológico definitivo**. La confirmación diagnóstica, el juicio clínico y la responsabilidad legal corresponden exclusivamente al profesional tratante colegiado.
 
 **Paciente:** ${patient.name || 'Paciente'}
 
-#### 1. Impresión Diagnóstica Principal (DSM-5-TR / CIE-11)
+#### 1. Hipótesis Diagnósticas Principales a Contrastar (DSM-5-TR / CIE-11)
 - **Trastorno de Ansiedad Generalizada (DSM-5: 300.02 / CIE-11: 6B00)**: Sugerido por preocupación excesiva persistente y tensión somática asociada.
 - **Trastorno Adaptativo con Estado de Ánimo Mixto (DSM-5: 309.28)**: A ponderar ante la presencia de estresores contextuales recientes.
 

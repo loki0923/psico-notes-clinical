@@ -1863,3 +1863,330 @@ Estado de Certificación: LUZ VERDE PARA PRODUCCIÓN SANITARIA (HIPAA / OWASP / 
 2. **Generación de Iconos PWA:** Generados `icon-192.png` y `icon-512.png` cumpliendo especificación W3C Web App Manifest y eliminando errores 404 en móviles.
 3. **Resiliencia en Service Worker:** Filtrado preventivo de esquemas no HTTP (`chrome-extension:`, `moz-extension:`) en `sw.js` evitando excepciones no capturadas de Cache API.
 4. **Auto-Sanación de Sesión y Eliminación de 401:** Reconexión atómica en `/api/v1/auth/register` y `/api/v1/patients/sync`, garantizando que ninguna solicitud HTTP salga sin token Bearer HMAC.
+
+---
+
+## 21. Actualización de Requerimientos de Supervisión Clínica v6.7 (Informe de Psicología)
+
+Tras la revisión exhaustiva con el psicólogo clínico supervisor, se formalizan las especificaciones de arquitectura para la versión 6.7 de **Psico Notes Clinical**, orientadas a perfeccionar la fidelidad clínica, usabilidad, autonomía en tarifas y escalas, y corrección de flujos operativos.
+
+### 21.1. Arquitectura de las 3 Fichas Principales Protocolizadas
+
+```mermaid
+flowchart TD
+    subgraph EstatusInicio["Estatus Clínico Obligatorio al Inicio de Ficha"]
+        E1["🟡 Por iniciar"]
+        E2["🔍 En Evaluación"]
+        E3["🎯 Plan de Intervención"]
+        E4["🔄 Seguimiento"]
+        E5["✅ Alta"]
+        E6["⏸️ Inactivo"]
+    end
+
+    subgraph FichasPrincipales["Tres Fichas Clínicas Protocolizadas"]
+        Infantil["🧒 Ficha Principal Infantil (< 12 años)\n• Ficha del Niño (Nombre, Edad, Sexo, Escolaridad, Convivencia, Referido)\n• Ficha Representante Legal (Nombre, Vínculo, Edad, Escolaridad, Ocupación, Civil, Teléfono, Correo)\n• Consentimiento Informado Legal\n• Consulta: ¿Asistió antes?, Solicitante, Iniciativa, Motivo, Expectativas del Proceso\n• Hipótesis Biológica, Social/Familiar y Psicológica\n• Tríada: Factores de Riesgo, Vulnerabilidad y Protección\n• Encuadre: Frecuencia, Modalidad y Turno (Mañana/Tarde)"]
+        
+        Adolescente["🧑 Ficha Principal Adolescente (12-17 años)\n• Ficha del Menor (Nombre, Edad, Sexo, Escolaridad, Convivencia, Referido, Correo)\n• Ficha Representante Legal (Nombre, Vínculo, Edad, Escolaridad, Ocupación, Civil, Teléfono, Correo)\n• Consentimiento Informado Legal\n• Consulta: ¿Asistió antes?, Solicitante, Iniciativa, Motivo, Objetivos del Paciente\n• Hipótesis Biológica, Social/Familiar y Psicológica\n• Tríada: Factores de Riesgo, Vulnerabilidad y Protección\n• Encuadre: Frecuencia, Modalidad y Turno (Mañana/Tarde)"]
+        
+        Adulto["👤 Ficha Principal Adulto (18+ años)\n• Ficha del Paciente (Nombre, Edad, Sexo, Escolaridad, Ocupación Actual, Estado Civil, Convivencia)\n• Deseabilidad Social (SI/NO) & Motivación Propia (SI/NO)\n• Referido (Multi-selección) + Domicilio, Teléfono, Correo\n• Consulta: ¿Asistió antes?, Motivo, Objetivos del Paciente\n• Hipótesis Biológica, Social/Familiar y Psicológica\n• Tríada: Factores de Riesgo, Vulnerabilidad y Protección\n• Encuadre: Frecuencia, Modalidad y Turno (Mañana/Tarde)"]
+    end
+
+    subgraph ModulosNuevos["Mejoras Funcionales de la Supervisión Clínica"]
+        M1["📑 Pestaña 'Notas de sesión' en Barra del Paciente\n(Concentración de reportes de atención y evolución)"]
+        M2["💰 Gestor de Tarifas de Consulta\n(Edición de precios por duración y servicio)"]
+        M3["🎯 Objetivos del Mes en Consulta\n(Configuración de metas mensuales en Dashboard)"]
+        M4["🧪 Gestor Dinámico de Escalas y Tests\n(Creación y edición de instrumentos psicométricos)"]
+        M5["📜 Consentimiento Informado Homologado\n(Formato unificado con Teleconsulta e IA Asistida)"]
+        M6["👥 Homologación Terminológica\n('Personas' sustituido sistemáticamente por 'Pacientes')"]
+        M7["📅 Marcado de Estados de Citas\n(Agendada, Completada, Reprogramada, Cancelada)"]
+        M8["📱 Acceso Robusto al Portal del Paciente\n(Lanzamiento directo de pestaña sin bloqueo)"]
+    end
+
+    EstatusInicio --> FichasPrincipales
+    FichasPrincipales --> ModulosNuevos
+```
+
+---
+
+### 21.2. Especificación Detallada de las Fichas Principales y Exclusiones
+
+#### A. Ficha Principal Infantil (< 12 años)
+1. **Estatus del Paciente (al inicio)**: `Por iniciar`, `En Evaluación`, `Plan de Intervención`, `Seguimiento`, `Alta`, `Inactivo`.
+2. **Ficha del Paciente (Niño)**:
+   - Nombre Completo del paciente
+   - Edad (Años)
+   - Sexo (Femenino, Masculino, No binario, Otro)
+   - Nivel de Escolaridad
+   - Vive con
+   - Referido (selección múltiple: Orientador, Psicopedagogo, Neurólogo, Psiquiatra, Médico/Especialista, No aplica)
+   - *Exclusiones*: Se omiten estado civil, correo, teléfono propio del niño e institución educativa.
+3. **Ficha del Representante / Tutor Legal**:
+   - Nombre completo del representante / tutor legal
+   - Parentesco (Madre, Padre, Tutor Legal, Abuelo/a, Tío/a, Otro)
+   - Edad
+   - Nivel de Escolaridad
+   - Ocupación
+   - Estado Civil
+   - Teléfono
+   - Correo Electrónico
+   - Consentimiento Informado (Firmado / Pendiente) — *Sustituye la denominación previa de "consentimiento parental"*.
+4. **Información Referente a la Consulta Psicológica**:
+   - ¿Ha asistido antes a Consulta Psicológica?* (Sí / No)
+   - Nombre de la Persona que solicita la Consulta
+   - ¿Quién tomó la iniciativa de la Consulta Psicológica?* (Madre, Padre, Solicitud del Niño o Adolescente, Docente de Aula, Neurólogo, Psicopedagogo, Otro)
+   - Motivo de consulta
+   - **Expectativas del Proceso Terapéutico** (enfoque familiar propio de la infancia)
+   - Hipótesis Biológica
+   - Hipótesis Social y Familiar
+   - Hipótesis Psicológica
+   - Factores de Riesgo
+   - Factores de Vulnerabilidad
+   - Factores de Protección
+5. **Encuadre y Acuerdos**:
+   - Frecuencia Acordada (Semanal, Quincenal, Mensual, Dos veces por semana)
+   - Modalidad (Presencial, Online, Domicilio)
+   - Turno (Mañana, Tarde)
+6. **Exclusiones Explícitas en Infantil**:
+   - Quitar Hitos del Neurodesarrollo y Antecedentes Perinatales de la ficha principal de admisión (se reservan para anamnesis especializada).
+   - Quitar Institución Educativa / Escuela.
+   - Quitar Pacto de confidencialidad separado.
+   - Quitar Diagnóstico y Evaluación, Diagnóstico Principal (CIE-11 / DSM-5), Diagnóstico Secundario y Medicación Actual.
+   - Quitar Historia clínica de la ficha principal.
+   - Quitar Notas de Encuadre / Acuerdos libres.
+
+#### B. Ficha Principal Adolescente (12 a 17 años)
+1. **Estatus del Paciente (al inicio)**: `Por iniciar`, `En Evaluación`, `Plan de Intervención`, `Seguimiento`, `Alta`, `Inactivo`.
+2. **Ficha del Paciente (Adolescente)**:
+   - Nombre Completo del paciente
+   - Edad (Años)
+   - Sexo
+   - Nivel de Escolaridad
+   - Vive con
+   - Referido (selección múltiple: Orientador, Psicopedagogo, Neurólogo, Psiquiatra, Médico/Especialista, No aplica)
+   - Correo Electrónico propio del menor
+   - *Exclusiones*: Se omiten estado civil y teléfono propio del menor.
+3. **Ficha del Representante / Tutor Legal**:
+   - Nombre completo, Parentesco, Edad, Nivel de Escolaridad, Ocupación, Estado Civil, Teléfono, Correo Electrónico.
+   - Consentimiento Informado (Firmado / Pendiente).
+4. **Información Referente a la Consulta Psicológica**:
+   - ¿Ha asistido antes a Consulta Psicológica?* (Sí / No)
+   - Nombre de la Persona que solicita la Consulta
+   - ¿Quién tomó la iniciativa?* (Madre, Padre, Solicitud del Niño o Adolescente, Docente de Aula, Neurólogo, Psicopedagogo, Otro)
+   - Motivo de consulta
+   - **Objetivos del Paciente** (perspectiva directa de la persona joven)
+   - Hipótesis Biológica, Hipótesis Social y Familiar, Hipótesis Psicológica
+   - Factores de Riesgo, Factores de Vulnerabilidad, Factores de Protección
+5. **Encuadre y Acuerdos**:
+   - Frecuencia Acordada, Modalidad, Turno (Mañana, Tarde).
+6. **Exclusiones Explícitas en Adolescente**:
+   - Omitir estado civil y teléfono propio.
+   - Quitar institución educativa, pacto de confidencialidad separado, diagnóstico CIE-11 / DSM-5, medicación actual y notas de encuadre libres.
+
+#### C. Ficha Principal Adulto (18+ años)
+1. **Estatus del Paciente (al inicio)**: `Por iniciar`, `En Evaluación`, `Plan de Intervención`, `Seguimiento`, `Alta`, `Inactivo`.
+2. **Ficha del Paciente (Adulto)**:
+   - Nombre Completo del paciente
+   - Edad (Años)
+   - Sexo
+   - Nivel de Escolaridad
+   - Ocupación Actual
+   - Estado Civil
+   - Vive con
+   - **Deseabilidad Social** (SI / NO)
+   - **Motivación Propia** (SI / NO)
+   - Referido (selección múltiple: Orientador, Psicopedagogo, Neurólogo, Psiquiatra, Médico/Especialista, No aplica)
+   - Domicilio
+   - Teléfono de contacto
+   - Correo Electrónico
+3. **Información Referente a la Consulta Psicológica**:
+   - ¿Ha asistido antes a Consulta Psicológica?* (Sí / No)
+   - Motivo de consulta
+   - Objetivos del Paciente
+   - Hipótesis Biológica
+   - Hipótesis Social y Familiar
+   - Hipótesis Psicológica
+   - Factores de Riesgo
+   - Factores de Vulnerabilidad
+   - Factores de Protección
+4. **Encuadre y Acuerdos**:
+   - Frecuencia Acordada, Modalidad, Turno (Mañana, Tarde).
+5. **Exclusiones Explícitas en Adulto**:
+   - Quitar Diagnóstico y Evaluación, Diagnóstico Principal (CIE-11 / DSM-5), Diagnóstico Secundario y Medicación Actual en la admisión.
+   - Quitar Notas de Encuadre / Acuerdos libres.
+
+---
+
+### 21.3. Especificación Técnica de los Módulos Complementarios
+
+#### 1. Pestaña "Notas de sesión" en el Expediente del Paciente
+- En el modal de expediente (`#patientDetailModal`), la barra de navegación de pestañas (`.patient-tabs`) incorpora:
+  ```html
+  <button class="patient-tab" onclick="switchPatientTab('notas', this)">
+      <i class="fas fa-file-medical-alt"></i> Notas de Sesión
+      <span class="badge-count">${patientNotes.length}</span>
+  </button>
+  ```
+- El contenedor `renderTabNotasSesion(patientId)` reúne todos los reportes de sesión en orden cronológico con:
+  - Botón de acción principal: `+ Nuevo Reporte de Atención`.
+  - Número de sesión correlativo (`Sesión #X`), fecha, modalidad y objetivos trabajados.
+  - Síntesis de la intervención, técnicas aplicadas y tareas asignadas.
+  - Indicador de estado de la nota (Borrador / Firmada) con fecha y firma profesional.
+  - Botón de exportación e impresión de la Hoja Oficial / Reporte de Atención en PDF con membrete dinámico.
+
+#### 2. Módulo de Edición de Tarifas de Consulta
+- Permite al terapeuta definir, editar y activar tarifas basadas en tiempo y modalidad desde la interfaz de Finanzas y desde la configuración rápida:
+  - Estructura de Tarifa: `{ id, durationMinutes, title, amount, currency, description, isDefault }`.
+  - Tarifa Predeterminada: Aplica automáticamente a los nuevos cobros al agendar o completar citas.
+  - Soporte de edición en vivo vía modal interactivo `#financeRateModal`.
+
+#### 3. Módulo de Objetivos del Mes (Dashboard & Finanzas)
+- Incorpora la meta mensual en el panel de control (`updateDashboard()`):
+  - Parámetros: Meta de sesiones/consultas mensuales, meta de facturación (USD/VES) y objetivos cualitativos del mes.
+  - Modal interactivo `openMonthlyGoalsModal()` accesible desde la tarjeta de Objetivos del Dashboard y desde la pestaña de Metas en Finanzas.
+  - Cálculo en tiempo real de porcentaje de cumplimiento mensual (`progress = actual / meta * 100`).
+
+#### 4. Gestor Dinámico de Escalas y Tests Psicométricos
+- Permite al profesional ampliar el catálogo psicométrico estándar (PHQ-9, GAD-7, BDI-II, BAI, PSS-10) con escalas personalizadas:
+  - Creación y edición vía `openScaleEditorModal(scaleId)`:
+    - Identificador y Nombre completo de la escala.
+    - Dimensión / Dominio evaluado.
+    - Listado dinámico de ítems / preguntas.
+    - Opciones de respuesta con ponderación numérica (0, 1, 2, 3...).
+    - Reglas de interpretación clínica: Puntos de corte (Min, Max), Etiqueta de Severidad, Color y Recomendación de Acción Clínica.
+  - Persistencia en `localStorage` y compatibilidad con la base de datos relacional.
+
+#### 5. Formato Homologado de Consentimiento Informado
+- Estandarización de denominación en todas las etapas: **"Consentimiento Informado"** (con identificación del representante legal en niñez y adolescencia).
+- Inclusión formal de cláusulas de **Teleconsulta** y **Tratamiento Asistido por Inteligencia Artificial Clínica** con anonimización previa demostrable.
+- Firma táctil digitalizada en pantalla y estampado en los reportes clínicos descargables.
+
+#### 6. Homologación Terminológica: "Pacientes"
+- Reemplazo global en interfaces y textos:
+  - Barra lateral: `Personas` ➔ `Pacientes`.
+  - Título de vista: `Personas en Proceso` ➔ `Pacientes`.
+  - Navegación móvil: `Personas` ➔ `Pacientes`.
+  - Filtros y modales: Adecuados a la terminología clínica estándar solicitada por la supervisión.
+
+#### 7. Marcado de Estados de Citas
+- En el modal de agendamiento `#appointmentModal` y en el listado de citas, se incorpora el selector de estado con 4 opciones clínicas:
+  - `agendada` (por defecto al programar).
+  - `completada` (desencadena registro automático de honorarios y habilita evolución).
+  - `reprogramada` (permite actualizar fecha/hora preservando historial).
+  - `cancelada` (excluye de la agenda activa sin eliminar la trazabilidad).
+- Botones de acción directa de 1 clic en la tarjeta de cita del calendario.
+
+#### 8. Corrección de Apertura de Pestaña del Portal del Paciente
+- Diagnóstico: Algunos navegadores bloquean `window.open` invocado desde botones con JavaScript si detectan políticas restrictivas de popups.
+- Solución:
+  1. El botón principal se modela como enlace directo `<a href="${portalUrl}" target="_blank" rel="noopener noreferrer">` estilizado con la clase `.btn-portal-launch`.
+  2. En la función `launchPatientPortal(patientId)`, se añade fallback automático para redirigir si el popup fue bloqueado.
+  3. Precarga garantizada de la sesión en `localStorage` (`psico_portal_session`) para auto-login instantáneo en `portal.html`.
+
+---
+
+### 21.4. Diagrama de Secuencia de los Flujos Actualizados
+
+```mermaid
+sequenceDiagram
+    autonumber
+    actor Psicologo as Profesional Clínico
+    participant UI as Interfaz Web / Móvil
+    participant App as app.js / scales.js / finance.js
+    participant Portal as portal.html / portal.js
+    participant DB as Motor Relacional PostgreSQL / LocalStore
+
+    Note over Psicologo,UI: 1. Agendamiento y Estados de Citas
+    Psicologo->>UI: Modifica estado de cita a 'Completada', 'Reprogramada' o 'Cancelada'
+    UI->>App: setAppointmentStatus(appId, newStatus)
+    App->>DB: Guarda estado atómico
+    alt Cita Marcada como Completada
+        App->>App: registerIncomeFromAppointment(app)
+        App-->>UI: Notifica 'Sesión completada y cobro registrado'
+    end
+    App-->>UI: Actualiza badge en calendario y métricas del Dashboard
+
+    Note over Psicologo,Portal: 2. Apertura Robusta del Portal del Paciente
+    Psicologo->>UI: Clic en 'Acceder al Portal'
+    UI->>App: launchPatientPortal(patientId)
+    App->>App: Prepara 'psico_portal_session' con token seguro
+    App->>Portal: Abre portal.html?token=... en nueva pestaña (rel='noopener')
+    Portal->>DB: POST /api/v1/portal/auth (verificación de token)
+    DB-->>Portal: Datos de actividades, tareas y ánimo
+    Portal-->>Psicologo: Renderiza vista del paciente en vivo
+
+    Note over Psicologo,UI: 3. Visualización de Notas de Sesión
+    Psicologo->>UI: Clic en pestaña 'Notas de sesión' del paciente
+    UI->>App: renderTabNotasSesion(patientId)
+    App-->>UI: Lista cronológica de Reportes de Atención con correlativo y PDF Oficial
+```
+
+---
+
+### 21.5. Plan de Ejecución Coordinada y Pase de Estafeta
+
+Conforme a la metodología **Multi-Agent Workflow**, las tareas se distribuyen de forma coordinada:
+
+| Agente | Responsabilidad Principal | Archivos de Impacto | Tareas Clave |
+| :--- | :--- | :--- | :--- |
+| **Agente 1 (Arquitecto/PM)** | Diseño maestro, contratos y `arquitectura.md` | `arquitectura.md` | Estandarización de las 3 fichas, reglas de exclusión y definición de flujos. |
+| **Agente 2 (Backend)** | Persistencia, endpoints y reglas de negocio | `server.js`, `db.js`, `schema.sql` | Validación de estatus, almacenamiento de escalas personalizadas y metas del mes. |
+| **Agente 3 (Frontend/Mobile)** | Interfaz, modales, pestañas y adaptabilidad | `index.html`, `app.js`, `styles.css`, `scales.js`, `finance.js`, `consentimiento.js` | Implementación de las 3 fichas adaptadas, pestaña "Notas de sesión", editor de tarifas, metas del mes, editor de escalas, cambio a "Pacientes", estados de citas y corrección del portal. |
+| **Agente 4 (QA/DevOps)** | Pruebas automatizadas y validación 100% | `tests.js`, `plan_pruebas.md` | Creación de casos de prueba para Infantil (`TC-CHILD-01`), Adulto (`TC-ADULT-01`), Estados de Cita (`TC-CAL-02`) y Escalas personalizadas (`TC-SCALE-01`). Verificación del 100% de tests aprobados. |
+
+---
+
+## 22. Ficha Rápida del Expediente Clínico: Estatus, Fechas de Ingreso/Egreso, Intervención y Colores de Alta (v6.8)
+
+### 22.1. Visión y Necesidad Clínica
+La psicoterapeuta requiere visualizar de forma inmediata y consolidada ("de forma rápida") los datos rectores del paciente al ingresar al expediente clínico:
+1. **Datos del paciente:** Identificación, edad, sexo, etapa vital, ocupación/escolaridad, convivencia, domicilio y contacto (o representante legal).
+2. **Estatus del Paciente:** Código cromático semántico según el momento del proceso (*Por iniciar, En Evaluación, Plan de Intervención, Seguimiento, Alta, Inactivo*).
+3. **Fecha de Ingreso:** Momento exacto de admisión o inicio del acompañamiento con cálculo automático de duración.
+4. **Fecha de Egreso (si egresó):** Fecha formal de alta clínica o cierre del caso con duración total acumulada.
+5. **Intervención y Tratamiento:** Modalidad, frecuencia, turno, enfoque terapéutico (TCC, etc.), motivo de consulta y objetivos.
+6. **Colores como Identificadores Visuales del Alta:** Distinción cromática celebrativa y profesional con verde esmeralda brillante (`#059669` / `#10b981`), toques dorados de logro, medallas, banners y resaltado en tarjetas.
+
+### 22.2. Diagrama de Arquitectura de la Pestaña del Expediente
+
+```mermaid
+flowchart TD
+    subgraph UI_Expediente["📂 Pestaña Expediente Clínico (patientDetailModal)"]
+        Hero["Dossier Hero: Avatar, Nombre, Chips de Ingreso/Egreso/Intervención"]
+        TabBar["Barra de Pestañas: [Expediente Clínico] [Notas de sesión] [Historia] ..."]
+        BannerAlta["🌟 Banner de Alta Clínica (Condicional si Alta o con Egreso)"]
+        KPIGrid["📊 Grid de Métricas Rápidas: Ingreso | Egreso | Estatus | Intervención"]
+        SplitGrid["📋 Fichas Duales: Datos Rápidos del Px | Intervención y Formulación"]
+        AlertsBox["🚨 Alertas Activas y Última Sesión Documentada"]
+    end
+
+    subgraph State_Store["💾 Estado Reactivo (AppState / LocalStorage / Cloud)"]
+        PatientObj["patient: { id, status, admissionDate, dischargeDate, intervention, ... }"]
+        NotesList["notes: SOAP & Reportes de Atención"]
+        QuickStatus["quickUpdatePatientStatus(id, newStatus)"]
+    end
+
+    Hero --> TabBar
+    TabBar --> BannerAlta
+    BannerAlta --> KPIGrid
+    KPIGrid --> SplitGrid
+    SplitGrid --> AlertsBox
+    QuickStatus --> PatientObj
+    PatientObj --> KPIGrid
+    PatientObj --> BannerAlta
+```
+
+### 22.3. Especificación Técnica de Campos y Estilos
+- **Campos en Formulario (`#patientForm`):**
+  - `#patientAdmissionDate`: Fecha de ingreso (requerida).
+  - `#patientDischargeDate`: Fecha de egreso (condicional, autocompletada hoy si estatus = Alta).
+  - `#patientIntervention`: Enfoque de intervención y tratamiento.
+- **Identificadores Visuales Cromáticos:**
+  - `status-por-iniciar`: Ámbar (`#d97706`).
+  - `status-en-evaluacion`: Azul (`#2563eb`).
+  - `status-plan-de-intervencion`: Púrpura (`#7c3aed`).
+  - `status-seguimiento`: Celeste (`#0284c7`).
+  - `status-alta`: Verde esmeralda con ribete y medalla (`#047857` / `#10b981` / `#34d399`).
+  - `status-inactivo`: Pizarra (`#64748b`).
+- **Pruebas Automatizadas:** `TC-EXP-01` valida la presencia de los campos, la reactividad de `onPatientStatusChange`, la pestaña y los identificadores visuales en CSS.
+
+

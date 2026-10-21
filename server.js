@@ -750,7 +750,7 @@ app.get('/api/v1/sync/pull/:userId', requireTherapistAuth, (req, res) => {
 
 app.post('/api/v1/auth/register', async (req, res) => {
     try {
-        const { name, email, passwordHash, specialty, registryNumber, phone, institution } = req.body;
+        const { id, name, email, passwordHash, specialty, registryNumber, phone, institution } = req.body;
         if (!email || !passwordHash) {
             return res.status(400).json({ error: 'Email y contraseña requeridos' });
         }
@@ -758,10 +758,22 @@ app.post('/api/v1/auth/register', async (req, res) => {
         const cleanEmail = email.trim().toLowerCase();
         const existing = await db.findTherapistByEmail(cleanEmail);
         if (existing) {
+            // Reconexión y auto-sanación segura de sesión si coincide el hash de contraseña o el ID del terapeuta
+            if (passwordHash && (existing.password_hash === passwordHash || (id && existing.id === id))) {
+                const sessionToken = generateSessionToken(existing.id, existing.email);
+                await recordAuditLog(existing.id, null, 'REGISTER_THERAPIST_RECONNECT', 'AUTH', req);
+                return res.json({
+                    status: 'ok',
+                    message: 'Sesión clínica reconectada con éxito.',
+                    sessionToken,
+                    therapist: existing
+                });
+            }
             return res.status(409).json({ error: 'Ya existe una cuenta registrada con este correo.' });
         }
 
         const therapist = await db.registerTherapist({
+            id: id || undefined,
             name,
             email: cleanEmail,
             passwordHash,
