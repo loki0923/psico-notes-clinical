@@ -1,0 +1,14 @@
+node_modules
+.env
+.env.*
+data
+*.log
+*.bak
+*.tmp
+.git
+.github
+tests.js
+AUDIT_REPORT.md
+SECURITY_REMEDIATION.md
+TEST_REPORT.md
+CHANGELOG.md
