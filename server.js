@@ -27,12 +27,18 @@ const PORT = process.env.PORT || 3000;
 const isProd = process.env.NODE_ENV === 'production';
 const DEFAULT_INSECURE_SECRET = 'psico-clinical-hmac-sha256-secret-key-prod-v6-2026';
 
-if (isProd && (!process.env.SESSION_SECRET || process.env.SESSION_SECRET === DEFAULT_INSECURE_SECRET || process.env.SESSION_SECRET.length < 32)) {
-    console.error('❌ FATAL: En modo producción, SESSION_SECRET debe estar configurado en las variables de entorno con una clave criptográfica de al menos 32 caracteres.');
-    process.exit(1);
-}
+let SESSION_SECRET = process.env.SESSION_SECRET;
 
-const SESSION_SECRET = process.env.SESSION_SECRET || DEFAULT_INSECURE_SECRET;
+if (!SESSION_SECRET || SESSION_SECRET === DEFAULT_INSECURE_SECRET || SESSION_SECRET.length < 32) {
+    if (isProd) {
+        console.warn('⚠️ AVISO [Render/Producción]: SESSION_SECRET no configurado en variables de entorno (mínimo 32 caracteres).');
+        console.warn('🔐 Generando automáticamente una clave criptográfica CSPRNG de 256 bits para asegurar las sesiones en esta instancia.');
+        console.warn('💡 RECOMENDACIÓN: Configura SESSION_SECRET en el panel de Render (Environment) para mantener sesiones persistentes entre reinicios.');
+        SESSION_SECRET = crypto.randomBytes(32).toString('hex');
+    } else {
+        SESSION_SECRET = DEFAULT_INSECURE_SECRET;
+    }
+}
 const TOKEN_EXPIRY_MS = 7 * 24 * 60 * 60 * 1000; // 7 días de validez máxima para sesiones clínicas
 
 /**

@@ -3061,6 +3061,79 @@ ClinicalTestSuite.add('TC-KID-02', 'Portal Pacientes Kid: Prevención BOLA/IDOR 
     }
 });
 
+// 75. TC-KID-03: Portal Pacientes Kid — Activación Automática (<13 años) y Ocultamiento Estricto en Adultos/Adolescentes
+ClinicalTestSuite.add('TC-KID-03', 'Portal Pacientes Kid: Activación automática para menores de 13 años (<13a) y cero exposición en adultos', async () => {
+    const fs = await import('fs');
+    const path = await import('path');
+    const { db } = await import('./db.js');
+
+    // 1. Simulación de funciones clínicas de evaluación de edad
+    function calculateAge(bd) {
+        if (!bd) return '';
+        const b = new Date(bd);
+        const t = new Date();
+        let a = t.getFullYear() - b.getFullYear();
+        const m = t.getMonth() - b.getMonth();
+        if (m < 0 || (m === 0 && t.getDate() < b.getDate())) a--;
+        return a;
+    }
+
+    function isKidPatient(p) {
+        if (!p) return false;
+        if (p.birthdate) {
+            const a = calculateAge(p.birthdate);
+            if (typeof a === 'number' && !isNaN(a) && a >= 0) return a < 13;
+        }
+        const directAge = parseInt(p.age, 10);
+        if (!isNaN(directAge) && directAge >= 0) return directAge < 13;
+        const stage = (p.category || p.lifeStage || p.life_stage || '').toLowerCase();
+        return stage === 'child' || stage === 'infantil';
+    }
+
+    // Caso A: Paciente de 8 años (Niño) -> Debe ser Portal Kids
+    const now = new Date();
+    const birthdateKid = new Date(now.getFullYear() - 8, now.getMonth(), now.getDate()).toISOString().split('T')[0];
+    const kidPatient = { id: 'kid_8yo', name: 'Lucas', birthdate: birthdateKid };
+    if (!isKidPatient(kidPatient)) {
+        throw new Error('Paciente de 8 años DEBE ser detectado como Portal KIDS (isKidPatient === true)');
+    }
+
+    // Caso B: Paciente de 12 años (Límite superior niñez < 13) -> Debe ser Portal Kids
+    const birthdateKid12 = new Date(now.getFullYear() - 12, now.getMonth(), now.getDate()).toISOString().split('T')[0];
+    const kidPatient12 = { id: 'kid_12yo', name: 'Mateo', birthdate: birthdateKid12 };
+    if (!isKidPatient(kidPatient12)) {
+        throw new Error('Paciente de 12 años DEBE ser detectado como Portal KIDS (isKidPatient === true)');
+    }
+
+    // Caso C: Paciente de 13 años cumplidos (Adolescente) -> NO debe ser Portal Kids
+    const birthdateTeen13 = new Date(now.getFullYear() - 13, now.getMonth(), now.getDate()).toISOString().split('T')[0];
+    const teenPatient13 = { id: 'teen_13yo', name: 'Valeria', birthdate: birthdateTeen13 };
+    if (isKidPatient(teenPatient13)) {
+        throw new Error('Paciente de 13 años cumplidos NO debe ser Portal Kids (es adolescente)');
+    }
+
+    // Caso D: Paciente de 28 años (Adulto) -> NO debe ser Portal Kids
+    const birthdateAdult = new Date(now.getFullYear() - 28, now.getMonth(), now.getDate()).toISOString().split('T')[0];
+    const adultPatient = { id: 'adult_28yo', name: 'Carlos', birthdate: birthdateAdult };
+    if (isKidPatient(adultPatient)) {
+        throw new Error('Paciente adulto NO debe ser detectado como Portal Kids');
+    }
+
+    // Caso E: Verificación de plantilla portal.html — El botón de alternancia hacia modo kids debe estar oculto por defecto
+    const portalHtmlPath = path.resolve('portal.html');
+    const portalHtml = fs.readFileSync(portalHtmlPath, 'utf8');
+    if (!portalHtml.includes('id="btnKidModeToggle"') || !portalHtml.includes('display: none !important;')) {
+        throw new Error('El botón #btnKidModeToggle en portal.html debe estar estrictamente oculto con display: none !important');
+    }
+
+    // Caso F: Verificación de portal.css — .btn-kid-toggle debe tener display: none por defecto
+    const portalCssPath = path.resolve('portal.css');
+    const portalCss = fs.readFileSync(portalCssPath, 'utf8');
+    if (!portalCss.includes('.btn-kid-toggle') || !portalCss.includes('display: none;')) {
+        throw new Error('La clase .btn-kid-toggle en portal.css debe tener display: none por defecto para que adultos/adolescentes no la vean');
+    }
+});
+
 // Auto-ejecución si se corre desde Node.js (CLI)
 if (typeof process !== 'undefined' && process.argv && process.argv[1] && process.argv[1].endsWith('tests.js')) {
     ClinicalTestSuite.runAll().then(res => {

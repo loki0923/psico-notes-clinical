@@ -3,6 +3,59 @@ Todas las modificaciones notables realizadas en el proyecto Psico Notes Clinical
 
 El formato se basa en [Keep a Changelog](https://keepachangelog.com/es-ES/1.0.0/) y este proyecto se adhiere a [Semantic Versioning](https://semver.org/lang/es/).
 
+## [6.5.1-kid-portal-automation] — 2026-10-21 (Activación Automática de Portal KIDS por Edad < 13a y Aislamiento en Adultos)
+
+### Añadido y Optimizado
+- **Activación Pediátrica Automática por Edad (< 13 años) en la Ficha del Terapeuta (`app.js`)**:
+  - Implementación de la función médica evaluadora `isKidPatient(patient)` que calcula la edad exacta mediante `calculateAge(patient.birthdate)` o edad directa.
+  - Los pacientes menores de 13 años son categorizados de manera automática como `Niñez` (`child`).
+  - **Pestaña del Portal (`tab-portal`)**: Muestra banner destacado verde menta indicando que el paciente opera en etapa pediátrica y el botón principal se adapta a `🎈 Abrir Portal KIDS` (color `#2EC4B6`).
+  - **Modal de Credenciales (`openPortalAccessModal`)**: Presenta la insignia `🧒 Portal KIDS (< 13 años)` y tarjeta heroica contextualizada `🎈 Psico Kids Space — Portal Interactivo`.
+  - **Lanzamiento y Compartición (`launchPatientPortal`, `sharePortalViaWhatsApp`, `showPortalQrCode`, `copyPortalLink`)**: Anexan automáticamente el parámetro `&mode=kid` y componen textos dirigidos al tutor legal del menor.
+- **Ocultamiento Estricto de "Modo Kids" en el Portal de Adultos y Adolescentes (`portal.html`, `portal.css`, `portal.js`)**:
+  - El botón `#btnKidModeToggle` (`.btn-kid-toggle`) se configuró con `display: none !important;` tanto a nivel de plantilla HTML como en CSS.
+  - La función `determineIfKid(patientData)` en `portal.js` evalúa estrictamente si el consultante es menor de 13 años. Si no lo es, activa el portal clínico estándar de adultos/adolescentes y garantiza que **no exista ningún rastro, botón o mención de "Modo Kids"**.
+  - Para los niños (< 13 años), el portal inicia inmediatamente en el entorno lúdico `Psico Kids Space` sin botones confusos para saltar a pantallas de adultos.
+- **Caso de Prueba Automatizado `TC-KID-03`**:
+  - Valida la inferencia clínica para 8 y 12 años (activación Kid Portal), 13 años cumplidos (adolescencia, exclusión de Kid Portal), 28 años (adultez) y la presencia de la directiva de invisibilidad en `portal.html` y `portal.css`.
+  - **75/75 pruebas automatizadas superadas al 100%**.
+
+---
+
+## [6.5.0-gamified-kids-experience] — 2026-10-21 (Rediseño Lúdico y Sensorial: Psico Kids Space Gamificado)
+
+### Añadido y Mejorado
+- **Experiencia Lúdica Dinámica Integral (Estilo Toca Boca / Duolingo Kids)**:
+  - **Sintetizador de Audio Nativo Web Audio API (`KidAudioEffects`)**:
+    - Generación procedimental de efectos sonoros sin dependencias ni peso externo (0 KB assets adicionales).
+    - Efectos: `pop` (burbujas pomposas), `ding/star` (arpegio de estrellas), `boing` (rebote elástico en zonas corporales y avatares), `yay` (fanfarria pentatónica de victoria al enviar dibujos) y `zen` (onda sinusoidal relajante durante respiración).
+    - Botón de control de sonido flotante (`🔊` / `🔇`) accesible en la cabecera lúdica con persistencia de preferencia en `localStorage`.
+  - **Motor de Confeti y Partículas en Canvas (`KidConfetti`)**:
+    - Sistema de partículas 2D por física de aceleración y gravedad sobre `<canvas id="kidConfettiCanvas">`.
+    - Disparo de ráfagas estelares multicolores reactivas a coordenadas táctiles y de ratón (burst) al explotar burbujas, guardar avatares o completar dibujos.
+  - **Rediseño Completo de Vistas Lúdicas (`portal.html`, `portal.css`, `portal.js`)**:
+    - *Clima Emocional & Mapa Somático*:
+      - Nubes esponjosas flotantes animadas (`@keyframes floatCloud`).
+      - Tarjetas de micro-clima con animaciones activas: Giro solar (`sunSpin`), brillo arcoíris (`rainbowGlow`), gotas de lluvia oscilantes (`rainDrip`), destello de tormenta (`boltFlash`) y rotación del tornado (`tornadoTwirl`).
+      - Figura de silueta corporal interactiva en SVG con puntos radiantes pulsantes (`hotspots` en cabeza, garganta, pecho, pancita, manos) y bocadillo de diálogo estilo cómic que valida con empatía las sensaciones del niño.
+    - *Laboratorio de Avatares*:
+      - Pedestal 3D con anillo de aura luminosa giratoria y animación de salto feliz (`@keyframes avatarHop`).
+      - Generador interactivo de nombres de superhéroes y criaturas mágicas ("🎲 ¡Inventar Nombre Mágico!").
+    - *Cazador de Preocupaciones*:
+      - Burbujas 3D con destellos de nácar iridiscente, flotación orgánica y explosión con sonido de pop real y partículas directas al toque táctil.
+    - *Lienzo Mágico*:
+      - Estuche de pintura de juguete, pincel arcoíris dinámico (`setRainbowBrush()`) que cicla el espectro cromático HSL al trazar, y barra de sellos mágicos gigantes (`⭐`, `💖`, `🌈`, `🐾`, `🚀`, `🦄`, `🌻`, `🍦`).
+    - *Globo de la Calma*:
+      - Personaje globo con carita expresiva animada (ojos y boquita que inhalan `😮` y exhalan pacíficamente `😌`) sincronizado con el ciclo de respiración diafragmática.
+    - *Consola Portátil de Navegación*:
+      - Barra inferior rediseñada como consola portátil infantil (`kid-bottom-console`) con botones esféricos elevados 3D y rebote táctil activo.
+- **Tipografía Lúdica Infantil**:
+  - Incorporación de tipografía redondeada moderna `Fredoka` (Google Fonts) para una lectura amigable y estimulante en niños.
+- **Validación y Estabilidad**:
+  - 100% de la suite de pruebas superada (74/74 tests en `node tests.js`), 0 errores de TypeScript y compilación exitosa de Vite.
+
+---
+
 ## [6.4.0-portal-kids] — 2026-10-21 (Portal Pacientes KID: Psico Kids Space)
 
 ### Añadido

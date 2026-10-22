@@ -6,11 +6,14 @@
     <title>Mi Espacio - Psico Notes</title>
     <meta name="theme-color" content="#6b9080">
     <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Playfair+Display:wght@500;600;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@400;500;600;700;800&family=Inter:wght@400;500;600;700&family=Playfair+Display:wght@500;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link rel="stylesheet" href="portal.css">
 </head>
 <body>
+
+<!-- LIENZO DE CONFETTI Y ESTRELLAS MÁGICAS -->
+<canvas id="kidConfettiCanvas" class="kid-confetti-canvas"></canvas>
 
 <!-- PANTALLA DE ACCESO -->
 <div id="accessScreen" class="access-screen">
@@ -63,11 +66,14 @@
                 <div class="portal-patient-name" id="headerName">Paciente</div>
             </div>
         </div>
-        <div style="display: flex; align-items: center; gap: 10px;">
+        <div style="display: flex; align-items: center; gap: 8px;">
+            <button id="btnKidSoundToggle" class="btn-kid-sound" style="display: none;" onclick="KidAudioEffects.toggleMute()" title="Efectos de sonido">
+                🔊
+            </button>
             <div id="kidStarsBadge" class="kid-stars-counter" style="display: none;" title="Tus estrellas mágicas acumuladas">
                 ⭐ <span id="kidStarsCount">0</span>
             </div>
-            <button id="btnKidModeToggle" class="btn-kid-toggle" onclick="toggleKidMode()" title="Cambiar a Modo Kids / Espacio Lúdico">
+            <button id="btnKidModeToggle" class="btn-kid-toggle" style="display: none !important;" onclick="toggleKidMode()" title="Cambiar a Modo Kids / Espacio Lúdico">
                 <span class="kid-toggle-icon">🎈</span> <span class="kid-toggle-label">Modo Kids</span>
             </button>
             <span id="offlineSyncBadge" class="offline-sync-badge" style="display: none;" title="Registros pendientes de sincronizar con el terapeuta. Clic para sincronizar ahora." onclick="PortalOfflineQueue.flush()">
@@ -336,323 +342,540 @@
 
         <!-- VISTA 1: MI ESPACIO MÁGICO (HOME NIÑOS) -->
         <div id="viewKidHome" class="portal-view kid-view" style="display: none;">
-            <div class="kid-hero-card">
-                <div class="kid-hero-avatar-wrapper" onclick="switchKidView('kid-avatar')">
-                    <div class="kid-avatar-badge" id="kidHomeAvatarBadge">🦊</div>
-                    <span class="kid-hero-badge-tag">Toca para cambiar</span>
-                </div>
-                <div class="kid-hero-text">
-                    <h2 class="kid-title">¡Hola, <span id="kidGreetingName">Explorador</span>! 🎈</h2>
-                    <p class="kid-subtitle">Bienvenido a tu espacio seguro y lleno de estrellas. ¿Cómo te sientes hoy?</p>
+            <!-- HERO BANNER CON NUBES Y AVATAR VIVO -->
+            <div class="kid-hero-island">
+                <div class="kid-floating-cloud cloud-1">☁️</div>
+                <div class="kid-floating-cloud cloud-2">⛅</div>
+                <div class="kid-floating-cloud cloud-3">✨</div>
+                
+                <div class="kid-hero-content">
+                    <div class="kid-hero-avatar-pedestal" onclick="switchKidView('kid-avatar')" title="¡Tócame para cambiar mi traje!">
+                        <div class="kid-avatar-pedestal-glow" id="kidHomeAvatarAura"></div>
+                        <div class="kid-avatar-pedestal-char" id="kidHomeAvatarBadge">🦊</div>
+                        <div class="kid-avatar-pedestal-acc" id="kidHomeAvatarAcc">🦸</div>
+                        <span class="kid-avatar-tap-hint">👆 ¡Tócame!</span>
+                    </div>
+                    <div class="kid-hero-speech">
+                        <div class="kid-greeting-tag">🌟 ¡Bienvenido a tu Mundo Mágico!</div>
+                        <h2 class="kid-main-title">¡Hola, <span id="kidGreetingName" class="kid-gradient-name">Explorador</span>! 🎈</h2>
+                        <p class="kid-main-desc">Hoy es un gran día para descubrir tus superpoderes emocionales. ¿Cómo late tu corazón?</p>
+                    </div>
                 </div>
             </div>
 
-            <!-- EL CLIMA DE MI CORAZÓN -->
-            <div class="kid-card">
-                <div class="kid-card-header">
-                    <span class="kid-card-icon">🌤️</span>
+            <!-- EL CLIMA DE MI CORAZÓN (ISLAS VIBRANTES ANIMADAS) -->
+            <div class="kid-card kid-card-rainbow">
+                <div class="kid-card-topbar">
+                    <span class="kid-card-badge-icon">🌤️</span>
                     <div>
-                        <h3 class="kid-card-title">El Clima de mi Corazón</h3>
-                        <p class="kid-card-desc">Elige el clima que mejor describa cómo te sientes en este momento:</p>
+                        <h3 class="kid-card-heading">¿Cómo está el Clima de tu Corazón hoy?</h3>
+                        <p class="kid-card-subheading">Toca el clima que mejor muestre lo que sientes por dentro:</p>
                     </div>
                 </div>
-                <div class="kid-weather-grid">
-                    <button type="button" class="kid-weather-btn" data-weather="sunny" onclick="selectKidWeather('sunny')">
-                        <span class="kid-weather-emoji">☀️</span>
-                        <strong class="kid-weather-name">Soleado</strong>
-                        <span class="kid-weather-hint">¡Alegre y lleno de energía!</span>
+
+                <div class="kid-weather-cards-grid">
+                    <button type="button" class="kid-weather-card-v2" data-weather="sunny" onclick="selectKidWeather('sunny')">
+                        <div class="weather-icon-bubble sunny-bubble">
+                            <span class="weather-emoji-animated sun-spin">☀️</span>
+                        </div>
+                        <strong class="weather-title-v2">Soleado</strong>
+                        <span class="weather-badge-tag tag-sunny">¡Super Feliz!</span>
+                        <small class="weather-desc-v2">Lleno de energía y risas</small>
                     </button>
-                    <button type="button" class="kid-weather-btn" data-weather="partly_cloudy" onclick="selectKidWeather('partly_cloudy')">
-                        <span class="kid-weather-emoji">🌤️</span>
-                        <strong class="kid-weather-name">Sol con nubes</strong>
-                        <span class="kid-weather-hint">Tranqui, en calma</span>
+
+                    <button type="button" class="kid-weather-card-v2" data-weather="partly_cloudy" onclick="selectKidWeather('partly_cloudy')">
+                        <div class="weather-icon-bubble cloudy-bubble">
+                            <span class="weather-emoji-animated cloud-float">🌤️</span>
+                        </div>
+                        <strong class="weather-title-v2">Sol con Nubes</strong>
+                        <span class="weather-badge-tag tag-calm">En Calma</span>
+                        <small class="weather-desc-v2">Tranquilo y relajado</small>
                     </button>
-                    <button type="button" class="kid-weather-btn" data-weather="rainbow" onclick="selectKidWeather('rainbow')">
-                        <span class="kid-weather-emoji">🌈</span>
-                        <strong class="kid-weather-name">Arcoíris</strong>
-                        <span class="kid-weather-hint">Contento y con ideas</span>
+
+                    <button type="button" class="kid-weather-card-v2" data-weather="rainbow" onclick="selectKidWeather('rainbow')">
+                        <div class="weather-icon-bubble rainbow-bubble">
+                            <span class="weather-emoji-animated rainbow-glow">🌈</span>
+                        </div>
+                        <strong class="weather-title-v2">Arcoíris</strong>
+                        <span class="weather-badge-tag tag-creative">Creativo</span>
+                        <small class="weather-desc-v2">Lleno de ideas geniales</small>
                     </button>
-                    <button type="button" class="kid-weather-btn" data-weather="rainy" onclick="selectKidWeather('rainy')">
-                        <span class="kid-weather-emoji">🌧️</span>
-                        <strong class="kid-weather-name">Lluvia</strong>
-                        <span class="kid-weather-hint">Un poco triste o apagado</span>
+
+                    <button type="button" class="kid-weather-card-v2" data-weather="rainy" onclick="selectKidWeather('rainy')">
+                        <div class="weather-icon-bubble rainy-bubble">
+                            <span class="weather-emoji-animated rain-drip">🌧️</span>
+                        </div>
+                        <strong class="weather-title-v2">Lluvia</strong>
+                        <span class="weather-badge-tag tag-sad">Apagado</span>
+                        <small class="weather-desc-v2">Un poco triste o cansado</small>
                     </button>
-                    <button type="button" class="kid-weather-btn" data-weather="storm" onclick="selectKidWeather('storm')">
-                        <span class="kid-weather-emoji">⚡</span>
-                        <strong class="kid-weather-name">Tormenta</strong>
-                        <span class="kid-weather-hint">Enojado o frustrado</span>
+
+                    <button type="button" class="kid-weather-card-v2" data-weather="storm" onclick="selectKidWeather('storm')">
+                        <div class="weather-icon-bubble storm-bubble">
+                            <span class="weather-emoji-animated bolt-flash">⚡</span>
+                        </div>
+                        <strong class="weather-title-v2">Tormenta</strong>
+                        <span class="weather-badge-tag tag-mad">Enojado</span>
+                        <small class="weather-desc-v2">Molesto o con frustración</small>
                     </button>
-                    <button type="button" class="kid-weather-btn" data-weather="tornado" onclick="selectKidWeather('tornado')">
-                        <span class="kid-weather-emoji">🌪️</span>
-                        <strong class="kid-weather-name">Remolino</strong>
-                        <span class="kid-weather-hint">Con miedo o confuso</span>
+
+                    <button type="button" class="kid-weather-card-v2" data-weather="tornado" onclick="selectKidWeather('tornado')">
+                        <div class="weather-icon-bubble tornado-bubble">
+                            <span class="weather-emoji-animated tornado-twirl">🌪️</span>
+                        </div>
+                        <strong class="weather-title-v2">Remolino</strong>
+                        <span class="weather-badge-tag tag-confused">Confuso</span>
+                        <small class="weather-desc-v2">Con miedo o muchos líos</small>
                     </button>
                 </div>
 
-                <!-- MAPA SOMÁTICO CORPORAL -->
-                <div class="kid-somatic-box">
-                    <h4 class="kid-somatic-title"><span class="kid-icon">🧍</span> ¿En qué parte de tu cuerpo sientes esa emoción?</h4>
-                    <p class="kid-card-desc">Nuestro cuerpo siempre nos habla con señales mágicas:</p>
-                    <div class="kid-zones-grid">
-                        <button type="button" class="kid-zone-btn" data-zone="head" onclick="selectKidBodyZone('head')">
-                            <span class="kid-zone-emoji">🧠</span>
-                            <span>En la cabecita</span>
-                        </button>
-                        <button type="button" class="kid-zone-btn" data-zone="throat" onclick="selectKidBodyZone('throat')">
-                            <span class="kid-zone-emoji">🗣️</span>
-                            <span>En la garganta</span>
-                        </button>
-                        <button type="button" class="kid-zone-btn" data-zone="chest" onclick="selectKidBodyZone('chest')">
-                            <span class="kid-zone-emoji">💖</span>
-                            <span>En el pecho</span>
-                        </button>
-                        <button type="button" class="kid-zone-btn" data-zone="belly" onclick="selectKidBodyZone('belly')">
-                            <span class="kid-zone-emoji">🌀</span>
-                            <span>En la pancita</span>
-                        </button>
-                        <button type="button" class="kid-zone-btn" data-zone="hands" onclick="selectKidBodyZone('hands')">
-                            <span class="kid-zone-emoji">✊</span>
-                            <span>En las manitas</span>
-                        </button>
+                <!-- SILUETA SOMÁTICA CORPORAL INTERACTIVA -->
+                <div class="kid-body-somatic-stage">
+                    <div class="kid-somatic-header">
+                        <span class="kid-badge-pill">🧍 El Mapa Mágico de tu Cuerpo</span>
+                        <h4>¿En qué parte de tu cuerpo sientes esa emoción?</h4>
+                        <p>Toca los puntos brillantes del muñequito o los botones para señalarlo:</p>
                     </div>
 
-                    <div class="kid-submit-row">
-                        <button type="button" class="btn-kid-action btn-kid-primary" onclick="submitKidWeatherAndBody()">
-                            <span>Enviar a mi Terapeuta 🚀</span>
+                    <div class="kid-somatic-interactive-layout">
+                        <!-- ILUSTRACIÓN DEL CUERPO CON PUNTOS TOUCH -->
+                        <div class="kid-body-figure-box">
+                            <div class="kid-speech-bubble" id="kidSomaticSpeechBubble">
+                                💭 ¡Tócame para ver dónde late tu emoción!
+                            </div>
+                            <svg class="kid-figure-svg" viewBox="0 0 200 300" xmlns="http://www.w3.org/2000/svg">
+                                <!-- Silueta amigable de personaje -->
+                                <circle cx="100" cy="50" r="32" fill="#E2E8F0" stroke="#94A3B8" stroke-width="3" />
+                                <path d="M78 100 Q100 85 122 100 L126 190 Q100 200 74 190 Z" fill="#E2E8F0" stroke="#94A3B8" stroke-width="3" />
+                                <!-- Brazos -->
+                                <path d="M76 105 L40 160 Q35 170 45 172 Q55 170 60 160 L80 125" fill="#CBD5E1" stroke="#94A3B8" stroke-width="3" />
+                                <path d="M124 105 L160 160 Q165 170 155 172 Q145 170 140 160 L120 125" fill="#CBD5E1" stroke="#94A3B8" stroke-width="3" />
+                                <!-- Piernas -->
+                                <path d="M82 195 L80 270 Q80 280 92 280 Q100 280 98 270 L100 200" fill="#CBD5E1" stroke="#94A3B8" stroke-width="3" />
+                                <path d="M118 195 L120 270 Q120 280 108 280 Q100 280 102 270 L100 200" fill="#CBD5E1" stroke="#94A3B8" stroke-width="3" />
+
+                                <!-- Carita feliz del robotito/muñequito -->
+                                <circle cx="90" cy="48" r="4" fill="#475569" />
+                                <circle cx="110" cy="48" r="4" fill="#475569" />
+                                <path d="M92 60 Q100 68 108 60" fill="none" stroke="#475569" stroke-width="3" stroke-linecap="round" />
+
+                                <!-- PUNTOS INTERACTIVOS (HOTSPOTS PULSANTES) -->
+                                <!-- 1. CABEZA -->
+                                <g class="somatic-hotspot-group" data-zone="head" onclick="selectKidBodyZone('head')">
+                                    <circle class="hotspot-pulse pulse-head" cx="100" cy="35" r="16" />
+                                    <circle class="hotspot-core" cx="100" cy="35" r="9" fill="#9333EA" />
+                                    <text x="100" y="38" text-anchor="middle" font-size="11" fill="#FFF">🧠</text>
+                                </g>
+
+                                <!-- 2. GARGANTA -->
+                                <g class="somatic-hotspot-group" data-zone="throat" onclick="selectKidBodyZone('throat')">
+                                    <circle class="hotspot-pulse pulse-throat" cx="100" cy="85" r="14" />
+                                    <circle class="hotspot-core" cx="100" cy="85" r="8" fill="#0284C7" />
+                                    <text x="100" y="88" text-anchor="middle" font-size="10" fill="#FFF">🗣️</text>
+                                </g>
+
+                                <!-- 3. PECHO -->
+                                <g class="somatic-hotspot-group" data-zone="chest" onclick="selectKidBodyZone('chest')">
+                                    <circle class="hotspot-pulse pulse-chest" cx="100" cy="125" r="16" />
+                                    <circle class="hotspot-core" cx="100" cy="125" r="10" fill="#E11D48" />
+                                    <text x="100" y="129" text-anchor="middle" font-size="11" fill="#FFF">💖</text>
+                                </g>
+
+                                <!-- 4. PANCITA -->
+                                <g class="somatic-hotspot-group" data-zone="belly" onclick="selectKidBodyZone('belly')">
+                                    <circle class="hotspot-pulse pulse-belly" cx="100" cy="165" r="16" />
+                                    <circle class="hotspot-core" cx="100" cy="165" r="10" fill="#D97706" />
+                                    <text x="100" y="169" text-anchor="middle" font-size="11" fill="#FFF">🌀</text>
+                                </g>
+
+                                <!-- 5. MANITAS -->
+                                <g class="somatic-hotspot-group" data-zone="hands" onclick="selectKidBodyZone('hands')">
+                                    <circle class="hotspot-pulse pulse-hands" cx="44" cy="168" r="14" />
+                                    <circle class="hotspot-core" cx="44" cy="168" r="8" fill="#16A34A" />
+                                    <circle class="hotspot-pulse pulse-hands" cx="156" cy="168" r="14" />
+                                    <circle class="hotspot-core" cx="156" cy="168" r="8" fill="#16A34A" />
+                                    <text x="44" y="171" text-anchor="middle" font-size="10" fill="#FFF">✊</text>
+                                    <text x="156" y="171" text-anchor="middle" font-size="10" fill="#FFF">✊</text>
+                                </g>
+                            </svg>
+                        </div>
+
+                        <!-- BOTONES COMPLEMENTARIOS CON TEXTO -->
+                        <div class="kid-zones-buttons-panel">
+                            <button type="button" class="kid-zone-pill pill-head" data-zone="head" onclick="selectKidBodyZone('head')">
+                                <span class="pill-icon">🧠</span>
+                                <div>
+                                    <strong>En la cabecita</strong>
+                                    <small>Ideas rápidas o vueltas</small>
+                                </div>
+                            </button>
+
+                            <button type="button" class="kid-zone-pill pill-throat" data-zone="throat" onclick="selectKidBodyZone('throat')">
+                                <span class="pill-icon">🗣️</span>
+                                <div>
+                                    <strong>En la garganta</strong>
+                                    <small>Un nudo o palabras atoradas</small>
+                                </div>
+                            </button>
+
+                            <button type="button" class="kid-zone-pill pill-chest" data-zone="chest" onclick="selectKidBodyZone('chest')">
+                                <span class="pill-icon">💖</span>
+                                <div>
+                                    <strong>En el pecho</strong>
+                                    <small>Latidos fuertes o calor</small>
+                                </div>
+                            </button>
+
+                            <button type="button" class="kid-zone-pill pill-belly" data-zone="belly" onclick="selectKidBodyZone('belly')">
+                                <span class="pill-icon">🌀</span>
+                                <div>
+                                    <strong>En la pancita</strong>
+                                    <small>Mariposas, cosquillas o nudos</small>
+                                </div>
+                            </button>
+
+                            <button type="button" class="kid-zone-pill pill-hands" data-zone="hands" onclick="selectKidBodyZone('hands')">
+                                <span class="pill-icon">✊</span>
+                                <div>
+                                    <strong>En manitas o pies</strong>
+                                    <small>Ganas de apretar o moverme</small>
+                                </div>
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- BOTÓN GIGANTE DE ENVÍO CON RECOMPENSA -->
+                    <div class="kid-action-center">
+                        <button type="button" class="btn-kid-puffy btn-kid-send-weather" onclick="submitKidWeatherAndBody()">
+                            <span class="btn-puffy-icon">🚀</span>
+                            <span class="btn-puffy-text">¡Enviar a mi Terapeuta!</span>
+                            <span class="btn-puffy-star-tag">+1 ⭐</span>
                         </button>
                     </div>
                 </div>
             </div>
 
-            <!-- ACCESOS RÁPIDOS LÚDICOS -->
-            <div class="kid-quick-games-grid">
-                <div class="kid-game-card card-bubbles" onclick="switchKidView('kid-bubbles')">
-                    <div class="kid-game-icon">🫧</div>
-                    <h4>Cazador de Preocupaciones</h4>
-                    <p>¡Explota burbujas y deja ir lo que te preocupa!</p>
+            <!-- MINI-JUEGOS INTERACTIVOS (ISLAS DE DIVERSIÓN) -->
+            <div class="kid-section-divider">
+                <span>🎮 ¡Tus Islas de Juegos y Calma!</span>
+            </div>
+
+            <div class="kid-game-islands-grid">
+                <div class="kid-game-island island-bubbles" onclick="switchKidView('kid-bubbles')">
+                    <div class="island-floating-badge">¡Divertidísimo!</div>
+                    <div class="island-icon-animated">🫧</div>
+                    <div class="island-info">
+                        <h4>Cazador de Preocupaciones</h4>
+                        <p>¡Explota burbujas con sonidos mágicos y siéntete liviano!</p>
+                    </div>
+                    <span class="island-play-btn">¡Jugar Ahora! 🎯</span>
                 </div>
-                <div class="kid-game-card card-drawing" onclick="switchKidView('kid-drawing')">
-                    <div class="kid-game-icon">🎨</div>
-                    <h4>El Lienzo Mágico</h4>
-                    <p>Dibuja libremente tus emociones con colores y sellos.</p>
+
+                <div class="kid-game-island island-drawing" onclick="switchKidView('kid-drawing')">
+                    <div class="island-floating-badge">¡Creativo!</div>
+                    <div class="island-icon-animated">🎨</div>
+                    <div class="island-info">
+                        <h4>El Lienzo Mágico</h4>
+                        <p>Pinta con el Pincel Arcoíris y sellos mágicos que viajan al consultorio.</p>
+                    </div>
+                    <span class="island-play-btn">¡Dibujar! ✨</span>
                 </div>
-                <div class="kid-game-card card-calm" onclick="switchKidView('kid-calm')">
-                    <div class="kid-game-icon">🎈</div>
-                    <h4>El Globo de la Calma</h4>
-                    <p>Respira suavemente y encuentra tu superpoder de tranquilidad.</p>
+
+                <div class="kid-game-island island-calm" onclick="switchKidView('kid-calm')">
+                    <div class="island-floating-badge">¡Superpoder!</div>
+                    <div class="island-icon-animated">🎈</div>
+                    <div class="island-info">
+                        <h4>El Globo de la Calma</h4>
+                        <p>Respira junto a tu globo amigo para llenar tu cuerpo de paz.</p>
+                    </div>
+                    <span class="island-play-btn">¡Respirar! 🌬️</span>
                 </div>
             </div>
         </div>
 
-        <!-- VISTA 2: CREADOR DE AVATAR -->
+        <!-- VISTA 2: CREADOR DE AVATAR (ESTILO PEDESTAL 3D Y GENERADOR DE NOMBRES) -->
         <div id="viewKidAvatar" class="portal-view kid-view" style="display: none;">
-            <div class="kid-card">
-                <div class="kid-card-header">
-                    <span class="kid-card-icon">🦊</span>
+            <div class="kid-card kid-card-magic">
+                <div class="kid-card-topbar">
+                    <span class="kid-card-badge-icon">🦊</span>
                     <div>
-                        <h3 class="kid-card-title">Crea tu Compañero Avatar</h3>
-                        <p class="kid-card-desc">Elige cómo quieres que luzca tu avatar amigable:</p>
+                        <h3 class="kid-card-heading">Tu Compañero Avatar Mágico</h3>
+                        <p class="kid-card-subheading">Personalízalo como quieras. ¡Él te acompañará en cada aventura!</p>
                     </div>
                 </div>
 
-                <!-- PREVIEW DEL AVATAR -->
-                <div class="kid-avatar-preview-stage">
-                    <div id="kidAvatarStageDisplay" class="kid-stage-aura aura-gold">
-                        <span id="kidStageChar" class="kid-stage-emoji">🦊</span>
-                        <span id="kidStageAccessory" class="kid-stage-acc">🦸</span>
+                <!-- ESCENARIO PEDESTAL CÓSMICO -->
+                <div class="kid-avatar-stage-3d">
+                    <div class="kid-pedestal-stars-bg">
+                        <span>✨</span><span>⭐</span><span>💫</span><span>✨</span>
                     </div>
-                    <div class="kid-avatar-name-display" id="kidAvatarDisplayName">Zorrito Valiente</div>
-                </div>
 
-                <!-- PASO 1: PERSONAJE -->
-                <div class="kid-avatar-step">
-                    <h4>1. Elige tu amigo guía:</h4>
-                    <div class="kid-avatar-options">
-                        <button type="button" class="avatar-opt-btn active" data-char="fox" onclick="pickAvatarChar('fox', '🦊', 'Zorrito Valiente')">
-                            <span class="opt-emoji">🦊</span>
-                            <span>Zorrito</span>
-                        </button>
-                        <button type="button" class="avatar-opt-btn" data-char="bear" onclick="pickAvatarChar('bear', '🐻', 'Osito Dulce')">
-                            <span class="opt-emoji">🐻</span>
-                            <span>Osito</span>
-                        </button>
-                        <button type="button" class="avatar-opt-btn" data-char="owl" onclick="pickAvatarChar('owl', '🦉', 'Búho Sabio')">
-                            <span class="opt-emoji">🦉</span>
-                            <span>Búho</span>
-                        </button>
-                        <button type="button" class="avatar-opt-btn" data-char="monster" onclick="pickAvatarChar('monster', '👾', 'Monstruito Amigo')">
-                            <span class="opt-emoji">👾</span>
-                            <span>Monstruito</span>
-                        </button>
-                        <button type="button" class="avatar-opt-btn" data-char="explorer" onclick="pickAvatarChar('explorer', '🚀', 'Explorador Estelar')">
-                            <span class="opt-emoji">🚀</span>
-                            <span>Explorador</span>
+                    <div id="kidAvatarStageDisplay" class="kid-stage-aura-ring aura-gold">
+                        <div class="kid-stage-inner-glow">
+                            <span id="kidStageChar" class="kid-stage-emoji-big">🦊</span>
+                            <span id="kidStageAccessory" class="kid-stage-acc-badge">🦸</span>
+                        </div>
+                    </div>
+
+                    <div class="kid-avatar-title-box">
+                        <h3 class="kid-avatar-hero-name" id="kidAvatarDisplayName">Zorrito Valiente</h3>
+                        <button type="button" class="btn-kid-random-name" onclick="generateRandomKidAvatarName()" title="Generar un nombre superheroico al azar">
+                            🎲 ¡Inventar Nombre Mágico!
                         </button>
                     </div>
                 </div>
 
-                <!-- PASO 2: AURA MÁGICA -->
-                <div class="kid-avatar-step">
-                    <h4>2. Elige el color de su Aura:</h4>
-                    <div class="kid-aura-options">
-                        <button type="button" class="aura-opt-btn active aura-gold-btn" onclick="pickAvatarAura('aura-gold', '#f6c343')" title="Dorado Radiante"></button>
-                        <button type="button" class="aura-opt-btn aura-purple-btn" onclick="pickAvatarAura('aura-purple', '#9b5de5')" title="Violeta Mágico"></button>
-                        <button type="button" class="aura-opt-btn aura-teal-btn" onclick="pickAvatarAura('aura-teal', '#00bbf9')" title="Celeste Mar"></button>
-                        <button type="button" class="aura-opt-btn aura-pink-btn" onclick="pickAvatarAura('aura-pink', '#f15bb5')" title="Fresa Dulce"></button>
-                        <button type="button" class="aura-opt-btn aura-mint-btn" onclick="pickAvatarAura('aura-mint', '#00f5d4')" title="Menta Fresca"></button>
+                <!-- PASO 1: PERSONAJES ARQUETIPOS -->
+                <div class="kid-step-container">
+                    <div class="kid-step-label"><span class="step-circle">1</span> Elige tu Compañero Guía:</div>
+                    <div class="kid-options-puffy-grid">
+                        <button type="button" class="avatar-puffy-btn active" data-char="fox" onclick="pickAvatarChar('fox', '🦊', 'Zorrito Valiente')">
+                            <span class="puffy-emoji">🦊</span>
+                            <span class="puffy-text">Zorrito</span>
+                        </button>
+                        <button type="button" class="avatar-puffy-btn" data-char="bear" onclick="pickAvatarChar('bear', '🐻', 'Osito Protector')">
+                            <span class="puffy-emoji">🐻</span>
+                            <span class="puffy-text">Osito</span>
+                        </button>
+                        <button type="button" class="avatar-puffy-btn" data-char="owl" onclick="pickAvatarChar('owl', '🦉', 'Búho Sabio')">
+                            <span class="puffy-emoji">🦉</span>
+                            <span class="puffy-text">Búho</span>
+                        </button>
+                        <button type="button" class="avatar-puffy-btn" data-char="monster" onclick="pickAvatarChar('monster', '👾', 'Monstruito Amigo')">
+                            <span class="puffy-emoji">👾</span>
+                            <span class="puffy-text">Monstruito</span>
+                        </button>
+                        <button type="button" class="avatar-puffy-btn" data-char="explorer" onclick="pickAvatarChar('explorer', '🚀', 'Explorador Estelar')">
+                            <span class="puffy-emoji">🚀</span>
+                            <span class="puffy-text">Astronauta</span>
+                        </button>
+                        <button type="button" class="avatar-puffy-btn" data-char="unicorn" onclick="pickAvatarChar('unicorn', '🦄', 'Unicornio Mágico')">
+                            <span class="puffy-emoji">🦄</span>
+                            <span class="puffy-text">Unicornio</span>
+                        </button>
+                        <button type="button" class="avatar-puffy-btn" data-char="dino" onclick="pickAvatarChar('dino', '🦖', 'Dino Valiente')">
+                            <span class="puffy-emoji">🦖</span>
+                            <span class="puffy-text">Dinosaurio</span>
+                        </button>
                     </div>
                 </div>
 
-                <!-- PASO 3: ACCESORIO -->
-                <div class="kid-avatar-step">
-                    <h4>3. Accesorio especial:</h4>
-                    <div class="kid-acc-options">
-                        <button type="button" class="acc-opt-btn active" data-acc="cape" onclick="pickAvatarAccessory('cape', '🦸')">
-                            <span>🦸 Capa de Valor</span>
+                <!-- PASO 2: AURA CROMÁTICA BRILLANTE -->
+                <div class="kid-step-container">
+                    <div class="kid-step-label"><span class="step-circle">2</span> Elige el Color de su Aura Mágica:</div>
+                    <div class="kid-auras-sparkle-row">
+                        <button type="button" class="aura-sparkle-btn active aura-gold-btn" onclick="pickAvatarAura('aura-gold')" title="Dorado Estrella">
+                            <span>⭐</span>
                         </button>
-                        <button type="button" class="acc-opt-btn" data-acc="glasses" onclick="pickAvatarAccessory('glasses', '👓')">
-                            <span>👓 Gafas Sabias</span>
+                        <button type="button" class="aura-sparkle-btn aura-purple-btn" onclick="pickAvatarAura('aura-purple')" title="Lavanda Cósmica">
+                            <span>🔮</span>
                         </button>
-                        <button type="button" class="acc-opt-btn" data-acc="crown" onclick="pickAvatarAccessory('crown', '👑')">
-                            <span>👑 Corona de Calma</span>
+                        <button type="button" class="aura-sparkle-btn aura-teal-btn" onclick="pickAvatarAura('aura-teal')" title="Celeste Océano">
+                            <span>🌊</span>
                         </button>
-                        <button type="button" class="acc-opt-btn" data-acc="star" onclick="pickAvatarAccessory('star', '⭐')">
-                            <span>⭐ Estrella Guía</span>
+                        <button type="button" class="aura-sparkle-btn aura-pink-btn" onclick="pickAvatarAura('aura-pink')" title="Fresa Dulce">
+                            <span>🍓</span>
                         </button>
-                        <button type="button" class="acc-opt-btn" data-acc="shield" onclick="pickAvatarAccessory('shield', '🛡️')">
-                            <span>🛡️ Escudo Protector</span>
+                        <button type="button" class="aura-sparkle-btn aura-mint-btn" onclick="pickAvatarAura('aura-mint')" title="Menta Mágica">
+                            <span>🌿</span>
                         </button>
                     </div>
                 </div>
 
-                <div class="kid-submit-row">
-                    <button type="button" class="btn-kid-action btn-kid-primary" onclick="saveKidAvatar()">
-                        <span>¡Guardar mi Avatar! ⭐</span>
+                <!-- PASO 3: ACCESORIO DE SUPERPODER -->
+                <div class="kid-step-container">
+                    <div class="kid-step-label"><span class="step-circle">3</span> Accesorio con Superpoder Especial:</div>
+                    <div class="kid-acc-puffy-grid">
+                        <button type="button" class="acc-puffy-btn active" data-acc="cape" onclick="pickAvatarAccessory('cape', '🦸')">
+                            <span class="acc-puffy-emoji">🦸</span>
+                            <span>Capa de Valor</span>
+                        </button>
+                        <button type="button" class="acc-puffy-btn" data-acc="glasses" onclick="pickAvatarAccessory('glasses', '👓')">
+                            <span class="acc-puffy-emoji">👓</span>
+                            <span>Gafas de Sabiduría</span>
+                        </button>
+                        <button type="button" class="acc-puffy-btn" data-acc="crown" onclick="pickAvatarAccessory('crown', '👑')">
+                            <span class="acc-puffy-emoji">👑</span>
+                            <span>Corona de Calma</span>
+                        </button>
+                        <button type="button" class="acc-puffy-btn" data-acc="star" onclick="pickAvatarAccessory('star', '⭐')">
+                            <span class="acc-puffy-emoji">⭐</span>
+                            <span>Estrella Guía</span>
+                        </button>
+                        <button type="button" class="acc-puffy-btn" data-acc="shield" onclick="pickAvatarAccessory('shield', '🛡️')">
+                            <span class="acc-puffy-emoji">🛡️</span>
+                            <span>Escudo Protector</span>
+                        </button>
+                    </div>
+                </div>
+
+                <div class="kid-action-center" style="margin-top: 24px;">
+                    <button type="button" class="btn-kid-puffy btn-kid-save-avatar" onclick="saveKidAvatar()">
+                        <span class="btn-puffy-icon">⭐</span>
+                        <span class="btn-puffy-text">¡Guardar mi Avatar Mágico!</span>
+                        <span class="btn-puffy-star-tag">+1 ⭐</span>
                     </button>
                 </div>
             </div>
         </div>
 
-        <!-- VISTA 3: CAZADOR DE PREOCUPACIONES -->
+        <!-- VISTA 3: CAZADOR DE PREOCUPACIONES (BURBUJAS 3D Y CONFETTI) -->
         <div id="viewKidBubbles" class="portal-view kid-view" style="display: none;">
-            <div class="kid-card">
-                <div class="kid-card-header">
-                    <span class="kid-card-icon">🫧</span>
+            <div class="kid-card kid-card-ocean">
+                <div class="kid-card-topbar">
+                    <span class="kid-card-badge-icon">🫧</span>
                     <div>
-                        <h3 class="kid-card-title">Cazador de Preocupaciones</h3>
-                        <p class="kid-card-desc">Toca o haz clic sobre una burbuja para explotarla. Cada vez que explota, exhala suavemente y siente cómo se va flotando lejos.</p>
+                        <h3 class="kid-card-heading">Cazador de Preocupaciones</h3>
+                        <p class="kid-card-subheading">Toca las burbujas para explotarlas con un ¡POP! y siente cómo esa preocupación se va flotando suavemente hacia el espacio.</p>
                     </div>
                 </div>
 
-                <div class="kid-bubbles-stats">
-                    <span>🫧 Burbujas liberadas: <strong id="kidBubblesPoppedCount">0</strong></span>
-                    <button type="button" class="btn-kid-sm" onclick="promptCustomBubble()">+ Escribir preocupación</button>
+                <div class="kid-bubbles-dashboard">
+                    <div class="kid-chest-counter">
+                        <span class="chest-icon">🧰</span>
+                        <div>
+                            <span class="chest-title">Preocupaciones Liberadas:</span>
+                            <strong class="chest-count" id="kidBubblesPoppedCount">0</strong>
+                        </div>
+                    </div>
+                    <button type="button" class="btn-kid-puffy-sm btn-kid-add-bubble" onclick="promptCustomBubble()">
+                        ➕ Soplar una nueva burbuja
+                    </button>
                 </div>
 
-                <div id="kidBubblesPlayfield" class="kid-bubbles-playfield">
-                    <!-- Burbujas dinámicas -->
+                <!-- CAMPO DE JUEGO CELESTIAL DE BURBUJAS -->
+                <div id="kidBubblesPlayfield" class="kid-bubbles-playfield-v2">
+                    <!-- Burbujas renderizadas dinámicamente -->
                 </div>
 
-                <div class="kid-bubbles-footer">
-                    <p class="kid-calm-reminder">🌬️ Inhala hondo... y cuando explotes la burbuja, suelta todo el aire suavemente.</p>
+                <div class="kid-bubbles-encouragement">
+                    <div class="bubble-tip-icon">🌬️</div>
+                    <p><strong>Recuerda tu respiración:</strong> Cada vez que una burbuja haga <em>¡POP!</em>, inhala hondo por la nariz y suelta el aire despacio como una pluma.</p>
                 </div>
             </div>
         </div>
 
-        <!-- VISTA 4: EL LIENZO MÁGICO -->
+        <!-- VISTA 4: EL LIENZO MÁGICO (HTML5 CANVAS CON PINCEL ARCOÍRIS) -->
         <div id="viewKidDrawing" class="portal-view kid-view" style="display: none;">
-            <div class="kid-card">
-                <div class="kid-card-header">
-                    <span class="kid-card-icon">🎨</span>
+            <div class="kid-card kid-card-art">
+                <div class="kid-card-topbar">
+                    <span class="kid-card-badge-icon">🎨</span>
                     <div>
-                        <h3 class="kid-card-title">El Lienzo Mágico</h3>
-                        <p class="kid-card-desc">Dibuja libremente lo que sientes hoy. ¡Tu dibujo viajará directamente a tu terapeuta!</p>
+                        <h3 class="kid-card-heading">El Lienzo Mágico de Colores</h3>
+                        <p class="kid-card-subheading">¡Dibuja lo que sientes hoy! Tus trazos y sellos viajarán como una carta secreta a tu terapeuta.</p>
                     </div>
                 </div>
 
-                <!-- BARRA DE HERRAMIENTAS -->
-                <div class="kid-canvas-toolbar">
-                    <div class="kid-tool-group">
-                        <label>Colores:</label>
-                        <div class="kid-color-palette">
-                            <button type="button" class="color-btn active" style="background:#202923" onclick="setCanvasColor('#202923')"></button>
-                            <button type="button" class="color-btn" style="background:#285c50" onclick="setCanvasColor('#285c50')"></button>
-                            <button type="button" class="color-btn" style="background:#3a86ff" onclick="setCanvasColor('#3a86ff')"></button>
-                            <button type="button" class="color-btn" style="background:#ff006e" onclick="setCanvasColor('#ff006e')"></button>
-                            <button type="button" class="color-btn" style="background:#fb5607" onclick="setCanvasColor('#fb5607')"></button>
-                            <button type="button" class="color-btn" style="background:#ffbe0b" onclick="setCanvasColor('#ffbe0b')"></button>
-                            <button type="button" class="color-btn" style="background:#8338ec" onclick="setCanvasColor('#8338ec')"></button>
-                            <button type="button" class="color-btn" style="background:#06d6a0" onclick="setCanvasColor('#06d6a0')"></button>
-                            <button type="button" class="color-btn eraser-btn" onclick="toggleCanvasEraser()" title="Goma de borrar">🧼</button>
+                <!-- BARRA DE HERRAMIENTAS ESTILO ESTUCHE MÁGICO -->
+                <div class="kid-paintbox-toolbar">
+                    <!-- COLORES -->
+                    <div class="paintbox-group">
+                        <label class="paintbox-label">Crayones:</label>
+                        <div class="paintbox-colors-row">
+                            <button type="button" class="crayon-btn active" style="background:#202923;" onclick="setCanvasColor('#202923')" title="Negro noche"></button>
+                            <button type="button" class="crayon-btn" style="background:#3a86ff;" onclick="setCanvasColor('#3a86ff')" title="Azul cielo"></button>
+                            <button type="button" class="crayon-btn" style="background:#06d6a0;" onclick="setCanvasColor('#06d6a0')" title="Menta mágica"></button>
+                            <button type="button" class="crayon-btn" style="background:#ffd166;" onclick="setCanvasColor('#ffd166')" title="Amarillo sol"></button>
+                            <button type="button" class="crayon-btn" style="background:#ff7b00;" onclick="setCanvasColor('#ff7b00')" title="Naranja vitamina"></button>
+                            <button type="button" class="crayon-btn" style="background:#ff006e;" onclick="setCanvasColor('#ff006e')" title="Fresa brillante"></button>
+                            <button type="button" class="crayon-btn" style="background:#8338ec;" onclick="setCanvasColor('#8338ec')" title="Lavanda cósmica"></button>
+                            <button type="button" class="crayon-btn crayon-rainbow" onclick="setRainbowBrush()" title="¡Pincel Arcoíris Mágico!">🌈</button>
+                            <button type="button" class="crayon-btn crayon-eraser" onclick="toggleCanvasEraser()" title="Esponja borradora">🧽</button>
                         </div>
                     </div>
 
-                    <div class="kid-tool-group">
-                        <label>Grosor:</label>
-                        <div class="kid-size-buttons">
-                            <button type="button" class="size-btn" onclick="setCanvasBrushSize(3)">Fino</button>
-                            <button type="button" class="size-btn active" onclick="setCanvasBrushSize(8)">Medio</button>
-                            <button type="button" class="size-btn" onclick="setCanvasBrushSize(18)">Grueso</button>
+                    <!-- GROSOR -->
+                    <div class="paintbox-group">
+                        <label class="paintbox-label">Grosor:</label>
+                        <div class="paintbox-sizes-row">
+                            <button type="button" class="size-pill-btn" onclick="setCanvasBrushSize(4)">Fino ✏️</button>
+                            <button type="button" class="size-pill-btn active" onclick="setCanvasBrushSize(10)">Medio 🖍️</button>
+                            <button type="button" class="size-pill-btn" onclick="setCanvasBrushSize(22)">Grueso 🖌️</button>
                         </div>
                     </div>
 
-                    <div class="kid-tool-group">
-                        <label>Sellos:</label>
-                        <div class="kid-stamps-palette">
-                            <button type="button" class="stamp-btn" onclick="setCanvasStamp('⭐')">⭐</button>
-                            <button type="button" class="stamp-btn" onclick="setCanvasStamp('💖')">💖</button>
-                            <button type="button" class="stamp-btn" onclick="setCanvasStamp('🌈')">🌈</button>
-                            <button type="button" class="stamp-btn" onclick="setCanvasStamp('🐾')">🐾</button>
-                            <button type="button" class="stamp-btn" onclick="setCanvasStamp('🚀')">🚀</button>
-                            <button type="button" class="stamp-btn" onclick="setCanvasStamp('🌻')">🌻</button>
+                    <!-- SELLOS MÁGICOS -->
+                    <div class="paintbox-group">
+                        <label class="paintbox-label">Sellos Mágicos:</label>
+                        <div class="paintbox-stamps-row">
+                            <button type="button" class="stamp-pill-btn" onclick="setCanvasStamp('⭐')">⭐</button>
+                            <button type="button" class="stamp-pill-btn" onclick="setCanvasStamp('💖')">💖</button>
+                            <button type="button" class="stamp-pill-btn" onclick="setCanvasStamp('🌈')">🌈</button>
+                            <button type="button" class="stamp-pill-btn" onclick="setCanvasStamp('🐾')">🐾</button>
+                            <button type="button" class="stamp-pill-btn" onclick="setCanvasStamp('🚀')">🚀</button>
+                            <button type="button" class="stamp-pill-btn" onclick="setCanvasStamp('🦄')">🦄</button>
+                            <button type="button" class="stamp-pill-btn" onclick="setCanvasStamp('🌻')">🌻</button>
+                            <button type="button" class="stamp-pill-btn" onclick="setCanvasStamp('🍦')">🍦</button>
                         </div>
                     </div>
 
-                    <div class="kid-tool-group">
-                        <button type="button" class="btn-kid-sm btn-clear" onclick="clearKidCanvas()">🗑️ Limpiar</button>
+                    <div class="paintbox-group paintbox-actions-group">
+                        <button type="button" class="btn-kid-clear-canvas" onclick="clearKidCanvas()">
+                            🗑️ Limpiar Todo
+                        </button>
                     </div>
                 </div>
 
-                <!-- CANVAS DE DIBUJO -->
-                <div class="kid-canvas-wrapper">
+                <!-- CABALLETE DE DIBUJO -->
+                <div class="kid-easel-frame">
                     <canvas id="kidDrawingCanvas" width="640" height="420"></canvas>
                 </div>
 
-                <div class="kid-submit-row">
-                    <button type="button" class="btn-kid-action btn-kid-primary" onclick="submitKidDrawing()">
-                        <span>Enviar mi dibujo al terapeuta 🎨🚀</span>
+                <div class="kid-action-center" style="margin-top: 20px;">
+                    <button type="button" class="btn-kid-puffy btn-kid-send-drawing" onclick="submitKidDrawing()">
+                        <span class="btn-puffy-icon">🎨</span>
+                        <span class="btn-puffy-text">¡Enviar dibujo al consultorio!</span>
+                        <span class="btn-puffy-star-tag">+2 ⭐</span>
                     </button>
                 </div>
             </div>
         </div>
 
-        <!-- VISTA 5: EL GLOBO DE LA CALMA -->
+        <!-- VISTA 5: EL GLOBO DE LA CALMA (RESPIRACIÓN ANIMADA) -->
         <div id="viewKidCalm" class="portal-view kid-view" style="display: none;">
-            <div class="kid-card">
-                <div class="kid-card-header">
-                    <span class="kid-card-icon">🎈</span>
+            <div class="kid-card kid-card-zen">
+                <div class="kid-card-topbar">
+                    <span class="kid-card-badge-icon">🎈</span>
                     <div>
-                        <h3 class="kid-card-title">El Globo de la Calma</h3>
-                        <p class="kid-card-desc">Respira despacito al ritmo del globo. Siente cómo tu cuerpo se relaja y se llena de paz.</p>
+                        <h3 class="kid-card-heading">El Globo de la Calma</h3>
+                        <p class="kid-card-subheading">Respira despacito al ritmo del globo. Cuando el globo crezca, inhala por la nariz. Cuando se encoja, suelta el aire suavemente por la boca.</p>
                     </div>
                 </div>
 
-                <div class="kid-balloon-stage">
-                    <div id="kidBalloon" class="kid-balloon">
-                        <span class="kid-balloon-face" id="kidBalloonFace">😊</span>
+                <!-- ESCENARIO DEL GLOBO FLOTANTE -->
+                <div class="kid-balloon-sky-stage">
+                    <div class="sky-cloud cloud-left">☁️</div>
+                    <div class="sky-cloud cloud-right">☁️</div>
+                    
+                    <div id="kidBalloon" class="kid-balloon-character">
+                        <div class="balloon-shine"></div>
+                        <div class="balloon-eyes" id="kidBalloonEyes">
+                            <span class="eye left">●</span>
+                            <span class="eye right">●</span>
+                        </div>
+                        <div class="balloon-mouth" id="kidBalloonMouth">‿</div>
+                        <div class="balloon-knot"></div>
+                        <div class="balloon-string"></div>
                     </div>
-                    <div id="kidBreathingInstruction" class="kid-breathing-instruction">Toca "Comenzar" para respirar juntos</div>
-                    <div class="kid-breathing-timer" id="kidBreathingTimer">0s</div>
+
+                    <div class="kid-breathing-guide-box">
+                        <div id="kidBreathingInstruction" class="kid-breathing-phrase">
+                            ¡Toca el botón para inflar la calma juntos!
+                        </div>
+                        <div class="kid-breathing-countdown" id="kidBreathingTimer">0s</div>
+                    </div>
                 </div>
 
-                <div class="kid-calm-controls">
-                    <button type="button" id="btnToggleBalloon" class="btn-kid-action btn-kid-primary" onclick="toggleBalloonBreathing()">
-                        <span>Comenzar a Respirar 🎈</span>
+                <div class="kid-action-center" style="margin-top: 18px;">
+                    <button type="button" id="btnToggleBalloon" class="btn-kid-puffy btn-kid-balloon-action" onclick="toggleBalloonBreathing()">
+                        <span class="btn-puffy-icon">🎈</span>
+                        <span class="btn-puffy-text">¡Comenzar a Respirar!</span>
                     </button>
                 </div>
 
-                <div class="kid-calm-counter">
-                    <span>🌟 Ciclos de calma completados: <strong id="kidCalmCycles">0</strong></span>
+                <div class="kid-calm-trophy-counter">
+                    <span>🏆 Ciclos de Calma Completados: <strong id="kidCalmCycles">0</strong></span>
+                    <small>¡Cada 3 respiraciones completas ganas una nueva estrella mágica!</small>
                 </div>
             </div>
         </div>
@@ -679,27 +902,41 @@
         </button>
     </nav>
 
-    <!-- NAVEGACIÓN INFERIOR NIÑOS (PORTAL KIDS) -->
-    <nav class="portal-nav kid-bottom-nav" id="kidNav" style="display: none;">
-        <button class="nav-btn active" data-kid-view="kid-home" onclick="switchKidView('kid-home')">
-            <span class="kid-nav-icon">🏰</span>
-            <span>Mi Espacio</span>
+    <!-- NAVEGACIÓN INFERIOR NIÑOS: ESTILO CONSOLA MÁGICA PORTÁTIL -->
+    <nav class="portal-nav kid-bottom-console" id="kidNav" style="display: none;">
+        <button class="kid-console-btn active" data-kid-view="kid-home" onclick="switchKidView('kid-home')">
+            <div class="console-btn-icon-wrapper btn-home-color">
+                <span class="console-icon">🏰</span>
+            </div>
+            <span class="console-label">Mi Espacio</span>
         </button>
-        <button class="nav-btn" data-kid-view="kid-avatar" onclick="switchKidView('kid-avatar')">
-            <span class="kid-nav-icon">🦊</span>
-            <span>Mi Avatar</span>
+
+        <button class="kid-console-btn" data-kid-view="kid-avatar" onclick="switchKidView('kid-avatar')">
+            <div class="console-btn-icon-wrapper btn-avatar-color">
+                <span class="console-icon">🦊</span>
+            </div>
+            <span class="console-label">Mi Avatar</span>
         </button>
-        <button class="nav-btn" data-kid-view="kid-bubbles" onclick="switchKidView('kid-bubbles')">
-            <span class="kid-nav-icon">🫧</span>
-            <span>Burbujas</span>
+
+        <button class="kid-console-btn" data-kid-view="kid-bubbles" onclick="switchKidView('kid-bubbles')">
+            <div class="console-btn-icon-wrapper btn-bubbles-color">
+                <span class="console-icon">🫧</span>
+            </div>
+            <span class="console-label">Burbujas</span>
         </button>
-        <button class="nav-btn" data-kid-view="kid-drawing" onclick="switchKidView('kid-drawing')">
-            <span class="kid-nav-icon">🎨</span>
-            <span>Dibujar</span>
+
+        <button class="kid-console-btn" data-kid-view="kid-drawing" onclick="switchKidView('kid-drawing')">
+            <div class="console-btn-icon-wrapper btn-drawing-color">
+                <span class="console-icon">🎨</span>
+            </div>
+            <span class="console-label">Dibujar</span>
         </button>
-        <button class="nav-btn" data-kid-view="kid-calm" onclick="switchKidView('kid-calm')">
-            <span class="kid-nav-icon">🎈</span>
-            <span>Calma</span>
+
+        <button class="kid-console-btn" data-kid-view="kid-calm" onclick="switchKidView('kid-calm')">
+            <div class="console-btn-icon-wrapper btn-calm-color">
+                <span class="console-icon">🎈</span>
+            </div>
+            <span class="console-label">Calma</span>
         </button>
     </nav>
 

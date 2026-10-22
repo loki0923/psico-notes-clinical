@@ -1987,18 +1987,47 @@ function formatDisplayName(name) {
     return name.trim().split(/\s+/).map(w => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase()).join(' ');
 }
 
+function isKidPatient(p) {
+    if (!p) return false;
+    // 1. Cálculo preciso a partir de fecha de nacimiento
+    if (p.birthdate && typeof calculateAge === 'function') {
+        const a = calculateAge(p.birthdate);
+        if (typeof a === 'number' && !isNaN(a) && a >= 0) {
+            return a < 13;
+        }
+    }
+    // 2. Propiedad de edad numérica directa
+    const directAge = parseInt(p.age, 10);
+    if (!isNaN(directAge) && directAge >= 0) {
+        return directAge < 13;
+    }
+    // 3. Fallback a categoría explícita
+    const stage = (p.category || p.lifeStage || p.life_stage || '').toLowerCase();
+    return stage === 'child' || stage === 'infantil';
+}
+window.isKidPatient = isKidPatient;
+
 function getPatientCategory(p) {
     if (!p) return 'adult';
-    if (p.category === 'child' || p.category === 'adolescent' || p.category === 'adult') {
-        return p.category;
-    }
+    // Regla 1: Menor de 13 años siempre es clasificado automáticamente como Niñez (Portal KIDS)
+    if (isKidPatient(p)) return 'child';
+
     if (p.birthdate) {
         const age = calculateAge(p.birthdate);
         if (typeof age === 'number' && !isNaN(age)) {
-            if (age < 12) return 'child';
+            if (age < 13) return 'child';
             if (age < 18) return 'adolescent';
             return 'adult';
         }
+    }
+    const directAge = parseInt(p.age, 10);
+    if (!isNaN(directAge)) {
+        if (directAge < 13) return 'child';
+        if (directAge < 18) return 'adolescent';
+        return 'adult';
+    }
+    if (p.category === 'child' || p.category === 'adolescent' || p.category === 'adult') {
+        return p.category;
     }
     return 'adult';
 }
@@ -2025,7 +2054,7 @@ function onPatientBirthdateChange() {
     const catSelect = document.getElementById('patientCategory');
     if (!catSelect || typeof age !== 'number' || isNaN(age)) return;
 
-    if (age < 12) {
+    if (age < 13) {
         catSelect.value = 'child';
     } else if (age < 18) {
         catSelect.value = 'adolescent';
@@ -3728,15 +3757,16 @@ async function openPortalAccessModal(patientId) {
 
     const hasCrisis = portalData.activeCrisisAlert || false;
 
+    const isKid = isKidPatient(patient);
     const baseUrl = window.location.origin + window.location.pathname.replace(/[^\/]*$/, '');
-    const portalUrl = `${baseUrl}portal.html?token=${token}`;
+    const portalUrl = `${baseUrl}portal.html?token=${token}${isKid ? '&mode=kid' : ''}`;
 
     const formattedDate = patient.portalCreatedAt 
         ? new Date(patient.portalCreatedAt).toLocaleDateString('es-ES', { day: '2-digit', month: 'short', year: 'numeric' })
         : 'Reciente';
 
-    const stageLabel = patient.lifeStage === 'child' ? 'Niñez' : patient.lifeStage === 'adolescent' ? 'Adolescencia' : 'Adulto';
-    const stageBadgeClass = patient.lifeStage === 'child' ? 'badge-child' : patient.lifeStage === 'adolescent' ? 'badge-adolescent' : 'badge-adult';
+    const stageLabel = isKid ? 'Niñez (< 13 años)' : patient.lifeStage === 'adolescent' ? 'Adolescencia' : 'Adulto';
+    const stageBadgeClass = isKid ? 'badge-child' : patient.lifeStage === 'adolescent' ? 'badge-adolescent' : 'badge-adult';
 
     modalBody.innerHTML = `
         <div class="portal-modal-inner">
@@ -3770,20 +3800,22 @@ async function openPortalAccessModal(patientId) {
                 </div>
             ` : ''}
 
-            <!-- HERO CTA: ACCESO DIRECTO DESTACADO (LO PRINCIPAL REQUERIDO) -->
-            <div class="portal-hero-action-card">
+            <!-- HERO CTA: ACCESO DIRECTO DESTACADO -->
+            <div class="portal-hero-action-card" style="${isKid ? 'border-left: 4px solid #2EC4B6;' : ''}">
                 <div class="portal-hero-info">
-                    <div class="portal-hero-eyebrow">ACCESO RÁPIDO Y VERIFICACIÓN</div>
-                    <h3 class="portal-hero-title">Espacio Terapéutico Digital del Paciente</h3>
+                    <div class="portal-hero-eyebrow" style="${isKid ? 'color: #2EC4B6; font-weight:700;' : ''}">${isKid ? '🎈 ESPACIO LÚDICO PEDIÁTRICO (< 13 AÑOS)' : 'ACCESO RÁPIDO Y VERIFICACIÓN'}</div>
+                    <h3 class="portal-hero-title">${isKid ? '🎈 Psico Kids Space — Portal Interactivo' : 'Espacio Terapéutico Digital del Paciente'}</h3>
                     <p class="portal-hero-desc">
-                        Ingresa con un solo clic con inicio de sesión automático para revisar la vista del paciente, modelar el uso de los autoregistros interactivos o verificar las tareas intersesión asignadas.
+                        ${isKid 
+                            ? 'Activación automática para menores de 13 años. El paciente accede directamente a su espacio lúdico (clima emocional, avatar, cazar preocupaciones y lienzo de dibujo) sin botones ni vistas de adultos.' 
+                            : 'Ingresa con un solo clic con inicio de sesión automático para revisar la vista del paciente, modelar el uso de los autoregistros interactivos o verificar las tareas intersesión asignadas.'}
                     </p>
                 </div>
                 <div class="portal-hero-buttons">
-                    <a href="${portalUrl}" target="_blank" rel="noopener noreferrer" class="btn-portal-launch" onclick="launchPatientPortal('${patient.id}'); return false;" title="Abrir portal del paciente con autenticación automática" style="text-decoration:none;display:inline-flex;align-items:center;justify-content:center;gap:8px;cursor:pointer;">
-                        <i class="fas fa-arrow-up-right-from-square"></i> Acceder al Portal
+                    <a href="${portalUrl}" target="_blank" rel="noopener noreferrer" class="btn-portal-launch" onclick="launchPatientPortal('${patient.id}'); return false;" title="${isKid ? 'Abrir espacio lúdico infantil' : 'Abrir portal del paciente con autenticación automática'}" style="text-decoration:none;display:inline-flex;align-items:center;justify-content:center;gap:8px;cursor:pointer;${isKid ? 'background:#2EC4B6;border-color:#2EC4B6;color:white;font-weight:700;' : ''}">
+                        <i class="fas ${isKid ? 'fa-shapes' : 'fa-arrow-up-right-from-square'}"></i> ${isKid ? 'Abrir Portal KIDS' : 'Acceder al Portal'}
                     </a>
-                    <button class="btn-portal-wa" onclick="sharePortalViaWhatsApp('${patient.id}')" title="Enviar enlace y código por WhatsApp al paciente">
+                    <button class="btn-portal-wa" onclick="sharePortalViaWhatsApp('${patient.id}')" title="Enviar enlace y código por WhatsApp al ${isKid ? 'tutor del menor' : 'paciente'}">
                         <i class="fab fa-whatsapp"></i> Compartir por WhatsApp
                     </button>
                     <button class="btn-portal-qr" onclick="showPortalQrCode('${patient.id}')" title="Mostrar Código QR para escaneo directo con la cámara del teléfono">
@@ -3947,18 +3979,26 @@ function launchPatientPortal(patientId) {
         return;
     }
     const token = ensurePatientPortalToken(patient);
+    const isKid = isKidPatient(patient);
 
     const therapistName = localStorage.getItem('psico_therapist_name') || AppState.currentUser?.name || 'Terapeuta';
     localStorage.setItem('psico_portal_session', JSON.stringify({
         patientId: patient.id,
         portalToken: token,
         patientName: patient.name,
-        therapistName: therapistName
+        therapistName: therapistName,
+        isKid: isKid,
+        category: isKid ? 'child' : (patient.category || 'adult')
     }));
 
-    showToast(`🚀 Abriendo portal de ${patient.name}...`, 'success');
+    const toastMsg = isKid 
+        ? `🎈 Abriendo Portal KIDS de ${patient.name}...` 
+        : `🚀 Abriendo portal de ${patient.name}...`;
+    showToast(toastMsg, 'success');
+
     const cleanBase = window.location.origin + window.location.pathname.replace(/\/[^\/]*$/, '/');
-    const targetUrl = `${cleanBase}portal.html?token=${encodeURIComponent(token)}`;
+    const modeParam = isKid ? '&mode=kid' : '';
+    const targetUrl = `${cleanBase}portal.html?token=${encodeURIComponent(token)}${modeParam}`;
     const newWin = window.open(targetUrl, '_blank');
     if (!newWin || newWin.closed || typeof newWin.closed === 'undefined') {
         window.location.href = targetUrl;
@@ -3970,11 +4010,17 @@ function sharePortalViaWhatsApp(patientId) {
     const patient = AppState.patients.find(p => p.id === patientId);
     if (!patient) return;
     const token = ensurePatientPortalToken(patient);
+    const isKid = isKidPatient(patient);
     const therapistName = localStorage.getItem('psico_therapist_name') || 'Tu terapeuta';
     const baseUrl = window.location.origin + window.location.pathname.replace(/[^\/]*$/, '');
-    const portalUrl = `${baseUrl}portal.html?token=${token}`;
+    const portalUrl = `${baseUrl}portal.html?token=${token}${isKid ? '&mode=kid' : ''}`;
 
-    const text = `Hola ${patient.name}, te saluda ${therapistName}. Te comparto el enlace a tu portal terapéutico digital "Mi Espacio" en Psico Notes:\n\n🔗 Enlace directo: ${portalUrl}\n🔑 Tu código de acceso: ${token}\n\nAquí podrás registrar tus reflexiones diarias, tareas intersesión y monitorear tu bienestar. ¡Nos vemos en nuestra próxima sesión!`;
+    let text = '';
+    if (isKid) {
+        text = `Hola ${patient.guardianName || patient.name}, te saluda ${therapistName}. Te comparto el enlace al espacio lúdico interactivo 'Psico Kids Space' de ${patient.name} en Psico Notes:\n\n🎈 Enlace directo: ${portalUrl}\n🔑 Tu código PIN: ${token}\n\nAquí ${patient.name} podrá explorar su clima emocional, crear su avatar, dibujar en el lienzo mágico y jugar con el globo de la calma. ¡Nos vemos en nuestra próxima sesión!`;
+    } else {
+        text = `Hola ${patient.name}, te saluda ${therapistName}. Te comparto el enlace a tu portal terapéutico digital "Mi Espacio" en Psico Notes:\n\n🔗 Enlace directo: ${portalUrl}\n🔑 Tu código de acceso: ${token}\n\nAquí podrás registrar tus reflexiones diarias, tareas intersesión y monitorear tu bienestar. ¡Nos vemos en nuestra próxima sesión!`;
+    }
 
     const rawPhone = patient.phone || patient.guardianPhone || '';
     const phone = rawPhone.replace(/[^0-9]/g, '');
@@ -3988,8 +4034,9 @@ function showPortalQrCode(patientId) {
     const patient = AppState.patients.find(p => p.id === patientId);
     if (!patient) return;
     const token = ensurePatientPortalToken(patient);
+    const isKid = isKidPatient(patient);
     const baseUrl = window.location.origin + window.location.pathname.replace(/[^\/]*$/, '');
-    const portalUrl = `${baseUrl}portal.html?token=${token}`;
+    const portalUrl = `${baseUrl}portal.html?token=${token}${isKid ? '&mode=kid' : ''}`;
     const qrImageUrl = `https://api.qrserver.com/v1/create-qr-code/?size=240x240&data=${encodeURIComponent(portalUrl)}&margin=10`;
 
     const body = document.getElementById('qrModalBody');
@@ -4000,8 +4047,8 @@ function showPortalQrCode(patientId) {
                     <img src="${qrImageUrl}" alt="Código QR Portal ${patient.name}" onerror="this.onerror=null; this.parentElement.innerHTML='<div style=\\'padding:20px;font-weight:600;color:var(--text-secondary);\\'>Acceso directo:<br><code style=\\'font-size:16px;color:var(--color-primary);\\'>${portalUrl}</code></div>';">
                 </div>
                 <div class="qr-instructions-list">
-                    <div>📱 <strong>1.</strong> Pide al consultante que abra la cámara de su teléfono inteligente.</div>
-                    <div>🎯 <strong>2.</strong> Apunta al código QR en la pantalla para abrir su portal de inmediato.</div>
+                    <div>📱 <strong>1.</strong> Pide al consultante ${isKid ? 'o a su tutor ' : ''}que abra la cámara de su teléfono inteligente.</div>
+                    <div>🎯 <strong>2.</strong> Apunta al código QR en la pantalla para abrir su portal ${isKid ? 'KIDS ' : ''}de inmediato.</div>
                     <div>✨ <strong>3.</strong> Entrada segura con token automático, sin recordar contraseñas.</div>
                 </div>
                 <div style="display:flex;gap:10px;justify-content:center;">
@@ -4035,11 +4082,12 @@ function copyPortalToken(patientId) {
 function copyPortalLink(patientId) {
     const patient = AppState.patients.find(p => p.id === patientId);
     if (!patient || !patient.portalToken) return;
+    const isKid = isKidPatient(patient);
     const baseUrl = window.location.origin + window.location.pathname.replace(/[^\/]*$/, '');
-    const portalUrl = `${baseUrl}portal.html?token=${patient.portalToken}`;
+    const portalUrl = `${baseUrl}portal.html?token=${patient.portalToken}${isKid ? '&mode=kid' : ''}`;
     if (navigator.clipboard && navigator.clipboard.writeText) {
         navigator.clipboard.writeText(portalUrl).then(() => {
-            showToast(`✅ Enlace directo al portal copiado al portapapeles`, 'success');
+            showToast(`✅ Enlace directo al portal ${isKid ? 'KIDS ' : ''}copiado al portapapeles`, 'success');
         }).catch(() => {
             showToast(`Enlace: ${portalUrl}`, 'info');
         });
@@ -4231,8 +4279,29 @@ function renderPortalTab(patientId) {
         }
     };
 
+    const patient = (AppState.patients || []).find(p => String(p.id) === String(patientId));
+    const isKid = isKidPatient(patient);
+
     return `
         <div class="portal-clinical-tab-wrap" style="padding: 12px 0;">
+            ${isKid ? `
+                <!-- BANNER DE PORTAL KIDS AUTOMÁTICO (< 13 AÑOS) -->
+                <div style="background: linear-gradient(135deg, rgba(46, 196, 182, 0.12), rgba(255, 184, 76, 0.12)); border: 1.5px solid #2EC4B6; border-radius: 12px; padding: 14px 18px; margin-bottom: 20px; display: flex; align-items: center; justify-content: space-between; gap: 14px; flex-wrap: wrap;">
+                    <div style="display: flex; align-items: center; gap: 12px;">
+                        <span style="font-size: 28px;">🎈</span>
+                        <div>
+                            <strong style="color: #1E463D; font-size: 14px; display: block;">Portal KIDS Activo Automáticamente (&lt; 13 años)</strong>
+                            <div style="font-size: 12px; color: var(--text-secondary); line-height: 1.4;">
+                                Por edad del paciente (${patient?.age || (patient?.birthdate ? calculateAge(patient.birthdate) + ' años' : '&lt; 13 años')}), su acceso se abre exclusivamente como <strong>Psico Kids Space</strong>. Las pantallas de adultos y adolescentes quedan completamente ocultas para el menor.
+                            </div>
+                        </div>
+                    </div>
+                    <span style="background: #2EC4B6; color: white; padding: 5px 12px; border-radius: 20px; font-size: 11px; font-weight: 700; letter-spacing: 0.5px;">
+                        🧒 ETAPA NIÑEZ (< 13a)
+                    </span>
+                </div>
+            ` : ''}
+
             <!-- CABECERA DE CONTROL DE SINCRONIZACIÓN -->
             <div style="display: flex; justify-content: space-between; align-items: center; background: var(--bg-secondary); padding: 14px 18px; border-radius: 12px; margin-bottom: 20px; border: 1px solid var(--border-color); flex-wrap: wrap; gap: 12px;">
                 <div style="display: flex; align-items: center; gap: 10px;">
@@ -4244,8 +4313,8 @@ function renderPortalTab(patientId) {
                     </span>
                 </div>
                 <div style="display: flex; gap: 8px; flex-wrap: wrap;">
-                    <button class="btn-sm btn-primary" onclick="launchPatientPortal('${patientId}')" title="Abrir portal del paciente en una nueva pestaña con sesión iniciada" style="background:#10b981;border-color:#10b981;color:white;">
-                        <i class="fas fa-arrow-up-right-from-square"></i> Abrir Portal del Paciente
+                    <button class="btn-sm btn-primary" onclick="launchPatientPortal('${patientId}')" title="${isKid ? 'Abrir espacio lúdico interactivo del menor' : 'Abrir portal del paciente en una nueva pestaña con sesión iniciada'}" style="background:${isKid ? '#2EC4B6' : '#10b981'};border-color:${isKid ? '#2EC4B6' : '#10b981'};color:white;font-weight:${isKid ? '700' : '500'};">
+                        <i class="fas ${isKid ? 'fa-shapes' : 'fa-arrow-up-right-from-square'}"></i> ${isKid ? 'Abrir Portal KIDS' : 'Abrir Portal del Paciente'}
                     </button>
                     <button class="btn-sm btn-secondary" onclick="refreshPortalTabContent('${patientId}', true)" title="Consultar PostgreSQL para obtener registros recién enviados desde el teléfono">
                         <i class="fas fa-arrows-rotate"></i> Actualizar Datos

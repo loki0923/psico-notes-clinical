@@ -414,6 +414,52 @@ function logoutPortal() {
     }
 }
 
+function calculateAge(bd) {
+    if (!bd) return '';
+    const b = new Date(bd);
+    const t = new Date();
+    let a = t.getFullYear() - b.getFullYear();
+    const m = t.getMonth() - b.getMonth();
+    if (m < 0 || (m === 0 && t.getDate() < b.getDate())) a--;
+    return a;
+}
+
+function determineIfKid(patientData) {
+    // 1. Si la URL solicita explícitamente el modo
+    try {
+        const urlParams = new URLSearchParams(window.location.search);
+        const mode = urlParams.get('mode');
+        if (mode === 'kid') return true;
+        if (mode === 'adult') return false;
+    } catch {}
+
+    // 2. Si la sesión guardada especifica isKid
+    try {
+        const session = JSON.parse(localStorage.getItem('psico_portal_session') || '{}');
+        if (typeof session.isKid === 'boolean') {
+            return session.isKid;
+        }
+    } catch {}
+
+    if (!patientData) return false;
+
+    // 3. Regla clínica obligatoria: Menores de 13 años (< 13) entran automáticamente en Portal KIDS
+    if (patientData.birthdate) {
+        const calculated = calculateAge(patientData.birthdate);
+        if (typeof calculated === 'number' && !isNaN(calculated) && calculated >= 0) {
+            return calculated < 13;
+        }
+    }
+    const directAge = parseInt(patientData.age, 10);
+    if (!isNaN(directAge) && directAge >= 0) {
+        return directAge < 13;
+    }
+
+    // 4. Fallback por etapa de vida / categoría
+    const stage = (patientData.category || patientData.life_stage || patientData.lifeStage || '').toLowerCase();
+    return stage === 'child' || stage === 'infantil';
+}
+
 async function loadPatientData() {
     // 1. Intentar cargar desde el backend PostgreSQL si hay token de acceso
     if (PortalState.portalToken) {
@@ -453,18 +499,8 @@ async function loadPatientData() {
                         }
                     }
 
-                    // Auto-activar Kid Mode si el paciente es pediátrico
-                    const isChildPatient = data.patient && (
-                        data.patient.category === 'child' ||
-                        data.patient.life_stage === 'child' ||
-                        data.patient.category === 'infantil'
-                    );
-                    const savedKidMode = localStorage.getItem(`psico_portal_kid_mode_${PortalState.patientId}`);
-                    if (savedKidMode !== null) {
-                        PortalState.isKidMode = savedKidMode === 'true';
-                    } else if (isChildPatient) {
-                        PortalState.isKidMode = true;
-                    }
+                    // Auto-activación estricta de Portal KIDS si edad < 13 años
+                    PortalState.isKidMode = determineIfKid(data.patient);
 
                     savePatientDataLocally();
                     return;
@@ -502,10 +538,9 @@ function loadPatientDataLocally() {
             PortalState.kidActivities = [];
         }
 
-        const savedKidMode = localStorage.getItem(`psico_portal_kid_mode_${PortalState.patientId}`);
-        if (savedKidMode !== null) {
-            PortalState.isKidMode = savedKidMode === 'true';
-        }
+        const patients = loadPortalPatients();
+        const pObj = patients.find(p => p.id === PortalState.patientId);
+        PortalState.isKidMode = determineIfKid(pObj);
     } catch (e) {
         console.error('Error cargando datos locales del portal:', e);
     }
@@ -1693,10 +1728,237 @@ function confirmPortalConsentSignature() {
 }
 
 // ==========================================================================
-// PORTAL PACIENTES KID — LÓGICA INTERACTIVA Y CLÍNICA (PSICO KIDS SPACE)
+// PORTAL PACIENTES KID — LÓGICA VIBRANTE Y DINÁMICA (PSICO KIDS SPACE)
 // ==========================================================================
 
+// ----------------------------------------------------
+// 0. EFECTOS DE SONIDO SINTÉTICOS NATIVOS (WEB AUDIO API)
+// ----------------------------------------------------
+const KidAudioEffects = {
+    ctx: null,
+    isMuted: false,
+
+    init() {
+        if (!this.ctx && typeof window !== 'undefined' && (window.AudioContext || window.webkitAudioContext)) {
+            const AudioCtx = window.AudioContext || window.webkitAudioContext;
+            this.ctx = new AudioCtx();
+        }
+        try {
+            this.isMuted = localStorage.getItem('psico_kid_muted') === 'true';
+            this.updateButton();
+        } catch (e) {}
+    },
+
+    toggleMute() {
+        this.isMuted = !this.isMuted;
+        try {
+            localStorage.setItem('psico_kid_muted', this.isMuted ? 'true' : 'false');
+        } catch (e) {}
+        this.updateButton();
+        if (!this.isMuted) this.playDing();
+    },
+
+    updateButton() {
+        const btn = document.getElementById('btnKidSoundToggle');
+        if (btn) {
+            btn.textContent = this.isMuted ? '🔇' : '🔊';
+            btn.classList.toggle('muted', this.isMuted);
+        }
+    },
+
+    playTone(freq, type = 'sine', duration = 0.15, startGain = 0.25) {
+        if (this.isMuted) return;
+        this.init();
+        if (!this.ctx) return;
+        if (this.ctx.state === 'suspended') this.ctx.resume();
+        try {
+            const osc = this.ctx.createOscillator();
+            const gain = this.ctx.createGain();
+            osc.type = type;
+            osc.frequency.setValueAtTime(freq, this.ctx.currentTime);
+            gain.gain.setValueAtTime(startGain, this.ctx.currentTime);
+            gain.gain.exponentialRampToValueAtTime(0.001, this.ctx.currentTime + duration);
+            osc.connect(gain);
+            gain.connect(this.ctx.destination);
+            osc.start();
+            osc.stop(this.ctx.currentTime + duration);
+        } catch (e) {}
+    },
+
+    playPop() {
+        if (this.isMuted) return;
+        this.init();
+        if (!this.ctx) return;
+        if (this.ctx.state === 'suspended') this.ctx.resume();
+        try {
+            const osc = this.ctx.createOscillator();
+            const gain = this.ctx.createGain();
+            osc.type = 'sine';
+            const t = this.ctx.currentTime;
+            osc.frequency.setValueAtTime(750, t);
+            osc.frequency.exponentialRampToValueAtTime(120, t + 0.08);
+            gain.gain.setValueAtTime(0.35, t);
+            gain.gain.exponentialRampToValueAtTime(0.001, t + 0.08);
+            osc.connect(gain);
+            gain.connect(this.ctx.destination);
+            osc.start(t);
+            osc.stop(t + 0.08);
+        } catch (e) {}
+    },
+
+    playDing() {
+        this.playTone(880, 'sine', 0.4, 0.2);
+        setTimeout(() => this.playTone(1760, 'sine', 0.5, 0.15), 50);
+    },
+
+    playBoing() {
+        if (this.isMuted) return;
+        this.init();
+        if (!this.ctx) return;
+        if (this.ctx.state === 'suspended') this.ctx.resume();
+        try {
+            const osc = this.ctx.createOscillator();
+            const gain = this.ctx.createGain();
+            osc.type = 'triangle';
+            const t = this.ctx.currentTime;
+            osc.frequency.setValueAtTime(220, t);
+            osc.frequency.linearRampToValueAtTime(460, t + 0.06);
+            osc.frequency.linearRampToValueAtTime(300, t + 0.14);
+            gain.gain.setValueAtTime(0.25, t);
+            gain.gain.exponentialRampToValueAtTime(0.001, t + 0.16);
+            osc.connect(gain);
+            gain.connect(this.ctx.destination);
+            osc.start(t);
+            osc.stop(t + 0.16);
+        } catch (e) {}
+    },
+
+    playSuccess() {
+        const notes = [523.25, 659.25, 783.99, 1046.50]; // Do, Mi, Sol, Do agudo
+        notes.forEach((f, idx) => {
+            setTimeout(() => this.playTone(f, 'sine', 0.35, 0.2), idx * 85);
+        });
+    }
+};
+
+// ----------------------------------------------------
+// 0.1 MOTOR DE CONFETTI Y ESTRELLAS EN PANTALLA
+// ----------------------------------------------------
+const KidConfetti = {
+    canvas: null,
+    ctx: null,
+    particles: [],
+    animId: null,
+
+    init() {
+        this.canvas = document.getElementById('kidConfettiCanvas');
+        if (!this.canvas) return;
+        this.ctx = this.canvas.getContext('2d');
+        this.resize();
+        window.addEventListener('resize', () => this.resize());
+    },
+
+    resize() {
+        if (!this.canvas) return;
+        this.canvas.width = window.innerWidth;
+        this.canvas.height = window.innerHeight;
+    },
+
+    burst(x, y, count = 35) {
+        this.init();
+        if (!this.canvas || !this.ctx) return;
+        const px = typeof x === 'number' && !isNaN(x) ? x : window.innerWidth / 2;
+        const py = typeof y === 'number' && !isNaN(y) ? y : window.innerHeight / 2;
+        const colors = ['#f59e0b', '#ec4899', '#3b82f6', '#10b981', '#8b5cf6', '#ef4444', '#fde047', '#ff6b6b'];
+
+        for (let i = 0; i < count; i++) {
+            const angle = Math.random() * Math.PI * 2;
+            const speed = 4 + Math.random() * 8;
+            this.particles.push({
+                x: px,
+                y: py,
+                vx: Math.cos(angle) * speed,
+                vy: Math.sin(angle) * speed - 2.5,
+                color: colors[Math.floor(Math.random() * colors.length)],
+                radius: 4 + Math.random() * 5,
+                alpha: 1,
+                shape: Math.random() > 0.4 ? 'circle' : 'star'
+            });
+        }
+
+        if (!this.animId) {
+            this.render();
+        }
+    },
+
+    render() {
+        if (!this.canvas || !this.ctx) return;
+        this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
+
+        for (let i = this.particles.length - 1; i >= 0; i--) {
+            const p = this.particles[i];
+            p.x += p.vx;
+            p.y += p.vy;
+            p.vy += 0.28; // Gravedad suave
+            p.vx *= 0.98;
+            p.alpha *= 0.96;
+
+            this.ctx.save();
+            this.ctx.globalAlpha = Math.max(0, p.alpha);
+            this.ctx.fillStyle = p.color;
+
+            if (p.shape === 'star') {
+                this.drawStar(p.x, p.y, 5, p.radius * 1.5, p.radius * 0.7);
+            } else {
+                this.ctx.beginPath();
+                this.ctx.arc(p.x, p.y, p.radius, 0, Math.PI * 2);
+                this.ctx.fill();
+            }
+            this.ctx.restore();
+
+            if (p.alpha <= 0.04 || p.y > this.canvas.height + 20) {
+                this.particles.splice(i, 1);
+            }
+        }
+
+        if (this.particles.length > 0) {
+            this.animId = requestAnimationFrame(() => this.render());
+        } else {
+            this.animId = null;
+            this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
+        }
+    },
+
+    drawStar(cx, cy, spikes, outerRadius, innerRadius) {
+        let rot = (Math.PI / 2) * 3;
+        let x = cx;
+        let y = cy;
+        const step = Math.PI / spikes;
+        this.ctx.beginPath();
+        this.ctx.moveTo(cx, cy - outerRadius);
+        for (let i = 0; i < spikes; i++) {
+            x = cx + Math.cos(rot) * outerRadius;
+            y = cy + Math.sin(rot) * outerRadius;
+            this.ctx.lineTo(x, y);
+            rot += step;
+            x = cx + Math.cos(rot) * innerRadius;
+            y = cy + Math.sin(rot) * innerRadius;
+            this.ctx.lineTo(x, y);
+            rot += step;
+        }
+        this.ctx.lineTo(cx, cy - outerRadius);
+        this.ctx.closePath();
+        this.ctx.fill();
+    }
+};
+
+// ----------------------------------------------------
+// INICIALIZACIÓN Y TOGGLE DE MODO KIDS
+// ----------------------------------------------------
 function initKidModeState() {
+    KidAudioEffects.init();
+    KidConfetti.init();
+
     const starsEl = document.getElementById('kidStarsCount');
     const badgeEl = document.getElementById('kidStarsBadge');
     if (starsEl) starsEl.textContent = PortalState.kidStars || 0;
@@ -1710,9 +1972,8 @@ function initKidModeState() {
         greetingNameEl.textContent = (PortalState.patientName || 'Explorador').split(' ')[0];
     }
 
-    if (PortalState.isKidMode) {
-        toggleKidMode(true);
-    }
+    // Activar modo correspondiente de forma determinista
+    toggleKidMode(Boolean(PortalState.isKidMode));
 }
 
 function toggleKidMode(forceValue) {
@@ -1723,33 +1984,35 @@ function toggleKidMode(forceValue) {
     }
 
     const toggleBtn = document.getElementById('btnKidModeToggle');
+    const soundBtn = document.getElementById('btnKidSoundToggle');
     const badgeEl = document.getElementById('kidStarsBadge');
     const stdNav = document.getElementById('standardNav');
     const kidNav = document.getElementById('kidNav');
 
+    // REGLA CLÍNICA PRIMORDIAL:
+    // En el portal de adultos y adolescentes NO debe aparecer ningún botón o indicador de "Modo Kids".
+    // En el portal de niños, tampoco se muestra botón para cambiarse al portal de adultos.
+    if (toggleBtn) {
+        toggleBtn.style.display = 'none';
+        toggleBtn.style.setProperty('display', 'none', 'important');
+    }
+
     if (PortalState.isKidMode) {
-        if (toggleBtn) {
-            toggleBtn.classList.add('active');
-            toggleBtn.innerHTML = '<span class="kid-toggle-icon">🏡</span> <span class="kid-toggle-label">Modo Estándar</span>';
-        }
+        document.body.classList.add('kid-mode-active');
+        if (soundBtn) soundBtn.style.display = 'inline-flex';
         if (badgeEl) badgeEl.style.display = 'inline-flex';
         if (stdNav) stdNav.style.display = 'none';
         if (kidNav) kidNav.style.display = 'flex';
         switchKidView('kid-home');
-        showToast('🎈 ¡Bienvenido a tu Espacio Mágico!', 'success');
+        KidAudioEffects.playSuccess();
+        KidConfetti.burst(window.innerWidth / 2, 200, 30);
     } else {
-        if (toggleBtn) {
-            toggleBtn.classList.remove('active');
-            toggleBtn.innerHTML = '<span class="kid-toggle-icon">🎈</span> <span class="kid-toggle-label">Modo Kids</span>';
-        }
+        document.body.classList.remove('kid-mode-active');
+        if (soundBtn) soundBtn.style.display = 'none';
         if (badgeEl) badgeEl.style.display = 'none';
         if (stdNav) stdNav.style.display = 'flex';
         if (kidNav) kidNav.style.display = 'none';
         switchView('home');
-    }
-
-    if (PortalState.patientId) {
-        localStorage.setItem(`psico_portal_kid_mode_${PortalState.patientId}`, PortalState.isKidMode ? 'true' : 'false');
     }
 }
 
@@ -1758,7 +2021,7 @@ function switchKidView(viewKey) {
         v.classList.remove('active');
         v.style.display = 'none';
     });
-    document.querySelectorAll('.kid-bottom-nav .nav-btn').forEach(b => b.classList.remove('active'));
+    document.querySelectorAll('.kid-bottom-console .kid-console-btn').forEach(b => b.classList.remove('active'));
 
     let targetId = 'viewKidHome';
     if (viewKey === 'kid-avatar') targetId = 'viewKidAvatar';
@@ -1772,8 +2035,10 @@ function switchKidView(viewKey) {
         targetView.style.display = 'block';
     }
 
-    const activeBtn = document.querySelector(`.kid-bottom-nav .nav-btn[data-kid-view="${viewKey}"]`);
+    const activeBtn = document.querySelector(`.kid-bottom-console .kid-console-btn[data-kid-view="${viewKey}"]`);
     if (activeBtn) activeBtn.classList.add('active');
+
+    KidAudioEffects.playBoing();
 
     // Inicializaciones bajo demanda
     if (viewKey === 'kid-bubbles') initKidBubbles();
@@ -1785,13 +2050,16 @@ function updateKidAvatarDisplays() {
     const homeBadge = document.getElementById('kidHomeAvatarBadge');
     if (homeBadge) homeBadge.textContent = avatar.emoji;
 
+    const homeAcc = document.getElementById('kidHomeAvatarAcc');
+    if (homeAcc) homeAcc.textContent = avatar.accEmoji || '🦸';
+
     const stageDisplay = document.getElementById('kidAvatarStageDisplay');
     const stageChar = document.getElementById('kidStageChar');
     const stageAcc = document.getElementById('kidStageAccessory');
     const stageName = document.getElementById('kidAvatarDisplayName');
 
     if (stageDisplay) {
-        stageDisplay.className = `kid-stage-aura ${avatar.aura || 'aura-gold'}`;
+        stageDisplay.className = `kid-stage-aura-ring ${avatar.aura || 'aura-gold'}`;
     }
     if (stageChar) stageChar.textContent = avatar.emoji || '🦊';
     if (stageAcc) stageAcc.textContent = avatar.accEmoji || '🦸';
@@ -1809,19 +2077,42 @@ function updateKidAvatarDisplays() {
 // ----------------------------------------------------
 function selectKidWeather(weatherKey) {
     PortalState.kidWeather = weatherKey;
-    document.querySelectorAll('.kid-weather-btn').forEach(btn => {
+    document.querySelectorAll('.kid-weather-card-v2').forEach(btn => {
         btn.classList.toggle('selected', btn.getAttribute('data-weather') === weatherKey);
     });
+    KidAudioEffects.playBoing();
 }
 
 function selectKidBodyZone(zoneKey) {
     PortalState.kidBodyZone = zoneKey;
-    document.querySelectorAll('.kid-zone-btn').forEach(btn => {
+
+    // Actualizar botones pills laterales
+    document.querySelectorAll('.kid-zone-pill').forEach(btn => {
         btn.classList.toggle('selected', btn.getAttribute('data-zone') === zoneKey);
     });
+
+    // Actualizar hotspots del SVG del muñequito
+    document.querySelectorAll('.somatic-hotspot-group').forEach(group => {
+        group.classList.toggle('selected', group.getAttribute('data-zone') === zoneKey);
+    });
+
+    // Bocadillo de diálogo empático
+    const speechEl = document.getElementById('kidSomaticSpeechBubble');
+    if (speechEl) {
+        const zonePhrases = {
+            head: '🧠 ¡Uff, mi cabecita está pensando muy rápido como un cometa!',
+            throat: '🗣️ ¡Tengo un nudito en la garganta o palabras que quiero decir!',
+            chest: '💖 ¡Mi corazón late como un tambor y siento calor en el pecho!',
+            belly: '🌀 ¡Siento mariposas revoloteando o cosquillitas en la pancita!',
+            hands: '✊ ¡Mis manitas quieren apretar o moverse con mucha energía!'
+        };
+        speechEl.textContent = zonePhrases[zoneKey] || '✨ ¡Tu cuerpo te da señales mágicas!';
+    }
+
+    KidAudioEffects.playBoing();
 }
 
-async function submitKidWeatherAndBody() {
+async function submitKidWeatherAndBody(e) {
     if (!PortalState.kidWeather) {
         showToast('¡Por favor elige el clima de tu corazón primero! ☀️🌧️', 'warning');
         return;
@@ -1861,8 +2152,10 @@ async function submitKidWeatherAndBody() {
     };
     PortalState.kidActivities.unshift(activityRecord);
 
-    // Sumar +1 Estrella ⭐
+    // Sumar +1 Estrella ⭐ y disparo de confeti
     awardKidStars(1);
+    KidAudioEffects.playSuccess();
+    KidConfetti.burst(window.innerWidth / 2, window.innerHeight * 0.4, 40);
 
     // Enviar al backend PostgreSQL con cola offline
     if (PortalState.portalToken) {
@@ -1885,7 +2178,7 @@ function awardKidStars(amount) {
 }
 
 // ----------------------------------------------------
-// 2. CREADOR DE AVATAR
+// 2. CREADOR DE AVATAR (ESTILO PEDESTAL 3D)
 // ----------------------------------------------------
 function pickAvatarChar(charKey, emoji, name) {
     if (!PortalState.kidAvatar) PortalState.kidAvatar = {};
@@ -1893,28 +2186,37 @@ function pickAvatarChar(charKey, emoji, name) {
     PortalState.kidAvatar.emoji = emoji;
     PortalState.kidAvatar.name = name;
 
-    document.querySelectorAll('.avatar-opt-btn').forEach(b => {
+    document.querySelectorAll('.avatar-puffy-btn').forEach(b => {
         b.classList.toggle('active', b.getAttribute('data-char') === charKey);
     });
 
     const stageChar = document.getElementById('kidStageChar');
     const stageName = document.getElementById('kidAvatarDisplayName');
-    if (stageChar) stageChar.textContent = emoji;
+    if (stageChar) {
+        stageChar.textContent = emoji;
+        stageChar.classList.remove('kid-hop');
+        void stageChar.offsetWidth;
+        stageChar.classList.add('kid-hop');
+    }
     if (stageName) stageName.textContent = name;
+
+    KidAudioEffects.playBoing();
 }
 
 function pickAvatarAura(auraClass) {
     if (!PortalState.kidAvatar) PortalState.kidAvatar = {};
     PortalState.kidAvatar.aura = auraClass;
 
-    document.querySelectorAll('.aura-opt-btn').forEach(b => {
+    document.querySelectorAll('.aura-sparkle-btn').forEach(b => {
         b.classList.toggle('active', b.classList.contains(auraClass + '-btn'));
     });
 
     const stageDisplay = document.getElementById('kidAvatarStageDisplay');
     if (stageDisplay) {
-        stageDisplay.className = `kid-stage-aura ${auraClass}`;
+        stageDisplay.className = `kid-stage-aura-ring ${auraClass}`;
     }
+
+    KidAudioEffects.playDing();
 }
 
 function pickAvatarAccessory(accKey, accEmoji) {
@@ -1922,17 +2224,47 @@ function pickAvatarAccessory(accKey, accEmoji) {
     PortalState.kidAvatar.accessory = accKey;
     PortalState.kidAvatar.accEmoji = accEmoji;
 
-    document.querySelectorAll('.acc-opt-btn').forEach(b => {
+    document.querySelectorAll('.acc-puffy-btn').forEach(b => {
         b.classList.toggle('active', b.getAttribute('data-acc') === accKey);
     });
 
     const stageAcc = document.getElementById('kidStageAccessory');
     if (stageAcc) stageAcc.textContent = accEmoji;
+
+    KidAudioEffects.playBoing();
+}
+
+function generateRandomKidAvatarName() {
+    const prefixes = ['Super', 'Capitán', 'Príncipe', 'Princesa', 'Maestro', 'Explorador', 'Comandante', 'Mago'];
+    const suffixes = ['de las Galaxias', 'del Relámpago', 'de las Nubes', 'del Arcoíris', 'del Fuego Mágico', 'de las Estrellas', 'de la Calma', 'del Viento'];
+    const baseName = (PortalState.kidAvatar && PortalState.kidAvatar.name) ? PortalState.kidAvatar.name.split(' ')[0] : 'Compañero';
+
+    const p = prefixes[Math.floor(Math.random() * prefixes.length)];
+    const s = suffixes[Math.floor(Math.random() * suffixes.length)];
+    const randomTitle = `${p} ${baseName} ${s}`;
+
+    if (!PortalState.kidAvatar) PortalState.kidAvatar = {};
+    PortalState.kidAvatar.name = randomTitle;
+
+    const nameEl = document.getElementById('kidAvatarDisplayName');
+    if (nameEl) nameEl.textContent = randomTitle;
+
+    const charEl = document.getElementById('kidStageChar');
+    if (charEl) {
+        charEl.classList.remove('kid-hop');
+        void charEl.offsetWidth;
+        charEl.classList.add('kid-hop');
+    }
+
+    KidAudioEffects.playDing();
+    KidConfetti.burst(window.innerWidth / 2, 280, 20);
 }
 
 async function saveKidAvatar() {
     updateKidAvatarDisplays();
     awardKidStars(1);
+    KidAudioEffects.playSuccess();
+    KidConfetti.burst(window.innerWidth / 2, 300, 45);
 
     const payloadData = {
         ...PortalState.kidAvatar,
@@ -1960,7 +2292,7 @@ async function saveKidAvatar() {
 }
 
 // ----------------------------------------------------
-// 3. CAZADOR DE PREOCUPACIONES (BURBUJAS)
+// 3. CAZADOR DE PREOCUPACIONES (BURBUJAS 3D Y CONFETTI)
 // ----------------------------------------------------
 const DEFAULT_KID_WORRIES = [
     'Un mal sueño 🌙',
@@ -1968,7 +2300,7 @@ const DEFAULT_KID_WORRIES = [
     'Pelea en el recreo ⚽',
     'Nervios antes de clase 🎒',
     'Tristeza repentina 🌧️',
-    'Enojo atorado ⚡',
+    'Enojo en la panza ⚡',
     'Ganas de llorar 💧',
     'Miedo a la oscuridad 🔦'
 ];
@@ -1991,15 +2323,21 @@ function initKidBubbles() {
 
 function createBubbleElement(text) {
     const b = document.createElement('div');
-    b.className = 'kid-bubble';
+    b.className = 'kid-bubble-v2';
     b.innerHTML = `<span>🫧 ${text}</span>`;
-    b.onclick = () => popKidBubble(b, text);
+    b.onclick = (e) => popKidBubble(b, text, e);
     return b;
 }
 
-function popKidBubble(el, worryText) {
+function popKidBubble(el, worryText, ev) {
     if (el.classList.contains('popping')) return;
     el.classList.add('popping');
+
+    // Efecto de sonido POP y confeti en las coordenadas del toque
+    KidAudioEffects.playPop();
+    const clickX = ev && ev.clientX ? ev.clientX : window.innerWidth / 2;
+    const clickY = ev && ev.clientY ? ev.clientY : window.innerHeight / 2;
+    KidConfetti.burst(clickX, clickY, 25);
 
     PortalState.kidBubblesPopped = (PortalState.kidBubblesPopped || 0) + 1;
     const countEl = document.getElementById('kidBubblesPoppedCount');
@@ -2008,11 +2346,13 @@ function popKidBubble(el, worryText) {
     setTimeout(() => {
         if (el.parentNode) el.parentNode.removeChild(el);
 
-        // Si se vacía el campo, rellenar de nuevo con nuevas burbujas
+        // Si se vacía el campo, rellenar de nuevo y celebrar
         const playfield = document.getElementById('kidBubblesPlayfield');
         if (playfield && playfield.children.length === 0) {
             initKidBubbles();
             awardKidStars(1);
+            KidAudioEffects.playSuccess();
+            KidConfetti.burst(window.innerWidth / 2, window.innerHeight / 2, 50);
             showToast('🎉 ¡Has limpiado todas las burbujas! ¡Gran trabajo soltando tensiones! (+1 ⭐)', 'success');
         }
     }, 280);
@@ -2038,21 +2378,24 @@ function promptCustomBubble() {
         if (playfield) {
             const newBubble = createBubbleElement(custom.trim());
             playfield.insertBefore(newBubble, playfield.firstChild);
+            KidAudioEffects.playDing();
             showToast('🫧 ¡Burbuja creada! Tócala cuando estés listo para soltarla.', 'info');
         }
     }
 }
 
 // ----------------------------------------------------
-// 4. EL LIENZO MÁGICO (HTML5 CANVAS DIBUJO)
+// 4. EL LIENZO MÁGICO (HTML5 CANVAS CON PINCEL ARCOÍRIS)
 // ----------------------------------------------------
 let kidCanvasState = {
     canvas: null,
     ctx: null,
     isDrawing: false,
     color: '#202923',
-    brushSize: 8,
+    brushSize: 10,
     isEraser: false,
+    isRainbow: false,
+    rainbowHue: 0,
     selectedStamp: null
 };
 
@@ -2071,7 +2414,6 @@ function initKidDrawingCanvas() {
         canvas.setAttribute('data-initialized', 'true');
     }
 
-    // Configuración de trazo suave
     ctx.lineCap = 'round';
     ctx.lineJoin = 'round';
 
@@ -2096,25 +2438,40 @@ function initKidDrawingCanvas() {
         const coords = getCoords(e);
 
         if (kidCanvasState.selectedStamp) {
-            // Estampar emoji
-            ctx.font = '48px sans-serif';
+            ctx.font = '54px sans-serif';
             ctx.textAlign = 'center';
             ctx.textBaseline = 'middle';
             ctx.fillText(kidCanvasState.selectedStamp, coords.x, coords.y);
+            KidAudioEffects.playBoing();
             return;
         }
 
         kidCanvasState.isDrawing = true;
         ctx.beginPath();
         ctx.moveTo(coords.x, coords.y);
-        ctx.strokeStyle = kidCanvasState.isEraser ? '#ffffff' : kidCanvasState.color;
-        ctx.lineWidth = kidCanvasState.isEraser ? kidCanvasState.brushSize * 2.5 : kidCanvasState.brushSize;
+
+        if (kidCanvasState.isEraser) {
+            ctx.strokeStyle = '#ffffff';
+            ctx.lineWidth = kidCanvasState.brushSize * 2.5;
+        } else if (kidCanvasState.isRainbow) {
+            ctx.strokeStyle = `hsl(${kidCanvasState.rainbowHue}, 90%, 55%)`;
+            ctx.lineWidth = kidCanvasState.brushSize;
+        } else {
+            ctx.strokeStyle = kidCanvasState.color;
+            ctx.lineWidth = kidCanvasState.brushSize;
+        }
     }
 
     function moveDraw(e) {
         if (!kidCanvasState.isDrawing || kidCanvasState.selectedStamp) return;
         e.preventDefault();
         const coords = getCoords(e);
+
+        if (kidCanvasState.isRainbow) {
+            kidCanvasState.rainbowHue = (kidCanvasState.rainbowHue + 4) % 360;
+            ctx.strokeStyle = `hsl(${kidCanvasState.rainbowHue}, 90%, 55%)`;
+        }
+
         ctx.lineTo(coords.x, coords.y);
         ctx.stroke();
     }
@@ -2126,7 +2483,6 @@ function initKidDrawingCanvas() {
         }
     }
 
-    // Reasignar listeners limpios
     canvas.onmousedown = startDraw;
     canvas.onmousemove = moveDraw;
     canvas.onmouseup = endDraw;
@@ -2141,42 +2497,67 @@ function initKidDrawingCanvas() {
 function setCanvasColor(hexColor) {
     kidCanvasState.color = hexColor;
     kidCanvasState.isEraser = false;
+    kidCanvasState.isRainbow = false;
     kidCanvasState.selectedStamp = null;
 
-    document.querySelectorAll('.kid-color-palette .color-btn').forEach(btn => {
-        btn.classList.toggle('active', btn.style.backgroundColor.includes(hexColor.toLowerCase()) || btn.style.background.includes(hexColor.toLowerCase()));
+    document.querySelectorAll('.crayon-btn').forEach(btn => {
+        btn.classList.remove('active');
+        if (btn.style.backgroundColor && btn.style.backgroundColor.includes(hexColor.toLowerCase())) {
+            btn.classList.add('active');
+        }
     });
-    document.querySelectorAll('.stamp-btn').forEach(btn => btn.classList.remove('active'));
+    document.querySelectorAll('.stamp-pill-btn').forEach(btn => btn.classList.remove('active'));
+    KidAudioEffects.playBoing();
+}
+
+function setRainbowBrush() {
+    kidCanvasState.isRainbow = true;
+    kidCanvasState.isEraser = false;
+    kidCanvasState.selectedStamp = null;
+
+    document.querySelectorAll('.crayon-btn').forEach(btn => btn.classList.remove('active'));
+    document.querySelectorAll('.stamp-pill-btn').forEach(btn => btn.classList.remove('active'));
+    const rainbowBtn = document.querySelector('.crayon-rainbow');
+    if (rainbowBtn) rainbowBtn.classList.add('active');
+
+    KidAudioEffects.playDing();
 }
 
 function setCanvasBrushSize(size) {
     kidCanvasState.brushSize = size;
-    document.querySelectorAll('.kid-size-buttons .size-btn').forEach(btn => {
+    document.querySelectorAll('.size-pill-btn').forEach(btn => {
         const text = btn.textContent.toLowerCase();
         btn.classList.toggle('active', 
-            (size === 3 && text.includes('fino')) ||
-            (size === 8 && text.includes('medio')) ||
-            (size === 18 && text.includes('grueso'))
+            (size === 4 && text.includes('fino')) ||
+            (size === 10 && text.includes('medio')) ||
+            (size === 22 && text.includes('grueso'))
         );
     });
+    KidAudioEffects.playBoing();
 }
 
 function toggleCanvasEraser() {
     kidCanvasState.isEraser = true;
+    kidCanvasState.isRainbow = false;
     kidCanvasState.selectedStamp = null;
-    document.querySelectorAll('.kid-color-palette .color-btn').forEach(btn => btn.classList.remove('active'));
-    document.querySelectorAll('.stamp-btn').forEach(btn => btn.classList.remove('active'));
-    const eraserBtn = document.querySelector('.eraser-btn');
+    document.querySelectorAll('.crayon-btn').forEach(btn => btn.classList.remove('active'));
+    document.querySelectorAll('.stamp-pill-btn').forEach(btn => btn.classList.remove('active'));
+    const eraserBtn = document.querySelector('.crayon-eraser');
     if (eraserBtn) eraserBtn.classList.add('active');
+
+    KidAudioEffects.playBoing();
 }
 
 function setCanvasStamp(emoji) {
     kidCanvasState.selectedStamp = emoji;
     kidCanvasState.isEraser = false;
-    document.querySelectorAll('.stamp-btn').forEach(btn => {
+    kidCanvasState.isRainbow = false;
+    document.querySelectorAll('.stamp-pill-btn').forEach(btn => {
         btn.classList.toggle('active', btn.textContent.trim() === emoji);
     });
-    document.querySelectorAll('.kid-color-palette .color-btn').forEach(btn => btn.classList.remove('active'));
+    document.querySelectorAll('.crayon-btn').forEach(btn => btn.classList.remove('active'));
+
+    KidAudioEffects.playDing();
 }
 
 function clearKidCanvas() {
@@ -2186,6 +2567,7 @@ function clearKidCanvas() {
             const ctx = canvas.getContext('2d');
             ctx.fillStyle = '#ffffff';
             ctx.fillRect(0, 0, canvas.width, canvas.height);
+            KidAudioEffects.playPop();
         }
     }
 }
@@ -2216,6 +2598,8 @@ async function submitKidDrawing() {
     PortalState.kidActivities.unshift(activityRecord);
 
     awardKidStars(2);
+    KidAudioEffects.playSuccess();
+    KidConfetti.burst(window.innerWidth / 2, window.innerHeight * 0.45, 45);
 
     if (PortalState.portalToken) {
         sendPortalPost('/api/v1/portal/kid/activity', {
@@ -2230,7 +2614,7 @@ async function submitKidDrawing() {
 }
 
 // ----------------------------------------------------
-// 5. EL GLOBO DE LA CALMA (RESPIRACIÓN GUIADA)
+// 5. EL GLOBO DE LA CALMA (RESPIRACIÓN ANIMADA)
 // ----------------------------------------------------
 let balloonBreathingTimer = null;
 let balloonBreathingActive = false;
@@ -2248,8 +2632,9 @@ function toggleBalloonBreathing() {
 function startBalloonBreathing() {
     balloonBreathingActive = true;
     const btn = document.getElementById('btnToggleBalloon');
-    if (btn) btn.innerHTML = '<span>Pausar Respiración ⏸️</span>';
+    if (btn) btn.innerHTML = '<span class="btn-puffy-icon">⏸️</span> <span class="btn-puffy-text">Pausar Respiración</span>';
 
+    KidAudioEffects.playTone(392, 'sine', 0.5, 0.2); // Sol suave
     runBalloonCycle();
 }
 
@@ -2264,22 +2649,27 @@ function stopBalloonBreathing() {
     const instruction = document.getElementById('kidBreathingInstruction');
     const timer = document.getElementById('kidBreathingTimer');
     const btn = document.getElementById('btnToggleBalloon');
+    const eyes = document.getElementById('kidBalloonEyes');
+    const mouth = document.getElementById('kidBalloonMouth');
 
     if (balloon) {
         balloon.classList.remove('inhale', 'exhale');
     }
+    if (eyes) eyes.innerHTML = '<span class="eye left">●</span><span class="eye right">●</span>';
+    if (mouth) mouth.textContent = '‿';
     if (instruction) instruction.textContent = '¡Muy bien hecho! Puedes volver a respirar cuando quieras.';
     if (timer) timer.textContent = '0s';
-    if (btn) btn.innerHTML = '<span>Comenzar a Respirar 🎈</span>';
+    if (btn) btn.innerHTML = '<span class="btn-puffy-icon">🎈</span> <span class="btn-puffy-text">¡Comenzar a Respirar!</span>';
 }
 
 function runBalloonCycle() {
     if (!balloonBreathingActive) return;
 
     const balloon = document.getElementById('kidBalloon');
-    const face = document.getElementById('kidBalloonFace');
     const instruction = document.getElementById('kidBreathingInstruction');
     const timer = document.getElementById('kidBreathingTimer');
+    const eyes = document.getElementById('kidBalloonEyes');
+    const mouth = document.getElementById('kidBalloonMouth');
 
     // Fase 1: Inhalar (4 segundos)
     isBalloonInhaling = true;
@@ -2288,9 +2678,12 @@ function runBalloonCycle() {
         balloon.classList.remove('exhale');
         balloon.classList.add('inhale');
     }
-    if (face) face.textContent = '😮';
+    if (eyes) eyes.innerHTML = '<span class="eye left">◉</span><span class="eye right">◉</span>';
+    if (mouth) mouth.textContent = 'o';
     if (instruction) instruction.textContent = '🌬️ Inhala suavemente por la nariz... llenando el globo';
     if (timer) timer.textContent = `${balloonPhaseSeconds}s`;
+
+    KidAudioEffects.playTone(440, 'sine', 1.0, 0.15); // Tono suave de inhalación
 
     let elapsed = 0;
     balloonBreathingTimer = setInterval(() => {
@@ -2301,7 +2694,6 @@ function runBalloonCycle() {
 
         if (elapsed >= balloonPhaseSeconds) {
             clearInterval(balloonBreathingTimer);
-            // Pasar a Fase 2: Exhalar (6 segundos)
             startBalloonExhale();
         }
     }, 1000);
@@ -2311,9 +2703,10 @@ function startBalloonExhale() {
     if (!balloonBreathingActive) return;
 
     const balloon = document.getElementById('kidBalloon');
-    const face = document.getElementById('kidBalloonFace');
     const instruction = document.getElementById('kidBreathingInstruction');
     const timer = document.getElementById('kidBreathingTimer');
+    const eyes = document.getElementById('kidBalloonEyes');
+    const mouth = document.getElementById('kidBalloonMouth');
 
     isBalloonInhaling = false;
     balloonPhaseSeconds = 6;
@@ -2321,9 +2714,12 @@ function startBalloonExhale() {
         balloon.classList.remove('inhale');
         balloon.classList.add('exhale');
     }
-    if (face) face.textContent = '😌';
+    if (eyes) eyes.innerHTML = '<span class="eye left">^</span><span class="eye right">^</span>';
+    if (mouth) mouth.textContent = '‿';
     if (instruction) instruction.textContent = '🍃 Exhala despacito por la boca... soltando el aire como una pluma';
     if (timer) timer.textContent = `${balloonPhaseSeconds}s`;
+
+    KidAudioEffects.playTone(330, 'sine', 1.5, 0.12); // Tono relajante de exhalación
 
     let elapsed = 0;
     balloonBreathingTimer = setInterval(() => {
@@ -2342,6 +2738,8 @@ function startBalloonExhale() {
 
             if (PortalState.kidCalmCycles % 3 === 0) {
                 awardKidStars(1);
+                KidAudioEffects.playSuccess();
+                KidConfetti.burst(window.innerWidth / 2, window.innerHeight * 0.45, 30);
                 showToast('⭐ ¡Superpoder de calma desbloqueado! 3 respiraciones completas (+1 ⭐)', 'success');
             }
 
@@ -2357,7 +2755,7 @@ function startBalloonExhale() {
                 });
             }
 
-            // Repetir siguiente ciclo
+            // Siguiente ciclo
             runBalloonCycle();
         }
     }, 1000);
@@ -2372,12 +2770,16 @@ window.submitKidWeatherAndBody = submitKidWeatherAndBody;
 window.pickAvatarChar = pickAvatarChar;
 window.pickAvatarAura = pickAvatarAura;
 window.pickAvatarAccessory = pickAvatarAccessory;
+window.generateRandomKidAvatarName = generateRandomKidAvatarName;
 window.saveKidAvatar = saveKidAvatar;
 window.promptCustomBubble = promptCustomBubble;
 window.setCanvasColor = setCanvasColor;
+window.setRainbowBrush = setRainbowBrush;
 window.setCanvasBrushSize = setCanvasBrushSize;
 window.toggleCanvasEraser = toggleCanvasEraser;
 window.setCanvasStamp = setCanvasStamp;
 window.clearKidCanvas = clearKidCanvas;
 window.submitKidDrawing = submitKidDrawing;
 window.toggleBalloonBreathing = toggleBalloonBreathing;
+window.KidAudioEffects = KidAudioEffects;
+window.KidConfetti = KidConfetti;
