@@ -1,0 +1,4 @@
+◇ injected env (0) from .env // tip: ⌘ suppress logs { quiet: true }
+ℹ️ DATABASE_URL no configurada. Operando en modo motor relacional embebido.
+🧠 Psico Notes Clinical v6.0 activo en http://localhost:4173
+📱 Portal de Pacientes disponible en http://localhost:4173/portal.html

@@ -1425,12 +1425,12 @@ LISTAS Y TARJETAS
   background: var(--bg-card);
   border: 1px solid var(--border-primary);
   border-radius: var(--radius-lg);
-  padding: 24px;
-  margin-bottom: 24px;
+  padding: 16px 20px;
+  margin-bottom: 14px;
   box-shadow: var(--shadow-sm);
   display: flex;
   flex-direction: column;
-  gap: 16px;
+  gap: 12px;
   transition: all var(--transition-normal);
 }
 
@@ -1631,31 +1631,43 @@ LISTAS Y TARJETAS
 .wellbeing-status.warning { background: rgba(245, 158, 11, 0.2); color: #b45309; }
 .wellbeing-status.critical { background: rgba(239, 68, 68, 0.15); color: #dc2626; }
 
-/* Pestañas estilo Apple Segmented Control */
+/* Pestañas estilo Apple Segmented Control - Barra Superior y Sticky */
 .patient-tabs {
   display: flex;
-  gap: 4px;
-  background: var(--bg-secondary);
-  padding: 5px;
-  border-radius: 14px;
+  gap: 6px;
+  background: var(--bg-card);
+  padding: 6px 8px;
+  border-radius: 12px;
   border: 1px solid var(--border-primary);
-  margin-bottom: 24px;
+  margin-bottom: 20px;
   overflow-x: auto;
+  position: sticky;
+  top: 0;
+  z-index: 25;
+  box-shadow: 0 4px 14px rgba(15, 23, 42, 0.06);
+  backdrop-filter: blur(10px);
+  -webkit-overflow-scrolling: touch;
+}
+[data-theme="dark"] .patient-tabs {
+  background: rgba(30, 41, 59, 0.95);
+  border-color: rgba(255, 255, 255, 0.1);
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.25);
 }
 .patient-tab {
-  padding: 8px 16px;
+  padding: 8px 14px;
   background: transparent;
-  border: none;
+  border: 1px solid transparent;
   color: var(--text-secondary);
   font-size: 13px;
   font-weight: 500;
   cursor: pointer;
-  border-radius: 9px;
+  border-radius: 8px;
   transition: all 0.18s ease;
   white-space: nowrap;
   display: flex;
   align-items: center;
   gap: 6px;
+  flex-shrink: 0;
 }
 .patient-tab:hover {
   color: var(--text-primary);
@@ -1663,7 +1675,8 @@ LISTAS Y TARJETAS
 }
 .patient-tab.active {
   color: var(--accent-primary);
-  background: var(--bg-card);
+  background: var(--bg-secondary);
+  border-color: var(--border-primary);
   font-weight: 600;
   box-shadow: var(--shadow-sm);
 }

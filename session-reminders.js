@@ -12,9 +12,18 @@ const ReminderState = {
 };
 
 // Cargar estado de almacenamiento local
+// Helper seguro para obtener AppState sin lanzar ReferenceError
+function getSessionAppState() {
+    if (typeof AppState !== 'undefined' && AppState) return AppState;
+    if (typeof window !== 'undefined' && window.AppState) return window.AppState;
+    return { currentUser: null, appointments: [], patients: [], notes: [] };
+}
+
+// Cargar estado de almacenamiento local
 function loadReminderState() {
     try {
-        const uid = AppState.currentUser ? AppState.currentUser.id : 'anon';
+        const state = getSessionAppState();
+        const uid = state.currentUser ? state.currentUser.id : 'anon';
         const key = `psico_reminders_state_${uid}`;
         const stored = localStorage.getItem(key);
         if (stored) {
@@ -31,7 +40,8 @@ function loadReminderState() {
 // Guardar estado de almacenamiento local
 function saveReminderState() {
     try {
-        const uid = AppState.currentUser ? AppState.currentUser.id : 'anon';
+        const state = getSessionAppState();
+        const uid = state.currentUser ? state.currentUser.id : 'anon';
         const key = `psico_reminders_state_${uid}`;
         localStorage.setItem(key, JSON.stringify({
             dismissed: ReminderState.dismissed,
@@ -50,11 +60,12 @@ function evaluateSessionReminders() {
     loadReminderState();
     const reminders = [];
     const now = new Date();
-    const todayStr = toDateInputValue(now);
+    const state = getSessionAppState();
+    const todayStr = typeof toDateInputValue === 'function' ? toDateInputValue(now) : (typeof window !== 'undefined' && typeof window.toDateInputValue === 'function' ? window.toDateInputValue(now) : now.toISOString().split('T')[0]);
 
     // 1. EVALUAR SESIONES FINALIZADAS SIN NOTA CLÍNICA
     // Busca citas de las últimas 2 semanas cuya hora pasó o fueron marcadas completadas pero no tienen nota SOAP registrada
-    AppState.appointments.forEach(app => {
+    (state.appointments || []).forEach(app => {
         if (app.status === 'cancelada') return;
 
         const appDate = new Date(app.date + 'T' + (app.time || '00:00') + ':00');
@@ -64,15 +75,16 @@ function evaluateSessionReminders() {
         const daysDiff = (now - appDate) / (1000 * 60 * 60 * 24);
         if (isPast && daysDiff >= 0 && daysDiff <= 14) {
             // Verificar si existe nota para este paciente en esta fecha
-            const hasNote = AppState.notes.some(n => {
+            const hasNote = (state.notes || []).some(n => {
                 if (n.patientId !== app.patientId) return false;
                 if (n.appointmentId && n.appointmentId === app.id) return true;
                 const noteDate = new Date(n.date);
-                return isSameDay(noteDate, appDate);
+                if (typeof isSameDay === 'function') return isSameDay(noteDate, appDate);
+                return n.date === app.date;
             });
 
             if (!hasNote) {
-                const patient = AppState.patients.find(p => p.id === app.patientId);
+                const patient = (state.patients || []).find(p => p.id === app.patientId);
                 const reminderId = `no_note_${app.id}`;
                 if (!isReminderActive(reminderId)) return;
 
@@ -693,4 +705,15 @@ if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', initSessionReminders);
 } else {
     initSessionReminders();
+}
+
+// Exposición global
+if (typeof window !== 'undefined') {
+    window.openCustomReminderModal = openCustomReminderModal;
+    window.closeReminderDrawer = closeReminderDrawer;
+    window.toggleReminderDrawer = toggleReminderDrawer;
+    window.filterReminderDrawerCategory = filterReminderDrawerCategory;
+    window.completeAppointmentFromReminder = completeAppointmentFromReminder;
+    window.updateSessionRemindersUI = updateSessionRemindersUI;
+    window.evaluateSessionReminders = evaluateSessionReminders;
 }

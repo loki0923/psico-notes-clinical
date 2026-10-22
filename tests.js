@@ -2673,6 +2673,67 @@ ClinicalTestSuite.add('TC-EXP-01', 'Ficha Rápida del Expediente Clínico (Estat
     }
 });
 
+// 64. TC-EXP-02: Ubicación Superior Inmediata y Sticky de las Pestañas del Expediente Clínico
+ClinicalTestSuite.add('TC-EXP-02', 'Ubicación Superior Inmediata y Sticky de las Pestañas del Expediente Clínico', async () => {
+    const fs = await import('fs');
+    const appJs = fs.readFileSync('app.js', 'utf8');
+    const stylesCss = fs.readFileSync('styles.css', 'utf8');
+
+    // 1. En viewPatient, patient-tabs debe ubicarse ANTES de los contenidos de pestaña y antes de tab-resumen
+    const viewPatientIdx = appJs.indexOf('function viewPatient(id)');
+    if (viewPatientIdx === -1) throw new Error('function viewPatient no encontrada en app.js');
+
+    const heroIdx = appJs.indexOf('patient-dossier-hero', viewPatientIdx);
+    const tabsIdx = appJs.indexOf('class="patient-tabs"', viewPatientIdx);
+    const tabResumenIdx = appJs.indexOf('id="tab-resumen"', viewPatientIdx);
+    const tabNotasIdx = appJs.indexOf('id="tab-notas"', viewPatientIdx);
+
+    if (tabsIdx === -1 || tabResumenIdx === -1 || tabNotasIdx === -1) {
+        throw new Error('No se encontraron patient-tabs o los contenedores de pestañas en viewPatient');
+    }
+
+    if (tabsIdx < heroIdx) {
+        throw new Error('patient-tabs debe ir posterior al encabezado hero del paciente para mantener el contexto del sujeto');
+    }
+
+    if (tabsIdx > tabResumenIdx || tabsIdx > tabNotasIdx) {
+        throw new Error('patient-tabs debe ubicarse en la parte superior, antes de tab-resumen y tab-notas');
+    }
+
+    // 2. Comprobar que en styles.css .patient-tabs tiene position: sticky y top: 0
+    if (!stylesCss.includes('.patient-tabs') || !stylesCss.includes('position: sticky;') || !stylesCss.includes('top: 0;')) {
+        throw new Error('styles.css debe configurar .patient-tabs con position: sticky y top: 0 para permanencia visual al scroll');
+    }
+});
+
+// 67. TC-FILE-01: Resiliencia ante Apertura Directa de Archivo Local (file:// Protocol y Mitigación CORS)
+ClinicalTestSuite.add('TC-FILE-01', 'Resiliencia ante Apertura Directa de Archivo Local (Protocolo file:// y Mitigación CORS)', async () => {
+    const fs = await import('fs');
+    const indexHtml = fs.readFileSync('index.html', 'utf8');
+    const appJs = fs.readFileSync('app.js', 'utf8');
+    const portalJs = fs.readFileSync('portal.js', 'utf8');
+
+    // 1. Validar que el ServiceWorker y manifest en index.html estén protegidos contra protocolo file:
+    if (!indexHtml.includes("window.location.protocol === 'http:' || window.location.protocol === 'https:'")) {
+        throw new Error('index.html debe verificar protocolo http/https antes de cargar manifest o registrar ServiceWorker');
+    }
+
+    // 2. Validar que exista el banner de advertencia local fileProtocolNotice
+    if (!indexHtml.includes('id="fileProtocolNotice"')) {
+        throw new Error('index.html debe contener el elemento banner #fileProtocolNotice para orientar al usuario en modo local');
+    }
+
+    // 3. Validar que app.js proteja ensureSessionToken y sincronización en la nube contra protocolo file:
+    if (!appJs.includes("window.location.protocol === 'file:'")) {
+        throw new Error("app.js debe proteger funciones críticas de red contra window.location.protocol === 'file:'");
+    }
+
+    // 4. Validar que portal.js verifique protocolo antes de llamar al backend de auth
+    if (!portalJs.includes("window.location.protocol !== 'file:'")) {
+        throw new Error("portal.js debe proteger endpoints /api/v1/portal/auth contra protocolo file://");
+    }
+});
+
 // Auto-ejecución si se corre desde Node.js (CLI)
 if (typeof process !== 'undefined' && process.argv && process.argv[1] && process.argv[1].endsWith('tests.js')) {
     ClinicalTestSuite.runAll().then(res => {

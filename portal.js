@@ -199,7 +199,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     try {
         const urlParams = new URLSearchParams(window.location.search);
         const queryToken = (urlParams.get('token') || urlParams.get('code') || '').trim();
-        if (queryToken) {
+        if (queryToken && window.location.protocol !== 'file:') {
             // Intentar autenticación contra backend PostgreSQL
             try {
                 const res = await fetch('/api/v1/portal/auth', {
@@ -303,32 +303,34 @@ async function handleAccess() {
         return;
     }
 
-    // 1. Intentar autenticar contra el servidor backend (PostgreSQL)
-    try {
-        const res = await fetch('/api/v1/portal/auth', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ token: code })
-        });
-        if (res.ok) {
-            const data = await res.json();
-            if (data.authenticated && data.patient) {
-                PortalState.patientId = data.patient.id;
-                PortalState.patientName = data.patient.name;
-                PortalState.therapistName = data.patient.therapistName || 'Tu terapeuta';
-                PortalState.portalToken = data.patient.portalToken || code;
-                localStorage.setItem('psico_portal_session', JSON.stringify({
-                    patientId: data.patient.id,
-                    portalToken: PortalState.portalToken,
-                    patientName: data.patient.name,
-                    therapistName: data.patient.therapistName
-                }));
-                await enterPortal();
-                return;
+    // 1. Intentar autenticar contra el servidor backend (PostgreSQL) si no es file://
+    if (window.location.protocol !== 'file:') {
+        try {
+            const res = await fetch('/api/v1/portal/auth', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ token: code })
+            });
+            if (res.ok) {
+                const data = await res.json();
+                if (data.authenticated && data.patient) {
+                    PortalState.patientId = data.patient.id;
+                    PortalState.patientName = data.patient.name;
+                    PortalState.therapistName = data.patient.therapistName || 'Tu terapeuta';
+                    PortalState.portalToken = data.patient.portalToken || code;
+                    localStorage.setItem('psico_portal_session', JSON.stringify({
+                        patientId: data.patient.id,
+                        portalToken: PortalState.portalToken,
+                        patientName: data.patient.name,
+                        therapistName: data.patient.therapistName
+                    }));
+                    await enterPortal();
+                    return;
+                }
             }
+        } catch (e) {
+            console.warn('Backend no disponible, recurriendo a verificación local:', e);
         }
-    } catch (e) {
-        console.warn('Backend no disponible, recurriendo a verificación local:', e);
     }
 
     // 2. Fallback a lista local si el servidor estuviese offline

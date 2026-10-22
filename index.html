@@ -4,7 +4,14 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, viewport-fit=cover">
     <title>Psico Notes - Gestión Clínica Avanzada</title>
-    <link rel="manifest" href="manifest.json">
+    <script>
+        if (window.location.protocol === 'http:' || window.location.protocol === 'https:') {
+            var manifestLink = document.createElement('link');
+            manifestLink.rel = 'manifest';
+            manifestLink.href = 'manifest.json';
+            document.head.appendChild(manifestLink);
+        }
+    </script>
     <meta name="theme-color" content="#1e5a52">
     <meta name="mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-capable" content="yes">
@@ -14,9 +21,33 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Playfair+Display:wght@500;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <link rel="stylesheet" href="styles.css?v=6.6.1">
+    <link rel="stylesheet" href="styles.css?v=6.7.0">
 </head>
 <body>
+
+<!-- FILE PROTOCOL ADVISORY BANNER -->
+<div id="fileProtocolNotice" style="display:none; background: linear-gradient(135deg, #0f766e 0%, #1e3a8a 100%); color: #ffffff; padding: 10px 16px; font-size: 13px; line-height: 1.4; border-bottom: 2px solid #38bdf8; position: sticky; top: 0; z-index: 99999;">
+    <div style="max-width: 1200px; margin: 0 auto; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 8px;">
+        <div style="display: flex; align-items: center; gap: 8px;">
+            <span style="font-size: 18px;">💡</span>
+            <span><strong>Modo Local Activo (file:///):</strong> Para habilitar el Service Worker offline y la sincronización multi-dispositivo en la nube, abre la versión en línea en Render o inicia el servidor local (<code>npm start</code>).</span>
+        </div>
+        <div style="display: flex; align-items: center; gap: 8px;">
+            <a href="https://psico-notes-clinical.onrender.com/" target="_blank" rel="noopener" style="background: #38bdf8; color: #0f172a; font-weight: 700; padding: 5px 12px; border-radius: 6px; text-decoration: none; font-size: 12px; display: inline-flex; align-items: center; gap: 5px;">
+                <i class="fas fa-external-link-alt"></i> Ir a la Nube Oficial
+            </a>
+            <button onclick="document.getElementById('fileProtocolNotice').style.display='none'" style="background: rgba(255,255,255,0.25); border: none; color: white; border-radius: 4px; padding: 4px 8px; cursor: pointer; font-size: 13px;">✕</button>
+        </div>
+    </div>
+</div>
+<script>
+    if (window.location.protocol === 'file:') {
+        document.addEventListener('DOMContentLoaded', function() {
+            var b = document.getElementById('fileProtocolNotice');
+            if (b) b.style.display = 'block';
+        });
+    }
+</script>
 
 <!-- AUTH SCREEN -->
 <div class="auth-screen hidden" id="authScreen">
@@ -1809,6 +1840,8 @@
             <!-- Inyectado dinámicamente por showPortalQrCode() -->
         </div>
     </div>
+</div>
+
 <!-- MODAL DE EDICIÓN DE OBJETIVOS DEL MES -->
 <div class="modal" id="monthlyGoalsModal">
     <div class="modal-overlay" onclick="closeModal('monthlyGoalsModal')"></div>
@@ -1917,7 +1950,7 @@
 <script src="psychoed.js"></script>
 <script src="reports.js"></script>
 <script src="vademecum.js"></script>
-<script src="app.js?v=6.6.2"></script>
+<script src="app.js?v=6.7.0"></script>
 <script src="scales.js"></script>
 <script src="finance.js"></script>
 <script src="adm.js"></script>
@@ -1927,8 +1960,8 @@
 <script src="consentimiento.js"></script>
 <script src="historia-clinica.js"></script>
 <script>
-if ('serviceWorker' in navigator) {
-    navigator.serviceWorker.register('/sw.js?v=6.6.2')
+if ('serviceWorker' in navigator && (window.location.protocol === 'http:' || window.location.protocol === 'https:')) {
+    navigator.serviceWorker.register('/sw.js?v=6.7.0')
         .then(() => console.log('✅ ServiceWorker registrado'))
         .catch(err => console.log('SW Error:', err));
 }

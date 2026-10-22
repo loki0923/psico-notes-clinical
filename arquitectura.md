@@ -2189,4 +2189,292 @@ flowchart TD
   - `status-inactivo`: Pizarra (`#64748b`).
 - **Pruebas Automatizadas:** `TC-EXP-01` valida la presencia de los campos, la reactividad de `onPatientStatusChange`, la pestaña y los identificadores visuales en CSS.
 
+---
+
+## 23. MÓDULO DE NAVEGACIÓN SUPERIOR INMEDIATA Y STICKY DEL EXPEDIENTE CLÍNICO
+
+### 23.1. Requerimiento Clínico y Ergonomía Visual
+El terapeuta requería que, apenas abra o ingrese al expediente clínico de cualquier paciente, la barra completa de navegación por pestañas (`.patient-tabs`) sea visible en la **parte superior de la pantalla** sin requerir scroll vertical ni quedar sepultada por widgets analíticos o cajas de alertas.
+
+### 23.2. Solución Arquitectónica
+1. **Reordenamiento Estructural en el Árbol DOM (`viewPatient`):**
+   - **Nivel 1:** Encabezado Hero del Paciente (`.patient-dossier-hero` / `.patient-intel-header`) optimizado a una altura compacta (~130px), con Avatar, Nombre, Estatus chip con selector rápido y chips de identificación esenciales.
+   - **Nivel 2 (Superior Inmediato):** Barra de Pestañas Segmentadas (`.patient-tabs`), con botones de acceso directo:
+     - `📂 Expediente Clínico` (activa por defecto)
+     - `📝 Notas de sesión (X)`
+     - `📋 Historia`
+     - `📈 Línea de Tiempo`
+     - `🎯 Objetivos`
+     - `📊 Evaluaciones`
+     - `🤝 Red de Apoyo`
+     - `📱 Portal Paciente`
+   - **Nivel 3:** Contenedor de la pestaña activa (`.patient-tab-content.active`).
+
+2. **Integración Modular de Analítica en `#tab-resumen`:**
+   Los widgets analíticos y de asistencia que anteriormente empujaban la barra de navegación hacia abajo (`renderSessionPrepCard`, anillo de bienestar, `renderEmotionalProfile` y `renderClinicalInsights`) fueron trasladados limpiamente al interior de la pestaña de **Expediente Clínico**. De este modo, las demás pestañas (Notas, Historia, Timeline, etc.) cargan de forma limpia e instantánea directamente bajo las pestañas sin desplazamientos forzados.
+
+3. **Fijación Flotante Inteligente (`position: sticky`):**
+   - `position: sticky; top: 0; z-index: 25;`
+   - `backdrop-filter: blur(10px);`
+   - `box-shadow: 0 4px 14px rgba(15, 23, 42, 0.06);`
+   - Compatibilidad total con Dark Mode (`[data-theme="dark"]`).
+
+### 23.3. Diagrama de Arquitectura de Capas de la Interfaz
+
+```mermaid
+flowchart TD
+    subgraph Modal_Container["🪟 Modal Expediente Clínico (#patientDetailModal)"]
+        Hero["👤 1. Dossier Hero Compacto (~130px)\nAvatar | Nombre | Estatus Chip | Selector | Acciones"]
+        StickyTabs["📌 2. Barra de Pestañas Superior Sticky (top: 0, z-index: 25)\n[📂 Expediente Clínico] [📝 Notas] [📋 Historia] [📈 Timeline] [🎯 Objetivos] [📊 Evaluaciones] [🤝 Apoyo] [📱 Portal]"]
+        
+        subgraph Tab_Content["📂 3. Contenedor de Pestaña Activa"]
+            TabResumen["📂 Pestaña: Expediente Clínico\n- Alta Banner (si aplica)\n- KPI Grid (Ingreso, Egreso, Estatus, TCC)\n- Fichas Rápidas (Datos Px + Intervención)\n- Preparación de Sesión & Copiloto IA\n- Bienestar & Métricas Longitudinales\n- Perfil Emocional & Alertas"]
+            TabNotas["📝 Pestaña: Notas de sesión\n- Listado cronológico limpio\n- Botón + Reporte de Atención"]
+            TabHistoria["📋 Pestaña: Historia Clínica\n- Anamnesis por Etapa Vital protocolizada"]
+            TabOther["Otras Pestañas (Timeline, Objetivos, etc.)"]
+        end
+    end
+
+    Hero --> StickyTabs
+    StickyTabs --> TabResumen
+    StickyTabs -.->|Click Tab Notas| TabNotas
+    StickyTabs -.->|Click Tab Historia| TabHistoria
+    StickyTabs -.->|Click Otras| TabOther
+```
+
+### 23.4. Diagrama de Secuencia de Apertura y Navegación Ágil
+
+```mermaid
+sequenceDiagram
+    autonumber
+    actor T as Terapeuta
+    participant UI as Modal Expediente (#patientDetail)
+    participant DOM as Barra Sticky (.patient-tabs)
+    participant Tab as Pestaña Activa (#tab-resumen)
+    participant State as AppState (Pacientes, Notas, Citas)
+
+    T->>UI: Clic en "Ver Expediente"
+    UI->>State: Obtiene datos del paciente, notas, citas e historial
+    UI->>DOM: Renderiza Hero compacto + Barra de Pestañas inmediatamente arriba
+    UI->>Tab: Renderiza Ficha rápida y KPIs dentro de #tab-resumen
+    Note over T,DOM: Apenas abre el expediente, el terapeuta visualiza todas las pestañas arriba
+    T->>DOM: Clic en "Notas de sesión"
+    DOM->>Tab: Oculta #tab-resumen (display: none)
+    DOM->>UI: Muestra #tab-notas inmediatamente bajo las pestañas
+    T->>UI: Desplaza hacia abajo en notas largas
+    Note over DOM: .patient-tabs permanece fijo arriba con position: sticky
+```
+
+### 23.5. Verificación de Calidad y Pruebas Automatizadas
+- **`TC-EXP-02`**: Valida que en `app.js`, `.patient-tabs` se encuentre posicionado antes de cualquier contenido de pestaña (`tab-resumen`, `tab-notas`, etc.), garantiza que los widgets analíticos estén encapsulados dentro de `tab-resumen`, y confirma que en `styles.css` `.patient-tabs` cuenta con `position: sticky; top: 0; z-index: 25;` para visibilidad continua en scroll.
+
+---
+
+## 24. AUDITORÍA INTEGRAL Y BLINDAJE DE BOTONES, MODALES, NAVEGACIÓN Y ACCESO AL PORTAL (v6.7.0)
+
+### 24.1. Diagnóstico Clínico en Producción
+A partir de la auditoría en vivo en `https://psico-notes-clinical.onrender.com/` y la revisión de campo con la especialista en psicología clínica, se detectaron fallos críticos de interacción donde ciertos botones de la barra lateral, modales y enlaces directos no ejecutaban su acción esperada.
+
+### 24.2. Matriz de Errores Identificados y Soluciones de Ingeniería
+
+| N.º | Componente / Botón | Causa Raíz Detectada | Solución Implementada en v6.7.0 | Estado |
+|---|---|---|---|---|
+| **1** | **Editar Tarifas** (`sidebar`) | `openRatesManagementModal()` invocaba `switchView('finance')`. `switchView` no existía en el ámbito del terapeuta (`navigateTo`), provocando `ReferenceError: switchView is not defined`. | Reemplazado por `navigateTo('finance')` con conmutación programada a la pestaña de tarifas `switchFinanceTab('rates')`. Se declaró adicionalmente `window.switchView = navigateTo` como alias universal. | ✅ Resuelto |
+| **2** | **Objetivos del Mes** (`sidebar`) | Invocaba `openModal('monthlyGoalsModal')`, pero el contenedor `#monthlyGoalsModal` no existía en el DOM de `index.html`. Además, un cierre prematuro de `<div>` en `#qrModal` anidaba los modales inferiores. | Cierre balanceado de `#qrModal` en `index.html`, inyección del modal `#monthlyGoalsModal` con campos cuantitativos (sesiones, honorarios) y cualitativos, acoplado al `AppState` y a metas financieras de `finance.js`. | ✅ Resuelto |
+| **3** | **Acceso al Portal Paciente** | La URL se componía con dobles barras (`//portal.html?token=...`). En el expediente clínico faltaba un botón directo de lanzamiento. `window.launchPatientPortal` no estaba expuesto en `window`. | Se normalizó la URL con `cleanBase = pathname.replace(/\/[^\/]*$/, '/')`. Se integró botón directo "Abrir Portal del Paciente" en la cabecera de la pestaña `tab-portal` y en el modal de credenciales, con fallback automático si el navegador bloquea pestañas emergentes. | ✅ Resuelto |
+| **4** | **Transición de Estados de Citas** | Solo existía botón para completar cita. Faltaba selector rápido para marcar citas como agendadas, reprogramadas o canceladas desde la vista de calendario diario. | Incorporación del `<select>` de estados interactivo en la vista diaria del calendario acoplado a `setAppointmentStatus(id, newStatus)` con persistencia inmediata y actualización reactiva de estadísticas. | ✅ Resuelto |
+| **5** | **Terminología "Personas"** | Persistían etiquetas de "Personas en Proceso" en el breadcrumb y en estados vacíos de niñez/adolescencia. | Actualización integral a **"Pacientes"** en breadcrumbs, estados vacíos, títulos y textos de consentimiento. | ✅ Resuelto |
+| **6** | **Exposición Global en `window`** | Controladores `onclick` fallaban en tiempo de ejecución (`ReferenceError`) por falta de exposición explícita en `window`. | Exportación centralizada y exhaustiva de todas las funciones de interfaz en `window` (modales, recordatorios, dictado, IA, backup y facturación SENIAT). | ✅ Resuelto |
+| **7** | **Incompatibilidad de Caché PWA** | El ServiceWorker en `v6.6.2` retenía archivos JavaScript antiguos en los clientes web. | Incremento de versión de caché a `psico-v6.7.0` en `sw.js` e `index.html`, forzando la renovación inmediata de scripts y hojas de estilo. | ✅ Resuelto |
+
+---
+
+### 24.3. Diagrama de Arquitectura de Navegación Unificada y Despacho de Eventos
+
+```mermaid
+flowchart TD
+    subgraph UI_Triggers["🖱️ Disparadores de Interfaz (HTML & onclick)"]
+        BtnTarifas["Boton 'Editar Tarifas'"]
+        BtnMetas["Boton 'Objetivos del Mes'"]
+        BtnPortalModal["Boton 'Acceder al Portal'"]
+        BtnPortalTab["Boton 'Abrir Portal del Paciente'"]
+        SelectApt["Selector de Estado de Cita"]
+        BtnConsent["Boton 'Consentimiento Informado'"]
+    end
+
+    subgraph Scope_Window["🌐 Ambito Global Blindado (window)"]
+        W_Navigate["window.navigateTo(view)"]
+        W_Switch["window.switchView(view) -> navigateTo"]
+        W_Rates["window.openRatesManagementModal()"]
+        W_Goals["window.openMonthlyGoalsModal()"]
+        W_Portal["window.launchPatientPortal(patientId)"]
+        W_AptStatus["window.setAppointmentStatus(id, status)"]
+        W_Consent["window.openInformedConsentModal(patientId)"]
+        W_Modals["window.openModal() / closeModal()"]
+    end
+
+    subgraph Modals_Views["🪟 Vistas y Modales del Sistema"]
+        V_Finance["Vista Finanzas (tab: rates)"]
+        M_Goals["#monthlyGoalsModal (Sesiones / Ingresos)"]
+        M_PortalCreds["#portalAccessModal (PIN / QR)"]
+        M_Consent["#consentModal (Firma Táctil)"]
+        V_Calendar["Vista Agenda & Calendario"]
+        V_Patients["Vista Pacientes"]
+    end
+
+    subgraph Patient_Portal["📱 Portal Web del Paciente (portal.html)"]
+        PortalTab["Pestaña Nueva: portal.html?token=PN-XXXX"]
+        LocalSession["localStorage: psico_portal_session"]
+        DBAuth["POST /api/v1/portal/auth (PostgreSQL)"]
+    end
+
+    BtnTarifas --> W_Rates
+    W_Rates --> W_Navigate
+    W_Navigate --> V_Finance
+
+    BtnMetas --> W_Goals
+    W_Goals --> M_Goals
+
+    BtnPortalModal --> W_Portal
+    BtnPortalTab --> W_Portal
+    W_Portal --> LocalSession
+    W_Portal --> PortalTab
+    PortalTab --> DBAuth
+
+    SelectApt --> W_AptStatus
+    W_AptStatus --> V_Calendar
+
+    BtnConsent --> W_Consent
+    W_Consent --> M_Consent
+```
+
+---
+
+### 24.4. Diagrama de Secuencia de Apertura Blindada del Portal del Paciente
+
+```mermaid
+sequenceDiagram
+    autonumber
+    actor T as Terapeuta
+    participant UI as Expediente / Modal Portal
+    participant App as app.js (launchPatientPortal)
+    participant Store as localStorage
+    participant Win as Navegador (window.open)
+    participant Portal as portal.html (Mi Espacio)
+    participant API as Backend (PostgreSQL)
+
+    T->>UI: Clic en "Abrir Portal del Paciente" o "Acceder al Portal"
+    UI->>App: launchPatientPortal(patientId)
+    App->>Store: ensurePatientPortalToken(patient) -> "PN-XXXXXX"
+    App->>Store: Guarda psico_portal_session (patientId, token, therapistName)
+    App->>App: Construye URL limpia: /portal.html?token=PN-XXXXXX
+    App->>Win: window.open(targetUrl, '_blank')
+    alt Ventana emergente permitida
+        Win->>Portal: Abre en pestaña nueva con parámetro ?token
+    else Popup bloqueado por navegador
+        App->>Win: Fallback inmediato: window.location.href = targetUrl
+        Win->>Portal: Navega directamente en la pestaña actual
+    end
+    Portal->>API: POST /api/v1/portal/auth { token: "PN-XXXXXX" }
+    alt Conexión con PostgreSQL exitosa
+        API-->>Portal: HTTP 200 { authenticated: true, patient: { id, name } }
+    else Modo offline / DB local
+        Portal->>Store: Valida token en psico_portal_patients
+    end
+    Portal->>Portal: enterPortal() -> Renderiza tareas, tests y autorregistros
+    Note over T,Portal: El paciente o terapeuta accede instantáneamente sin fricción ni bloqueo
+```
+
+---
+
+### 24.5. Diagrama de Ciclo de Vida: Citas Clínicas y Estatus de Paciente
+
+```mermaid
+stateDiagram-v2
+    [*] --> Agendada: Cita creada en calendario
+
+    state "📅 Agendada" as Agendada
+    state "🔄 Reprogramada" as Reprogramada
+    state "✅ Completada" as Completada
+    state "❌ Cancelada" as Cancelada
+
+    Agendada --> Reprogramada: Cambio de fecha/hora
+    Reprogramada --> Agendada: Confirmación
+    Agendada --> Completada: Sesión finalizada
+    Reprogramada --> Completada: Sesión finalizada
+    Agendada --> Cancelada: Inasistencia / Aviso
+    Reprogramada --> Cancelada: Cancelación definitiva
+
+    state "Estatus del Paciente" as PatientStatus {
+        [*] --> PorIniciar: Alta de ficha clínica
+        PorIniciar --> EnEvaluacion: Primeras entrevistas diagnósticas
+        EnEvaluacion --> PlanIntervencion: Formulación de hipótesis y encuadre
+        PlanIntervencion --> Seguimiento: Consolidación de cambios intersesión
+        Seguimiento --> Alta: Cumplimiento de metas terapéuticas
+        Seguimiento --> Inactivo: Abandono o pausa del proceso
+        Inactivo --> Seguimiento: Retorno a consulta
+    }
+```
+
+---
+
+### 24.6. Checklist de Validación y Conformidad v6.7.0
+
+- [x] **Navegación Unificada**: `window.switchView` y `window.navigateTo` sincronizados sin excepciones.
+- [x] **Configuración de Tarifas**: El botón "Editar Tarifas" redirige de inmediato a la pestaña `rates` dentro de Finanzas.
+- [x] **Objetivos Mensuales**: `#monthlyGoalsModal` abre con metas de sesiones e ingresos pre-cargadas.
+- [x] **Portal del Paciente**: Apertura directa por botón y enlace sin doble barra, con sesión local pre-cargada.
+- [x] **Transición de Citas**: Menús desplegables reactivos para agendada, completada, reprogramada y cancelada.
+- [x] **Terminología Médica**: Eliminada la palabra "personas" en favor del estándar clínico **"Pacientes"**.
+- [x] **Suite de Pruebas**: 67 de 67 pruebas automatizadas (`node tests.js`) pasando satisfactoriamente.
+- [x] **Caché PWA**: Versionada a `psico-v6.7.0` para despliegue instantáneo en Render.
+
+---
+
+## 25. Resiliencia ante Apertura Directa Local (Protocolo `file:///` y Mitigación de Bloqueo CORS)
+
+### 25.1. Diagnóstico del Error en la Consola del Navegador
+Al abrir la aplicación web directamente desde el explorador de Windows haciendo doble clic sobre `index.html`, los navegadores basados en Chromium (Google Chrome, Microsoft Edge, Brave) y WebKit/Gecko imponen un origen restringido `origin: 'null'`. Bajo este contexto:
+1. **Bloqueo de Service Worker**: La especificación W3C prohíbe el registro de Service Workers en orígenes no seguros o nulos (`TypeError: Failed to register a ServiceWorker: The URL protocol of the current origin ('null') is not supported`).
+2. **Bloqueo de Web App Manifest**: Las etiquetas estáticas `<link rel="manifest" href="manifest.json">` disparan peticiones internas de lectura que Chromium rechaza con `Access to manifest ... from origin 'null' has been blocked by CORS policy`.
+3. **Fallo en Peticiones Relativas `fetch()`**: Las llamadas con rutas relativas como `fetch('/api/v1/auth/login')` son interpretadas por el navegador como rutas locales al disco (`file:///C:/api/v1/...`), resultando en errores fatales de red `net::ERR_FAILED` y `Failed to fetch`.
+
+### 25.2. Arquitectura de Aislamiento y Mitigación
+
+```mermaid
+flowchart TD
+    Inicio([Carga de index.html]) --> EvaluarProtocolo{¿window.location.protocol?}
+    
+    EvaluarProtocolo -->|'file:' (Apertura Directa)| ModoLocal[Modo Local Autónomo]
+    EvaluarProtocolo -->|'http:' o 'https:'| ModoNube[Modo Servidor / Nube Oficial]
+    
+    ModoLocal --> OmitirManifest[Omitir enlace estático a manifest.json]
+    ModoLocal --> OmitirSW[Omitir registro de ServiceWorker]
+    ModoLocal --> GuardarFetch[Omitir fetch a /api/v1/* y usar localStorage]
+    ModoLocal --> MostrarBanner[Mostrar Banner #fileProtocolNotice con enlace a Render]
+    
+    ModoNube --> InyectarManifest[Inyectar dinámicamente link rel='manifest']
+    ModoNube --> RegistrarSW[Registrar ServiceWorker /sw.js?v=6.7.0]
+    ModoNube --> SincronizarNube[Sincronización multi-dispositivo y API REST]
+```
+
+### 25.3. Medidas Técnicas Implementadas
+1. **Inyección Condicional del Manifest**:
+   - En `<head>`, se evalúa `if (window.location.protocol === 'http:' || window.location.protocol === 'https:')`.
+   - Se inyecta `<link rel="manifest" href="manifest.json">` dinámicamente solo en entornos servidos por HTTP/S, eliminando el error rojo de CORS en consola.
+2. **Protección del Service Worker**:
+   - Registro condicional: solo se invoca `navigator.serviceWorker.register` cuando el protocolo es `http:` o `https:`.
+3. **Salvaguardas en Gestores de Red y Autenticación**:
+   - `CloudSyncManager.ensureSessionToken`: Retorna el token local o de contingencia sin invocar `/api/v1/auth/login`.
+   - `CloudSyncManager.pushToCloud` & `pullFromCloud`: Actualizan la interfaz a estado local autónomo y abortan la llamada de red silenciosamente.
+   - `handleLogin` & `handleRegister`: Autentican y registran directamente contra la base local `getUsers()` cuando se corre bajo `file:///`.
+   - `syncPatientToPortalStorage` & `syncPortalDataForPatient`: Evitan llamadas en segundo plano a `/api/v1/patients/sync` y `/api/v1/portal/data/:id`.
+   - `adm.js`: Protege la facturación y sincronización fiscal contra peticiones en `file:///`.
+   - `portal.js`: Omite `/api/v1/portal/auth` y valida el token directo contra la lista local de pacientes.
+4. **Banner Informativo `#fileProtocolNotice`**:
+   - Se despliega automáticamente en la parte superior cuando se detecta `file:///`, explicando amablemente al usuario que está en modo local y proveyendo un botón de acceso directo a la plataforma en línea en Render (`https://psico-notes-clinical.onrender.com/`).
+
+### 25.4. Verificación Automatizada (TC-FILE-01)
+- Incorporada la prueba automatizada **TC-FILE-01** en [`tests.js`](file:///c:/Users/Windows%2011/OneDrive/Desktop/psico-notes-clinical/tests.js).
+- Cobertura: 67 de 67 pruebas unitarias y de integración pasando al 100% (cero fallos).
 

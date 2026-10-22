@@ -21,6 +21,9 @@ const AppState = {
     editingId: null,
     currentUser: null
 };
+if (typeof window !== 'undefined') {
+    window.AppState = AppState;
+}
 
 // ============================================
 // SEGURIDAD CLÍNICA & PRIVACIDAD (HIPAA / GDPR)
@@ -355,6 +358,10 @@ const CloudSyncManager = {
     },
 
     async ensureSessionToken(forceRefresh = false) {
+        if (typeof window !== 'undefined' && window.location && window.location.protocol === 'file:') {
+            return localStorage.getItem('psico_session_token') || 'local_file_token';
+        }
+
         let token = localStorage.getItem('psico_session_token');
         if (token && !forceRefresh) {
             try {
@@ -458,6 +465,10 @@ const CloudSyncManager = {
 
     async pushToCloud(showToastFeedback = false, retry = true) {
         if (!AppState.currentUser || !AppState.currentUser.id) return;
+        if (typeof window !== 'undefined' && window.location && window.location.protocol === 'file:') {
+            this.updateStatusUI('offline', 'Modo local (file://)');
+            return;
+        }
         if (!navigator.onLine) {
             this.updateStatusUI('offline');
             return;
@@ -547,6 +558,10 @@ const CloudSyncManager = {
     async pullFromCloud(therapistId = AppState.currentUser?.id, showToastFeedback = false, retry = true) {
         if (!therapistId && AppState.currentUser?.id) therapistId = AppState.currentUser.id;
         if (!therapistId) return false;
+        if (typeof window !== 'undefined' && window.location && window.location.protocol === 'file:') {
+            this.updateStatusUI('offline', 'Modo local (file://)');
+            return false;
+        }
         if (!navigator.onLine) {
             this.updateStatusUI('offline');
             return false;
@@ -744,15 +759,21 @@ function setSession(userId) { localStorage.setItem('psico_session', userId); }
 function clearSession() { localStorage.removeItem('psico_session'); }
 
 function showAuthScreen() {
-    document.getElementById('authScreen').classList.remove('hidden');
-    document.querySelector('.sidebar').style.display = 'none';
-    document.getElementById('mainContent').style.display = 'none';
+    const authEl = document.getElementById('authScreen');
+    if (authEl) authEl.classList.remove('hidden');
+    const sidebar = document.querySelector('.sidebar') || document.getElementById('sidebar');
+    if (sidebar) sidebar.style.display = 'none';
+    const main = document.getElementById('mainContent');
+    if (main) main.style.display = 'none';
 }
 
 function showApp() {
-    document.getElementById('authScreen').classList.add('hidden');
-    document.querySelector('.sidebar').style.display = '';
-    document.getElementById('mainContent').style.display = '';
+    const authEl = document.getElementById('authScreen');
+    if (authEl) authEl.classList.add('hidden');
+    const sidebar = document.querySelector('.sidebar') || document.getElementById('sidebar');
+    if (sidebar) sidebar.style.display = '';
+    const main = document.getElementById('mainContent');
+    if (main) main.style.display = '';
 }
 
 function updateSidebarUser() {
@@ -835,38 +856,44 @@ async function handleRequestResetCode(e) {
         return;
     }
 
-    try {
-        const res = await fetch('/api/v1/auth/forgot-password', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ email })
-        });
-        const data = await res.json();
+    if (typeof window === 'undefined' || !window.location || window.location.protocol !== 'file:') {
+        try {
+            const res = await fetch('/api/v1/auth/forgot-password', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ email })
+            });
+            const data = await res.json();
 
-        if (res.ok && data.status === 'ok') {
-            successEl.innerHTML = `<strong>✅ Solicitud procesada:</strong> Ingrese a continuación el código de verificación confidencial recibido para establecer su nueva contraseña.`;
-            successEl.style.display = 'block';
-            document.getElementById('forgotCode').value = '';
-            document.getElementById('forgotStep2').style.display = 'block';
-            document.getElementById('btnRequestResetCode').style.display = 'none';
-        } else {
-            errorEl.innerHTML = (data.error || 'No se pudo procesar la solicitud.') + 
-                `<br><a href="javascript:void(0)" onclick="goToRegisterWithEmail('${email}')" style="color:#38bdf8;text-decoration:underline;display:inline-block;margin-top:8px;font-weight:600;">👉 Crear mi cuenta profesional con este correo</a>`;
-            errorEl.classList.add('visible');
+            if (res.ok && data.status === 'ok') {
+                successEl.innerHTML = `<strong>✅ Solicitud procesada:</strong> Ingrese a continuación el código de verificación confidencial recibido para establecer su nueva contraseña.`;
+                successEl.style.display = 'block';
+                document.getElementById('forgotCode').value = '';
+                document.getElementById('forgotStep2').style.display = 'block';
+                document.getElementById('btnRequestResetCode').style.display = 'none';
+                return;
+            } else {
+                errorEl.innerHTML = (data.error || 'No se pudo procesar la solicitud.') + 
+                    `<br><a href="javascript:void(0)" onclick="goToRegisterWithEmail('${email}')" style="color:#38bdf8;text-decoration:underline;display:inline-block;margin-top:8px;font-weight:600;">👉 Crear mi cuenta profesional con este correo</a>`;
+                errorEl.classList.add('visible');
+                return;
+            }
+        } catch (err) {
+            // Continuar al fallback local
         }
-    } catch (err) {
-        // Fallback local si el servidor no responde
-        const localUser = getUsers().find(u => u.email === email);
-        if (localUser) {
-            successEl.innerHTML = `<strong>✅ Modo Respaldo Local:</strong> Solicitud generada. Ingrese el código de verificación para continuar.`;
-            successEl.style.display = 'block';
-            document.getElementById('forgotCode').value = '';
-            document.getElementById('forgotStep2').style.display = 'block';
-            document.getElementById('btnRequestResetCode').style.display = 'none';
-        } else {
-            errorEl.innerHTML = 'No se encontró ninguna cuenta registrada con este correo.<br><a href="javascript:void(0)" onclick="goToRegisterWithEmail(\'' + email + '\')" style="color:#38bdf8;text-decoration:underline;display:inline-block;margin-top:8px;font-weight:600;">👉 Crear mi cuenta profesional con este correo</a>';
-            errorEl.classList.add('visible');
-        }
+    }
+
+    // Fallback local si estamos en file:// o el servidor no responde
+    const localUser = getUsers().find(u => u.email === email);
+    if (localUser) {
+        successEl.innerHTML = `<strong>✅ Modo Respaldo Local:</strong> Solicitud generada. Ingrese el código de verificación para continuar.`;
+        successEl.style.display = 'block';
+        document.getElementById('forgotCode').value = '';
+        document.getElementById('forgotStep2').style.display = 'block';
+        document.getElementById('btnRequestResetCode').style.display = 'none';
+    } else {
+        errorEl.innerHTML = 'No se encontró ninguna cuenta registrada con este correo.<br><a href="javascript:void(0)" onclick="goToRegisterWithEmail(\'' + email + '\')" style="color:#38bdf8;text-decoration:underline;display:inline-block;margin-top:8px;font-weight:600;">👉 Crear mi cuenta profesional con este correo</a>';
+        errorEl.classList.add('visible');
     }
 }
 
@@ -913,35 +940,42 @@ async function handleSubmitNewPassword(e) {
 
     const newHash = await hashPassword(p1);
 
-    try {
-        const res = await fetch('/api/v1/auth/reset-password', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ email, code, newPasswordHash: newHash })
-        });
-        const data = await res.json();
+    if (typeof window === 'undefined' || !window.location || window.location.protocol !== 'file:') {
+        try {
+            const res = await fetch('/api/v1/auth/reset-password', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ email, code, newPasswordHash: newHash })
+            });
+            const data = await res.json();
 
-        if (res.ok && data.status === 'ok') {
-            // Actualizar también en caché local
-            const users = getUsers();
-            const u = users.find(user => user.email === email);
-            if (u) {
-                u.passwordHash = newHash;
-                saveUsers(users);
+            if (res.ok && data.status === 'ok') {
+                // Actualizar también en caché local
+                const users = getUsers();
+                const u = users.find(user => user.email === email);
+                if (u) {
+                    u.passwordHash = newHash;
+                    saveUsers(users);
+                }
+
+                showToast('✅ Contraseña restablecida exitosamente. Ya puedes iniciar sesión.', 'success');
+                document.getElementById('forgotPasswordForm').style.display = 'none';
+                document.getElementById('loginForm').style.display = '';
+                document.getElementById('loginEmail').value = email;
+                document.getElementById('loginPassword').value = '';
+                document.getElementById('loginPassword').focus();
+                return;
+            } else {
+                errorEl.textContent = data.error || 'Código incorrecto o expirado.';
+                errorEl.classList.add('visible');
+                return;
             }
-
-            showToast('✅ Contraseña restablecida exitosamente. Ya puedes iniciar sesión.', 'success');
-            document.getElementById('forgotPasswordForm').style.display = 'none';
-            document.getElementById('loginForm').style.display = '';
-            document.getElementById('loginEmail').value = email;
-            document.getElementById('loginPassword').value = '';
-            document.getElementById('loginPassword').focus();
-        } else {
-            errorEl.textContent = data.error || 'Código incorrecto o expirado.';
-            errorEl.classList.add('visible');
+        } catch (err) {
+            // Continuar a fallback local
         }
-    } catch (err) {
-        // Fallback local
+    }
+
+    // Fallback local
         const users = getUsers();
         const u = users.find(user => user.email === email);
         if (u) {
@@ -973,27 +1007,29 @@ async function handleLogin(e) {
     let loggedUser = null;
     let cloudData = null;
 
-    // 1. Intentar autenticar contra el servidor central (PostgreSQL / Cloud)
-    try {
-        const response = await fetch('/api/v1/auth/login', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ email, passwordHash: hash })
-        });
-        const resData = await response.json();
-        if (response.ok && resData.authenticated) {
-            loggedUser = resData.therapist;
-            cloudData = resData.cloudData;
-            if (resData.sessionToken) {
-                localStorage.setItem('psico_session_token', resData.sessionToken);
+    // 1. Intentar autenticar contra el servidor central (PostgreSQL / Cloud) si no es file://
+    if (typeof window === 'undefined' || !window.location || window.location.protocol !== 'file:') {
+        try {
+            const response = await fetch('/api/v1/auth/login', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ email, passwordHash: hash })
+            });
+            const resData = await response.json();
+            if (response.ok && resData.authenticated) {
+                loggedUser = resData.therapist;
+                cloudData = resData.cloudData;
+                if (resData.sessionToken) {
+                    localStorage.setItem('psico_session_token', resData.sessionToken);
+                }
+            } else if (response.status === 401) {
+                errorEl.textContent = 'Correo o contraseña incorrectos.';
+                errorEl.classList.add('visible');
+                return;
             }
-        } else if (response.status === 401) {
-            errorEl.textContent = 'Correo o contraseña incorrectos.';
-            errorEl.classList.add('visible');
-            return;
+        } catch (netErr) {
+            console.warn('Servidor cloud no disponible para login en este instante, verificando almacenamiento local:', netErr.message);
         }
-    } catch (netErr) {
-        console.warn('Servidor cloud no disponible para login en este instante, verificando almacenamiento local:', netErr.message);
     }
 
     // 2. Si el servidor no respondió (offline) o como fallback, consultar memoria local
@@ -1067,32 +1103,34 @@ async function handleRegister(e) {
     const pwdHash = await hashPassword(password);
     let registeredTherapist = null;
 
-    // 1. Registrar en el servidor cloud (PostgreSQL)
-    try {
-        const response = await fetch('/api/v1/auth/register', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-                name,
-                email,
-                passwordHash: pwdHash,
-                specialty,
-                registryNumber
-            })
-        });
-        const resData = await response.json();
-        if (response.ok && resData.therapist) {
-            registeredTherapist = resData.therapist;
-            if (resData.sessionToken) {
-                localStorage.setItem('psico_session_token', resData.sessionToken);
+    // 1. Registrar en el servidor cloud (PostgreSQL) si no es file://
+    if (typeof window === 'undefined' || !window.location || window.location.protocol !== 'file:') {
+        try {
+            const response = await fetch('/api/v1/auth/register', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    name,
+                    email,
+                    passwordHash: pwdHash,
+                    specialty,
+                    registryNumber
+                })
+            });
+            const resData = await response.json();
+            if (response.ok && resData.therapist) {
+                registeredTherapist = resData.therapist;
+                if (resData.sessionToken) {
+                    localStorage.setItem('psico_session_token', resData.sessionToken);
+                }
+            } else if (response.status === 409) {
+                errorEl.textContent = 'Ya existe una cuenta registrada con este correo en la nube.';
+                errorEl.classList.add('visible');
+                return;
             }
-        } else if (response.status === 409) {
-            errorEl.textContent = 'Ya existe una cuenta registrada con este correo en la nube.';
-            errorEl.classList.add('visible');
-            return;
+        } catch (netErr) {
+            console.warn('Servidor cloud no disponible para registro inmediato, guardando en local:', netErr.message);
         }
-    } catch (netErr) {
-        console.warn('Servidor cloud no disponible para registro inmediato, guardando en local:', netErr.message);
     }
 
     // 2. Persistir localmente para soporte offline
@@ -1368,12 +1406,16 @@ function initEventListeners() {
 
 function navigateTo(view) {
     AppState.currentView = view;
-    document.querySelectorAll('.nav-item').forEach(item => item.classList.toggle('active', item.dataset.view === view));
+    document.querySelectorAll('.nav-item').forEach(item => {
+        const itemV = item.dataset ? item.dataset.view : item.getAttribute('data-view');
+        item.classList.toggle('active', itemV === view);
+    });
     
     // Sincronizar barra de navegación inferior móvil
     document.querySelectorAll('.mobile-nav-item').forEach(item => {
-        if (item.dataset.view) {
-            item.classList.toggle('active', item.dataset.view === view);
+        const itemV = item.dataset ? item.dataset.view : item.getAttribute('data-view');
+        if (itemV) {
+            item.classList.toggle('active', itemV === view);
         }
     });
 
@@ -1385,7 +1427,7 @@ function navigateTo(view) {
     if (targetView) targetView.classList.add('active');
     const titles = {
         dashboard: 'Mi Consulta',
-        patients: 'Personas en Proceso',
+        patients: 'Pacientes',
         appointments: 'Agenda',
         notes: 'Reportes de Atención & Sesiones',
         scales: 'Escalas y Evaluaciones',
@@ -1592,8 +1634,8 @@ function handleMonthlyGoalsSubmit(e) {
 window.handleMonthlyGoalsSubmit = handleMonthlyGoalsSubmit;
 
 function openRatesManagementModal() {
-    if (typeof renderFinanceView === 'function') {
-        switchView('finance');
+    if (typeof navigateTo === 'function') {
+        navigateTo('finance');
         setTimeout(() => {
             if (typeof switchFinanceTab === 'function') {
                 switchFinanceTab('rates');
@@ -1606,6 +1648,9 @@ function openRatesManagementModal() {
     }
 }
 window.openRatesManagementModal = openRatesManagementModal;
+window.switchView = function(view) {
+    if (typeof navigateTo === 'function') navigateTo(view);
+};
 
 function renderClinicalAlerts() {
     const alerts = generateClinicalAlerts();
@@ -2187,7 +2232,7 @@ function renderPatients(filter = '') {
     }
 
     if (patients.length === 0) {
-        const catLabel = currentCatFilter === 'child' ? 'personas en etapa de niñez' : currentCatFilter === 'adolescent' ? 'personas en adolescencia' : currentCatFilter === 'adult' ? 'personas en adultez' : 'expedientes clínicos';
+        const catLabel = currentCatFilter === 'child' ? 'pacientes en etapa de niñez' : currentCatFilter === 'adolescent' ? 'pacientes en adolescencia' : currentCatFilter === 'adult' ? 'pacientes en adultez' : 'pacientes';
         container.innerHTML = `<div class="empty-state"><div class="empty-icon">${currentCatFilter === 'child' ? '🧒' : currentCatFilter === 'adolescent' ? '🧑' : '👤'}</div><p>${filter ? 'Sin coincidencias' : `No hay ${catLabel} registrados en esta etapa`}</p>${!filter ? `<button class="btn-primary" onclick="openNewPatientForCategory('${currentCatFilter}')">Crear expediente</button>` : ''}</div>`;
         return;
     }
@@ -2480,23 +2525,9 @@ function viewPatient(id) {
                         <div class="hero-chip"><i class="fas fa-calendar-plus"></i> <span><strong>Ingreso:</strong> ${admissionStr ? formatDate(admissionStr) : '—'}</span></div>
                         ${(isAlta || dischargeStr) ? `<div class="hero-chip badge-alta-chip"><i class="fas fa-graduation-cap"></i> <span><strong>Egreso/Alta:</strong> ${formatDate(dischargeStr || new Date())}</span></div>` : ''}
                         ${(patient.intervention || patient.modality) ? `<div class="hero-chip"><i class="fas fa-brain"></i> <span>${patient.intervention || patient.modality}</span></div>` : ''}
-                        ${cat === 'adolescent' ? `
-                            ${patient.schoolGrade ? `<div class="hero-chip"><i class="fas fa-graduation-cap"></i> <span>Escolaridad: ${patient.schoolGrade}</span></div>` : ''}
-                            ${patient.livesWith ? `<div class="hero-chip"><i class="fas fa-house-user"></i> <span>Vive con: ${patient.livesWith}</span></div>` : ''}
-                            ${patient.guardianName ? `<div class="hero-chip"><i class="fas fa-user-shield"></i> <span>Tutor: ${patient.guardianName} (${patient.guardianRelation || 'Tutor'})</span></div>` : ''}
-                            ${patient.guardianPhone ? `<div class="hero-chip"><i class="fas fa-phone-alt"></i> <span>Tel. Tutor: ${patient.guardianPhone}</span></div>` : ''}
-                            ${patient.guardianConsent === 'firmado' ? `<div class="hero-chip hero-chip-success"><i class="fas fa-file-signature"></i> <span>Consentimiento Informado Firmado</span></div>` : `<div class="hero-chip"><i class="fas fa-clock"></i> <span>Consentimiento Pendiente</span></div>`}
-                            ${patient.shift ? `<div class="hero-chip"><i class="fas fa-clock"></i> <span>Turno: ${patient.shift}</span></div>` : ''}
-                            ${patient.modality ? `<div class="hero-chip"><i class="fas fa-laptop-house"></i> <span>Modalidad: ${patient.modality}</span></div>` : ''}
-                            ${patient.frequency ? `<div class="hero-chip"><i class="fas fa-calendar-check"></i> <span>Frecuencia: ${patient.frequency}</span></div>` : ''}
-                        ` : `
-                            ${patient.occupation ? `<div class="hero-chip"><i class="fas fa-briefcase"></i> <span>${patient.occupation}</span></div>` : ''}
-                            ${patient.maritalStatus ? `<div class="hero-chip"><i class="fas fa-ring"></i> <span>${patient.maritalStatus}</span></div>` : ''}
-                            ${patient.phone ? `<div class="hero-chip"><i class="fas fa-phone-alt"></i> <span>${patient.phone}</span></div>` : ''}
-                            ${patient.guardianName ? `<div class="hero-chip"><i class="fas fa-user-shield"></i> <span>Tutor: ${patient.guardianName} (${patient.guardianRelation || 'Tutor'})</span></div>` : ''}
-                            ${patient.schoolName || patient.schoolGrade ? `<div class="hero-chip"><i class="fas fa-school"></i> <span>${patient.schoolName || ''} ${patient.schoolGrade ? '(' + patient.schoolGrade + ')' : ''}</span></div>` : ''}
-                            ${cat === 'child' ? `<div class="hero-chip"><i class="fas fa-file-signature"></i> <span>${patient.guardianConsent === 'firmado' ? 'Consentimiento firmado' : 'Consentimiento pendiente'}</span></div>` : ''}
-                        `}
+                        ${patient.guardianName ? `<div class="hero-chip"><i class="fas fa-user-shield"></i> <span>Tutor: ${patient.guardianName} (${patient.guardianRelation || 'Tutor'})</span></div>` : ''}
+                        ${patient.phone || patient.guardianPhone ? `<div class="hero-chip"><i class="fas fa-phone-alt"></i> <span>${patient.phone || patient.guardianPhone}</span></div>` : ''}
+                        ${patient.guardianConsent === 'firmado' ? `<div class="hero-chip hero-chip-success"><i class="fas fa-file-signature"></i> <span>Consentimiento Firmado</span></div>` : ''}
                     </div>
                 </div>
             </div>
@@ -2535,21 +2566,8 @@ function viewPatient(id) {
                 </div>
             </div>
         </div>
-        ${renderSessionPrepCard(sessionPrep)}
-        <div style="display:grid;grid-template-columns:auto 1fr;gap:24px;margin-bottom:24px;">
-            <div class="wellbeing-ring-container">
-                ${renderWellbeingRingLarge(wellbeing)}
-                <div class="wellbeing-status ${wellbeing.statusClass}">${wellbeing.statusLabel}</div>
-            </div>
-            <div class="summary-grid" style="margin:0;">
-                <div class="summary-mini-card"><div class="summary-mini-icon">📅</div><div class="summary-mini-info"><div class="summary-mini-label">Sesiones</div><div class="summary-mini-value">${patientApps.filter(a=>a.status==='completada').length}</div></div></div>
-                <div class="summary-mini-card"><div class="summary-mini-icon">📝</div><div class="summary-mini-info"><div class="summary-mini-label">Notas</div><div class="summary-mini-value">${patientNotes.length}</div></div></div>
-                <div class="summary-mini-card"><div class="summary-mini-icon">🎯</div><div class="summary-mini-info"><div class="summary-mini-label">Objetivos</div><div class="summary-mini-value">${patientGoals.filter(g=>g.status==='logrado').length}/${patientGoals.length}</div></div></div>
-                <div class="summary-mini-card"><div class="summary-mini-icon">⏱️</div><div class="summary-mini-info"><div class="summary-mini-label">En tratamiento</div><div class="summary-mini-value">${calculateTreatmentDuration(patient.admissionDate || patient.createdAt)}</div></div></div>
-            </div>
-        </div>
-        ${renderEmotionalProfile(emotionalProfile)}
-        ${renderClinicalInsights(clinicalInsights)}
+
+        <!-- BARRA SUPERIOR DE PESTAÑAS CLÍNICAS (ACCESO INMEDIATO EN LA PARTE SUPERIOR) -->
         <div class="patient-tabs">
             <button class="patient-tab active" onclick="switchPatientTab('resumen', this)"><i class="fas fa-folder-open"></i> Expediente Clínico</button>
             <button class="patient-tab" onclick="switchPatientTab('notas', this)"><i class="fas fa-file-invoice"></i> Notas de sesión (${patientNotes.length})</button>
@@ -2563,7 +2581,8 @@ function viewPatient(id) {
                 <span id="portalTabBadgeCount" style="background: var(--accent-success); color: white; padding: 2px 6px; border-radius: 10px; font-size: 10px; margin-left: 4px; ${portalCount > 0 ? '' : 'display: none;'}">${portalCount}</span>
             </button>
         </div>
-        <div id="tab-resumen" class="patient-tab-content active">${renderTabResumen(id, wellbeing)}</div>
+
+        <div id="tab-resumen" class="patient-tab-content active">${renderTabResumen(id, wellbeing, sessionPrep, emotionalProfile, clinicalInsights)}</div>
         <div id="tab-notas" class="patient-tab-content">${renderTabNotasSesion(id)}</div>
         <div id="tab-historia" class="patient-tab-content">${renderTabHistoria(patient)}</div>
         <div id="tab-timeline" class="patient-tab-content">${renderTabTimeline(id)}</div>
@@ -2603,13 +2622,19 @@ function calculateTreatmentDuration(createdAt) {
 // ============================================
 // PESTAÑAS DEL EXPEDIENTE
 // ============================================
-function renderTabResumen(patientId, wellbeing) {
+function renderTabResumen(patientId, wellbeing, sessionPrep, emotionalProfile, clinicalInsights) {
     const patient = AppState.patients.find(p => String(p.id) === String(patientId)) || {};
     const notes = AppState.notes.filter(n => String(n.patientId) === String(patientId));
     const patientApps = AppState.appointments.filter(a => String(a.patientId) === String(patientId));
     const alerts = generatePatientAlerts(patientId);
     const goals = AppState.treatmentPlans.filter(g => String(g.patientId) === String(patientId));
     const latestNote = notes.sort((a,b) => new Date(b.date) - new Date(a.date))[0];
+
+    // Respaldo de widgets si se llama de forma aislada
+    if (!wellbeing && typeof calculatePatientWellbeing === 'function') wellbeing = calculatePatientWellbeing(patientId);
+    if (!sessionPrep && typeof generateSessionPrep === 'function') sessionPrep = generateSessionPrep(patientId);
+    if (!emotionalProfile && typeof calculateEmotionalProfile === 'function') emotionalProfile = calculateEmotionalProfile(patientId);
+    if (!clinicalInsights && typeof generateClinicalInsights === 'function') clinicalInsights = generateClinicalInsights(patientId);
 
     const cat = getPatientCategory(patient);
     const age = patient.age || (patient.birthdate ? calculateAge(patient.birthdate) : '—');
@@ -2809,6 +2834,31 @@ function renderTabResumen(patientId, wellbeing) {
                     </div>
                 </div>
             </div>
+
+            <!-- PREPARACIÓN DE SESIÓN CLÍNICA -->
+            ${sessionPrep ? renderSessionPrepCard(sessionPrep) : ''}
+
+            <!-- ANILLO DE BIENESTAR Y MINI-MÉTRICAS LONGITUDINALES -->
+            ${wellbeing ? `
+                <div style="display:grid;grid-template-columns:auto 1fr;gap:20px;margin:20px 0;">
+                    <div class="wellbeing-ring-container">
+                        ${renderWellbeingRingLarge(wellbeing)}
+                        <div class="wellbeing-status ${wellbeing.statusClass}">${wellbeing.statusLabel}</div>
+                    </div>
+                    <div class="summary-grid" style="margin:0;">
+                        <div class="summary-mini-card"><div class="summary-mini-icon">📅</div><div class="summary-mini-info"><div class="summary-mini-label">Sesiones</div><div class="summary-mini-value">${patientApps.filter(a=>a.status==='completada').length}</div></div></div>
+                        <div class="summary-mini-card"><div class="summary-mini-icon">📝</div><div class="summary-mini-info"><div class="summary-mini-label">Notas</div><div class="summary-mini-value">${notes.length}</div></div></div>
+                        <div class="summary-mini-card"><div class="summary-mini-icon">🎯</div><div class="summary-mini-info"><div class="summary-mini-label">Objetivos</div><div class="summary-mini-value">${goals.filter(g=>g.status==='logrado').length}/${goals.length}</div></div></div>
+                        <div class="summary-mini-card"><div class="summary-mini-icon">⏱️</div><div class="summary-mini-info"><div class="summary-mini-label">En tratamiento</div><div class="summary-mini-value">${durationText}</div></div></div>
+                    </div>
+                </div>
+            ` : ''}
+
+            <!-- PERFIL EMOCIONAL LONGITUDINAL -->
+            ${emotionalProfile ? renderEmotionalProfile(emotionalProfile) : ''}
+
+            <!-- ANÁLISIS CLÍNICO E INSIGHTS IA -->
+            ${clinicalInsights ? renderClinicalInsights(clinicalInsights) : ''}
 
             <!-- Alertas y Evolución Reciente -->
             ${alerts.length > 0 ? `<div class="alerts-list">${alerts.map(a => `<div class="alert-item ${a.level}"><div class="alert-item-icon">${a.icon}</div><div class="alert-item-text"><strong>${a.title}</strong><small>${a.description}</small></div></div>`).join('')}</div>` : `<div class="alert-item success"><div class="alert-item-icon">✅</div><div class="alert-item-text"><strong>Sin alertas críticas activas</strong><small>Evolución clínica estable conforme a los objetivos terapéuticos</small></div></div>`}
@@ -3586,6 +3636,7 @@ function syncPatientToPortalStorage(patient) {
     // Sincronizar en segundo plano hacia base de datos PostgreSQL si hay sesión activa
     (async () => {
         try {
+            if (typeof window !== 'undefined' && window.location && window.location.protocol === 'file:') return;
             if (typeof CloudSyncManager === 'undefined') return;
             const token = await CloudSyncManager.ensureSessionToken(false);
             if (!token) return; // Evitar disparar peticiones no autorizadas sin token
@@ -3729,7 +3780,7 @@ async function openPortalAccessModal(patientId) {
                     </p>
                 </div>
                 <div class="portal-hero-buttons">
-                    <a href="${portalUrl}" target="_blank" rel="noopener noreferrer" class="btn-portal-launch" onclick="preparePortalLaunch('${patient.id}')" title="Abrir portal del paciente con autenticación automática" style="text-decoration:none;display:inline-flex;align-items:center;justify-content:center;gap:8px;">
+                    <a href="${portalUrl}" target="_blank" rel="noopener noreferrer" class="btn-portal-launch" onclick="launchPatientPortal('${patient.id}'); return false;" title="Abrir portal del paciente con autenticación automática" style="text-decoration:none;display:inline-flex;align-items:center;justify-content:center;gap:8px;cursor:pointer;">
                         <i class="fas fa-arrow-up-right-from-square"></i> Acceder al Portal
                     </a>
                     <button class="btn-portal-wa" onclick="sharePortalViaWhatsApp('${patient.id}')" title="Enviar enlace y código por WhatsApp al paciente">
@@ -3890,8 +3941,11 @@ function preparePortalLaunch(patientId) {
 window.preparePortalLaunch = preparePortalLaunch;
 
 function launchPatientPortal(patientId) {
-    const patient = AppState.patients.find(p => p.id === patientId);
-    if (!patient) return;
+    const patient = (AppState.patients || []).find(p => String(p.id) === String(patientId));
+    if (!patient) {
+        showToast('Paciente no encontrado', 'error');
+        return;
+    }
     const token = ensurePatientPortalToken(patient);
 
     const therapistName = localStorage.getItem('psico_therapist_name') || AppState.currentUser?.name || 'Terapeuta';
@@ -3903,12 +3957,14 @@ function launchPatientPortal(patientId) {
     }));
 
     showToast(`🚀 Abriendo portal de ${patient.name}...`, 'success');
-    const targetUrl = `portal.html?token=${encodeURIComponent(token)}`;
+    const cleanBase = window.location.origin + window.location.pathname.replace(/\/[^\/]*$/, '/');
+    const targetUrl = `${cleanBase}portal.html?token=${encodeURIComponent(token)}`;
     const newWin = window.open(targetUrl, '_blank');
     if (!newWin || newWin.closed || typeof newWin.closed === 'undefined') {
         window.location.href = targetUrl;
     }
 }
+window.launchPatientPortal = launchPatientPortal;
 
 function sharePortalViaWhatsApp(patientId) {
     const patient = AppState.patients.find(p => p.id === patientId);
@@ -4013,6 +4069,7 @@ function generatePortalToken(patientId) {
 
 async function syncPortalDataForPatient(patientId) {
     if (!patientId) return null;
+    if (typeof window !== 'undefined' && window.location && window.location.protocol === 'file:') return null;
     try {
         const token = (typeof CloudSyncManager !== 'undefined') ? await CloudSyncManager.ensureSessionToken(false) : localStorage.getItem('psico_session_token');
         if (!token) return null;
@@ -4186,8 +4243,11 @@ function renderPortalTab(patientId) {
                         Total de actividades registradas: <strong>${totalCount}</strong>
                     </span>
                 </div>
-                <div style="display: flex; gap: 8px;">
-                    <button class="btn-sm btn-primary" onclick="refreshPortalTabContent('${patientId}', true)" title="Consultar PostgreSQL para obtener registros recién enviados desde el teléfono">
+                <div style="display: flex; gap: 8px; flex-wrap: wrap;">
+                    <button class="btn-sm btn-primary" onclick="launchPatientPortal('${patientId}')" title="Abrir portal del paciente en una nueva pestaña con sesión iniciada" style="background:#10b981;border-color:#10b981;color:white;">
+                        <i class="fas fa-arrow-up-right-from-square"></i> Abrir Portal del Paciente
+                    </button>
+                    <button class="btn-sm btn-secondary" onclick="refreshPortalTabContent('${patientId}', true)" title="Consultar PostgreSQL para obtener registros recién enviados desde el teléfono">
                         <i class="fas fa-arrows-rotate"></i> Actualizar Datos
                     </button>
                     <button class="btn-sm btn-secondary" onclick="openPortalAccessModal('${patientId}')" title="Ver código PIN, código QR y credenciales de acceso">
@@ -4841,7 +4901,12 @@ function renderCalendarDay(container) {
                             </div>
                         </div>
                         <div style="display:flex;gap:6px;align-items:center;">
-                            ${app.status !== 'completada' ? `<button class="btn-icon" onclick="completeAppointment('${app.id}')" title="Completar Sesión"><i class="fas fa-check"></i></button>` : ''}
+                            <select class="status-badge status-${app.status || 'agendada'}" style="border:none;cursor:pointer;font-weight:700;font-size:11px;padding:3px 6px;border-radius:10px;outline:none;" onchange="setAppointmentStatus('${app.id}', this.value)" title="Cambiar estado de la cita">
+                                <option value="agendada" ${app.status === 'agendada' || app.status === 'pendiente' ? 'selected' : ''}>📅 Agendada</option>
+                                <option value="completada" ${app.status === 'completada' ? 'selected' : ''}>✅ Completada</option>
+                                <option value="reprogramada" ${app.status === 'reprogramada' ? 'selected' : ''}>🔄 Reprogramada</option>
+                                <option value="cancelada" ${app.status === 'cancelada' ? 'selected' : ''}>❌ Cancelada</option>
+                            </select>
                             <button class="btn-primary" style="padding:5px 10px;font-size:11px;" onclick="openReporteAtencionFromAppointment('${app.id}')" title="Llenar Reporte de Atención">
                                 <i class="fas fa-file-signature"></i> Reporte
                             </button>
@@ -6764,4 +6829,87 @@ async function loadSyntheticClinicalPilotCase() {
 }
 
 window.loadSyntheticClinicalPilotCase = loadSyntheticClinicalPilotCase;
+
+function openPatientModal() { openModal('patientModal'); }
+function openAppointmentModal() { openModal('appointmentModal'); }
+function openNoteModal() { openModal('noteModal'); }
+function openReporteAtencionModal() { openModal('noteModal'); }
+
+// Exposición global exhaustiva para DOM onclick y navegación web
+if (typeof window !== 'undefined') {
+    window.AppState = AppState;
+    window.navigateTo = navigateTo;
+    window.switchView = navigateTo;
+    window.openModal = openModal;
+    window.closeModal = closeModal;
+    window.openPatientModal = openPatientModal;
+    window.openAppointmentModal = openAppointmentModal;
+    window.openNoteModal = openNoteModal;
+    window.openReporteAtencionModal = openReporteAtencionModal;
+    window.viewPatient = viewPatient;
+    if (typeof editPatient === 'function') window.editPatient = editPatient;
+    if (typeof deletePatient === 'function') window.deletePatient = deletePatient;
+    if (typeof quickUpdatePatientStatus === 'function') window.quickUpdatePatientStatus = quickUpdatePatientStatus;
+    if (typeof onPatientStatusChange === 'function') window.onPatientStatusChange = onPatientStatusChange;
+    if (typeof openRatesManagementModal === 'function') window.openRatesManagementModal = openRatesManagementModal;
+    if (typeof openMonthlyGoalsModal === 'function') window.openMonthlyGoalsModal = openMonthlyGoalsModal;
+    if (typeof handleMonthlyGoalsSubmit === 'function') window.handleMonthlyGoalsSubmit = handleMonthlyGoalsSubmit;
+    if (typeof launchPatientPortal === 'function') window.launchPatientPortal = launchPatientPortal;
+    if (typeof preparePortalLaunch === 'function') window.preparePortalLaunch = preparePortalLaunch;
+    if (typeof openPortalAccessModal === 'function') window.openPortalAccessModal = openPortalAccessModal;
+    if (typeof sharePortalViaWhatsApp === 'function') window.sharePortalViaWhatsApp = sharePortalViaWhatsApp;
+    if (typeof showPortalQrCode === 'function') window.showPortalQrCode = showPortalQrCode;
+    if (typeof copyPortalToken === 'function') window.copyPortalToken = copyPortalToken;
+    if (typeof copyPortalLink === 'function') window.copyPortalLink = copyPortalLink;
+    if (typeof regeneratePortalToken === 'function') window.regeneratePortalToken = regeneratePortalToken;
+    if (typeof refreshPortalTabContent === 'function') window.refreshPortalTabContent = refreshPortalTabContent;
+    if (typeof switchPatientTab === 'function') window.switchPatientTab = switchPatientTab;
+    if (typeof setPatientCategoryFilter === 'function') window.setPatientCategoryFilter = setPatientCategoryFilter;
+    if (typeof setCalendarViewMode === 'function') window.setCalendarViewMode = setCalendarViewMode;
+    if (typeof navigateCalendarToday === 'function') window.navigateCalendarToday = navigateCalendarToday;
+    if (typeof navigateCalendarPeriod === 'function') window.navigateCalendarPeriod = navigateCalendarPeriod;
+    if (typeof setAppointmentStatus === 'function') window.setAppointmentStatus = setAppointmentStatus;
+    if (typeof completeAppointment === 'function') window.completeAppointment = completeAppointment;
+    if (typeof openAppointmentModal === 'function') window.openAppointmentModal = openAppointmentModal;
+    if (typeof openAppointmentModalWithSlot === 'function') window.openAppointmentModalWithSlot = openAppointmentModalWithSlot;
+    if (typeof editAppointment === 'function') window.editAppointment = editAppointment;
+    if (typeof deleteAppointment === 'function') window.deleteAppointment = deleteAppointment;
+    if (typeof openNoteModal === 'function') window.openNoteModal = openNoteModal;
+    if (typeof openReporteAtencionModal === 'function') window.openReporteAtencionModal = openReporteAtencionModal;
+    if (typeof openReporteAtencionFromAppointment === 'function') window.openReporteAtencionFromAppointment = openReporteAtencionFromAppointment;
+    if (typeof openReporteAtencionForPatient === 'function') window.openReporteAtencionForPatient = openReporteAtencionForPatient;
+    if (typeof toggleMobileSidebar === 'function') window.toggleMobileSidebar = toggleMobileSidebar;
+    if (typeof closeMobileSidebar === 'function') window.closeMobileSidebar = closeMobileSidebar;
+    if (typeof switchMobileView === 'function') window.switchMobileView = switchMobileView;
+    if (typeof openTherapistProfileModal === 'function') window.openTherapistProfileModal = openTherapistProfileModal;
+    if (typeof openTelehealthModal === 'function') window.openTelehealthModal = openTelehealthModal;
+    if (typeof openQaTestsModal === 'function') window.openQaTestsModal = openQaTestsModal;
+    if (typeof openActiveCrisisProtocol === 'function') window.openActiveCrisisProtocol = openActiveCrisisProtocol;
+    if (typeof dismissCrisisBanner === 'function') window.dismissCrisisBanner = dismissCrisisBanner;
+    if (typeof suggestAppointmentSlots === 'function') window.suggestAppointmentSlots = suggestAppointmentSlots;
+    if (typeof switchNoteFormat === 'function') window.switchNoteFormat = switchNoteFormat;
+    if (typeof openSoapAiModal === 'function') window.openSoapAiModal = openSoapAiModal;
+    if (typeof addIntersessionTask === 'function') window.addIntersessionTask = addIntersessionTask;
+    if (typeof removeIntersessionTask === 'function') window.removeIntersessionTask = removeIntersessionTask;
+    if (typeof openApiKeyConfigModal === 'function') window.openApiKeyConfigModal = openApiKeyConfigModal;
+    if (typeof switchAiTab === 'function') window.switchAiTab = switchAiTab;
+    if (typeof runAiSoapSynthesis === 'function') window.runAiSoapSynthesis = runAiSoapSynthesis;
+    if (typeof saveGeminiKeyFromModal === 'function') window.saveGeminiKeyFromModal = saveGeminiKeyFromModal;
+    if (typeof copyTelehealthLink === 'function') window.copyTelehealthLink = copyTelehealthLink;
+    if (typeof openTelehealthSeparateTab === 'function') window.openTelehealthSeparateTab = openTelehealthSeparateTab;
+    if (typeof transferTelehealthNotesToSoap === 'function') window.transferTelehealthNotesToSoap = transferTelehealthNotesToSoap;
+    if (typeof runAutomatedQaTests === 'function') window.runAutomatedQaTests = runAutomatedQaTests;
+    if (typeof preloadAIModel === 'function') window.preloadAIModel = preloadAIModel;
+    if (typeof clearTherapistSignaturePad === 'function') window.clearTherapistSignaturePad = clearTherapistSignaturePad;
+    if (typeof showToast === 'function') window.showToast = showToast;
+    if (typeof formatDate === 'function') window.formatDate = formatDate;
+    if (typeof toDateInputValue === 'function') window.toDateInputValue = toDateInputValue;
+    if (typeof updateDashboard === 'function') window.updateDashboard = updateDashboard;
+    if (typeof renderPatients === 'function') window.renderPatients = renderPatients;
+    if (typeof renderCalendar === 'function') window.renderCalendar = renderCalendar;
+    if (typeof renderAppointments === 'function') window.renderAppointments = renderAppointments;
+    if (typeof renderNotes === 'function') window.renderNotes = renderNotes;
+    if (typeof saveData === 'function') window.saveData = saveData;
+    if (typeof exportPatientReport === 'function') window.exportPatientReport = exportPatientReport;
+}
 

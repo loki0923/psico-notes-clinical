@@ -104,3 +104,10 @@ function openBackupModal() {
 
     openModal('backupModal');
 }
+
+// Exposición global
+if (typeof window !== 'undefined') {
+    window.openBackupModal = openBackupModal;
+    window.exportBackupFile = exportBackupFile;
+    window.importBackup = importBackup;
+}

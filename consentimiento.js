@@ -64,7 +64,7 @@ function openInformedConsentModal(patientId) {
             </div>
             <div style="padding:16px 0;">
                 <p style="font-size:13px;color:var(--text-secondary);margin-bottom:12px;">
-                    Persona en Proceso: <strong>${patient.name}</strong> · ${cat === 'child' ? 'Etapa: Niñez' : cat === 'adolescent' ? 'Etapa: Adolescencia' : 'Etapa: Adultez'} | Fecha: ${new Date().toLocaleDateString('es-ES')}
+                    Paciente: <strong>${patient.name}</strong> · ${cat === 'child' ? 'Etapa: Niñez' : cat === 'adolescent' ? 'Etapa: Adolescencia' : 'Etapa: Adultez'} | Fecha: ${new Date().toLocaleDateString('es-ES')}
                 </p>
 
                 <div style="max-height: 200px; overflow-y: auto; background: var(--bg-secondary); padding: 14px; border-radius: var(--radius-md); font-size: 12px; line-height: 1.5; margin-bottom: 16px; border: 1px solid var(--border-primary);">
@@ -322,4 +322,12 @@ function generateSignedInformedConsent() {
 // Compatibilidad con la función anterior
 function generateInformedConsent(patientId) {
     openInformedConsentModal(patientId);
+}
+
+// Exposición global
+if (typeof window !== 'undefined') {
+    window.openInformedConsentModal = openInformedConsentModal;
+    window.generateInformedConsent = generateInformedConsent;
+    window.generateSignedInformedConsent = generateSignedInformedConsent;
+    window.clearSignatureCanvas = clearSignatureCanvas;
 }

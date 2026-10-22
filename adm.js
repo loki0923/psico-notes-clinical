@@ -26,7 +26,7 @@ function getBillingConfig() {
 
 function saveBillingConfig(config) {
     localStorage.setItem(getBillingStorageKey('config'), JSON.stringify(config));
-    if (typeof AppState !== 'undefined' && AppState.currentUser?.id && typeof navigator !== 'undefined' && navigator.onLine) {
+    if (typeof AppState !== 'undefined' && AppState.currentUser?.id && typeof navigator !== 'undefined' && navigator.onLine && (typeof window === 'undefined' || !window.location || window.location.protocol !== 'file:')) {
         const token = localStorage.getItem('psico_session_token');
         const headers = {
             'Content-Type': 'application/json',
@@ -58,7 +58,7 @@ function saveInvoices(invoices) {
 }
 
 async function syncBillingWithServer() {
-    if (typeof AppState === 'undefined' || !AppState.currentUser?.id || typeof navigator === 'undefined' || !navigator.onLine) return;
+    if (typeof AppState === 'undefined' || !AppState.currentUser?.id || typeof navigator === 'undefined' || !navigator.onLine || (typeof window !== 'undefined' && window.location && window.location.protocol === 'file:')) return;
     try {
         const token = localStorage.getItem('psico_session_token');
         const headers = { 'X-Therapist-Id': AppState.currentUser.id };
@@ -364,7 +364,7 @@ function handleInvoiceSubmit(e) {
     invoices.push(invoice);
     saveInvoices(invoices);
 
-    if (typeof AppState !== 'undefined' && AppState.currentUser?.id && typeof navigator !== 'undefined' && navigator.onLine) {
+    if (typeof AppState !== 'undefined' && AppState.currentUser?.id && typeof navigator !== 'undefined' && navigator.onLine && (typeof window === 'undefined' || !window.location || window.location.protocol !== 'file:')) {
         const token = localStorage.getItem('psico_session_token');
         const headers = {
             'Content-Type': 'application/json',
@@ -465,4 +465,15 @@ if (typeof module !== 'undefined' && module.exports) {
         saveInvoices,
         syncBillingWithServer
     };
+}
+if (typeof window !== 'undefined') {
+    window.openBillingConfig = openBillingConfig;
+    window.openInvoiceCreator = openInvoiceCreator;
+    if (typeof openInvoicesList === 'function') window.openInvoicesList = openInvoicesList;
+    if (typeof printInvoice === 'function') window.printInvoice = printInvoice;
+    window.getBillingConfig = getBillingConfig;
+    window.saveBillingConfig = saveBillingConfig;
+    window.getInvoices = getInvoices;
+    window.saveInvoices = saveInvoices;
+    window.syncBillingWithServer = syncBillingWithServer;
 }

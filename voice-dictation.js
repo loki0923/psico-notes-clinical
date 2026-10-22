@@ -147,10 +147,31 @@ const VoiceDictation = {
     }
 };
 
+function toggleDictation(targetElementId, btn) {
+    if (!VoiceDictation.isSupported()) {
+        if (typeof showToast === 'function') {
+            showToast('El dictado por voz no es compatible con este navegador o requiere permiso de micrófono', 'error');
+        } else {
+            alert('Dictado por voz no compatible');
+        }
+        return;
+    }
+    const el = typeof targetElementId === 'string' ? document.getElementById(targetElementId) : targetElementId;
+    if (!el) return;
+    VoiceDictation.toggle(el, (isRecording) => {
+        if (btn) {
+            btn.classList.toggle('recording', isRecording);
+            const icon = isRecording ? '<i class="fas fa-stop" style="color:#ef4444;"></i>' : '<i class="fas fa-microphone"></i>';
+            btn.innerHTML = `${icon} ${isRecording ? 'Detener' : 'Dictar'}`;
+        }
+    });
+}
+
 if (typeof window !== 'undefined') {
     window.VoiceDictation = VoiceDictation;
+    window.toggleDictation = toggleDictation;
 }
 
 if (typeof module !== 'undefined' && module.exports) {
-    module.exports = VoiceDictation;
+    module.exports = { VoiceDictation, toggleDictation };
 }
