@@ -62,61 +62,20 @@ const _localShowConfirmModal = (title, msg, onConfirm) => {
 };
 
 // -------------------------------------------------------------
-// RESOLUCIÓN SEGURA DE UTILIDADES GLOBALES (A PRUEBA DE RECURSIÓN)
+// RESOLUCIÓN SEGURA DE UTILIDADES GLOBALES (SIN REDECLARACIONES CONST)
 // -------------------------------------------------------------
-function _safeOpenModal(id) {
-    if (typeof window !== 'undefined' && typeof window.openModal === 'function') return window.openModal(id);
-    if (typeof globalThis !== 'undefined' && typeof globalThis.openModal === 'function') return globalThis.openModal(id);
-    return _localOpenModal(id);
-}
-function _safeCloseModal(id) {
-    if (typeof window !== 'undefined' && typeof window.closeModal === 'function') return window.closeModal(id);
-    if (typeof globalThis !== 'undefined' && typeof globalThis.closeModal === 'function') return globalThis.closeModal(id);
-    return _localCloseModal(id);
-}
-function _safeGenerateId() {
-    if (typeof window !== 'undefined' && typeof window.generateId === 'function') return window.generateId();
-    if (typeof globalThis !== 'undefined' && typeof globalThis.generateId === 'function') return globalThis.generateId();
-    return _localGenerateId();
-}
-function _safeFormatDate(ds) {
-    if (typeof window !== 'undefined' && typeof window.formatDate === 'function') return window.formatDate(ds);
-    if (typeof globalThis !== 'undefined' && typeof globalThis.formatDate === 'function') return globalThis.formatDate(ds);
-    return _localFormatDate(ds);
-}
-function _safeToDateInputValue(d) {
-    if (typeof window !== 'undefined' && typeof window.toDateInputValue === 'function') return window.toDateInputValue(d);
-    if (typeof globalThis !== 'undefined' && typeof globalThis.toDateInputValue === 'function') return globalThis.toDateInputValue(d);
-    return _localToDateInputValue(d);
-}
-function _safeShowToast(msg, type) {
-    if (typeof window !== 'undefined' && typeof window.showToast === 'function') return window.showToast(msg, type);
-    if (typeof globalThis !== 'undefined' && typeof globalThis.showToast === 'function') return globalThis.showToast(msg, type);
-    return _localShowToast(msg, type);
-}
-function _safeShowConfirmModal(title, msg, onConfirm) {
-    if (typeof window !== 'undefined' && typeof window.showConfirmModal === 'function') return window.showConfirmModal(title, msg, onConfirm);
-    if (typeof globalThis !== 'undefined' && typeof globalThis.showConfirmModal === 'function') return globalThis.showConfirmModal(title, msg, onConfirm);
-    return _localShowConfirmModal(title, msg, onConfirm);
-}
+// En el navegador, app.js declara function openModal, closeModal, etc. en el ámbito global.
+// Para evitar SyntaxError por re-declaración de identificadores léxicos, asignamos fallbacks
+// únicamente como propiedades de window / globalThis si aún no existen.
+const _financeUtilScope = (typeof window !== 'undefined') ? window : (typeof globalThis !== 'undefined' ? globalThis : {});
 
-const openModal = (id) => _safeOpenModal(id);
-const closeModal = (id) => _safeCloseModal(id);
-const generateId = () => _safeGenerateId();
-const formatDate = (ds) => _safeFormatDate(ds);
-const toDateInputValue = (d) => _safeToDateInputValue(d);
-const showToast = (msg, type) => _safeShowToast(msg, type);
-const showConfirmModal = (title, msg, onConfirm) => _safeShowConfirmModal(title, msg, onConfirm);
-
-if (typeof window === 'undefined') {
-    if (typeof globalThis.openModal !== 'function') globalThis.openModal = _localOpenModal;
-    if (typeof globalThis.closeModal !== 'function') globalThis.closeModal = _localCloseModal;
-    if (typeof globalThis.generateId !== 'function') globalThis.generateId = _localGenerateId;
-    if (typeof globalThis.formatDate !== 'function') globalThis.formatDate = _localFormatDate;
-    if (typeof globalThis.toDateInputValue !== 'function') globalThis.toDateInputValue = _localToDateInputValue;
-    if (typeof globalThis.showToast !== 'function') globalThis.showToast = _localShowToast;
-    if (typeof globalThis.showConfirmModal !== 'function') globalThis.showConfirmModal = _localShowConfirmModal;
-}
+if (typeof _financeUtilScope.openModal !== 'function') _financeUtilScope.openModal = _localOpenModal;
+if (typeof _financeUtilScope.closeModal !== 'function') _financeUtilScope.closeModal = _localCloseModal;
+if (typeof _financeUtilScope.generateId !== 'function') _financeUtilScope.generateId = _localGenerateId;
+if (typeof _financeUtilScope.formatDate !== 'function') _financeUtilScope.formatDate = _localFormatDate;
+if (typeof _financeUtilScope.toDateInputValue !== 'function') _financeUtilScope.toDateInputValue = _localToDateInputValue;
+if (typeof _financeUtilScope.showToast !== 'function') _financeUtilScope.showToast = _localShowToast;
+if (typeof _financeUtilScope.showConfirmModal !== 'function') _financeUtilScope.showConfirmModal = _localShowConfirmModal;
 
 
 const _memStorage = {};
