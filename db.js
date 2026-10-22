@@ -24,6 +24,7 @@ class DatabaseManager {
     constructor() {
         this.isPostgresConnected = false;
         this.pgPool = null;
+        this._isCorruptState = false;
         this.localStore = this._loadLocalStore();
         if (!this.localStore.kid_portal_activities) {
             this.localStore.kid_portal_activities = [];
@@ -51,8 +52,10 @@ class DatabaseManager {
                 console.error('❌ Respaldo .bak también corrupto o inaccesible:', backupErr.message);
             }
 
-            // Si el archivo existía pero falló el parseo, preservar una copia de emergencia para análisis forense
+            // Si el archivo existía pero falló el parseo tanto del primario como del .bak,
+            // marcar el estado de corrupción para proteger contra sobreescritura destructiva vacía.
             if (fs.existsSync(LOCAL_DB_PATH)) {
+                this._isCorruptState = true;
                 const corruptDump = path.join(DATA_DIR, `psiconotes_corrupt_${Date.now()}.json`);
                 try {
                     fs.copyFileSync(LOCAL_DB_PATH, corruptDump);
@@ -80,30 +83,45 @@ class DatabaseManager {
     }
 
     _persistLocalStore() {
+        if (this._isCorruptState) {
+            throw new Error('PERSISTENCIA BLOQUEADA: El almacén de datos local se encuentra en estado corrupto sin respaldo válido. Operación cancelada para prevenir pérdida o sobreescritura destructiva de expedientes.');
+        }
+
+        const tmpFile = `${LOCAL_DB_TMP_PATH}.${process.pid}.${Date.now()}`;
         try {
             const dataStr = JSON.stringify(this.localStore, null, 2);
-            // 1. Escritura atómica primero en archivo temporal
-            fs.writeFileSync(LOCAL_DB_TMP_PATH, dataStr, 'utf8');
+            // 1. Escritura atómica primero en archivo temporal único por proceso
+            fs.writeFileSync(tmpFile, dataStr, 'utf8');
 
             // 2. Crear copia de respaldo del archivo actual previo a la sustitución
             if (fs.existsSync(LOCAL_DB_PATH)) {
                 try {
                     fs.copyFileSync(LOCAL_DB_PATH, LOCAL_DB_BACKUP_PATH);
-                } catch {}
+                } catch (backupErr) {
+                    console.warn('⚠️ No se pudo renovar copia de respaldo .bak:', backupErr.message);
+                }
             }
 
             // 3. Renombrado atómico (garantiza integridad ante caídas de proceso)
-            fs.renameSync(LOCAL_DB_TMP_PATH, LOCAL_DB_PATH);
+            fs.renameSync(tmpFile, LOCAL_DB_PATH);
         } catch (e) {
             console.error('❌ Error persistiendo almacén de datos atómicamente:', e.message);
-            if (fs.existsSync(LOCAL_DB_TMP_PATH)) {
-                try { fs.unlinkSync(LOCAL_DB_TMP_PATH); } catch {}
+            if (fs.existsSync(tmpFile)) {
+                try { fs.unlinkSync(tmpFile); } catch {}
             }
+            // Propagar el fallo para que la API responda con error real en vez de falso éxito
+            throw new Error(`Fallo crítico de persistencia en disco: ${e.message}`);
         }
     }
 
     async initialize() {
         const dbUrl = process.env.DATABASE_URL;
+        const isProd = process.env.NODE_ENV === 'production';
+
+        // En producción, exigir PostgreSQL expresamente a menos que se autorice explícitamente modo local
+        if (isProd && !dbUrl && !process.env.ALLOW_LOCAL_DB_IN_PROD) {
+            throw new Error('FALLO CRÍTICO DE ARQUITECTURA: En producción (NODE_ENV=production) se requiere base de datos PostgreSQL mediante DATABASE_URL. El sistema no degradará silenciosamente a archivos locales efímeros.');
+        }
 
         if (dbUrl) {
             try {
@@ -112,25 +130,32 @@ class DatabaseManager {
                     connectionString: dbUrl,
                     ssl: dbUrl.includes('localhost') || dbUrl.includes('127.0.0.1') ? false : { rejectUnauthorized: false },
                     max: 10,
-                    idleTimeoutMillis: 30000
+                    idleTimeoutMillis: 30000,
+                    connectionTimeoutMillis: 10000
                 };
                 this.pgPool = new pg.Pool(poolConfig);
 
-                // Probar conexión
+                // Probar conexión y asegurar liberación del cliente en bloque finally
                 const client = await this.pgPool.connect();
-                console.log('🐘 PostgreSQL conectado exitosamente');
-                
-                // Aplicar schema DDL
-                const schemaPath = path.join(__dirname, 'schema.sql');
-                if (fs.existsSync(schemaPath)) {
-                    const schemaSql = fs.readFileSync(schemaPath, 'utf8');
-                    await client.query(schemaSql);
-                    console.log('✅ Esquema DDL de PostgreSQL verificado y actualizado');
+                try {
+                    console.log('🐘 PostgreSQL conectado exitosamente');
+                    
+                    // Aplicar schema DDL
+                    const schemaPath = path.join(__dirname, 'schema.sql');
+                    if (fs.existsSync(schemaPath)) {
+                        const schemaSql = fs.readFileSync(schemaPath, 'utf8');
+                        await client.query(schemaSql);
+                        console.log('✅ Esquema DDL de PostgreSQL verificado y actualizado');
+                    }
+                    this.isPostgresConnected = true;
+                    return;
+                } finally {
+                    client.release();
                 }
-                client.release();
-                this.isPostgresConnected = true;
-                return;
             } catch (err) {
+                if (isProd && !process.env.ALLOW_LOCAL_DB_IN_PROD) {
+                    throw new Error(`FALLO CRÍTICO DE CONEXIÓN POSTGRESQL EN PRODUCCIÓN: ${err.message}. El sistema no degradará silenciosamente a almacenamiento local.`);
+                }
                 console.warn(`⚠️ No se pudo conectar a PostgreSQL (${err.message}). Utilizando motor de persistencia local adaptativo.`);
                 this.isPostgresConnected = false;
             }
@@ -542,10 +567,20 @@ class DatabaseManager {
 
     async registerTherapist(data) {
         const id = data.id || `therapist_${Date.now()}`;
+        const cleanEmail = (data.email || '').trim().toLowerCase();
+
+        // Prevención de usurpación/BOLA: Si se envía un ID explícito, verificar que no pertenezca a otra cuenta
+        const existingById = await this.findTherapistById(id);
+        if (existingById && (existingById.email || '').toLowerCase() !== cleanEmail) {
+            const err = new Error('Conflicto de identidad: El identificador solicitado ya pertenece a otro profesional registrado.');
+            err.statusCode = 409;
+            throw err;
+        }
+
         const therapist = {
             id,
             name: data.name || '',
-            email: (data.email || '').trim().toLowerCase(),
+            email: cleanEmail,
             specialty: data.specialty || 'Psicología Clínica',
             registry_number: data.registryNumber || data.registry_number || '',
             phone: data.phone || '',
@@ -577,6 +612,7 @@ class DatabaseManager {
             const res = await this.pgPool.query(query, values);
             const saved = res.rows[0];
             delete saved.password_hash;
+            delete saved.passwordHash;
             return saved;
         }
 
@@ -594,6 +630,7 @@ class DatabaseManager {
 
         const copy = { ...therapist };
         delete copy.password_hash;
+        delete copy.passwordHash;
         return copy;
     }
 
@@ -608,6 +645,7 @@ class DatabaseManager {
 
         const clean = { ...therapist };
         delete clean.password_hash;
+        delete clean.passwordHash;
         return clean;
     }
 

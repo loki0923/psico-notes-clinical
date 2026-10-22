@@ -3,10 +3,16 @@
  */
 
 function exportBackupFile() {
+    const safeUser = AppState.currentUser ? { ...AppState.currentUser } : null;
+    if (safeUser) {
+        delete safeUser.passwordHash;
+        delete safeUser.password_hash;
+    }
+
     const backupData = {
-        version: '5.0',
+        version: '6.0',
         timestamp: new Date().toISOString(),
-        user: AppState.currentUser,
+        user: safeUser,
         patients: AppState.patients,
         appointments: AppState.appointments,
         notes: AppState.notes,

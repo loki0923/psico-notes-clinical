@@ -1648,24 +1648,25 @@
 <!-- API KEY CONFIG MODAL -->
 <div class="modal" id="apiKeyModal">
     <div class="modal-overlay" onclick="closeModal('apiKeyModal')"></div>
-    <div class="modal-content" style="max-width: 450px;">
+    <div class="modal-content" style="max-width: 480px;">
         <div class="modal-header">
-            <h2>🔑 Configurar Gemini API Key</h2>
+            <h2>🤖 Estado de IA Clínica (Gemini API)</h2>
             <button class="btn-icon" onclick="closeModal('apiKeyModal')"><i class="fas fa-times"></i></button>
         </div>
         <div style="padding:16px 0;">
-            <p style="font-size:13px;color:var(--text-secondary);margin-bottom:12px;">
-                Tu clave se almacena de forma <strong>local y cifrada</strong> en tu navegador. Nunca se envía a ningún servidor intermediario.
-            </p>
-            <div class="form-group">
-                <label>Google Gemini API Key:</label>
-                <input type="password" id="geminiApiKeyInput" placeholder="AIzaSy..." style="width:100%;">
+            <div style="background:rgba(59, 130, 246, 0.08);border:1px solid rgba(59, 130, 246, 0.2);border-radius:var(--radius-md);padding:14px;margin-bottom:14px;font-size:13px;line-height:1.5;">
+                <p style="margin:0 0 8px 0;font-weight:600;color:var(--text-primary);">
+                    🔒 Arquitectura Segura con Proxy Centralizado
+                </p>
+                <p style="margin:0;color:var(--text-secondary);font-size:12px;">
+                    Conforme a normativas médicas (HIPAA) y estándares OWASP, las claves privadas de API se administran <strong>exclusivamente en el servidor</strong> (variable <code>GEMINI_API_KEY</code>). Los navegadores clientes no almacenan ni transmiten claves privadas.
+                </p>
             </div>
-            <div style="display:flex;justify-content:space-between;align-items:center;margin-top:16px;">
-                <a href="https://aistudio.google.com/app/apikey" target="_blank" rel="noopener" style="font-size:12px;color:var(--accent-primary);">
-                    Obtener clave gratis en Google AI Studio ↗
-                </a>
-                <button type="button" class="btn-primary" onclick="saveGeminiKeyFromModal()">Guardar Clave</button>
+            <div id="geminiServerStatusIndicator" style="padding:12px;border-radius:var(--radius-sm);background:var(--bg-secondary);font-size:13px;display:flex;align-items:center;gap:10px;margin-bottom:16px;">
+                <i class="fas fa-circle-notch fa-spin"></i> Consultando estado del servicio en el servidor...
+            </div>
+            <div style="display:flex;justify-content:flex-end;align-items:center;">
+                <button type="button" class="btn-primary" onclick="closeModal('apiKeyModal')">Entendido</button>
             </div>
         </div>
     </div>
