@@ -2,16 +2,127 @@
  * PSICO NOTES CLINICAL - MÓDULO DE FINANZAS
  */
 
+// -------------------------------------------------------------
+// UTILIDADES DEFENSIVAS LOCALES (A PRUEBA DE FALLOS)
+// -------------------------------------------------------------
+
+function generateId() {
+    if (typeof window !== 'undefined' && typeof window.generateId === 'function') {
+        try { return window.generateId(); } catch {}
+    }
+    return 'id_' + Date.now().toString(36) + Math.random().toString(36).substring(2);
+}
+
 function roundCurrency(val) {
     return Math.round((Number(val || 0) + Number.EPSILON) * 100) / 100;
 }
 
-if (typeof window !== 'undefined') {
-    window.roundCurrency = roundCurrency;
+function formatDate(ds) {
+    if (typeof window !== 'undefined' && typeof window.formatDate === 'function') {
+        try { return window.formatDate(ds); } catch {}
+    }
+    if (!ds) return '';
+    try {
+        const d = new Date(ds.includes('T') ? ds : ds + 'T00:00:00');
+        return d.toLocaleDateString('es-ES', { day: 'numeric', month: 'short', year: 'numeric' });
+    } catch { return ds; }
+}
+
+function toDateInputValue(date) {
+    if (typeof window !== 'undefined' && typeof window.toDateInputValue === 'function') {
+        try { return window.toDateInputValue(date); } catch {}
+    }
+    const d = date ? new Date(date) : new Date();
+    return d.toISOString().split('T')[0];
+}
+
+function showToast(msg, type = 'info') {
+    if (typeof window !== 'undefined' && typeof window.showToast === 'function') {
+        try { window.showToast(msg, type); return; } catch {}
+    }
+    console.log(`[TOAST-${type.toUpperCase()}] ${msg}`);
+}
+
+function showConfirmModal(title, msg, onConfirm) {
+    if (typeof window !== 'undefined' && typeof window.showConfirmModal === 'function') {
+        try { window.showConfirmModal(title, msg, onConfirm); return; } catch {}
+    }
+    if (typeof confirm === 'function' && confirm(`${title}\n\n${msg}`)) {
+        if (typeof onConfirm === 'function') onConfirm();
+    }
+}
+
+function openModal(id) {
+    if (typeof window !== 'undefined' && typeof window.openModal === 'function') {
+        try { window.openModal(id); return; } catch {}
+    }
+    if (typeof document === 'undefined') return;
+    const m = document.getElementById(id);
+    if (m) {
+        m.classList.add('active');
+        if (document.body) {
+            document.body.style.overflow = 'hidden';
+            document.body.classList.add('has-active-modal');
+        }
+    }
+}
+
+function closeModal(id) {
+    if (typeof window !== 'undefined' && typeof window.closeModal === 'function') {
+        try { window.closeModal(id); return; } catch {}
+    }
+    if (typeof document === 'undefined') return;
+    const m = document.getElementById(id);
+    if (m) {
+        m.classList.remove('active');
+        if (document.body && !document.querySelector('.modal.active')) {
+            document.body.style.overflow = '';
+            document.body.classList.remove('has-active-modal');
+        }
+    }
+}
+
+const _memStorage = {};
+
+function _storageGet(key) {
+    try {
+        if (typeof localStorage !== 'undefined' && localStorage && typeof localStorage.getItem === 'function') {
+            const val = localStorage.getItem(key);
+            if (val !== null && typeof val !== 'undefined') return val;
+        }
+    } catch {}
+    return Object.prototype.hasOwnProperty.call(_memStorage, key) ? _memStorage[key] : null;
+}
+
+function _storageSet(key, value) {
+    const strVal = String(value);
+    _memStorage[key] = strVal;
+    try {
+        if (typeof localStorage !== 'undefined' && localStorage && typeof localStorage.setItem === 'function') {
+            localStorage.setItem(key, strVal);
+        }
+    } catch {}
+}
+
+function _storageRemove(key) {
+    delete _memStorage[key];
+    try {
+        if (typeof localStorage !== 'undefined' && localStorage && typeof localStorage.removeItem === 'function') {
+            localStorage.removeItem(key);
+        }
+    } catch {}
 }
 
 function getFinanceStorageKey(key) {
-    const uid = AppState.currentUser ? AppState.currentUser.id : 'anon';
+    let uid = 'anon';
+    try {
+        if (typeof AppState !== 'undefined' && AppState && AppState.currentUser && AppState.currentUser.id) {
+            uid = AppState.currentUser.id;
+        } else {
+            const localUser = _storageGet('psico_therapist_id') || _storageGet('psico_active_user_id');
+            if (localUser) uid = localUser;
+        }
+    } catch {}
     return `psico_finance_${key}_${uid}`;
 }
 
@@ -21,24 +132,42 @@ function getFinanceStorageKey(key) {
 
 function getFinanceTransactions() {
     try {
-        return JSON.parse(localStorage.getItem(getFinanceStorageKey('transactions')) || '[]');
+        const key = getFinanceStorageKey('transactions');
+        let stored = _storageGet(key);
+        if (!stored && key !== 'psico_finance_transactions_anon') {
+            stored = _storageGet('psico_finance_transactions_anon');
+        }
+        if (stored) return JSON.parse(stored);
     } catch { return []; }
+    return [];
 }
 
 function saveFinanceTransactions(txs) {
-    localStorage.setItem(getFinanceStorageKey('transactions'), JSON.stringify(txs));
+    try {
+        _storageSet(getFinanceStorageKey('transactions'), JSON.stringify(txs));
+    } catch (e) {
+        console.error('Error guardando transacciones financieras:', e);
+    }
 }
 
 function getFinanceCategories() {
     try {
-        const stored = localStorage.getItem(getFinanceStorageKey('categories'));
+        const key = getFinanceStorageKey('categories');
+        let stored = _storageGet(key);
+        if (!stored && key !== 'psico_finance_categories_anon') {
+            stored = _storageGet('psico_finance_categories_anon');
+        }
         if (stored) return JSON.parse(stored);
     } catch {}
     return ['Alquiler Consultorio', 'Supervisión Clínica', 'Materiales y Test', 'Formación y Cursos', 'Servicios Públicos', 'Plataformas Online', 'Otros Egresos'];
 }
 
 function saveFinanceCategories(cats) {
-    localStorage.setItem(getFinanceStorageKey('categories'), JSON.stringify(cats));
+    try {
+        _storageSet(getFinanceStorageKey('categories'), JSON.stringify(cats));
+    } catch (e) {
+        console.error('Error guardando categorías financieras:', e);
+    }
 }
 
 // -------------------------------------------------------------
@@ -47,8 +176,15 @@ function saveFinanceCategories(cats) {
 
 function getFinanceRates() {
     try {
-        const stored = localStorage.getItem(getFinanceStorageKey('rates'));
-        if (stored) return JSON.parse(stored);
+        const key = getFinanceStorageKey('rates');
+        let stored = _storageGet(key);
+        if (!stored && key !== 'psico_finance_rates_anon') {
+            stored = _storageGet('psico_finance_rates_anon');
+        }
+        if (stored) {
+            const parsed = JSON.parse(stored);
+            if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+        }
     } catch {}
     return [
         { id: 'rate_30', durationMinutes: 30, title: 'Consulta Corta / Seguimiento', amount: 30.00, currency: 'USD', description: 'Sesión de 30 minutos de revisión o seguimiento breve', isDefault: false },
@@ -60,7 +196,11 @@ function getFinanceRates() {
 }
 
 function saveFinanceRates(rates) {
-    localStorage.setItem(getFinanceStorageKey('rates'), JSON.stringify(rates));
+    try {
+        _storageSet(getFinanceStorageKey('rates'), JSON.stringify(rates));
+    } catch (e) {
+        console.error('Error guardando tarifas de consulta:', e);
+    }
 }
 
 // -------------------------------------------------------------
@@ -69,8 +209,15 @@ function saveFinanceRates(rates) {
 
 function getFinanceGoals() {
     try {
-        const stored = localStorage.getItem(getFinanceStorageKey('goals'));
-        if (stored) return JSON.parse(stored);
+        const key = getFinanceStorageKey('goals');
+        let stored = _storageGet(key);
+        if (!stored && key !== 'psico_finance_goals_anon') {
+            stored = _storageGet('psico_finance_goals_anon');
+        }
+        if (stored) {
+            const parsed = JSON.parse(stored);
+            if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+        }
     } catch {}
     return [
         { id: 'goal_monthly_income', title: 'Meta de Ingresos Mensuales', targetAmount: 2000.00, period: 'monthly', category: 'income', description: 'Honorarios brutos del mes en curso' },
@@ -80,7 +227,11 @@ function getFinanceGoals() {
 }
 
 function saveFinanceGoals(goals) {
-    localStorage.setItem(getFinanceStorageKey('goals'), JSON.stringify(goals));
+    try {
+        _storageSet(getFinanceStorageKey('goals'), JSON.stringify(goals));
+    } catch (e) {
+        console.error('Error guardando metas financieras:', e);
+    }
 }
 
 // -------------------------------------------------------------
@@ -89,20 +240,31 @@ function saveFinanceGoals(goals) {
 
 function registerIncomeFromAppointment(appointment) {
     if (!appointment) return;
-    const patient = AppState.patients.find(p => String(p.id) === String(appointment.patientId));
+    const patient = (typeof AppState !== 'undefined' && AppState.patients) 
+        ? AppState.patients.find(p => String(p.id) === String(appointment.patientId)) 
+        : null;
     const rates = getFinanceRates();
     
-    let selectedRate = rates.find(r => r.isDefault);
-    if (!selectedRate && rates.length > 0) selectedRate = rates[0];
+    let selectedRate = null;
+    if (appointment.rateId) {
+        selectedRate = rates.find(r => String(r.id) === String(appointment.rateId));
+    }
+    if (!selectedRate) {
+        selectedRate = rates.find(r => r.isDefault) || (rates.length > 0 ? rates[0] : null);
+    }
 
-    const amount = selectedRate ? parseFloat(selectedRate.amount) : 45;
-    const durationText = selectedRate ? ` (${selectedRate.durationMinutes} min)` : '';
+    const amount = (typeof appointment.price !== 'undefined' && appointment.price !== null && !isNaN(parseFloat(appointment.price)))
+        ? parseFloat(appointment.price)
+        : (selectedRate ? parseFloat(selectedRate.amount) : 45.00);
+
+    const durationText = appointment.duration ? ` (${appointment.duration} min)` : (selectedRate ? ` (${selectedRate.durationMinutes} min)` : '');
+    const rateTitle = appointment.rateTitle || (selectedRate ? selectedRate.title : 'Sesión psicoterapéutica');
 
     const tx = {
         id: generateId(),
         type: 'income',
-        concept: `Sesión psicoterapéutica${durationText} - ${patient ? patient.name : 'Paciente'}`,
-        amount: amount,
+        concept: `${rateTitle}${durationText} - ${patient ? patient.name : 'Paciente'}`,
+        amount: roundCurrency(amount),
         currency: 'USD',
         category: 'Consulta Clínica',
         patientId: appointment.patientId,
@@ -115,7 +277,7 @@ function registerIncomeFromAppointment(appointment) {
     if (!txs.some(t => String(t.appointmentId) === String(appointment.id))) {
         txs.push(tx);
         saveFinanceTransactions(txs);
-        showToast(`Cobro registrado: $${amount.toFixed(2)}`, 'success');
+        showToast(`Cobro registrado: $${roundCurrency(amount).toFixed(2)} USD`, 'success');
     }
 }
 
@@ -124,13 +286,15 @@ function registerIncomeFromAppointment(appointment) {
 // -------------------------------------------------------------
 
 function renderFinanceView() {
+    if (typeof document === 'undefined') return;
     const container = document.getElementById('financeContent');
     if (!container) return;
 
-    if (!window._financeActiveTab) {
-        window._financeActiveTab = 'transactions';
+    const _scope = (typeof window !== 'undefined') ? window : (typeof globalThis !== 'undefined' ? globalThis : {});
+    if (!_scope._financeActiveTab) {
+        _scope._financeActiveTab = 'transactions';
     }
-    const currentTab = window._financeActiveTab;
+    const currentTab = _scope._financeActiveTab;
 
     const txs = getFinanceTransactions();
     const categories = getFinanceCategories();
@@ -210,7 +374,8 @@ function renderFinanceView() {
 }
 
 function switchFinanceTab(tab) {
-    window._financeActiveTab = tab;
+    const _scope = (typeof window !== 'undefined') ? window : (typeof globalThis !== 'undefined' ? globalThis : {});
+    _scope._financeActiveTab = tab;
     renderFinanceView();
 }
 
@@ -1135,4 +1300,96 @@ function settleAllPatientDebtsGlobal() {
         }
     );
 }
+
+// =============================================================
+// EXPOSICIÓN GLOBAL EXHAUSTIVA PARA DOM onclick Y NAVEGACIÓN WEB
+// =============================================================
+const _financeTargetScope = (typeof window !== 'undefined') ? window : (typeof globalThis !== 'undefined' ? globalThis : (typeof global !== 'undefined' ? global : null));
+if (_financeTargetScope) {
+    _financeTargetScope.roundCurrency = roundCurrency;
+    _financeTargetScope.getFinanceStorageKey = getFinanceStorageKey;
+    _financeTargetScope.getFinanceTransactions = getFinanceTransactions;
+    _financeTargetScope.saveFinanceTransactions = saveFinanceTransactions;
+    _financeTargetScope.getFinanceCategories = getFinanceCategories;
+    _financeTargetScope.saveFinanceCategories = saveFinanceCategories;
+    _financeTargetScope.getFinanceRates = getFinanceRates;
+    _financeTargetScope.saveFinanceRates = saveFinanceRates;
+    _financeTargetScope.getFinanceGoals = getFinanceGoals;
+    _financeTargetScope.saveFinanceGoals = saveFinanceGoals;
+    _financeTargetScope.registerIncomeFromAppointment = registerIncomeFromAppointment;
+    _financeTargetScope.renderFinanceView = renderFinanceView;
+    _financeTargetScope.switchFinanceTab = switchFinanceTab;
+    _financeTargetScope.renderTransactionsTabHtml = renderTransactionsTabHtml;
+    _financeTargetScope.renderGoalsTabHtml = renderGoalsTabHtml;
+    _financeTargetScope.renderRatesTabHtml = renderRatesTabHtml;
+    _financeTargetScope.renderDebtsTabHtml = renderDebtsTabHtml;
+    _financeTargetScope.openGoalModal = openGoalModal;
+    _financeTargetScope.handleGoalSubmit = handleGoalSubmit;
+    _financeTargetScope.deleteGoal = deleteGoal;
+    _financeTargetScope.openRateModal = openRateModal;
+    _financeTargetScope.handleRateSubmit = handleRateSubmit;
+    _financeTargetScope.setDefaultRate = setDefaultRate;
+    _financeTargetScope.deleteRate = deleteRate;
+    _financeTargetScope.openTransactionModal = openTransactionModal;
+    _financeTargetScope.handleTransactionSubmit = handleTransactionSubmit;
+    _financeTargetScope.openEditTransactionModal = openEditTransactionModal;
+    _financeTargetScope.handleTransactionEditSubmit = handleTransactionEditSubmit;
+    _financeTargetScope.deleteTransaction = deleteTransaction;
+    _financeTargetScope.clearAllFinanceTransactions = clearAllFinanceTransactions;
+    _financeTargetScope.openCategoriesModal = openCategoriesModal;
+    _financeTargetScope.addFinanceCategory = addFinanceCategory;
+    _financeTargetScope.removeFinanceCategory = removeFinanceCategory;
+    _financeTargetScope.getPendingPatientDebts = getPendingPatientDebts;
+    _financeTargetScope.sendPaymentReminderWhatsApp = sendPaymentReminderWhatsApp;
+    _financeTargetScope.copyPaymentReminderText = copyPaymentReminderText;
+    _financeTargetScope.settlePatientDebt = settlePatientDebt;
+    _financeTargetScope.settleAllPatientDebtsGlobal = settleAllPatientDebtsGlobal;
+    _financeTargetScope.setFinanceFilterType = setFinanceFilterType;
+    _financeTargetScope.setFinanceSearchText = setFinanceSearchText;
+}
+
+export {
+    roundCurrency,
+    getFinanceStorageKey,
+    getFinanceTransactions,
+    saveFinanceTransactions,
+    getFinanceCategories,
+    saveFinanceCategories,
+    getFinanceRates,
+    saveFinanceRates,
+    getFinanceGoals,
+    saveFinanceGoals,
+    registerIncomeFromAppointment,
+    renderFinanceView,
+    switchFinanceTab,
+    renderTransactionsTabHtml,
+    renderGoalsTabHtml,
+    renderRatesTabHtml,
+    renderDebtsTabHtml,
+    openGoalModal,
+    handleGoalSubmit,
+    deleteGoal,
+    openRateModal,
+    handleRateSubmit,
+    setDefaultRate,
+    deleteRate,
+    openTransactionModal,
+    handleTransactionSubmit,
+    openEditTransactionModal,
+    handleTransactionEditSubmit,
+    deleteTransaction,
+    clearAllFinanceTransactions,
+    openCategoriesModal,
+    addFinanceCategory,
+    removeFinanceCategory,
+    getPendingPatientDebts,
+    sendPaymentReminderWhatsApp,
+    copyPaymentReminderText,
+    settlePatientDebt,
+    settleAllPatientDebtsGlobal,
+    setFinanceFilterType,
+    setFinanceSearchText
+};
+
+
 

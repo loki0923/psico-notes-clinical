@@ -1372,6 +1372,14 @@ function initEventListeners() {
     if (patientForm) patientForm.addEventListener('submit', handlePatientSubmit);
     const appointmentForm = document.getElementById('appointmentForm');
     if (appointmentForm) appointmentForm.addEventListener('submit', handleAppointmentSubmit);
+    const appointmentPatientSelect = document.getElementById('appointmentPatient');
+    if (appointmentPatientSelect) {
+        appointmentPatientSelect.addEventListener('change', () => {
+            if (typeof populateAppointmentRates === 'function') {
+                populateAppointmentRates();
+            }
+        });
+    }
     const noteForm = document.getElementById('noteForm');
     if (noteForm) noteForm.addEventListener('submit', handleNoteSubmit);
     const notePatientSelect = document.getElementById('notePatient');
@@ -1443,9 +1451,15 @@ function navigateTo(view) {
     
     // Auto-scroll al inicio en cambios de pantalla
     try {
-        window.scrollTo({ top: 0, behavior: 'smooth' });
+        if (typeof window !== 'undefined' && typeof window.scrollTo === 'function') {
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+        }
     } catch (e) {
-        window.scrollTo(0, 0);
+        try {
+            if (typeof window !== 'undefined' && typeof window.scrollTo === 'function') {
+                window.scrollTo(0, 0);
+            }
+        } catch {}
     }
 
     if (view === 'dashboard') updateDashboard();
@@ -2350,6 +2364,7 @@ function handlePatientSubmit(e) {
         socialDesirability: document.getElementById('patientSocialDesirability')?.value || 'NO',
         selfMotivation: document.getElementById('patientSelfMotivation')?.value || 'SI',
         address: document.getElementById('patientAddress')?.value.trim() || '',
+        customFee: parseFloat(document.getElementById('patientCustomFee')?.value) || null,
         guardianName: document.getElementById('patientGuardianName')?.value.trim() || '',
         guardianRelation: document.getElementById('patientGuardianRelation')?.value || '',
         guardianAge: document.getElementById('patientGuardianAge')?.value || '',
@@ -2440,6 +2455,7 @@ function editPatient(id) {
     if (document.getElementById('patientSocialDesirability')) document.getElementById('patientSocialDesirability').value = p.socialDesirability || 'NO';
     if (document.getElementById('patientSelfMotivation')) document.getElementById('patientSelfMotivation').value = p.selfMotivation || 'SI';
     if (document.getElementById('patientAddress')) document.getElementById('patientAddress').value = p.address || '';
+    if (document.getElementById('patientCustomFee')) document.getElementById('patientCustomFee').value = (p.customFee !== null && p.customFee !== undefined) ? p.customFee : '';
     if (document.getElementById('patientGuardianName')) document.getElementById('patientGuardianName').value = p.guardianName || '';
     if (document.getElementById('patientGuardianRelation')) document.getElementById('patientGuardianRelation').value = p.guardianRelation || '';
     if (document.getElementById('patientGuardianAge')) document.getElementById('patientGuardianAge').value = p.guardianAge || '';
@@ -2523,9 +2539,9 @@ function viewPatient(id) {
     const patientGoals = AppState.treatmentPlans.filter(g => g.patientId === id);
     const emotionalProfile = calculateEmotionalProfile(id);
     const clinicalInsights = generateClinicalInsights(id);
-    const sessionPrep = generateSessionPrep(id);
-    const { results: portalResults, moods: portalMoods, cbt: portalCbt } = getPortalResults(id);
-    const portalCount = portalResults.length + portalMoods.length + (portalCbt ? portalCbt.length : 0);
+    const isKid = isKidPatient(patient);
+    const { results: portalResults, moods: portalMoods, cbt: portalCbt, kidActivities: portalKidActivities } = getPortalResults(id);
+    const portalCount = isKid ? (portalKidActivities ? portalKidActivities.length : 0) : (portalResults.length + portalMoods.length + (portalCbt ? portalCbt.length : 0));
     const detail = document.getElementById('patientDetail');
 
     const admissionStr = patient.admissionDate || (patient.createdAt ? patient.createdAt.split('T')[0] : '');
@@ -3653,6 +3669,9 @@ function syncPatientToPortalStorage(patient) {
         name: patient.name,
         portalToken: patient.portalToken,
         therapistName: therapistName,
+        category: patient.category || patient.lifeStage || (isKidPatient(patient) ? 'child' : 'adult'),
+        birthdate: patient.birthdate || null,
+        age: patient.age || (patient.birthdate ? calculateAge(patient.birthdate) : null),
         createdAt: patient.portalCreatedAt || new Date().toISOString()
     };
     if (existingIndex >= 0) {
@@ -4171,17 +4190,38 @@ async function syncPortalDataForPatient(patientId) {
         }));
         localStorage.setItem(`psico_portal_cbt_${patientId}`, JSON.stringify(normalizedCbt));
 
-        // Normalizar tareas
+        // Normalizar tareas y datos locales
         const localData = JSON.parse(localStorage.getItem(`psico_portal_data_${patientId}`) || '{}');
         localData.tasks = remote.tasks || [];
         localData.activeCrisisAlert = Boolean(remote.hasActiveCrisisAlert);
+
+        // Actividades lúdicas infantiles (Portal KIDS)
+        const remoteKidActivities = Array.isArray(remote.kidActivities) ? remote.kidActivities : [];
+        if (remoteKidActivities.length > 0) {
+            localData.kidActivities = remoteKidActivities;
+            const kidStorage = JSON.parse(localStorage.getItem(`psico_portal_kid_${patientId}`) || '{}');
+            kidStorage.activities = remoteKidActivities;
+            const avatarAct = remoteKidActivities.find(a => (a.activity_type || a.activityType) === 'avatar_customization');
+            if (avatarAct && avatarAct.data) {
+                kidStorage.avatar = { ...(kidStorage.avatar || {}), ...avatarAct.data };
+                localData.kidAvatar = kidStorage.avatar;
+            }
+            localStorage.setItem(`psico_portal_kid_${patientId}`, JSON.stringify(kidStorage));
+        }
         localStorage.setItem(`psico_portal_data_${patientId}`, JSON.stringify(localData));
+
+        // Actualizar memoria AppState si está el paciente
+        const targetPatient = (AppState.patients || []).find(p => String(p.id) === String(patientId));
+        if (targetPatient && remoteKidActivities.length > 0) {
+            targetPatient.kidActivities = remoteKidActivities;
+        }
 
         return {
             moods: normalizedMoods,
             evaluations: normalizedEvals,
             cbt: normalizedCbt,
-            tasks: remote.tasks || []
+            tasks: remote.tasks || [],
+            kidActivities: remoteKidActivities
         };
     } catch (e) {
         console.warn('⚠️ No se pudo sincronizar datos del portal en este momento:', e);
@@ -4205,8 +4245,10 @@ async function refreshPortalTabContent(patientId, showNotification = false) {
         tabEl.innerHTML = renderPortalTab(patientId);
     }
 
-    const { results, moods, cbt } = getPortalResults(patientId);
-    const totalCount = results.length + moods.length + cbt.length;
+    const patient = (AppState.patients || []).find(p => String(p.id) === String(patientId));
+    const isKid = isKidPatient(patient);
+    const { results, moods, cbt, kidActivities } = getPortalResults(patientId);
+    const totalCount = isKid ? (kidActivities ? kidActivities.length : 0) : (results.length + moods.length + (cbt ? cbt.length : 0));
     if (badgeEl) {
         badgeEl.textContent = totalCount;
         badgeEl.style.display = totalCount > 0 ? 'inline-block' : 'none';
@@ -4222,27 +4264,383 @@ function getPortalResults(patientId) {
     const keyMood = `psico_portal_mood_${patientId}`;
     const keyCbt = `psico_portal_cbt_${patientId}`;
     const keyData = `psico_portal_data_${patientId}`;
+    const keyKid = `psico_portal_kid_${patientId}`;
 
     let results = [];
     let moods = [];
     let cbt = [];
     let tasks = [];
+    let kidActivities = [];
+    let kidAvatar = null;
+    let kidStars = 0;
 
     try { results = JSON.parse(localStorage.getItem(key) || '[]'); } catch (e) {}
     try { moods = JSON.parse(localStorage.getItem(keyMood) || '[]'); } catch (e) {}
     try { cbt = JSON.parse(localStorage.getItem(keyCbt) || '[]'); } catch (e) {}
     try {
         const raw = localStorage.getItem(keyData);
-        if (raw) tasks = JSON.parse(raw).tasks || [];
+        if (raw) {
+            const parsed = JSON.parse(raw);
+            tasks = parsed.tasks || [];
+            if (Array.isArray(parsed.kidActivities) && parsed.kidActivities.length > 0) {
+                kidActivities = parsed.kidActivities;
+            }
+            if (parsed.kidAvatar) kidAvatar = parsed.kidAvatar;
+            if (typeof parsed.kidStars === 'number') kidStars = parsed.kidStars;
+        }
     } catch (e) {}
 
-    return { results, moods, cbt, tasks };
+    try {
+        const rawKid = localStorage.getItem(keyKid);
+        if (rawKid) {
+            const parsedKid = JSON.parse(rawKid);
+            if (Array.isArray(parsedKid)) {
+                if (kidActivities.length === 0) kidActivities = parsedKid;
+            } else if (parsedKid && typeof parsedKid === 'object') {
+                if (Array.isArray(parsedKid.activities) && parsedKid.activities.length > 0) {
+                    const existingIds = new Set(kidActivities.map(a => a.id));
+                    parsedKid.activities.forEach(a => {
+                        if (!existingIds.has(a.id)) {
+                            kidActivities.push(a);
+                            existingIds.add(a.id);
+                        }
+                    });
+                }
+                if (parsedKid.avatar && !kidAvatar) kidAvatar = parsedKid.avatar;
+                if (typeof parsedKid.stars === 'number' && kidStars === 0) kidStars = parsedKid.stars;
+            }
+        }
+    } catch (e) {}
+
+    // Fallback con AppState si existe
+    if (kidActivities.length === 0 && typeof AppState !== 'undefined' && Array.isArray(AppState.patients)) {
+        const p = AppState.patients.find(pt => String(pt.id) === String(patientId));
+        if (p && Array.isArray(p.kidActivities) && p.kidActivities.length > 0) {
+            kidActivities = p.kidActivities;
+        }
+    }
+
+    // Ordenar actividades de la más reciente a la más antigua
+    kidActivities.sort((a, b) => new Date(b.created_at || b.date || 0) - new Date(a.created_at || a.date || 0));
+
+    // Si aún no tenemos avatar, extraer del historial de actividades si existe
+    if (!kidAvatar) {
+        const avatarAct = kidActivities.find(a => (a.activity_type || a.activityType) === 'avatar_customization');
+        if (avatarAct && avatarAct.data) kidAvatar = avatarAct.data;
+    }
+
+    return { results, moods, cbt, tasks, kidActivities, kidAvatar, kidStars };
 }
 
 function renderPortalTab(patientId) {
-    const { results, moods, cbt, tasks } = getPortalResults(patientId);
-    const totalCount = results.length + moods.length + cbt.length;
+    const patient = (AppState.patients || []).find(p => String(p.id) === String(patientId));
+    const isKid = isKidPatient(patient);
+    const { results, moods, cbt, tasks, kidActivities, kidAvatar, kidStars } = getPortalResults(patientId);
+    const totalCount = isKid ? (kidActivities ? kidActivities.length : 0) : (results.length + moods.length + (cbt ? cbt.length : 0));
 
+    const formatDateSafe = (dateStr) => {
+        if (!dateStr) return 'Fecha no disponible';
+        try {
+            const date = new Date(dateStr);
+            if (isNaN(date.getTime())) return 'Fecha no disponible';
+            return date.toLocaleDateString('es-ES', { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' });
+        } catch (e) {
+            return 'Fecha no disponible';
+        }
+    };
+
+    if (isKid) {
+        // --- PORTAL PACIENTES KID: ACTIVIDADES Y EXPRESIONES LÚDICAS ---
+        const drawings = (kidActivities || []).filter(a => (a.activity_type || a.activityType) === 'drawing');
+        const weathers = (kidActivities || []).filter(a => (a.activity_type || a.activityType) === 'weather_body');
+        const worries = (kidActivities || []).filter(a => (a.activity_type || a.activityType) === 'bubble_popped');
+        const breaths = (kidActivities || []).filter(a => (a.activity_type || a.activityType) === 'calm_breathing');
+        const avatarActs = (kidActivities || []).filter(a => (a.activity_type || a.activityType) === 'avatar_customization');
+
+        const weatherIcons = {
+            sunny: '☀️',
+            cloudy: '⛅',
+            rainy: '🌧️',
+            storm: '⚡',
+            tornado: '🌪️'
+        };
+        const weatherLabels = {
+            sunny: 'Sol Radiante (Feliz)',
+            cloudy: 'Nube Tranquila',
+            rainy: 'Lluvia (Triste / Apagado)',
+            storm: 'Tormenta (Enojado / Frustrado)',
+            tornado: 'Remolino (Miedo / Confuso)'
+        };
+        const bodyZoneIcons = {
+            head: '🧠 Cabeza',
+            throat: '🗣️ Garganta',
+            chest: '💖 Pecho',
+            belly: '🌀 Pancita',
+            hands: '✊ Manos',
+            general: '✨ Todo el cuerpo'
+        };
+
+        const latestWeather = weathers[0];
+        const latestWorry = worries[0];
+        const currentAvatar = kidAvatar || (avatarActs[0] ? avatarActs[0].data : null) || { character: 'fox', emoji: '🦊', name: 'Zorrito Valiente', aura: 'aura-gold', accessory: 'cape', accEmoji: '🦸' };
+        const totalStars = kidStars > 0 ? kidStars : (kidActivities.length > 0 ? (drawings.length * 2 + weathers.length + worries.length + breaths.length + (avatarActs.length ? 1 : 0)) : 0);
+
+        return `
+            <div class="portal-clinical-tab-wrap" style="padding: 12px 0;">
+                <!-- BANNER DE PORTAL KIDS AUTOMÁTICO (< 13 AÑOS) -->
+                <div style="background: linear-gradient(135deg, rgba(46, 196, 182, 0.12), rgba(255, 184, 76, 0.12)); border: 1.5px solid #2EC4B6; border-radius: 12px; padding: 14px 18px; margin-bottom: 20px; display: flex; align-items: center; justify-content: space-between; gap: 14px; flex-wrap: wrap;">
+                    <div style="display: flex; align-items: center; gap: 12px;">
+                        <span style="font-size: 28px;">🎈</span>
+                        <div>
+                            <strong style="color: #1E463D; font-size: 14px; display: block;">Portal KIDS Activo Automáticamente (&lt; 13 años)</strong>
+                            <div style="font-size: 12px; color: var(--text-secondary); line-height: 1.4;">
+                                Por edad del paciente (${patient?.age || (patient?.birthdate ? calculateAge(patient.birthdate) + ' años' : '&lt; 13 años')}), su acceso se abre exclusivamente como <strong>Psico Kids Space</strong>. Las pantallas de adultos y adolescentes quedan completamente ocultas para el menor.
+                            </div>
+                        </div>
+                    </div>
+                    <span style="background: #2EC4B6; color: white; padding: 5px 12px; border-radius: 20px; font-size: 11px; font-weight: 700; letter-spacing: 0.5px;">
+                        🧒 ETAPA NIÑEZ (< 13a)
+                    </span>
+                </div>
+
+                <!-- CABECERA DE CONTROL DE SINCRONIZACIÓN -->
+                <div style="display: flex; justify-content: space-between; align-items: center; background: var(--bg-secondary); padding: 14px 18px; border-radius: 12px; margin-bottom: 20px; border: 1px solid var(--border-color); flex-wrap: wrap; gap: 12px;">
+                    <div style="display: flex; align-items: center; gap: 10px;">
+                        <span style="display: inline-flex; align-items: center; gap: 6px; background: rgba(16, 185, 129, 0.15); color: #10b981; font-weight: 600; font-size: 12px; padding: 4px 10px; border-radius: 20px;">
+                            <i class="fas fa-database"></i> Sincronizado en Vivo (PostgreSQL / Local)
+                        </span>
+                        <span style="font-size: 13px; color: var(--text-secondary);">
+                            Total de actividades lúdicas: <strong>${totalCount}</strong>
+                        </span>
+                    </div>
+                    <div style="display: flex; gap: 8px; flex-wrap: wrap;">
+                        <button class="btn-sm btn-primary" onclick="launchPatientPortal('${patientId}')" title="Abrir espacio lúdico interactivo del menor" style="background:#2EC4B6;border-color:#2EC4B6;color:white;font-weight:700;">
+                            <i class="fas fa-shapes"></i> Abrir Portal KIDS
+                        </button>
+                        <button class="btn-sm btn-secondary" onclick="refreshPortalTabContent('${patientId}', true)" title="Consultar PostgreSQL para obtener registros recién enviados por el menor">
+                            <i class="fas fa-arrows-rotate"></i> Actualizar Datos
+                        </button>
+                        <button class="btn-sm btn-secondary" onclick="openPortalAccessModal('${patientId}')" title="Ver código PIN, código QR y credenciales de acceso para los padres">
+                            <i class="fas fa-qrcode"></i> Credenciales / PIN
+                        </button>
+                    </div>
+                </div>
+
+                <!-- BENTO PEDIÁTRICO DE 4 MÉTRICAS LÚDICAS -->
+                <div class="summary-grid" style="margin-bottom: 24px;">
+                    <div class="summary-mini-card">
+                        <div class="summary-mini-icon" style="background: rgba(46, 196, 182, 0.15); color: #2EC4B6;">🌤️</div>
+                        <div class="summary-mini-info">
+                            <div class="summary-mini-label">Clima & Cuerpo</div>
+                            <div class="summary-mini-value">${weathers.length}</div>
+                            <small style="color: var(--text-secondary); font-size: 11px;">
+                                ${latestWeather ? `${weatherIcons[latestWeather.data?.weather] || '🌤️'} ${latestWeather.data?.weatherLabel || weatherLabels[latestWeather.data?.weather] || 'Registrado'}` : 'Sin check-ins'}
+                            </small>
+                        </div>
+                    </div>
+
+                    <div class="summary-mini-card">
+                        <div class="summary-mini-icon" style="background: rgba(255, 184, 76, 0.15); color: #d97706;">⭐</div>
+                        <div class="summary-mini-info">
+                            <div class="summary-mini-label">Avatar & Estrellas</div>
+                            <div class="summary-mini-value">${totalStars} ⭐</div>
+                            <small style="color: var(--text-secondary); font-size: 11px;">
+                                ${currentAvatar ? `${currentAvatar.emoji || '🦊'} ${currentAvatar.name || 'Compañero'}` : 'Avatar Activo'}
+                            </small>
+                        </div>
+                    </div>
+
+                    <div class="summary-mini-card">
+                        <div class="summary-mini-icon" style="background: rgba(99, 102, 241, 0.15); color: #6366f1;">🫧</div>
+                        <div class="summary-mini-info">
+                            <div class="summary-mini-label">Preocupaciones Cazadas</div>
+                            <div class="summary-mini-value">${worries.length}</div>
+                            <small style="color: var(--text-secondary); font-size: 11px;">
+                                ${latestWorry ? `Última: "${(latestWorry.data?.worryText || 'Liberada').slice(0, 20)}..."` : 'Juego de burbujas'}
+                            </small>
+                        </div>
+                    </div>
+
+                    <div class="summary-mini-card">
+                        <div class="summary-mini-icon" style="background: rgba(236, 72, 153, 0.15); color: #ec4899;">🎨</div>
+                        <div class="summary-mini-info">
+                            <div class="summary-mini-label">Lienzo de Dibujo</div>
+                            <div class="summary-mini-value">${drawings.length}</div>
+                            <small style="color: var(--text-secondary); font-size: 11px;">
+                                ${drawings.length > 0 ? 'Expresiones artísticas' : 'Sin dibujos aún'}
+                            </small>
+                        </div>
+                    </div>
+                </div>
+
+                ${totalCount === 0 ? `
+                    <!-- EMPTY STATE PEDIÁTRICO AMIGABLE -->
+                    <div class="empty-state" style="padding: 40px 20px; text-align: center; background: var(--bg-secondary); border-radius: 14px; border: 2px dashed #2EC4B6;">
+                        <div class="empty-icon" style="font-size: 48px; margin-bottom: 12px;">🎈</div>
+                        <h4 style="margin: 0 0 8px 0; color: #1E463D; font-weight: 700; font-size: 17px;">¡Espacio Lúdico Psico KIDS Listo para el Paciente!</h4>
+                        <p style="color: var(--text-secondary); font-size: 13.5px; max-width: 520px; margin: 0 auto 20px auto; line-height: 1.5;">
+                            El menor aún no ha enviado actividades interactivas. Comparte las credenciales o el código PIN con sus padres para que el niño pueda ingresar a su portal interactivo, crear su avatar, registrar su clima de corazón, reventar burbujas de preocupación o pintar en su lienzo.
+                        </p>
+                        <div style="display: flex; gap: 12px; justify-content: center; flex-wrap: wrap;">
+                            <button class="btn-primary" onclick="launchPatientPortal('${patientId}')" style="background: #2EC4B6; border-color: #2EC4B6; font-weight: 700;">
+                                <i class="fas fa-shapes"></i> Probar Portal KIDS Ahora
+                            </button>
+                            <button class="btn-secondary" onclick="openPortalAccessModal('${patientId}')">
+                                <i class="fas fa-qrcode"></i> Ver PIN y Acceso de Padres
+                            </button>
+                        </div>
+                    </div>
+                ` : ''}
+
+                <!-- 1. GALERÍA DE DIBUJOS Y EXPRESIÓN ARTÍSTICA -->
+                ${drawings.length > 0 ? `
+                    <div class="clinical-history-section" style="margin-bottom: 26px;">
+                        <h4 style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 14px; color: var(--text-primary);">
+                            <span><i class="fas fa-palette" style="color: #FFB84C;"></i> Galería de Dibujos y Expresión Libre (${drawings.length})</span>
+                            <small style="font-size: 12px; color: var(--text-secondary); font-weight: normal;">Haz clic en cualquier dibujo para ampliar o descargar</small>
+                        </h4>
+                        <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 16px;">
+                            ${drawings.map(draw => {
+                                const dataUrl = draw.data?.imageDataUrl || '';
+                                const dateStr = formatDateSafe(draw.data?.sentAt || draw.created_at || draw.date);
+                                return `
+                                    <div style="background: var(--bg-card); border: 2px solid var(--border-color); border-radius: 14px; padding: 12px; box-shadow: 0 4px 12px rgba(0,0,0,0.04); display: flex; flex-direction: column;">
+                                        <div style="position: relative; width: 100%; aspect-ratio: 4/3; background: #ffffff; border-radius: 10px; overflow: hidden; border: 1px solid #e2e8f0; cursor: pointer; display: flex; align-items: center; justify-content: center;"
+                                             onclick="previewKidDrawing('${dataUrl}', '${dateStr}')" title="Clic para ampliar dibujo">
+                                            ${dataUrl ? `
+                                                <img src="${dataUrl}" alt="Dibujo del paciente" style="width: 100%; height: 100%; object-fit: contain; display: block;" />
+                                            ` : `
+                                                <span style="color: #94a3b8; font-size: 13px;">Sin imagen</span>
+                                            `}
+                                            <div style="position: absolute; bottom: 8px; right: 8px; background: rgba(0,0,0,0.65); color: white; border-radius: 6px; padding: 4px 8px; font-size: 11px; display: flex; align-items: center; gap: 4px;">
+                                                <i class="fas fa-expand"></i> Ampliar
+                                            </div>
+                                        </div>
+                                        <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 10px;">
+                                            <span style="font-size: 11.5px; color: var(--text-secondary);">
+                                                <i class="far fa-clock"></i> ${dateStr}
+                                            </span>
+                                            <button class="btn-sm btn-secondary" onclick="previewKidDrawing('${dataUrl}', '${dateStr}')" style="font-size: 11px; padding: 3px 8px;">
+                                                <i class="fas fa-eye"></i> Inspeccionar
+                                            </button>
+                                        </div>
+                                    </div>
+                                `;
+                            }).join('')}
+                        </div>
+                    </div>
+                ` : ''}
+
+                <!-- 2. CLIMA EMOCIONAL Y REGISTRO SOMÁTICO -->
+                ${weathers.length > 0 ? `
+                    <div class="clinical-history-section" style="margin-bottom: 26px;">
+                        <h4 style="margin-bottom: 14px; color: var(--text-primary);"><i class="fas fa-cloud-sun" style="color: #2EC4B6;"></i> Clima de Corazón y Registro Somático (${weathers.length})</h4>
+                        <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 14px;">
+                            ${weathers.map(w => {
+                                const wData = w.data || {};
+                                const icon = weatherIcons[wData.weather] || '🌤️';
+                                const dateStr = formatDateSafe(wData.recordedAt || w.created_at || w.date);
+                                const weatherLabel = wData.weatherLabel || weatherLabels[wData.weather] || 'Clima registrado';
+                                const bodyLabel = wData.bodyZoneLabel || bodyZoneIcons[wData.bodyZone] || 'En todo el cuerpo';
+                                return `
+                                    <div style="background: var(--bg-card); border: 1.5px solid var(--border-color); border-radius: 12px; padding: 14px; box-shadow: 0 2px 6px rgba(0,0,0,0.03);">
+                                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; border-bottom: 1px solid var(--border-color); padding-bottom: 8px;">
+                                            <span style="font-size: 26px;">${icon}</span>
+                                            <span style="font-size: 11px; color: var(--text-secondary);"><i class="far fa-clock"></i> ${dateStr}</span>
+                                        </div>
+                                        <div style="font-size: 14px; font-weight: 700; color: var(--text-primary); margin-bottom: 6px;">
+                                            ${weatherLabel}
+                                        </div>
+                                        <div style="background: rgba(46, 196, 182, 0.08); border-left: 3px solid #2EC4B6; border-radius: 6px; padding: 8px 10px; font-size: 12px; color: var(--text-secondary);">
+                                            <strong style="color: #1E463D;">Zona en el cuerpo:</strong> ${bodyLabel}
+                                        </div>
+                                    </div>
+                                `;
+                            }).join('')}
+                        </div>
+                    </div>
+                ` : ''}
+
+                <!-- 3. PREOCUPACIONES CAZADAS (BURBUJAS) -->
+                ${worries.length > 0 ? `
+                    <div class="clinical-history-section" style="margin-bottom: 26px;">
+                        <h4 style="margin-bottom: 14px; color: var(--text-primary);"><i class="fas fa-wand-magic-sparkles" style="color: #6366f1;"></i> Preocupaciones Atrapadas en Burbujas (${worries.length})</h4>
+                        <div style="display: flex; flex-wrap: wrap; gap: 10px;">
+                            ${worries.map(b => {
+                                const bData = b.data || {};
+                                const text = bData.worryText || 'Preocupación liberada';
+                                const dateStr = formatDateSafe(bData.poppedAt || b.created_at || b.date);
+                                return `
+                                    <div style="background: linear-gradient(135deg, rgba(99, 102, 241, 0.08), rgba(236, 72, 153, 0.08)); border: 1.5px solid rgba(99, 102, 241, 0.25); border-radius: 20px; padding: 8px 14px; display: inline-flex; align-items: center; gap: 8px;">
+                                        <span style="font-size: 16px;">🫧</span>
+                                        <strong style="font-size: 13px; color: var(--text-primary);">${text}</strong>
+                                        <span style="font-size: 11px; color: var(--text-secondary); background: var(--bg-secondary); padding: 2px 6px; border-radius: 10px;">
+                                            ${dateStr}
+                                        </span>
+                                        <i class="fas fa-check" style="color: #10b981; font-size: 11px;" title="Reventada y liberada"></i>
+                                    </div>
+                                `;
+                            }).join('')}
+                        </div>
+                    </div>
+                ` : ''}
+
+                <!-- 4. RESPIRACIÓN Y CALMA CON EL GLOBO -->
+                ${breaths.length > 0 ? `
+                    <div class="clinical-history-section" style="margin-bottom: 26px;">
+                        <h4 style="margin-bottom: 14px; color: var(--text-primary);"><i class="fas fa-wind" style="color: #FFB84C;"></i> Sesiones de Respiración y Relajación (${breaths.length})</h4>
+                        <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 12px;">
+                            ${breaths.map(br => {
+                                const brData = br.data || {};
+                                const cycles = brData.cyclesCompleted || 3;
+                                const dateStr = formatDateSafe(brData.timestamp || br.created_at || br.date);
+                                return `
+                                    <div style="background: var(--bg-card); border: 1px solid var(--border-color); border-radius: 10px; padding: 12px 14px; display: flex; align-items: center; justify-content: space-between;">
+                                        <div style="display: flex; align-items: center; gap: 10px;">
+                                            <span style="font-size: 24px;">🎈</span>
+                                            <div>
+                                                <div style="font-size: 13px; font-weight: 700; color: var(--text-primary);">${cycles} respiraciones completas</div>
+                                                <div style="font-size: 11px; color: var(--text-secondary);">${dateStr}</div>
+                                            </div>
+                                        </div>
+                                        <span style="background: rgba(255, 184, 76, 0.2); color: #d97706; font-size: 12px; font-weight: 700; padding: 3px 8px; border-radius: 12px;">
+                                            ⭐ +${Math.max(1, Math.floor(cycles / 3))}
+                                        </span>
+                                    </div>
+                                `;
+                            }).join('')}
+                        </div>
+                    </div>
+                ` : ''}
+
+                <!-- 5. COMPAÑERO AVATAR PERSONALIZADO -->
+                ${currentAvatar ? `
+                    <div class="clinical-history-section">
+                        <h4 style="margin-bottom: 14px; color: var(--text-primary);"><i class="fas fa-mask" style="color: #ec4899;"></i> Compañero Mágico Personalizado</h4>
+                        <div style="background: linear-gradient(135deg, rgba(255, 184, 76, 0.1), rgba(46, 196, 182, 0.1)); border: 2px solid #FFB84C; border-radius: 14px; padding: 18px; display: flex; align-items: center; gap: 20px; flex-wrap: wrap;">
+                            <div style="font-size: 50px; background: white; border-radius: 50%; width: 76px; height: 76px; display: flex; align-items: center; justify-content: center; box-shadow: 0 4px 14px rgba(0,0,0,0.1); border: 3px solid #2EC4B6; position: relative;">
+                                ${currentAvatar.emoji || '🦊'}
+                                <span style="position: absolute; bottom: -2px; right: -2px; font-size: 20px;">${currentAvatar.accEmoji || '🦸'}</span>
+                            </div>
+                            <div style="flex: 1; min-width: 200px;">
+                                <div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin-bottom: 4px;">
+                                    <h3 style="margin: 0; font-size: 17px; color: var(--text-primary);">${currentAvatar.name || 'Compañero'}</h3>
+                                    <span style="background: #FFB84C; color: #78350f; padding: 2px 8px; border-radius: 12px; font-size: 11px; font-weight: 700;">
+                                        ${totalStars} ⭐ Estrellas Acumuladas
+                                    </span>
+                                </div>
+                                <div style="font-size: 12.5px; color: var(--text-secondary); line-height: 1.4;">
+                                    Personaje: <strong>${currentAvatar.character || 'Zorrito'}</strong> • Accesorio: <strong>${currentAvatar.accessory || 'Capa'}</strong>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                ` : ''}
+            </div>
+        `;
+    }
+
+    // --- PORTAL ADULTO Y ADOLESCENTE (TCC, PHQ-9, GAD-7, CHECK-INS) ---
     const lastPhq = results.filter(r => r.type === 'phq9' || r.scaleType === 'phq9').slice(-1)[0];
     const lastGad = results.filter(r => r.type === 'gad7' || r.scaleType === 'gad7').slice(-1)[0];
     const latestMood = moods.length > 0 ? moods[moods.length - 1] : null;
@@ -4268,40 +4666,8 @@ function renderPortalTab(patientId) {
         return { level: 'Severa', color: '#e16259' };
     };
 
-    const formatDateSafe = (dateStr) => {
-        if (!dateStr) return 'Fecha no disponible';
-        try {
-            const date = new Date(dateStr);
-            if (isNaN(date.getTime())) return 'Fecha no disponible';
-            return date.toLocaleDateString('es-ES', { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' });
-        } catch (e) {
-            return 'Fecha no disponible';
-        }
-    };
-
-    const patient = (AppState.patients || []).find(p => String(p.id) === String(patientId));
-    const isKid = isKidPatient(patient);
-
     return `
         <div class="portal-clinical-tab-wrap" style="padding: 12px 0;">
-            ${isKid ? `
-                <!-- BANNER DE PORTAL KIDS AUTOMÁTICO (< 13 AÑOS) -->
-                <div style="background: linear-gradient(135deg, rgba(46, 196, 182, 0.12), rgba(255, 184, 76, 0.12)); border: 1.5px solid #2EC4B6; border-radius: 12px; padding: 14px 18px; margin-bottom: 20px; display: flex; align-items: center; justify-content: space-between; gap: 14px; flex-wrap: wrap;">
-                    <div style="display: flex; align-items: center; gap: 12px;">
-                        <span style="font-size: 28px;">🎈</span>
-                        <div>
-                            <strong style="color: #1E463D; font-size: 14px; display: block;">Portal KIDS Activo Automáticamente (&lt; 13 años)</strong>
-                            <div style="font-size: 12px; color: var(--text-secondary); line-height: 1.4;">
-                                Por edad del paciente (${patient?.age || (patient?.birthdate ? calculateAge(patient.birthdate) + ' años' : '&lt; 13 años')}), su acceso se abre exclusivamente como <strong>Psico Kids Space</strong>. Las pantallas de adultos y adolescentes quedan completamente ocultas para el menor.
-                            </div>
-                        </div>
-                    </div>
-                    <span style="background: #2EC4B6; color: white; padding: 5px 12px; border-radius: 20px; font-size: 11px; font-weight: 700; letter-spacing: 0.5px;">
-                        🧒 ETAPA NIÑEZ (< 13a)
-                    </span>
-                </div>
-            ` : ''}
-
             <!-- CABECERA DE CONTROL DE SINCRONIZACIÓN -->
             <div style="display: flex; justify-content: space-between; align-items: center; background: var(--bg-secondary); padding: 14px 18px; border-radius: 12px; margin-bottom: 20px; border: 1px solid var(--border-color); flex-wrap: wrap; gap: 12px;">
                 <div style="display: flex; align-items: center; gap: 10px;">
@@ -4313,8 +4679,8 @@ function renderPortalTab(patientId) {
                     </span>
                 </div>
                 <div style="display: flex; gap: 8px; flex-wrap: wrap;">
-                    <button class="btn-sm btn-primary" onclick="launchPatientPortal('${patientId}')" title="${isKid ? 'Abrir espacio lúdico interactivo del menor' : 'Abrir portal del paciente en una nueva pestaña con sesión iniciada'}" style="background:${isKid ? '#2EC4B6' : '#10b981'};border-color:${isKid ? '#2EC4B6' : '#10b981'};color:white;font-weight:${isKid ? '700' : '500'};">
-                        <i class="fas ${isKid ? 'fa-shapes' : 'fa-arrow-up-right-from-square'}"></i> ${isKid ? 'Abrir Portal KIDS' : 'Abrir Portal del Paciente'}
+                    <button class="btn-sm btn-primary" onclick="launchPatientPortal('${patientId}')" title="Abrir portal del paciente en una nueva pestaña con sesión iniciada" style="background:#10b981;border-color:#10b981;color:white;font-weight:500;">
+                        <i class="fas fa-arrow-up-right-from-square"></i> Abrir Portal del Paciente
                     </button>
                     <button class="btn-sm btn-secondary" onclick="refreshPortalTabContent('${patientId}', true)" title="Consultar PostgreSQL para obtener registros recién enviados desde el teléfono">
                         <i class="fas fa-arrows-rotate"></i> Actualizar Datos
@@ -4506,6 +4872,33 @@ function renderPortalTab(patientId) {
         </div>
     `;
 }
+
+window.previewKidDrawing = function(dataUrl, dateStr) {
+    if (!dataUrl) {
+        if (typeof showToast === 'function') showToast('No hay imagen de dibujo para mostrar', 'warning');
+        return;
+    }
+    const modal = document.getElementById('kidDrawingPreviewModal');
+    const imgEl = document.getElementById('kidDrawingPreviewImage');
+    const dateEl = document.getElementById('kidDrawingPreviewDate');
+    const dlBtn = document.getElementById('kidDrawingDownloadBtn');
+
+    if (imgEl) imgEl.src = dataUrl;
+    if (dateEl) dateEl.textContent = dateStr || 'Dibujo reciente';
+    if (dlBtn) {
+        dlBtn.onclick = function() {
+            const a = document.createElement('a');
+            a.href = dataUrl;
+            a.download = `dibujo-paciente-${Date.now()}.png`;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+        };
+    }
+    if (modal && typeof openModal === 'function') {
+        openModal('kidDrawingPreviewModal');
+    }
+};
 
 // ============================================
 // PERFIL EMOCIONAL E INSIGHTS
@@ -5137,9 +5530,101 @@ function setAppointmentStatus(id, newStatus) {
 }
 window.setAppointmentStatus = setAppointmentStatus;
 
+function populateAppointmentRates(selectedRateId = null, forcedPrice = null) {
+    const select = document.getElementById('appointmentRateSelect');
+    if (!select) return;
+
+    let rates = [];
+    if (typeof getFinanceRates === 'function') {
+        try { rates = getFinanceRates(); } catch {}
+    }
+
+    select.innerHTML = '';
+
+    // Si el paciente seleccionado tiene honorarios acordados personalizados
+    const pId = document.getElementById('appointmentPatient')?.value;
+    const patient = (pId && AppState.patients) ? AppState.patients.find(p => String(p.id) === String(pId)) : null;
+    if (patient && patient.customFee) {
+        const pOpt = document.createElement('option');
+        pOpt.value = 'patient_agreed';
+        pOpt.dataset.amount = patient.customFee;
+        pOpt.dataset.duration = '50';
+        pOpt.dataset.title = `Honorarios Acordados (${patient.name})`;
+        pOpt.textContent = `⭐ Tarifa Acordada (${patient.name}) - $${parseFloat(patient.customFee).toFixed(2)} USD`;
+        if (selectedRateId === 'patient_agreed' || (!selectedRateId && (forcedPrice === null || forcedPrice === undefined))) {
+            pOpt.selected = true;
+        }
+        select.appendChild(pOpt);
+    }
+
+    rates.forEach(r => {
+        const opt = document.createElement('option');
+        opt.value = r.id;
+        opt.dataset.amount = r.amount;
+        opt.dataset.duration = r.durationMinutes;
+        opt.dataset.title = r.title;
+        opt.textContent = `${r.title} (${r.durationMinutes} min) - $${parseFloat(r.amount).toFixed(2)} USD${r.isDefault ? ' [Predeterminada]' : ''}`;
+        if (selectedRateId && String(r.id) === String(selectedRateId)) {
+            opt.selected = true;
+        } else if (!selectedRateId && r.isDefault && (!patient || !patient.customFee)) {
+            opt.selected = true;
+        }
+        select.appendChild(opt);
+    });
+
+    const customOpt = document.createElement('option');
+    customOpt.value = 'custom';
+    customOpt.dataset.amount = '';
+    customOpt.dataset.duration = '';
+    customOpt.dataset.title = 'Tarifa Personalizada';
+    customOpt.textContent = '✏️ Otra Tarifa / Precio Personalizado';
+    if (selectedRateId === 'custom') {
+        customOpt.selected = true;
+    }
+    select.appendChild(customOpt);
+
+    onAppointmentRateSelectChange(forcedPrice);
+}
+window.populateAppointmentRates = populateAppointmentRates;
+
+function onAppointmentRateSelectChange(forcedPrice = null) {
+    const select = document.getElementById('appointmentRateSelect');
+    const priceInput = document.getElementById('appointmentPrice');
+    const durationSelect = document.getElementById('appointmentDuration');
+    if (!select || !priceInput) return;
+
+    const selectedOpt = select.options[select.selectedIndex];
+    if (!selectedOpt) return;
+
+    if (forcedPrice !== null && forcedPrice !== undefined && forcedPrice !== '') {
+        priceInput.value = parseFloat(forcedPrice).toFixed(2);
+    } else if (selectedOpt.dataset.amount) {
+        priceInput.value = parseFloat(selectedOpt.dataset.amount).toFixed(2);
+    }
+
+    if (selectedOpt.dataset.duration && durationSelect) {
+        const dur = String(selectedOpt.dataset.duration);
+        let optExists = Array.from(durationSelect.options).some(o => String(o.value) === dur);
+        if (!optExists) {
+            const newOpt = document.createElement('option');
+            newOpt.value = dur;
+            newOpt.textContent = `${dur} min`;
+            durationSelect.appendChild(newOpt);
+        }
+        durationSelect.value = dur;
+    }
+}
+window.onAppointmentRateSelectChange = onAppointmentRateSelectChange;
+
 function handleAppointmentSubmit(e) {
     e.preventDefault();
     const appStatus = document.getElementById('appointmentStatus')?.value || 'agendada';
+    const rateSelect = document.getElementById('appointmentRateSelect');
+    const selectedRateOpt = rateSelect ? rateSelect.options[rateSelect.selectedIndex] : null;
+    const priceVal = parseFloat(document.getElementById('appointmentPrice')?.value) || 0;
+    const rateId = rateSelect ? rateSelect.value : null;
+    const rateTitle = selectedRateOpt ? (selectedRateOpt.dataset.title || selectedRateOpt.textContent) : 'Sesión psicoterapéutica';
+
     const app = { 
         id: document.getElementById('appointmentId').value || generateId(), 
         patientId: document.getElementById('appointmentPatient').value, 
@@ -5148,17 +5633,20 @@ function handleAppointmentSubmit(e) {
         duration: document.getElementById('appointmentDuration').value, 
         type: document.getElementById('appointmentType').value, 
         notes: document.getElementById('appointmentNotes').value.trim(), 
-        status: appStatus, 
+        status: appStatus,
+        price: priceVal,
+        rateId: rateId,
+        rateTitle: rateTitle,
         createdAt: new Date().toISOString() 
     };
     const idx = AppState.appointments.findIndex(a => a.id === app.id);
     if (idx >= 0) { 
         app.createdAt = AppState.appointments[idx].createdAt || app.createdAt;
         AppState.appointments[idx] = { ...AppState.appointments[idx], ...app }; 
-        showToast('Cita actualizada', 'success'); 
+        showToast('Cita actualizada con tarifa y precio', 'success'); 
     } else { 
         AppState.appointments.push(app); 
-        showToast('Cita agendada', 'success'); 
+        showToast(`Cita agendada ($${priceVal.toFixed(2)} USD)`, 'success'); 
     }
     saveData(); 
     if (app.status === 'completada' && typeof registerIncomeFromAppointment === 'function') {
@@ -5184,6 +5672,7 @@ function editAppointment(id) {
     if (document.getElementById('appointmentStatus')) {
         document.getElementById('appointmentStatus').value = a.status || 'agendada';
     }
+    populateAppointmentRates(a.rateId, a.price);
     document.getElementById('appointmentModalTitle').textContent = 'Editar Cita';
     openModal('appointmentModal');
 }
@@ -6416,6 +6905,7 @@ function openModal(id) {
     if (id === 'patientModal' && !document.getElementById('patientId').value) {
         document.getElementById('patientForm').reset();
         document.getElementById('patientId').value = '';
+        if (document.getElementById('patientCustomFee')) document.getElementById('patientCustomFee').value = '';
         document.getElementById('patientModalTitle').textContent = 'Nuevo Expediente';
         const defaultCat = (AppState.patientCategoryFilter && AppState.patientCategoryFilter !== 'all') ? AppState.patientCategoryFilter : 'adult';
         if (document.getElementById('patientCategory')) document.getElementById('patientCategory').value = defaultCat;
@@ -6430,6 +6920,7 @@ function openModal(id) {
             document.getElementById('appointmentModalTitle').textContent = 'Agendar Cita';
             document.getElementById('appointmentDate').value = toDateInputValue(new Date());
             updatePatientSelects();
+            if (typeof populateAppointmentRates === 'function') populateAppointmentRates();
         }
     }
     if (id === 'noteModal') {
@@ -6984,7 +7475,7 @@ window.loadSyntheticClinicalPilotCase = loadSyntheticClinicalPilotCase;
 function openPatientModal() { openModal('patientModal'); }
 function openAppointmentModal() { openModal('appointmentModal'); }
 function openNoteModal() { openModal('noteModal'); }
-function openReporteAtencionModal() { openModal('noteModal'); }
+
 
 // Exposición global exhaustiva para DOM onclick y navegación web
 if (typeof window !== 'undefined') {
@@ -7062,5 +7553,10 @@ if (typeof window !== 'undefined') {
     if (typeof renderNotes === 'function') window.renderNotes = renderNotes;
     if (typeof saveData === 'function') window.saveData = saveData;
     if (typeof exportPatientReport === 'function') window.exportPatientReport = exportPatientReport;
+    if (typeof generateId === 'function') window.generateId = generateId;
+    if (typeof showConfirmModal === 'function') window.showConfirmModal = showConfirmModal;
+    if (typeof updateCounts === 'function') window.updateCounts = updateCounts;
+    if (typeof getInitials === 'function') window.getInitials = getInitials;
+    if (typeof formatTime === 'function') window.formatTime = formatTime;
 }
 

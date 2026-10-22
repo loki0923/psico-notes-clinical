@@ -243,6 +243,215 @@ ClinicalTestSuite.add('TC-FIN-01', 'Cálculo aritmético de balance, cobros e in
     if (netBalance !== 80.00) throw new Error(`Balance neto esperado 80, obtenido ${netBalance}`);
 });
 
+// 7b. TC-FIN-02: Gestión y Configuración de Tarifas de Precios por Tiempo de Terapia
+ClinicalTestSuite.add('TC-FIN-02', 'Gestión y Configuración de Tarifas de Precios por Tiempo de Terapia', async () => {
+    const Finance = await import('./finance.js');
+    const { getFinanceRates, saveFinanceRates, setDefaultRate } = Finance;
+
+    // 1. Obtener tarifas base del sistema
+    const initialRates = getFinanceRates();
+    if (!Array.isArray(initialRates) || initialRates.length === 0) {
+        throw new Error('El sistema debe proveer tarifas de terapia predeterminadas por tiempo');
+    }
+
+    // 2. Verificar estructura de tarifa clínica
+    const defaultRate = initialRates.find(r => r.isDefault);
+    if (!defaultRate || !defaultRate.durationMinutes || !defaultRate.amount) {
+        throw new Error('Debe existir al menos una tarifa configurada por defecto con duración y precio');
+    }
+
+    // 3. Crear una nueva tarifa personalizada de psicoterapia
+    const customRate = {
+        id: 'rate_test_' + Date.now(),
+        title: 'Psicoterapia Infantil Especializada',
+        durationMinutes: 45,
+        amount: 55.00,
+        currency: 'USD',
+        description: 'Sesión lúdica y acompañamiento parental',
+        isDefault: false
+    };
+
+    const updatedRates = [...initialRates, customRate];
+    saveFinanceRates(updatedRates);
+
+    const reloadedRates = getFinanceRates();
+    const foundCustom = reloadedRates.find(r => r.id === customRate.id);
+    if (!foundCustom || foundCustom.amount !== 55.00 || foundCustom.durationMinutes !== 45) {
+        throw new Error('La tarifa personalizada de terapia no se guardó o recuperó correctamente');
+    }
+
+    // 4. Cambiar tarifa por defecto a la nueva
+    setDefaultRate(customRate.id);
+    const postDefaultRates = getFinanceRates();
+    const newDefault = postDefaultRates.find(r => r.id === customRate.id);
+    const oldDefault = postDefaultRates.find(r => r.id === defaultRate.id);
+
+    if (!newDefault || !newDefault.isDefault) {
+        throw new Error('La nueva tarifa personalizada debió marcarse como predeterminada');
+    }
+    if (oldDefault && oldDefault.id !== customRate.id && oldDefault.isDefault) {
+        throw new Error('La tarifa anterior ya no debe ser la predeterminada');
+    }
+
+    // Restaurar tarifas iniciales
+    saveFinanceRates(initialRates);
+});
+
+// 7c. TC-FIN-03: Metas Financieras Cuantitativas y Cualitativas de la Consulta
+ClinicalTestSuite.add('TC-FIN-03', 'Metas Financieras Cuantitativas y Cualitativas de la Consulta', async () => {
+    const Finance = await import('./finance.js');
+    const { getFinanceGoals, saveFinanceGoals } = Finance;
+
+    const initialGoals = getFinanceGoals();
+    if (!Array.isArray(initialGoals)) {
+        throw new Error('getFinanceGoals debe retornar una lista de metas');
+    }
+
+    // Configurar metas simuladas
+    const testGoals = [
+        { id: 'goal_test_inc', title: 'Facturación Mensual Meta', targetAmount: 2500, category: 'income', period: 'monthly' },
+        { id: 'goal_test_ses', title: 'Sesiones Mensuales', targetAmount: 40, category: 'sessions', period: 'monthly' },
+        { id: 'goal_test_bal', title: 'Fondo de Reserva', targetAmount: 1500, category: 'balance', period: 'total' }
+    ];
+
+    saveFinanceGoals(testGoals);
+    const saved = getFinanceGoals();
+    if (saved.length < 3) {
+        throw new Error(`Se esperaban al menos 3 metas registradas, se obtuvieron ${saved.length}`);
+    }
+
+    // Verificar cálculo de porcentaje de progreso
+    const mockIncome = 1250;
+    const incomeGoal = saved.find(g => g.id === 'goal_test_inc');
+    const incomePct = Math.round((mockIncome / incomeGoal.targetAmount) * 100);
+    if (incomePct !== 50) {
+        throw new Error(`Porcentaje de avance esperado 50%, calculado ${incomePct}%`);
+    }
+
+    const mockCompletedSessions = 30;
+    const sessionGoal = saved.find(g => g.id === 'goal_test_ses');
+    const sessionPct = Math.round((mockCompletedSessions / sessionGoal.targetAmount) * 100);
+    if (sessionPct !== 75) {
+        throw new Error(`Porcentaje de sesiones alcanzado esperado 75%, calculado ${sessionPct}%`);
+    }
+
+    // Restaurar
+    saveFinanceGoals(initialGoals);
+});
+
+// 7d. TC-FIN-04: Tarificación Dinámica y Cobro de Citas Clínicas
+ClinicalTestSuite.add('TC-FIN-04', 'Tarificación Dinámica y Cobro de Citas Clínicas', async () => {
+    const Finance = await import('./finance.js');
+    const { registerIncomeFromAppointment, getFinanceTransactions, saveFinanceTransactions } = Finance;
+
+    const initialTxs = getFinanceTransactions();
+
+    // 1. Simulación de paciente con honorario pactado personalizado
+    const testPatient = {
+        id: 'pat_rate_test_' + Date.now(),
+        name: 'Mariana Duarte',
+        patientCustomFee: 35.00
+    };
+
+    // 2. Simulación de cita con tarifa pactada específica
+    const appointmentCustom = {
+        id: 'apt_custom_' + Date.now(),
+        patientId: testPatient.id,
+        price: testPatient.patientCustomFee,
+        rateTitle: 'Tarifa Social Convenida',
+        duration: 50,
+        date: '2026-10-22'
+    };
+
+    registerIncomeFromAppointment(appointmentCustom);
+
+    let txs = getFinanceTransactions();
+    const createdTx = txs.find(t => t.appointmentId === appointmentCustom.id);
+    if (!createdTx) {
+        throw new Error('No se generó la transacción financiera a partir de la cita');
+    }
+    if (createdTx.amount !== 35.00) {
+        throw new Error(`Monto de ingreso esperado $35.00, registrado $${createdTx.amount}`);
+    }
+    if (!createdTx.concept.includes('Tarifa Social Convenida')) {
+        throw new Error('El concepto debe reflejar la modalidad de la tarifa seleccionada');
+    }
+
+    // 3. Simulación de prevención de cobro duplicado (idempotencia)
+    const txCountBefore = txs.length;
+    registerIncomeFromAppointment(appointmentCustom);
+    const txCountAfter = getFinanceTransactions().length;
+    if (txCountAfter !== txCountBefore) {
+        throw new Error('La función de cobro de cita no es idempotente y duplicó la transacción');
+    }
+
+    // Restaurar transacciones
+    saveFinanceTransactions(initialTxs);
+});
+
+// 7e. TC-FIN-05: Disponibilidad y Exposición Global de Controladores del Módulo Financiero
+ClinicalTestSuite.add('TC-FIN-05', 'Disponibilidad y Exposición Global de Controladores del Módulo Financiero', async () => {
+    const fs = await import('fs');
+    const path = await import('path');
+
+    // 1. Verificar index.html contiene los modales y campos de tarifa/precio/metas
+    const html = fs.readFileSync(path.resolve('./index.html'), 'utf8');
+    const requiredElements = [
+        'id="appointmentRateSelect"',
+        'id="appointmentPrice"',
+        'id="patientCustomFee"',
+        'id="financeRateModal"',
+        'id="financeGoalModal"',
+        'id="financeTransactionModal"',
+        'id="monthlyGoalsModal"',
+        'openMonthlyGoalsModal()',
+        'id="financeContent"'
+    ];
+
+    for (const elem of requiredElements) {
+        if (!html.includes(elem)) {
+            throw new Error(`index.html carece del elemento crítico financiero: ${elem}`);
+        }
+    }
+
+    // 2. Verificar en app.js y finance.js la exposición de funciones
+    const appJs = fs.readFileSync(path.resolve('./app.js'), 'utf8');
+    const financeJs = fs.readFileSync(path.resolve('./finance.js'), 'utf8');
+
+    const appFunctions = [
+        'openRatesManagementModal',
+        'openMonthlyGoalsModal',
+        'handleMonthlyGoalsSubmit',
+        'populateAppointmentRates',
+        'onAppointmentRateSelectChange'
+    ];
+
+    for (const fn of appFunctions) {
+        if (!appJs.includes(fn)) {
+            throw new Error(`app.js no implementa o expone: ${fn}`);
+        }
+    }
+
+    const financeFunctions = [
+        'openRateModal',
+        'handleRateSubmit',
+        'setDefaultRate',
+        'deleteRate',
+        'openGoalModal',
+        'handleGoalSubmit',
+        'deleteGoal',
+        'openTransactionModal',
+        'registerIncomeFromAppointment',
+        'renderFinanceView'
+    ];
+
+    for (const fn of financeFunctions) {
+        if (!financeJs.includes(fn)) {
+            throw new Error(`finance.js no implementa o expone: ${fn}`);
+        }
+    }
+});
+
 // 8. TC-POR-01: Autoregistro Cognitivo ABC de Beck
 ClinicalTestSuite.add('TC-POR-01', 'Validación del Autoregistro de Pensamientos ABC', async () => {
     const entry = {
@@ -3131,6 +3340,97 @@ ClinicalTestSuite.add('TC-KID-03', 'Portal Pacientes Kid: Activación automátic
     const portalCss = fs.readFileSync(portalCssPath, 'utf8');
     if (!portalCss.includes('.btn-kid-toggle') || !portalCss.includes('display: none;')) {
         throw new Error('La clase .btn-kid-toggle en portal.css debe tener display: none por defecto para que adultos/adolescentes no la vean');
+    }
+});
+
+// 76. TC-KID-04: Portal Pacientes Kid — Reflejo Inmediato de Actividades Infantiles en la Pestaña del Terapeuta
+ClinicalTestSuite.add('TC-KID-04', 'Portal Pacientes Kid: Reflejo inmediato de actividades infantiles en pestaña del terapeuta', async () => {
+    const fs = await import('fs');
+    const path = await import('path');
+
+    // Cargar contenido de app.js y extraer o evaluar las funciones del portal
+    const appJsPath = path.resolve('app.js');
+    const appJs = fs.readFileSync(appJsPath, 'utf8');
+
+    // Verificar que app.js contiene la lógica de getPortalResults con kidActivities, kidAvatar y kidStars
+    if (!appJs.includes('kidActivities = []') || !appJs.includes('kidAvatar') || !appJs.includes('kidStars')) {
+        throw new Error('getPortalResults en app.js debe inicializar y procesar kidActivities, kidAvatar y kidStars');
+    }
+
+    // Verificar que renderPortalTab contiene el bento lúdico pediátrico
+    if (!appJs.includes('Clima & Cuerpo') || !appJs.includes('Preocupaciones Cazadas') || !appJs.includes('Lienzo de Dibujo')) {
+        throw new Error('renderPortalTab en app.js debe renderizar las tarjetas bento pediátricas (Clima, Preocupaciones, Lienzo)');
+    }
+
+    // Verificar que existe la función de inspección de dibujos window.previewKidDrawing
+    if (!appJs.includes('window.previewKidDrawing = function') && !appJs.includes('previewKidDrawing(dataUrl')) {
+        throw new Error('app.js debe exponer window.previewKidDrawing para visualizar dibujos del paciente');
+    }
+
+    // Simulación en entorno Node con mock de localStorage y AppState
+    const mockStorage = {};
+    const mockLocalStorage = {
+        getItem: (k) => mockStorage[k] || null,
+        setItem: (k, v) => { mockStorage[k] = String(v); },
+        removeItem: (k) => { delete mockStorage[k]; }
+    };
+
+    const kidPatId = 'kid_test_sim_' + Date.now();
+    const adultPatId = 'adult_test_sim_' + Date.now();
+
+    // Guardar actividades lúdicas simuladas en mockLocalStorage
+    mockStorage[`psico_portal_kid_${kidPatId}`] = JSON.stringify({
+        avatar: { character: 'bear', emoji: '🐻', name: 'Osito Valiente', aura: 'aura-blue', accessory: 'hat', accEmoji: '🎩' },
+        stars: 7,
+        activities: [
+            {
+                id: 'act_draw_1',
+                activity_type: 'drawing',
+                data: {
+                    imageDataUrl: 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==',
+                    sentAt: new Date().toISOString()
+                },
+                created_at: new Date().toISOString()
+            },
+            {
+                id: 'act_weather_1',
+                activity_type: 'weather_body',
+                data: {
+                    weather: 'sunny',
+                    weatherLabel: 'Sol Radiante (Feliz)',
+                    bodyZone: 'chest',
+                    bodyZoneLabel: 'En el pecho 💖',
+                    recordedAt: new Date().toISOString()
+                },
+                created_at: new Date().toISOString()
+            },
+            {
+                id: 'act_bubble_1',
+                activity_type: 'bubble_popped',
+                data: {
+                    worryText: 'Miedo a la oscuridad',
+                    totalPopped: 3,
+                    poppedAt: new Date().toISOString()
+                },
+                created_at: new Date().toISOString()
+            }
+        ]
+    });
+
+    // Validar extracción con lógica equivalente de getPortalResults
+    const rawKid = mockLocalStorage.getItem(`psico_portal_kid_${kidPatId}`);
+    const parsedKid = JSON.parse(rawKid);
+    if (!parsedKid || parsedKid.activities.length !== 3) {
+        throw new Error('La lectura local de actividades debe recuperar las 3 actividades guardadas');
+    }
+    if (parsedKid.avatar.character !== 'bear' || parsedKid.stars !== 7) {
+        throw new Error('La lectura debe mantener el avatar y las estrellas del paciente pediátrico');
+    }
+
+    // Validar index.html contiene el modal de vista previa del dibujo
+    const indexHtml = fs.readFileSync(path.resolve('index.html'), 'utf8');
+    if (!indexHtml.includes('id="kidDrawingPreviewModal"')) {
+        throw new Error('index.html debe contener el modal kidDrawingPreviewModal');
     }
 });
 

@@ -2606,3 +2606,104 @@ sequenceDiagram
 ---
 
 
+
+## 27. Potenciación y Blindaje del Módulo Financiero, Tarifas de Terapias y Metas (v6.8.0)
+
+### 27.1. Diagnóstico Forense y Causas Raíz
+1. **Redeclaración de función en `app.js` (Línea 7364)**: `openReporteAtencionModal` estaba declarada dos veces en el mismo ámbito global, causando `SyntaxError: Identifier 'openReporteAtencionModal' has already been declared` en tiempo de análisis de módulos ES, provocando la caída de scripts globales (`AppState`, `openModal`, `showToast`).
+2. **Scoping de funciones en `finance.js`**: Los botones con atributos HTML `onclick="openGoalModal()"` u `onclick="openRateModal()"` no encontraban los métodos en `window` al faltar el registro explícito en el objeto global.
+3. **Ausencia de utilidades defensivas**: Métodos como `handleGoalSubmit` fallaban si `generateId` no estaba disponible en el scope local.
+4. **Desconexión de tarifas en citas clínicas**: `#appointmentModal` no permitía elegir tarifa de consulta ni ingresar el precio de la sesión, dejando al terapeuta sin posibilidad de fijar el precio de sus terapias.
+
+### 27.2. Diagrama de Arquitectura de Capas
+
+```mermaid
+flowchart TB
+    subgraph UI_Layer["🖥️ Capa de Presentación e Interacción (Frontend)"]
+        Nav["Barra de Navegación (Sidebar)"]
+        DashboardCard["Tarjeta de Objetivos del Mes (Dashboard)"]
+        FinanceView["Vista Finanzas (#financeView)"]
+        AppointmentModal["Modal Agendar Cita (#appointmentModal)"]
+        PatientModal["Modal Expediente Paciente (#patientModal)"]
+    end
+
+    subgraph Finance_Components["📊 Componentes del Módulo Financiero"]
+        Subtabs["Conmutador de Pestañas (Transacciones, Cuentas por Cobrar, Metas, Tarifas)"]
+        GoalsTab["Pestaña Metas Financieras (Progreso %, Metas Mensuales y Acumuladas)"]
+        RatesTab["Pestaña Tarifas de Consulta (Duración, Modalidad, Precio USD, Default)"]
+        DebtsTab["Pestaña Cuentas por Cobrar (Saldar Deudas, Recordatorios WhatsApp)"]
+        TxTab["Pestaña Historial de Transacciones (Ingresos / Egresos / Filtros)"]
+    end
+
+    subgraph Modals_Layer["🪟 Modales Reactivos Dinámicos"]
+        M_Rate["#financeRateModal (Crear / Editar Tarifa por Tiempo)"]
+        M_Goal["#financeGoalModal (Crear / Editar Meta Financiera)"]
+        M_MonthlyGoal["#monthlyGoalsModal (Sincronización Mes en Curso)"]
+    end
+
+    subgraph Core_Engine["⚙️ Motores Lógicos y Estado Global"]
+        State["AppState (Pacientes, Citas, Notas, Usuario Autenticado)"]
+        FinanceEngine["finance.js (Cálculos de Balance, Metas y Tarifas)"]
+        GlobalExpose["Exposición Explícita a window (window.openGoalModal, etc.)"]
+        SafeUtils["Utilidades Defensivas (generateId, roundCurrency, showToast)"]
+    end
+
+    Nav -->|navigateTo 'finance'| FinanceView
+    DashboardCard -->|openMonthlyGoalsModal| M_MonthlyGoal
+    FinanceView --> Subtabs
+    Subtabs --> GoalsTab & RatesTab & DebtsTab & TxTab
+
+    GoalsTab -->|openGoalModal| M_Goal
+    RatesTab -->|openRateModal| M_Rate
+    AppointmentModal -->|Carga tarifas activas| RatesTab
+
+    M_Goal --> FinanceEngine
+    M_Rate --> FinanceEngine
+    M_MonthlyGoal --> FinanceEngine
+
+    FinanceEngine --> State
+    FinanceEngine --> SafeUtils
+    FinanceEngine --> GlobalExpose
+```
+
+### 27.3. Diagrama de Secuencia de Flujos Críticos
+
+```mermaid
+sequenceDiagram
+    autonumber
+    actor T as Terapeuta Clínico
+    participant UI as Interfaz Finanzas
+    participant RM as Modal de Tarifas (#financeRateModal)
+    participant FE as finance.js
+    participant AP as Modal Citas (#appointmentModal)
+    participant LS as Persistencia (LocalStorage / DB)
+
+    T->>UI: Clic en "Tarifas por Tiempo de Consulta"
+    UI->>FE: switchFinanceTab('rates')
+    FE->>UI: renderRatesTabHtml() (Lista de tarifas activas)
+
+    alt Crear o Editar Tarifa
+        T->>UI: Clic en "Añadir Tarifa por Tiempo" o "Editar"
+        UI->>FE: openRateModal(rateId)
+        FE->>RM: Inyecta formulario (#rateTitle, #rateDuration, #rateAmount, #rateIsDefault)
+        RM-->>T: Muestra modal de configuración de tarifa
+        T->>RM: Ingresa título ("Terapia de Pareja"), duración (60 min), precio ($55)
+        T->>RM: Clic en "Guardar Tarifa"
+        RM->>FE: handleRateSubmit(event, rateId)
+        FE->>LS: saveFinanceRates(ratesActualizadas)
+        FE->>UI: renderFinanceView() + showToast('Tarifa guardada con éxito')
+        FE->>RM: closeModal('financeRateModal')
+    end
+
+    alt Agendamiento de Cita con Tarifa Dinámica
+        T->>AP: Abre "Agendar Cita"
+        AP->>FE: getFinanceRates()
+        FE-->>AP: Puebla selector de tarifas con precios y duraciones
+        T->>AP: Selecciona tarifa "Terapia de Pareja ($55.00)"
+        AP->>AP: Autocompleta duración (60 min) y precio ($55.00)
+        T->>AP: Confirma cita
+        AP->>LS: Guarda cita con { price: 55.00, duration: 60, rateId: 'rate_60' }
+    end
+```
+
+---

@@ -2357,16 +2357,26 @@ function popKidBubble(el, worryText, ev) {
         }
     }, 280);
 
+    // Registrar en actividad local
+    const activityRecord = {
+        id: 'act_' + Date.now() + '_' + Math.random().toString(36).substr(2, 4),
+        activity_type: 'bubble_popped',
+        data: {
+            worryText,
+            totalPopped: PortalState.kidBubblesPopped,
+            poppedAt: new Date().toISOString()
+        },
+        created_at: new Date().toISOString()
+    };
+    PortalState.kidActivities.unshift(activityRecord);
+    savePatientData();
+
     // Notificar al terapeuta
     if (PortalState.portalToken) {
         sendPortalPost('/api/v1/portal/kid/activity', {
             patientToken: PortalState.portalToken,
             activityType: 'bubble_popped',
-            data: {
-                worryText,
-                totalPopped: PortalState.kidBubblesPopped,
-                poppedAt: new Date().toISOString()
-            }
+            data: activityRecord.data
         });
     }
 }
@@ -2741,18 +2751,27 @@ function startBalloonExhale() {
                 KidAudioEffects.playSuccess();
                 KidConfetti.burst(window.innerWidth / 2, window.innerHeight * 0.45, 30);
                 showToast('⭐ ¡Superpoder de calma desbloqueado! 3 respiraciones completas (+1 ⭐)', 'success');
-            }
 
-            // Notificar al backend
-            if (PortalState.portalToken) {
-                sendPortalPost('/api/v1/portal/kid/activity', {
-                    patientToken: PortalState.portalToken,
-                    activityType: 'calm_breathing',
+                const calmRecord = {
+                    id: 'act_' + Date.now() + '_' + Math.random().toString(36).substr(2, 4),
+                    activity_type: 'calm_breathing',
                     data: {
                         cyclesCompleted: PortalState.kidCalmCycles,
                         timestamp: new Date().toISOString()
-                    }
-                });
+                    },
+                    created_at: new Date().toISOString()
+                };
+                PortalState.kidActivities.unshift(calmRecord);
+                savePatientData();
+
+                // Notificar al backend
+                if (PortalState.portalToken) {
+                    sendPortalPost('/api/v1/portal/kid/activity', {
+                        patientToken: PortalState.portalToken,
+                        activityType: 'calm_breathing',
+                        data: calmRecord.data
+                    });
+                }
             }
 
             // Siguiente ciclo

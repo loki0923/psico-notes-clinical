@@ -910,6 +910,15 @@
                 </div>
             </div>
 
+            <!-- Honorarios Acordados por Sesión (Fijación de Precio de Terapia) -->
+            <div class="form-row" id="patientCustomFeeRow">
+                <div class="form-group" style="flex:1;">
+                    <label><i class="fas fa-hand-holding-usd"></i> Tarifa / Honorarios Acordados por Sesión ($ USD)</label>
+                    <input type="number" step="0.01" min="0" id="patientCustomFee" placeholder="Opcional. Ej: 40.00 (Honorarios acordados con este paciente)">
+                    <small style="font-size:11.5px;color:var(--text-tertiary);">Se precargará automáticamente como precio al agendar consultas para este paciente.</small>
+                </div>
+            </div>
+
             <!-- 3. FICHA DEL REPRESENTANTE / TUTOR LEGAL (Para Niñez y Adolescencia) -->
             <div id="pediatricFieldsSection" class="pediatric-fields-container" style="display: none;">
                 <div class="form-section-title" style="margin-top:0;color:var(--accent-primary);">
@@ -1147,10 +1156,25 @@
                     <input type="time" id="appointmentTime" required>
                 </div>
             </div>
+            <!-- TARIFA Y PRECIO DE LA TERAPIA / SESIÓN -->
+            <div class="form-row">
+                <div class="form-group" style="flex: 2;">
+                    <label><i class="fas fa-stopwatch" style="color:var(--accent-primary);"></i> Tarifa / Tipo de Consulta *</label>
+                    <select id="appointmentRateSelect" onchange="onAppointmentRateSelectChange()">
+                        <!-- Poblado dinámicamente con getFinanceRates() -->
+                    </select>
+                </div>
+                <div class="form-group" style="flex: 1;">
+                    <label><i class="fas fa-dollar-sign" style="color:#4dab87;"></i> Precio ($ USD) *</label>
+                    <input type="number" step="0.01" min="0" id="appointmentPrice" required placeholder="Ej: 45.00">
+                </div>
+            </div>
+
             <div class="form-row">
                 <div class="form-group">
                     <label>Duración</label>
                     <select id="appointmentDuration">
+                        <option value="30">30 min</option>
                         <option value="45">45 min</option>
                         <option value="50" selected>50 min</option>
                         <option value="60">60 min</option>
@@ -1783,6 +1807,40 @@
         </div>
         <div class="modal-body" id="portalAccessModalBody" style="padding: 20px 24px;">
             <!-- Contenido dinámico generado por openPortalAccessModal() -->
+        </div>
+    </div>
+</div>
+
+<!-- MODAL DE PREVISUALIZACIÓN DE DIBUJO INFANTIL (PORTAL KIDS) -->
+<div class="modal" id="kidDrawingPreviewModal">
+    <div class="modal-overlay" onclick="closeModal('kidDrawingPreviewModal')"></div>
+    <div class="modal-content modal-large" style="max-width: 720px;">
+        <div class="modal-header">
+            <div style="display:flex; align-items:center; gap:12px;">
+                <div style="width: 40px; height: 40px; border-radius: 10px; background: rgba(255, 184, 76, 0.2); color: #d97706; display: flex; align-items: center; justify-content: center; font-size: 20px;">
+                    🎨
+                </div>
+                <div>
+                    <h2 style="margin:0; font-size:17px; font-weight:700;">Lienzo Infantil — Expresión Gráfica</h2>
+                    <p style="margin:2px 0 0 0; font-size:12px; color:var(--text-secondary);" id="kidDrawingPreviewDate">Dibujo del paciente</p>
+                </div>
+            </div>
+            <button class="btn-icon" onclick="closeModal('kidDrawingPreviewModal')">
+                <i class="fas fa-times"></i>
+            </button>
+        </div>
+        <div class="modal-body" style="padding: 20px 24px; text-align: center;">
+            <div style="background: #ffffff; border-radius: 12px; border: 1.5px solid var(--border-color); padding: 12px; display: inline-block; max-width: 100%; box-shadow: 0 4px 20px rgba(0,0,0,0.06);">
+                <img id="kidDrawingPreviewImage" src="" alt="Dibujo del menor" style="max-width: 100%; max-height: 60vh; object-fit: contain; border-radius: 8px; display: block; margin: 0 auto;" />
+            </div>
+            <div style="margin-top: 18px; display: flex; justify-content: flex-end; gap: 10px;">
+                <button class="btn-secondary" onclick="closeModal('kidDrawingPreviewModal')">
+                    Cerrar
+                </button>
+                <button class="btn-primary" id="kidDrawingDownloadBtn" style="background: #2EC4B6; border-color: #2EC4B6;">
+                    <i class="fas fa-download"></i> Descargar Dibujo (.PNG)
+                </button>
+            </div>
         </div>
     </div>
 </div>
