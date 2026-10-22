@@ -195,6 +195,9 @@ async function startAppForCurrentUser() {
     renderNotes();
     updateStats();
     updateCounts();
+    if (typeof renderFinanceView === 'function') {
+        try { renderFinanceView(); } catch (e) { console.warn('[App] Pre-render finance:', e); }
+    }
     updatePatientSelects();
     checkPortalCrisisAlerts();
     setInterval(checkPortalCrisisAlerts, 20000);
