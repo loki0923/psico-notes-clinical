@@ -61,50 +61,50 @@ const _localShowConfirmModal = (title, msg, onConfirm) => {
     }
 };
 
-// Resolución segura: invocar utilidades globales de app.js sin sobreescribir window ni causar recursión
-const openModal = (id) => {
+// Resolución segura: invocar utilidades globales de app.js sin sobreescribir window ni causar colisiones léxicas con const
+var openModal = (id) => {
     if (typeof window !== 'undefined' && typeof window.openModal === 'function') {
         try { window.openModal(id); return; } catch {}
     }
     _localOpenModal(id);
 };
 
-const closeModal = (id) => {
+var closeModal = (id) => {
     if (typeof window !== 'undefined' && typeof window.closeModal === 'function') {
         try { window.closeModal(id); return; } catch {}
     }
     _localCloseModal(id);
 };
 
-const generateId = () => {
+var generateId = () => {
     if (typeof window !== 'undefined' && typeof window.generateId === 'function') {
         try { return window.generateId(); } catch {}
     }
     return _localGenerateId();
 };
 
-const formatDate = (ds) => {
+var formatDate = (ds) => {
     if (typeof window !== 'undefined' && typeof window.formatDate === 'function') {
         try { return window.formatDate(ds); } catch {}
     }
     return _localFormatDate(ds);
 };
 
-const toDateInputValue = (date) => {
+var toDateInputValue = (date) => {
     if (typeof window !== 'undefined' && typeof window.toDateInputValue === 'function') {
         try { return window.toDateInputValue(date); } catch {}
     }
     return _localToDateInputValue(date);
 };
 
-const showToast = (msg, type = 'info') => {
+var showToast = (msg, type = 'info') => {
     if (typeof window !== 'undefined' && typeof window.showToast === 'function') {
         try { window.showToast(msg, type); return; } catch {}
     }
     _localShowToast(msg, type);
 };
 
-const showConfirmModal = (title, msg, onConfirm) => {
+var showConfirmModal = (title, msg, onConfirm) => {
     if (typeof window !== 'undefined' && typeof window.showConfirmModal === 'function') {
         try { window.showConfirmModal(title, msg, onConfirm); return; } catch {}
     }
