@@ -6,56 +6,11 @@
 // UTILIDADES DEFENSIVAS LOCALES (A PRUEBA DE FALLOS)
 // -------------------------------------------------------------
 
-function generateId() {
-    if (typeof window !== 'undefined' && typeof window.generateId === 'function') {
-        try { return window.generateId(); } catch {}
-    }
-    return 'id_' + Date.now().toString(36) + Math.random().toString(36).substring(2);
-}
-
 function roundCurrency(val) {
     return Math.round((Number(val || 0) + Number.EPSILON) * 100) / 100;
 }
 
-function formatDate(ds) {
-    if (typeof window !== 'undefined' && typeof window.formatDate === 'function') {
-        try { return window.formatDate(ds); } catch {}
-    }
-    if (!ds) return '';
-    try {
-        const d = new Date(ds.includes('T') ? ds : ds + 'T00:00:00');
-        return d.toLocaleDateString('es-ES', { day: 'numeric', month: 'short', year: 'numeric' });
-    } catch { return ds; }
-}
-
-function toDateInputValue(date) {
-    if (typeof window !== 'undefined' && typeof window.toDateInputValue === 'function') {
-        try { return window.toDateInputValue(date); } catch {}
-    }
-    const d = date ? new Date(date) : new Date();
-    return d.toISOString().split('T')[0];
-}
-
-function showToast(msg, type = 'info') {
-    if (typeof window !== 'undefined' && typeof window.showToast === 'function') {
-        try { window.showToast(msg, type); return; } catch {}
-    }
-    console.log(`[TOAST-${type.toUpperCase()}] ${msg}`);
-}
-
-function showConfirmModal(title, msg, onConfirm) {
-    if (typeof window !== 'undefined' && typeof window.showConfirmModal === 'function') {
-        try { window.showConfirmModal(title, msg, onConfirm); return; } catch {}
-    }
-    if (typeof confirm === 'function' && confirm(`${title}\n\n${msg}`)) {
-        if (typeof onConfirm === 'function') onConfirm();
-    }
-}
-
-function openModal(id) {
-    if (typeof window !== 'undefined' && typeof window.openModal === 'function') {
-        try { window.openModal(id); return; } catch {}
-    }
+const _localOpenModal = (id) => {
     if (typeof document === 'undefined') return;
     const m = document.getElementById(id);
     if (m) {
@@ -65,12 +20,9 @@ function openModal(id) {
             document.body.classList.add('has-active-modal');
         }
     }
-}
+};
 
-function closeModal(id) {
-    if (typeof window !== 'undefined' && typeof window.closeModal === 'function') {
-        try { window.closeModal(id); return; } catch {}
-    }
+const _localCloseModal = (id) => {
     if (typeof document === 'undefined') return;
     const m = document.getElementById(id);
     if (m) {
@@ -80,7 +32,95 @@ function closeModal(id) {
             document.body.classList.remove('has-active-modal');
         }
     }
+};
+
+const _localGenerateId = () => {
+    return 'id_' + Date.now().toString(36) + Math.random().toString(36).substring(2);
+};
+
+const _localFormatDate = (ds) => {
+    if (!ds) return '';
+    try {
+        const d = new Date(ds.includes('T') ? ds : ds + 'T00:00:00');
+        return d.toLocaleDateString('es-ES', { day: 'numeric', month: 'short', year: 'numeric' });
+    } catch { return ds; }
+};
+
+const _localToDateInputValue = (date) => {
+    const d = date ? new Date(date) : new Date();
+    return d.toISOString().split('T')[0];
+};
+
+const _localShowToast = (msg, type = 'info') => {
+    console.log(`[TOAST-${type.toUpperCase()}] ${msg}`);
+};
+
+const _localShowConfirmModal = (title, msg, onConfirm) => {
+    if (typeof confirm === 'function' && confirm(`${title}\n\n${msg}`)) {
+        if (typeof onConfirm === 'function') onConfirm();
+    }
+};
+
+// Resolución segura: invocar utilidades globales de app.js sin sobreescribir window ni causar recursión
+const openModal = (id) => {
+    if (typeof window !== 'undefined' && typeof window.openModal === 'function') {
+        try { window.openModal(id); return; } catch {}
+    }
+    _localOpenModal(id);
+};
+
+const closeModal = (id) => {
+    if (typeof window !== 'undefined' && typeof window.closeModal === 'function') {
+        try { window.closeModal(id); return; } catch {}
+    }
+    _localCloseModal(id);
+};
+
+const generateId = () => {
+    if (typeof window !== 'undefined' && typeof window.generateId === 'function') {
+        try { return window.generateId(); } catch {}
+    }
+    return _localGenerateId();
+};
+
+const formatDate = (ds) => {
+    if (typeof window !== 'undefined' && typeof window.formatDate === 'function') {
+        try { return window.formatDate(ds); } catch {}
+    }
+    return _localFormatDate(ds);
+};
+
+const toDateInputValue = (date) => {
+    if (typeof window !== 'undefined' && typeof window.toDateInputValue === 'function') {
+        try { return window.toDateInputValue(date); } catch {}
+    }
+    return _localToDateInputValue(date);
+};
+
+const showToast = (msg, type = 'info') => {
+    if (typeof window !== 'undefined' && typeof window.showToast === 'function') {
+        try { window.showToast(msg, type); return; } catch {}
+    }
+    _localShowToast(msg, type);
+};
+
+const showConfirmModal = (title, msg, onConfirm) => {
+    if (typeof window !== 'undefined' && typeof window.showConfirmModal === 'function') {
+        try { window.showConfirmModal(title, msg, onConfirm); return; } catch {}
+    }
+    _localShowConfirmModal(title, msg, onConfirm);
+};
+
+if (typeof window !== 'undefined') {
+    if (typeof window.openModal !== 'function') window.openModal = _localOpenModal;
+    if (typeof window.closeModal !== 'function') window.closeModal = _localCloseModal;
+    if (typeof window.generateId !== 'function') window.generateId = _localGenerateId;
+    if (typeof window.formatDate !== 'function') window.formatDate = _localFormatDate;
+    if (typeof window.toDateInputValue !== 'function') window.toDateInputValue = _localToDateInputValue;
+    if (typeof window.showToast !== 'function') window.showToast = _localShowToast;
+    if (typeof window.showConfirmModal !== 'function') window.showConfirmModal = _localShowConfirmModal;
 }
+
 
 const _memStorage = {};
 
@@ -1347,49 +1387,47 @@ if (_financeTargetScope) {
     _financeTargetScope.setFinanceFilterType = setFinanceFilterType;
     _financeTargetScope.setFinanceSearchText = setFinanceSearchText;
 }
-
-export {
-    roundCurrency,
-    getFinanceStorageKey,
-    getFinanceTransactions,
-    saveFinanceTransactions,
-    getFinanceCategories,
-    saveFinanceCategories,
-    getFinanceRates,
-    saveFinanceRates,
-    getFinanceGoals,
-    saveFinanceGoals,
-    registerIncomeFromAppointment,
-    renderFinanceView,
-    switchFinanceTab,
-    renderTransactionsTabHtml,
-    renderGoalsTabHtml,
-    renderRatesTabHtml,
-    renderDebtsTabHtml,
-    openGoalModal,
-    handleGoalSubmit,
-    deleteGoal,
-    openRateModal,
-    handleRateSubmit,
-    setDefaultRate,
-    deleteRate,
-    openTransactionModal,
-    handleTransactionSubmit,
-    openEditTransactionModal,
-    handleTransactionEditSubmit,
-    deleteTransaction,
-    clearAllFinanceTransactions,
-    openCategoriesModal,
-    addFinanceCategory,
-    removeFinanceCategory,
-    getPendingPatientDebts,
-    sendPaymentReminderWhatsApp,
-    copyPaymentReminderText,
-    settlePatientDebt,
-    settleAllPatientDebtsGlobal,
-    setFinanceFilterType,
-    setFinanceSearchText
-};
-
-
-
+if (typeof module !== 'undefined' && module.exports) {
+    module.exports = {
+        roundCurrency,
+        getFinanceStorageKey,
+        getFinanceTransactions,
+        saveFinanceTransactions,
+        getFinanceCategories,
+        saveFinanceCategories,
+        getFinanceRates,
+        saveFinanceRates,
+        getFinanceGoals,
+        saveFinanceGoals,
+        registerIncomeFromAppointment,
+        renderFinanceView,
+        switchFinanceTab,
+        renderTransactionsTabHtml,
+        renderGoalsTabHtml,
+        renderRatesTabHtml,
+        renderDebtsTabHtml,
+        openGoalModal,
+        handleGoalSubmit,
+        deleteGoal,
+        openRateModal,
+        handleRateSubmit,
+        setDefaultRate,
+        deleteRate,
+        openTransactionModal,
+        handleTransactionSubmit,
+        openEditTransactionModal,
+        handleTransactionEditSubmit,
+        deleteTransaction,
+        clearAllFinanceTransactions,
+        openCategoriesModal,
+        addFinanceCategory,
+        removeFinanceCategory,
+        getPendingPatientDebts,
+        sendPaymentReminderWhatsApp,
+        copyPaymentReminderText,
+        settlePatientDebt,
+        settleAllPatientDebtsGlobal,
+        setFinanceFilterType,
+        setFinanceSearchText
+    };
+}

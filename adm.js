@@ -10,14 +10,36 @@ if (typeof window !== 'undefined' && !window.roundCurrency) {
     window.roundCurrency = roundCurrency;
 }
 
+const _admMemStorage = {};
+
+function _admStorageGet(key) {
+    try {
+        if (typeof localStorage !== 'undefined' && localStorage && typeof localStorage.getItem === 'function') {
+            const val = localStorage.getItem(key);
+            if (val !== null && typeof val !== 'undefined') return val;
+        }
+    } catch {}
+    return Object.prototype.hasOwnProperty.call(_admMemStorage, key) ? _admMemStorage[key] : null;
+}
+
+function _admStorageSet(key, value) {
+    const strVal = String(value);
+    _admMemStorage[key] = strVal;
+    try {
+        if (typeof localStorage !== 'undefined' && localStorage && typeof localStorage.setItem === 'function') {
+            localStorage.setItem(key, strVal);
+        }
+    } catch {}
+}
+
 function getBillingStorageKey(key) {
-    const uid = AppState.currentUser ? AppState.currentUser.id : 'anon';
+    const uid = (typeof AppState !== 'undefined' && AppState && AppState.currentUser) ? AppState.currentUser.id : 'anon';
     return `psico_billing_${key}_${uid}`;
 }
 
 function getBillingConfig() {
     try {
-        const stored = localStorage.getItem(getBillingStorageKey('config'));
+        const stored = _admStorageGet(getBillingStorageKey('config'));
         if (stored) return JSON.parse(stored);
     } catch {}
     return {
@@ -33,9 +55,9 @@ function getBillingConfig() {
 }
 
 function saveBillingConfig(config) {
-    localStorage.setItem(getBillingStorageKey('config'), JSON.stringify(config));
+    _admStorageSet(getBillingStorageKey('config'), JSON.stringify(config));
     if (typeof AppState !== 'undefined' && AppState.currentUser?.id && typeof navigator !== 'undefined' && navigator.onLine && (typeof window === 'undefined' || !window.location || window.location.protocol !== 'file:')) {
-        const token = localStorage.getItem('psico_session_token');
+        const token = _admStorageGet('psico_session_token');
         const headers = {
             'Content-Type': 'application/json',
             'X-Therapist-Id': AppState.currentUser.id
@@ -54,12 +76,12 @@ function saveBillingConfig(config) {
 
 function getInvoices() {
     try {
-        return JSON.parse(localStorage.getItem(getBillingStorageKey('invoices')) || '[]');
+        return JSON.parse(_admStorageGet(getBillingStorageKey('invoices')) || '[]');
     } catch { return []; }
 }
 
 function saveInvoices(invoices) {
-    localStorage.setItem(getBillingStorageKey('invoices'), JSON.stringify(invoices));
+    _admStorageSet(getBillingStorageKey('invoices'), JSON.stringify(invoices));
     if (typeof CloudSyncManager !== 'undefined' && typeof CloudSyncManager.schedulePush === 'function') {
         CloudSyncManager.schedulePush();
     }
@@ -471,17 +493,31 @@ if (typeof module !== 'undefined' && module.exports) {
         saveBillingConfig,
         getInvoices,
         saveInvoices,
-        syncBillingWithServer
+        syncBillingWithServer,
+        openBillingConfig,
+        openInvoiceCreator,
+        openInvoicesList,
+        printInvoice,
+        handleInvoiceSubmit,
+        handleBillingConfigSubmit,
+        clearAllInvoices,
+        deleteInvoice
     };
 }
-if (typeof window !== 'undefined') {
-    window.openBillingConfig = openBillingConfig;
-    window.openInvoiceCreator = openInvoiceCreator;
-    if (typeof openInvoicesList === 'function') window.openInvoicesList = openInvoicesList;
-    if (typeof printInvoice === 'function') window.printInvoice = printInvoice;
-    window.getBillingConfig = getBillingConfig;
-    window.saveBillingConfig = saveBillingConfig;
-    window.getInvoices = getInvoices;
-    window.saveInvoices = saveInvoices;
-    window.syncBillingWithServer = syncBillingWithServer;
+
+const _admTargetScope = (typeof window !== 'undefined') ? window : (typeof globalThis !== 'undefined' ? globalThis : (typeof global !== 'undefined' ? global : null));
+if (_admTargetScope) {
+    _admTargetScope.openBillingConfig = openBillingConfig;
+    _admTargetScope.openInvoiceCreator = openInvoiceCreator;
+    if (typeof openInvoicesList === 'function') _admTargetScope.openInvoicesList = openInvoicesList;
+    if (typeof printInvoice === 'function') _admTargetScope.printInvoice = printInvoice;
+    if (typeof handleInvoiceSubmit === 'function') _admTargetScope.handleInvoiceSubmit = handleInvoiceSubmit;
+    if (typeof handleBillingConfigSubmit === 'function') _admTargetScope.handleBillingConfigSubmit = handleBillingConfigSubmit;
+    if (typeof clearAllInvoices === 'function') _admTargetScope.clearAllInvoices = clearAllInvoices;
+    if (typeof deleteInvoice === 'function') _admTargetScope.deleteInvoice = deleteInvoice;
+    _admTargetScope.getBillingConfig = getBillingConfig;
+    _admTargetScope.saveBillingConfig = saveBillingConfig;
+    _admTargetScope.getInvoices = getInvoices;
+    _admTargetScope.saveInvoices = saveInvoices;
+    _admTargetScope.syncBillingWithServer = syncBillingWithServer;
 }

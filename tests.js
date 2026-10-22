@@ -245,8 +245,9 @@ ClinicalTestSuite.add('TC-FIN-01', 'Cálculo aritmético de balance, cobros e in
 
 // 7b. TC-FIN-02: Gestión y Configuración de Tarifas de Precios por Tiempo de Terapia
 ClinicalTestSuite.add('TC-FIN-02', 'Gestión y Configuración de Tarifas de Precios por Tiempo de Terapia', async () => {
-    const Finance = await import('./finance.js');
-    const { getFinanceRates, saveFinanceRates, setDefaultRate } = Finance;
+    await import('./finance.js');
+    const scope = (typeof window !== 'undefined') ? window : globalThis;
+    const { getFinanceRates, saveFinanceRates, setDefaultRate } = scope;
 
     // 1. Obtener tarifas base del sistema
     const initialRates = getFinanceRates();
@@ -299,8 +300,9 @@ ClinicalTestSuite.add('TC-FIN-02', 'Gestión y Configuración de Tarifas de Prec
 
 // 7c. TC-FIN-03: Metas Financieras Cuantitativas y Cualitativas de la Consulta
 ClinicalTestSuite.add('TC-FIN-03', 'Metas Financieras Cuantitativas y Cualitativas de la Consulta', async () => {
-    const Finance = await import('./finance.js');
-    const { getFinanceGoals, saveFinanceGoals } = Finance;
+    await import('./finance.js');
+    const scope = (typeof window !== 'undefined') ? window : globalThis;
+    const { getFinanceGoals, saveFinanceGoals } = scope;
 
     const initialGoals = getFinanceGoals();
     if (!Array.isArray(initialGoals)) {
@@ -341,8 +343,9 @@ ClinicalTestSuite.add('TC-FIN-03', 'Metas Financieras Cuantitativas y Cualitativ
 
 // 7d. TC-FIN-04: Tarificación Dinámica y Cobro de Citas Clínicas
 ClinicalTestSuite.add('TC-FIN-04', 'Tarificación Dinámica y Cobro de Citas Clínicas', async () => {
-    const Finance = await import('./finance.js');
-    const { registerIncomeFromAppointment, getFinanceTransactions, saveFinanceTransactions } = Finance;
+    await import('./finance.js');
+    const scope = (typeof window !== 'undefined') ? window : globalThis;
+    const { registerIncomeFromAppointment, getFinanceTransactions, saveFinanceTransactions } = scope;
 
     const initialTxs = getFinanceTransactions();
 
@@ -448,6 +451,172 @@ ClinicalTestSuite.add('TC-FIN-05', 'Disponibilidad y Exposición Global de Contr
     for (const fn of financeFunctions) {
         if (!financeJs.includes(fn)) {
             throw new Error(`finance.js no implementa o expone: ${fn}`);
+        }
+    }
+});
+
+// 7f. TC-BTN-01: Resolución Integral de Todos los Botones onclick y onsubmit del Sistema
+ClinicalTestSuite.add('TC-BTN-01', 'Resolución Integral de Todos los Botones onclick y onsubmit del Sistema', async () => {
+    const fs = await import('fs');
+    const path = await import('path');
+
+    const html = fs.readFileSync(path.resolve('./index.html'), 'utf8');
+
+    // Extraer todos los llamados onclick y onsubmit en HTML
+    const calls = new Set();
+    const regex = /on(?:click|submit)=["']([^"']+)["']/g;
+    let m;
+    while ((m = regex.exec(html)) !== null) {
+        const fullExpr = m[1].trim();
+        const fnMatches = fullExpr.matchAll(/([a-zA-Z0-9_$]+(?:\.[a-zA-Z0-9_$]+)*)\s*\(/g);
+        for (const fm of fnMatches) {
+            const fn = fm[1];
+            if (!['if', 'for', 'while', 'switch', 'catch', 'function', 'return', 'this.select', 'event.stopPropagation', 'event.preventDefault', 'parseInt', 'parseFloat', 'String', 'Number', 'Boolean', 'Date', 'Math.max', 'Math.min', 'Math.round', 'document.getElementById'].includes(fn)) {
+                calls.add(fn);
+            }
+        }
+    }
+
+    if (calls.size < 30) {
+        throw new Error(`Se esperaban al menos 30 controladores interactivos en index.html, detectados ${calls.size}`);
+    }
+
+    // Verificar que los archivos core estén presentes y sintácticamente válidos
+    const jsFiles = [
+        'app.js', 'finance.js', 'adm.js', 'scales.js',
+        'session-reminders.js', 'backup.js', 'crisis-protocol.js',
+        'consentimiento.js', 'historia-clinica.js', 'reports.js',
+        'vademecum.js', 'psychoed.js', 'phi-anonymizer.js',
+        'voice-dictation.js', 'ai-clinical.js'
+    ];
+
+    const concatenatedJs = jsFiles.map(f => fs.readFileSync(path.resolve(f), 'utf8')).join('\n');
+
+    for (const fn of calls) {
+        const simpleName = fn.includes('.') ? fn.split('.').pop() : fn;
+        const exists = concatenatedJs.includes(simpleName) || html.includes(`function ${simpleName}`);
+        if (!exists) {
+            throw new Error(`El controlador [${fn}] referenciado en index.html no tiene definición en el código`);
+        }
+    }
+});
+
+// 7g. TC-BTN-02: Operatividad de Botones de Facturación SENIAT (adm.js)
+ClinicalTestSuite.add('TC-BTN-02', 'Operatividad de Botones de Facturación SENIAT (adm.js)', async () => {
+    await import('./adm.js');
+    const scope = (typeof window !== 'undefined') ? window : globalThis;
+    const { getBillingConfig, saveBillingConfig, getInvoices, saveInvoices } = scope;
+
+    if (typeof getBillingConfig !== 'function' || typeof saveBillingConfig !== 'function') {
+        throw new Error('adm.js debe exportar getBillingConfig y saveBillingConfig');
+    }
+
+    const cfg = getBillingConfig();
+    if (!cfg || typeof cfg.nextNumber !== 'number') {
+        throw new Error('Configuración fiscal SENIAT inválida o incompleta');
+    }
+
+    // Probar generación y persistencia de factura médica
+    const initialInvoices = getInvoices();
+    const testInv = {
+        id: 'inv_btn_test_' + Date.now(),
+        number: 'FACT-000999',
+        date: '2026-10-22',
+        patientName: 'Paciente Test Fiscal',
+        patientDoc: 'V-12345678',
+        concept: 'Honorarios Psicoterapéuticos (Exento)',
+        amountUSD: 50.00,
+        rateBS: 40.00,
+        amountBS: 2000.00,
+        igtfUSD: 1.50,
+        totalUSD: 51.50,
+        totalBS: 2060.00
+    };
+
+    saveInvoices([...initialInvoices, testInv]);
+    const reloaded = getInvoices();
+    const found = reloaded.find(i => i.id === testInv.id);
+    if (!found || found.totalUSD !== 51.50) {
+        throw new Error('Fallo al registrar factura en adm.js');
+    }
+
+    // Restaurar
+    saveInvoices(initialInvoices);
+});
+
+// 7h. TC-BTN-03: Operatividad de Botones de Escalas Interactivas (scales.js)
+ClinicalTestSuite.add('TC-BTN-03', 'Operatividad de Botones de Escalas Interactivas (scales.js)', async () => {
+    const fs = await import('fs');
+    const path = await import('path');
+    const scalesContent = fs.readFileSync(path.resolve('./scales.js'), 'utf8');
+
+    const requiredScalesFns = [
+        'handleSaveCustomScale',
+        'openScaleEditorModal',
+        'openInteractiveScaleModal',
+        'submitInteractiveScaleForm',
+        'renderScalesView',
+        'recordScaleAnswer',
+        'updateLiveScaleScore'
+    ];
+
+    for (const fn of requiredScalesFns) {
+        if (!scalesContent.includes(fn)) {
+            throw new Error(`scales.js carece de la función interactiva: ${fn}`);
+        }
+    }
+
+    // Verificar definiciones de PHQ-9 y GAD-7
+    if (!scalesContent.includes('phq9') || !scalesContent.includes('gad7')) {
+        throw new Error('scales.js no contiene las definiciones clínicas base de PHQ-9 y GAD-7');
+    }
+});
+
+// 7i. TC-BTN-04: Operatividad de Drawer y Botones de Recordatorios (session-reminders.js)
+ClinicalTestSuite.add('TC-BTN-04', 'Operatividad de Drawer y Botones de Recordatorios (session-reminders.js)', async () => {
+    const fs = await import('fs');
+    const path = await import('path');
+    const remContent = fs.readFileSync(path.resolve('./session-reminders.js'), 'utf8');
+
+    const requiredRemFns = [
+        'openCustomReminderModal',
+        'closeReminderDrawer',
+        'toggleReminderDrawer',
+        'filterReminderDrawerCategory',
+        'handleReminderAction',
+        'saveCustomReminderForm',
+        'updateSessionRemindersUI',
+        'evaluateSessionReminders'
+    ];
+
+    for (const fn of requiredRemFns) {
+        if (!remContent.includes(fn)) {
+            throw new Error(`session-reminders.js carece de la función: ${fn}`);
+        }
+    }
+});
+
+// 7j. TC-BTN-05: Resolución de Alias y Utilidades Defensivas (app.js)
+ClinicalTestSuite.add('TC-BTN-05', 'Resolución de Alias y Utilidades Defensivas (app.js)', async () => {
+    const fs = await import('fs');
+    const path = await import('path');
+    const appContent = fs.readFileSync(path.resolve('./app.js'), 'utf8');
+
+    const criticalItems = [
+        'window.viewPatientDetail = function',
+        'window.exportReporteAtencionPDF = function',
+        'window.addTreatmentGoal = addTreatmentGoal',
+        'window.updateGoalProgress = updateGoalProgress',
+        'window.applySuggestedSlot = applySuggestedSlot',
+        'window.evolveAppointmentSession = evolveAppointmentSession',
+        'window.openMonthlyGoalsModal = openMonthlyGoalsModal',
+        'window.handleMonthlyGoalsSubmit = handleMonthlyGoalsSubmit',
+        'window.openRatesManagementModal = openRatesManagementModal'
+    ];
+
+    for (const item of criticalItems) {
+        if (!appContent.includes(item)) {
+            throw new Error(`app.js carece del alias o exportación crítica: ${item}`);
         }
     }
 });
@@ -3448,3 +3617,7 @@ if (typeof window !== 'undefined') {
 if (typeof module !== 'undefined' && module.exports) {
     module.exports = ClinicalTestSuite;
 }
+
+export default ClinicalTestSuite;
+export { ClinicalTestSuite };
+

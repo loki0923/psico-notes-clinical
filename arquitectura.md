@@ -2707,3 +2707,102 @@ sequenceDiagram
 ```
 
 ---
+
+
+---
+
+## 28. AUDITORÍA INTEGRAL Y ROBUSTECIMIENTO DE BOTONES Y CONTROLADORES INTERACTIVOS (v6.8)
+
+### 28.1. Diagnóstico y Matriz de Controladores
+Se realizó un escaneo exhaustivo de los 136 controladores interactivos (57 `onclick` nativos en HTML, 6 `onsubmit` nativos y 78 `onclick` generados dinámicamente en JavaScript).
+Se detectaron funciones que carecían de asignación explícita a `window` y referencias desincronizadas (`viewPatientDetail`, `exportReporteAtencionPDF`).
+
+### 28.2. Despacho y Enlace Global Unificado
+Para garantizar que cualquier clic en cualquier vista responda inmediatamente sin excepciones de ámbito léxico:
+1. Se establecen exportaciones defensivas a nivel de `window` y `globalThis` en todos los subsistemas (`app.js`, `finance.js`, `adm.js`, `scales.js`, `session-reminders.js`, `backup.js`).
+2. Se crean alias de compatibilidad directa:
+   - `window.viewPatientDetail = function(id) { viewPatient(id); }`
+   - `window.exportReporteAtencionPDF = function(id) { ClinicalHistorySystem.exportReporteAtencionPDF(id); }`
+3. Se protegen todas las llamadas al DOM con guardas defensivas (`typeof document === 'undefined'` y verificación de nulidad de selectores).
+
+```mermaid
+flowchart TD
+    A["Evento de Usuario (Clic / Envío)"] --> B{"¿Existe en window?"}
+    B -- Sí --> C["Ejecución del Controlador con Defensas"]
+    B -- No --> D["Alias de Compatibilidad / Fallback Silencioso"]
+    C --> E["Actualización de Estado y Renderizado de Vista / Modal"]
+    D --> E
+```
+
+---
+
+## 29. COMPATIBILIDAD UNIVERSAL DE SCRIPTS CLÁSICOS Y SOLUCIÓN A SYNTAXERROR EN MÓDULO FINANCIERO (v6.8.1)
+
+### 29.1. Diagnóstico de Causa Raíz
+El error reportado por el usuario:
+```text
+Uncaught SyntaxError: Unexpected token 'export' finance.js:1351
+```
+se originó debido a la inclusión de declaraciones `export { ... }` nativas de ES Modules al pie de `finance.js` y `adm.js`, mientras que en `index.html` ambos archivos se importan a través de etiquetas `<script src="...">` estándar sin el atributo `type="module"`.
+
+En los motores JavaScript de los navegadores (V8, SpiderMonkey, JavaScriptCore), encontrar la palabra reservada `export` en un script clásico es un error de sintaxis no recuperable en tiempo de parseo. El navegador abortaba la ejecución completa de `finance.js` antes de ejecutar una sola línea de código, impidiendo que `renderFinanceView`, `openGoalModal`, `openRateModal` y los demás controladores interactivos se registraran en `window`. Al navegar al módulo financiero, el contenedor `#financeContent` permanecía en blanco.
+
+### 29.2. Arquitectura de Exposición Dual (Browser Clásico + Test Runner Node.js)
+Se sustituyó el bloque `export` por una estrategia de exposición universal:
+1. **Asignación a Ámbito Global Resiliente**:
+   ```javascript
+   const _financeTargetScope = (typeof window !== 'undefined') ? window : (typeof globalThis !== 'undefined' ? globalThis : (typeof global !== 'undefined' ? global : null));
+   if (_financeTargetScope) {
+       _financeTargetScope.roundCurrency = roundCurrency;
+       _financeTargetScope.renderFinanceView = renderFinanceView;
+       _financeTargetScope.openGoalModal = openGoalModal;
+       _financeTargetScope.openRateModal = openRateModal;
+       // ... registro completo de controladores
+   }
+   ```
+2. **Exportación Condicional CommonJS**:
+   ```javascript
+   if (typeof module !== 'undefined' && module.exports) {
+       module.exports = {
+           roundCurrency,
+           getFinanceRates,
+           // ...
+       };
+   }
+   ```
+3. **Consumo Dinámico en Suite de Pruebas Node.js**:
+   En `tests.js`, la carga dinámica mediante `await import('./finance.js')` y `await import('./adm.js')` obtiene las funciones directamente desde `scope = typeof window !== 'undefined' ? window : globalThis`, manteniendo 100% de compatibilidad tanto en CLI headless como en navegadores reales.
+4. **Invalidación de Caché y Service Worker (v6.7.1)**:
+   Se elevó la versión de caché a `psico-v6.7.1` en `sw.js` e `index.html`, forzando al navegador del cliente a purgar el caché obsoleto y descargar la versión corregida sin intervención manual.
+
+```mermaid
+sequenceDiagram
+    autonumber
+    participant Browser as Navegador (Classic Script)
+    participant SW as Service Worker (v6.7.2)
+    participant Fin as finance.js
+    participant Win as window / globalThis
+    participant UI as Vista Finanzas (#financeContent)
+
+    Browser->>SW: Petición de finance.js?v=6.7.2
+    SW-->>Browser: Retorna versión corregida sin 'export' y sin pisar window.openModal
+    Browser->>Fin: Evaluación sintáctica válida
+    Fin->>Win: Asigna controladores (renderFinanceView, openGoalModal, openRateModal, etc.)
+    Browser->>UI: Clic en pestaña "Finanzas"
+    UI->>Win: Invoca renderFinanceView()
+    Win-->>UI: Renderiza panel de balance, metas, tarifas y recordatorios de cobro
+```
+
+### 29.3. Resolución de Colisión de Ámbito en Modales y `ReferenceError: sessionPrep` (v6.8.2)
+
+1. **Desacoplamiento de `openModal` en `finance.js`**:
+   - `finance.js` declaraba funciones locales a nivel superior con nombres colisionantes (`openModal`, `closeModal`, `showToast`, etc.).
+   - Al ejecutarse como script clásico, esto sobreescribía `window.openModal` de `app.js` con una función que internamente ejecutaba `window.openModal(id)` dentro de un bloque `try/catch`.
+   - Esto provocaba una recursión infinita hacia sí misma (`RangeError: Maximum call stack size exceeded`), que al ser capturada por el `catch {}` impedía la apertura de modales tanto en el módulo financiero como en toda la aplicación.
+   - **Solución**: Se encapsularon las utilidades bajo constantes léxicas (`const openModal = ...`), delegando a `window.openModal` de `app.js` de forma segura, garantizando cero recursión y preservando intacta la lógica modal de `app.js`.
+
+2. **Declaración de `sessionPrep` en `viewPatient` (`app.js`)**:
+   - En `viewPatient(id)`, el template string invocaba `${renderTabResumen(id, wellbeing, sessionPrep, ...)}`.
+   - La variable `sessionPrep` no estaba declarada en el ámbito de la función, lanzando `Uncaught ReferenceError: sessionPrep is not defined` antes de invocar `openModal('patientDetailModal')`, impidiendo la apertura de los expedientes de pacientes.
+   - **Solución**: Se declaró explícitamente `const sessionPrep = (typeof generateSessionPrep === 'function') ? generateSessionPrep(id) : null;` con guardas defensivas, restaurando de inmediato la apertura instantánea de las fichas clínicas.
+

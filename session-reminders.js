@@ -708,12 +708,16 @@ if (document.readyState === 'loading') {
 }
 
 // Exposición global
-if (typeof window !== 'undefined') {
-    window.openCustomReminderModal = openCustomReminderModal;
-    window.closeReminderDrawer = closeReminderDrawer;
-    window.toggleReminderDrawer = toggleReminderDrawer;
-    window.filterReminderDrawerCategory = filterReminderDrawerCategory;
-    window.completeAppointmentFromReminder = completeAppointmentFromReminder;
-    window.updateSessionRemindersUI = updateSessionRemindersUI;
-    window.evaluateSessionReminders = evaluateSessionReminders;
+const _remTargetScope = (typeof window !== 'undefined') ? window : (typeof globalThis !== 'undefined' ? globalThis : (typeof global !== 'undefined' ? global : null));
+if (_remTargetScope) {
+    _remTargetScope.openCustomReminderModal = openCustomReminderModal;
+    _remTargetScope.closeReminderDrawer = closeReminderDrawer;
+    _remTargetScope.toggleReminderDrawer = toggleReminderDrawer;
+    _remTargetScope.filterReminderDrawerCategory = filterReminderDrawerCategory;
+    _remTargetScope.completeAppointmentFromReminder = completeAppointmentFromReminder;
+    _remTargetScope.updateSessionRemindersUI = updateSessionRemindersUI;
+    _remTargetScope.evaluateSessionReminders = evaluateSessionReminders;
+    if (typeof handleReminderAction === 'function') _remTargetScope.handleReminderAction = handleReminderAction;
+    if (typeof saveCustomReminderForm === 'function') _remTargetScope.saveCustomReminderForm = saveCustomReminderForm;
+    if (typeof dismissReminder === 'function') _remTargetScope.dismissReminder = dismissReminder;
 }

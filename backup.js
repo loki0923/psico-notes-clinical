@@ -106,8 +106,9 @@ function openBackupModal() {
 }
 
 // Exposición global
-if (typeof window !== 'undefined') {
-    window.openBackupModal = openBackupModal;
-    window.exportBackupFile = exportBackupFile;
-    window.importBackup = importBackup;
+const _backupTargetScope = (typeof window !== 'undefined') ? window : (typeof globalThis !== 'undefined' ? globalThis : (typeof global !== 'undefined' ? global : null));
+if (_backupTargetScope) {
+    _backupTargetScope.openBackupModal = openBackupModal;
+    _backupTargetScope.exportBackupFile = exportBackupFile;
+    _backupTargetScope.importBackup = importBackup;
 }

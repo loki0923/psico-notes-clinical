@@ -801,4 +801,19 @@ function handleSaveCustomScale(e) {
     if (typeof renderScalesView === 'function') renderScalesView();
     showToast(`✅ Escala "${shortName}" guardada exitosamente`, 'success');
 }
-window.handleSaveCustomScale = handleSaveCustomScale;
+
+const _scalesTargetScope = (typeof window !== 'undefined') ? window : (typeof globalThis !== 'undefined' ? globalThis : (typeof global !== 'undefined' ? global : null));
+if (_scalesTargetScope) {
+    _scalesTargetScope.handleSaveCustomScale = handleSaveCustomScale;
+    if (typeof openScaleEditorModal === 'function') _scalesTargetScope.openScaleEditorModal = openScaleEditorModal;
+    if (typeof openInteractiveScaleModal === 'function') _scalesTargetScope.openInteractiveScaleModal = openInteractiveScaleModal;
+    if (typeof submitInteractiveScaleForm === 'function') _scalesTargetScope.submitInteractiveScaleForm = submitInteractiveScaleForm;
+    if (typeof renderScalesView === 'function') _scalesTargetScope.renderScalesView = renderScalesView;
+    if (typeof recordScaleAnswer === 'function') _scalesTargetScope.recordScaleAnswer = recordScaleAnswer;
+    if (typeof updateLiveScaleScore === 'function') _scalesTargetScope.updateLiveScaleScore = updateLiveScaleScore;
+    if (typeof renderTabEscalasEnhanced === 'function') _scalesTargetScope.renderTabEscalasEnhanced = renderTabEscalasEnhanced;
+    if (typeof getCustomScales === 'function') _scalesTargetScope.getCustomScales = getCustomScales;
+    if (typeof saveCustomScales === 'function') _scalesTargetScope.saveCustomScales = saveCustomScales;
+    if (typeof getAllClinicalScales === 'function') _scalesTargetScope.getAllClinicalScales = getAllClinicalScales;
+    _scalesTargetScope.EXTENDED_CLINICAL_SCALES = EXTENDED_CLINICAL_SCALES;
+}

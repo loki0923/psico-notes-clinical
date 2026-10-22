@@ -2539,6 +2539,7 @@ function viewPatient(id) {
     const patientGoals = AppState.treatmentPlans.filter(g => g.patientId === id);
     const emotionalProfile = calculateEmotionalProfile(id);
     const clinicalInsights = generateClinicalInsights(id);
+    const sessionPrep = (typeof generateSessionPrep === 'function') ? generateSessionPrep(id) : null;
     const isKid = isKidPatient(patient);
     const { results: portalResults, moods: portalMoods, cbt: portalCbt, kidActivities: portalKidActivities } = getPortalResults(id);
     const portalCount = isKid ? (portalKidActivities ? portalKidActivities.length : 0) : (portalResults.length + portalMoods.length + (portalCbt ? portalCbt.length : 0));
@@ -4234,14 +4235,14 @@ async function refreshPortalTabContent(patientId, showNotification = false) {
     const tabEl = document.getElementById('tab-portal');
     const badgeEl = document.getElementById('portalTabBadgeCount');
 
-    if (showNotification && tabEl) {
+    if (showNotification && tabEl && tabEl.style) {
         tabEl.style.opacity = '0.6';
     }
 
     const synced = await syncPortalDataForPatient(patientId);
 
     if (tabEl) {
-        tabEl.style.opacity = '1';
+        if (tabEl.style) tabEl.style.opacity = '1';
         tabEl.innerHTML = renderPortalTab(patientId);
     }
 
@@ -6880,9 +6881,12 @@ function renderClinicalAnalytics() {
 // UTILIDADES
 // ============================================
 function updateCounts() {
-    document.getElementById('patientCount').textContent = AppState.patients.length;
-    document.getElementById('appointmentCount').textContent = AppState.appointments.filter(a => a.status !== 'cancelada').length;
-    document.getElementById('notesCount').textContent = AppState.notes.length;
+    const pC = document.getElementById('patientCount');
+    if (pC && AppState && AppState.patients) pC.textContent = AppState.patients.length;
+    const aC = document.getElementById('appointmentCount');
+    if (aC && AppState && AppState.appointments) aC.textContent = AppState.appointments.filter(a => a.status !== 'cancelada').length;
+    const nC = document.getElementById('notesCount');
+    if (nC && AppState && AppState.notes) nC.textContent = AppState.notes.length;
 }
 
 function updatePatientSelects() {
@@ -7558,5 +7562,38 @@ if (typeof window !== 'undefined') {
     if (typeof updateCounts === 'function') window.updateCounts = updateCounts;
     if (typeof getInitials === 'function') window.getInitials = getInitials;
     if (typeof formatTime === 'function') window.formatTime = formatTime;
+
+    // Alias y controladores clínicos interactivos auditados
+    window.viewPatientDetail = function(patientId) {
+        if (typeof viewPatient === 'function') viewPatient(patientId);
+    };
+    window.exportReporteAtencionPDF = function(noteId) {
+        if (typeof ClinicalHistorySystem !== 'undefined' && typeof ClinicalHistorySystem.exportReporteAtencionPDF === 'function') {
+            ClinicalHistorySystem.exportReporteAtencionPDF(noteId);
+        } else if (typeof exportPatientReport === 'function') {
+            exportPatientReport(noteId);
+        }
+    };
+    if (typeof addTreatmentGoal === 'function') window.addTreatmentGoal = addTreatmentGoal;
+    if (typeof updateGoalProgress === 'function') window.updateGoalProgress = updateGoalProgress;
+    if (typeof applyAiSoapEncoded === 'function') window.applyAiSoapEncoded = applyAiSoapEncoded;
+    if (typeof applyGeneratedSoapToForm === 'function') window.applyGeneratedSoapToForm = applyGeneratedSoapToForm;
+    if (typeof applySuggestedSlot === 'function') window.applySuggestedSlot = applySuggestedSlot;
+    if (typeof closeSoapAiModal === 'function') window.closeSoapAiModal = closeSoapAiModal;
+    if (typeof deleteNote === 'function') window.deleteNote = deleteNote;
+    if (typeof deleteGoal === 'function') window.deleteGoal = deleteGoal;
+    if (typeof editNote === 'function') window.editNote = editNote;
+    if (typeof generateSoapFromAiModal === 'function') window.generateSoapFromAiModal = generateSoapFromAiModal;
+    if (typeof handleAiChatSubmit === 'function') window.handleAiChatSubmit = handleAiChatSubmit;
+    if (typeof handleLogout === 'function') window.handleLogout = handleLogout;
+    if (typeof handleSaveTherapistProfile === 'function') window.handleSaveTherapistProfile = handleSaveTherapistProfile;
+    if (typeof handleSearchResult === 'function') window.handleSearchResult = handleSearchResult;
+    if (typeof openNewPatientForCategory === 'function') window.openNewPatientForCategory = openNewPatientForCategory;
+    if (typeof renderScaleModal === 'function') window.renderScaleModal = renderScaleModal;
+    if (typeof saveScaleResult === 'function') window.saveScaleResult = saveScaleResult;
+    if (typeof toggleSoapVoiceDictation === 'function') window.toggleSoapVoiceDictation = toggleSoapVoiceDictation;
+    if (typeof viewAppointmentDetail === 'function') window.viewAppointmentDetail = viewAppointmentDetail;
+    if (typeof zoomIntoDay === 'function') window.zoomIntoDay = zoomIntoDay;
+    if (typeof evolveAppointmentSession === 'function') window.evolveAppointmentSession = evolveAppointmentSession;
 }
 

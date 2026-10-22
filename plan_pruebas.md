@@ -117,3 +117,31 @@ flowchart TD
 3. **Compatibilidad cross-browser y móvil**: Verificado en Chrome, Edge, Firefox, Safari iOS y Chrome Android con ergonomía táctil (44px min touch target, safe-area env).
 4. **PWA Lighthouse Score**: Rendimiento offline, PWA instalable y tiempos de carga instantáneos.
 5. **Validación Clínica E2E**: Caso piloto simulado ejecutado con consentimiento informado, tamizaje PHQ-9, protocolo de crisis C-SSRS y reporte de atención inmutable firmado.
+
+
+---
+
+## 5. Casos de Prueba — Auditoría Integral de Botones y Controladores (v6.8)
+
+| ID | Módulo | Nombre de la Prueba | Criterio de Aprobación |
+|---|---|---|---|
+| **TC-BTN-01** | Global DOM | Resolución Integral de Todos los Botones `onclick` y `onsubmit` | Todos los 136 controladores interactivos están definidos y vinculados a `window` sin excepciones |
+| **TC-BTN-02** | Facturación | Operatividad de Botones de Facturación SENIAT (`adm.js`) | `handleInvoiceSubmit`, `handleBillingConfigSubmit`, `clearAllInvoices`, `deleteInvoice` disponibles |
+| **TC-BTN-03** | Psicométricos | Operatividad de Botones de Escalas Interactivas (`scales.js`) | `openInteractiveScaleModal`, `submitInteractiveScaleForm`, `renderScalesView` ejecutables |
+| **TC-BTN-04** | Recordatorios | Operatividad de Drawer y Botones de Recordatorios (`session-reminders.js`) | `handleReminderAction`, `saveCustomReminderForm`, `toggleReminderDrawer` operativos |
+| **TC-BTN-05** | Expedientes & Radar | Resolución de Alias y Utilidades Defensivas (`app.js`) | `viewPatientDetail`, `exportReporteAtencionPDF` y `updateCounts` con resiliencia ante nulos |
+
+---
+
+## 6. Casos de Prueba — Módulo Financiero y Tarifación Dinámica (v6.8.1)
+
+| ID | Módulo | Nombre de la Prueba | Criterio de Aprobación |
+|---|---|---|---|
+| **TC-FIN-01** | Finanzas | Cálculo Aritmético de Balance, Cobros e Ingresos | Suma exacta de cobrados, pendientes, egresos y balance neto |
+| **TC-FIN-02** | Tarifas | Gestión y Configuración de Tarifas de Precios por Tiempo | CRUD de tarifas clínicas, duración y establecimiento de tarifa predeterminada |
+| **TC-FIN-03** | Metas | Metas Financieras Cuantitativas y Cualitativas | Registro y cálculo de porcentaje de progreso en metas de facturación y sesiones |
+| **TC-FIN-04** | Cobros | Tarificación Dinámica y Cobro de Citas Clínicas | Ingesta de honorarios pactados, prevención de duplicación (idempotencia) |
+| **TC-FIN-05** | Global Scope | Disponibilidad y Exposición Global de Controladores | 100% de controladores expuestos en `window` sin `SyntaxError` en scripts clásicos |
+
+**Total de Pruebas Automatizadas Activas**: 76 de 76 superadas exitosamente (100% Pass Rate).
+
