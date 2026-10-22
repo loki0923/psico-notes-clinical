@@ -2806,3 +2806,49 @@ sequenceDiagram
    - La variable `sessionPrep` no estaba declarada en el ámbito de la función, lanzando `Uncaught ReferenceError: sessionPrep is not defined` antes de invocar `openModal('patientDetailModal')`, impidiendo la apertura de los expedientes de pacientes.
    - **Solución**: Se declaró explícitamente `const sessionPrep = (typeof generateSessionPrep === 'function') ? generateSessionPrep(id) : null;` con guardas defensivas, restaurando de inmediato la apertura instantánea de las fichas clínicas.
 
+---
+
+## 30. ARQUITECTURA DE DISEÑO RESPONSIVE Y ERGONOMÍA TÁCTIL MÓVIL (v6.8.3)
+
+### 30.1. Diagnóstico de Deficiencias Móviles Previas
+En dispositivos móviles (smartphones de 360px a 430px de ancho):
+1. **Desbordamiento horizontal en Finanzas**: Las subpestañas financieras y tarjetas de metas fijaban anchos rígidos (`minmax(320px, 1fr)`), generando overflow lateral.
+2. **Botones de acción inaccesibles en pantallas táctiles**: En las listas de transacciones financieras, los botones de editar y eliminar dependían de `:hover` (`opacity: 0`), volviéndose invisibles en teléfonos móviles.
+3. **Distribución de acciones en el Expediente Clínico**: La barra de herramientas del paciente agrupaba hasta 9 botones sin rejilla responsiva, apiñando la vista.
+4. **Corte de modales por teclados virtuales**: Modales de notas SOAP y citas no garantizaban el anclaje inferior ni la separación de la zona de gestos de iPhone (`safe-area-inset-bottom`).
+
+### 30.2. Especificación Técnica de Componentes Responsivos
+
+```mermaid
+flowchart TD
+    subgraph Mobile_Viewport["📱 Viewport Móvil (<= 768px / <= 480px)"]
+        TopBar["Top Bar Fija (54px) + Hamburguesa Drawer"]
+        MainScroll["Área de Contenido con Safe Padding (84px bottom)"]
+        BottomNav["Barra Inferior Flotante (60px + Safe Area)"]
+    end
+
+    subgraph Mobile_Components["🧩 Componentes Adaptados"]
+        FinTabs["Subpestañas con Scroll Táctil Horizontal Momentum"]
+        FinCards["KPIs 2 Columnas + Balance Neto Full Width"]
+        DossierHero["Hero Dossier en 1 Columna + Grid 2x2 de Acciones"]
+        BottomSheet["Modales Bottom-Sheet con Cabecera y Acciones Fijas"]
+        DrawerRem["Drawer de Recordatorios Full Width (100vw)"]
+    end
+
+    MainScroll --> FinTabs
+    MainScroll --> FinCards
+    MainScroll --> DossierHero
+    MainScroll --> BottomSheet
+    MainScroll --> DrawerRem
+```
+
+### 30.3. Reglas de Implementación Frontend Móvil
+1. **Touch Targets Mínimos**: Todos los botones de acción rápida, filtros y pestañas poseen un mínimo de 44px de altura táctil (con área activa de 38x38px en iconos).
+2. **Safe Area Insets**:
+   - `padding-bottom: env(safe-area-inset-bottom, 0px)` en `.mobile-bottom-nav` y `.modal-actions`.
+3. **Ocultamiento de Barra Inferior durante Modales**:
+   - `body.has-active-modal .mobile-bottom-nav { display: none !important; }` para asegurar 100% de visibilidad en formularios.
+4. **Subpestañas con Desplazamiento Momentum**:
+   - `.finance-subtabs`, `.patient-tabs`, `.action-group-tools` con `overflow-x: auto`, `white-space: nowrap`, `scrollbar-width: none`.
+
+

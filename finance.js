@@ -605,7 +605,7 @@ function renderGoalsTabHtml(txs, netBalance) {
                     <p>No tienes metas financieras registradas. ¡Crea una para motivar el crecimiento de tu consulta!</p>
                 </div>
             ` : `
-                <div style="display:grid;grid-template-columns:repeat(auto-fit, minmax(320px, 1fr));gap:16px;">
+                <div style="display:grid;grid-template-columns:repeat(auto-fit, minmax(min(100%, 280px), 1fr));gap:16px;">
                     ${goalsWithProgress.map(g => `
                         <div class="finance-goal-card">
                             <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:12px;">
@@ -772,7 +772,7 @@ function renderRatesTabHtml() {
                     <p>No tienes tarifas por tiempo configuradas. Agrega una nueva tarifa para establecer precios por duración.</p>
                 </div>
             ` : `
-                <div style="display:grid;grid-template-columns:repeat(auto-fit, minmax(300px, 1fr));gap:16px;">
+                <div style="display:grid;grid-template-columns:repeat(auto-fit, minmax(min(100%, 280px), 1fr));gap:16px;">
                     ${rates.sort((a,b) => a.durationMinutes - b.durationMinutes).map(r => `
                         <div class="finance-rate-card ${r.isDefault ? 'default-rate' : ''}">
                             <div>
