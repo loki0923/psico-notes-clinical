@@ -1,0 +1,60 @@
+{
+ "totalSites": 276,
+ "missing": [
+  {
+   "symbol": "child",
+   "count": 1,
+   "sites": [
+    {
+     "file": "app.js",
+     "line": 2799,
+     "evt": "click",
+     "body": "switchPatientTab('notas', document.querySelector('.patient-tab:nth-child(2)'))"
+    }
+   ]
+  },
+  {
+   "symbol": "exportReporteAtencionPDF",
+   "count": 1,
+   "sites": [
+    {
+     "file": "app.js",
+     "line": 2952,
+     "evt": "click",
+     "body": "exportReporteAtencionPDF('${n.id}')"
+    }
+   ]
+  },
+  {
+   "symbol": "Date",
+   "count": 2,
+   "sites": [
+    {
+     "file": "app.js",
+     "line": 4690,
+     "evt": "click",
+     "body": "AppState.selectedDate = new Date('${dateStr}T12:00:00'); renderCalendar(); renderAppointments();"
+    },
+    {
+     "file": "app.js",
+     "line": 4929,
+     "evt": "click",
+     "body": "AppState.currentDate = new Date(${year}, ${m}, 1); setCalendarViewMode('month');"
+    }
+   ]
+  },
+  {
+   "symbol": "viewPatientDetail",
+   "count": 1,
+   "sites": [
+    {
+     "file": "app.js",
+     "line": 6284,
+     "evt": "click",
+     "body": "viewPatientDetail('${item.patient.id}')"
+    }
+   ]
+  }
+ ],
+ "resolvedCount": 137
+}

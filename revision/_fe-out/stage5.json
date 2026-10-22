@@ -1,0 +1,2348 @@
+{
+ "listenersInFunctions": [
+  {
+   "file": "app.js",
+   "line": 39,
+   "enclosing": "(anon)",
+   "target": "window",
+   "event": "ev"
+  },
+  {
+   "file": "app.js",
+   "line": 143,
+   "enclosing": "(top-level)",
+   "target": "document",
+   "event": "'DOMContentLoaded'"
+  },
+  {
+   "file": "app.js",
+   "line": 148,
+   "enclosing": "(anon)",
+   "target": "window",
+   "event": "'online'"
+  },
+  {
+   "file": "app.js",
+   "line": 155,
+   "enclosing": "(anon)",
+   "target": "window",
+   "event": "'offline'"
+  },
+  {
+   "file": "app.js",
+   "line": 778,
+   "enclosing": "initAuthEventListeners",
+   "target": "document.getElementById('loginForm')",
+   "event": "'submit'"
+  },
+  {
+   "file": "app.js",
+   "line": 779,
+   "enclosing": "initAuthEventListeners",
+   "target": "document.getElementById('registerForm')",
+   "event": "'submit'"
+  },
+  {
+   "file": "app.js",
+   "line": 780,
+   "enclosing": "initAuthEventListeners",
+   "target": "document.getElementById('showRegister')",
+   "event": "'click'"
+  },
+  {
+   "file": "app.js",
+   "line": 786,
+   "enclosing": "initAuthEventListeners",
+   "target": "document.getElementById('showLogin')",
+   "event": "'click'"
+  },
+  {
+   "file": "app.js",
+   "line": 792,
+   "enclosing": "initAuthEventListeners",
+   "target": "document.getElementById('logoutBtn')",
+   "event": "'click'"
+  },
+  {
+   "file": "app.js",
+   "line": 797,
+   "enclosing": "initAuthEventListeners",
+   "target": "showForgotBtn",
+   "event": "'click'"
+  },
+  {
+   "file": "app.js",
+   "line": 814,
+   "enclosing": "initAuthEventListeners",
+   "target": "cancelForgotBtn",
+   "event": "'click'"
+  },
+  {
+   "file": "app.js",
+   "line": 824,
+   "enclosing": "initAuthEventListeners",
+   "target": "btnRequestCode",
+   "event": "'click'"
+  },
+  {
+   "file": "app.js",
+   "line": 829,
+   "enclosing": "initAuthEventListeners",
+   "target": "btnSubmitNewPwd",
+   "event": "'click'"
+  },
+  {
+   "file": "app.js",
+   "line": 1329,
+   "enclosing": "initEventListeners",
+   "target": "sidebarToggle",
+   "event": "'click'"
+  },
+  {
+   "file": "app.js",
+   "line": 1331,
+   "enclosing": "(anon)",
+   "target": "item",
+   "event": "'click'"
+  },
+  {
+   "file": "app.js",
+   "line": 1337,
+   "enclosing": "initEventListeners",
+   "target": "themeToggle",
+   "event": "'click'"
+  },
+  {
+   "file": "app.js",
+   "line": 1339,
+   "enclosing": "initEventListeners",
+   "target": "prevMonth",
+   "event": "'click'"
+  },
+  {
+   "file": "app.js",
+   "line": 1341,
+   "enclosing": "initEventListeners",
+   "target": "nextMonth",
+   "event": "'click'"
+  },
+  {
+   "file": "app.js",
+   "line": 1343,
+   "enclosing": "initEventListeners",
+   "target": "patientForm",
+   "event": "'submit'"
+  },
+  {
+   "file": "app.js",
+   "line": 1345,
+   "enclosing": "initEventListeners",
+   "target": "appointmentForm",
+   "event": "'submit'"
+  },
+  {
+   "file": "app.js",
+   "line": 1347,
+   "enclosing": "initEventListeners",
+   "target": "noteForm",
+   "event": "'submit'"
+  },
+  {
+   "file": "app.js",
+   "line": 1350,
+   "enclosing": "initEventListeners",
+   "target": "notePatientSelect",
+   "event": "'change'"
+  },
+  {
+   "file": "app.js",
+   "line": 1371,
+   "enclosing": "initEventListeners",
+   "target": "patientSearch",
+   "event": "'input'"
+  },
+  {
+   "file": "app.js",
+   "line": 1373,
+   "enclosing": "initEventListeners",
+   "target": "notesSearch",
+   "event": "'input'"
+  },
+  {
+   "file": "app.js",
+   "line": 1375,
+   "enclosing": "initEventListeners",
+   "target": "globalSearch",
+   "event": "'input'"
+  },
+  {
+   "file": "app.js",
+   "line": 1460,
+   "enclosing": "(top-level)",
+   "target": "window",
+   "event": "'resize'"
+  },
+  {
+   "file": "app.js",
+   "line": 6445,
+   "enclosing": "(top-level)",
+   "target": "document",
+   "event": "'keydown'"
+  },
+  {
+   "file": "session-reminders.js",
+   "line": 686,
+   "enclosing": "initSessionReminders",
+   "target": "bellBtn",
+   "event": "'click'"
+  },
+  {
+   "file": "session-reminders.js",
+   "line": 705,
+   "enclosing": "(top-level)",
+   "target": "document",
+   "event": "'DOMContentLoaded'"
+  },
+  {
+   "file": "portal.js",
+   "line": 118,
+   "enclosing": "(top-level)",
+   "target": "window",
+   "event": "'online'"
+  },
+  {
+   "file": "portal.js",
+   "line": 197,
+   "enclosing": "(top-level)",
+   "target": "document",
+   "event": "'DOMContentLoaded'"
+  },
+  {
+   "file": "portal.js",
+   "line": 1454,
+   "enclosing": "(top-level)",
+   "target": "window",
+   "event": "'beforeinstallprompt'"
+  },
+  {
+   "file": "portal.js",
+   "line": 1487,
+   "enclosing": "(top-level)",
+   "target": "window",
+   "event": "'load'"
+  }
+ ],
+ "innerHtmlSinks": [
+  {
+   "file": "voice-dictation.js",
+   "line": 165,
+   "enclosing": "(anon)",
+   "exprs": [
+    "icon",
+    "isRecording ? 'Detener' : 'Dictar'"
+   ],
+   "len": 47
+  },
+  {
+   "file": "psychoed.js",
+   "line": 80,
+   "enclosing": "openWorksheetModal()",
+   "exprs": [
+    "ws.title",
+    "ws.subtitle",
+    "patientOptions",
+    "this.renderWorksheetForm(worksheetId)",
+    "worksheetId",
+    "worksheetId",
+    "worksheetId",
+    "worksheetId"
+   ],
+   "len": 2412
+  },
+  {
+   "file": "reports.js",
+   "line": 19,
+   "enclosing": "openReportGeneratorModal()",
+   "exprs": [
+    "patientOptions",
+    "localStorage.getItem('psico_licence') || ''",
+    "localStorage.getItem('psico_specialty') || ''"
+   ],
+   "len": 4936
+  },
+  {
+   "file": "vademecum.js",
+   "line": 91,
+   "enclosing": "openVademecumModal()",
+   "exprs": [
+    "this.renderDrugList(this.drugs)"
+   ],
+   "len": 1086
+  },
+  {
+   "file": "app.js",
+   "line": 862,
+   "enclosing": "handleRequestResetCode",
+   "exprs": [
+    "email"
+   ],
+   "len": 301
+  },
+  {
+   "file": "app.js",
+   "line": 1412,
+   "enclosing": "navigateTo",
+   "exprs": [
+    "titles[view] || 'Inicio'"
+   ],
+   "len": 42
+  },
+  {
+   "file": "app.js",
+   "line": 1633,
+   "enclosing": "renderClinicalAlerts",
+   "exprs": [
+    "a.level",
+    "a.patientId",
+    "a.icon",
+    "a.title",
+    "a.description",
+    "a.patientName"
+   ],
+   "len": 369
+  },
+  {
+   "file": "app.js",
+   "line": 1823,
+   "enclosing": "renderContextualAgenda",
+   "exprs": [
+    "app.id",
+    "formatTime(app.time)",
+    "app.duration",
+    "renderWellbeingRing(wellbeing)",
+    "getInitials(patient.name)",
+    "patient.name",
+    "patient.diagnosis || 'Sin diagnóstico'",
+    "moodStatus ? `<span class=\"context-tag mood-${moodStatus.level",
+    "moodStatus.emoji",
+    "moodStatus.label",
+    "latestScale ? `<span class=\"context-tag\">📊 GAD-7: ${latestScale.scaleResult.score",
+    "sessionCount + 1"
+   ],
+   "len": 2555
+  },
+  {
+   "file": "app.js",
+   "line": 2207,
+   "enclosing": "renderPatients",
+   "exprs": [
+    "currentCatFilter === 'child' ? '🧒' : currentCatFilter === 'adolescent' ? '🧑' : '👤'",
+    "filter ? 'Sin coincidencias' : `No hay ${catLabel",
+    "!filter ? `<button class=\"btn-primary\" onclick=\"openNewPatientForCategory('${currentCatFilter"
+   ],
+   "len": 370
+  },
+  {
+   "file": "app.js",
+   "line": 2211,
+   "enclosing": "renderPatients",
+   "exprs": [
+    "p.guardianName ? `<span class=\"meta-item\"><i class=\"fas fa-user-shield\"></i> Tutor: ${p.guardianName",
+    "p.guardianRelation || 'Tutor'",
+    "p.schoolGrade || p.schoolName ? `<span class=\"meta-item\"><i class=\"fas fa-school\"></i> ${p.schoolGrade || p.schoolName",
+    "p.guardianPhone ? `<span class=\"meta-item\"><i class=\"fas fa-phone-alt\"></i> ${p.guardianPhone",
+    "p.schoolGrade ? `<span class=\"meta-item\"><i class=\"fas fa-graduation-cap\"></i> ${p.schoolGrade",
+    "p.guardianName ? `<span class=\"meta-item\"><i class=\"fas fa-user-shield\"></i> Tutor: ${p.guardianName",
+    "p.guardianPhone ? `<span class=\"meta-item\"><i class=\"fas fa-phone-alt\"></i> ${p.guardianPhone",
+    "p.guardianConsent === 'firmado' ? '<span class=\"meta-item badge-alta-chip\"><i class=\"fas fa-file-contract\"></i> Consentimiento firmado</span>' : ''",
+    "p.occupation ? `<span class=\"meta-item\"><i class=\"fas fa-briefcase\"></i> ${p.occupation",
+    "p.phone ? `<span class=\"meta-item\"><i class=\"fas fa-phone-alt\"></i> ${p.phone",
+    "admissionStr ? formatDate(admissionStr) : '—'",
+    "(isAlta || dischargeStr) ? `<span class=\"meta-item badge-alta-chip\"><i class=\"fas fa-graduation-cap\"></i> Egreso/Alta: ${formatDate(dischargeStr || new Date())"
+   ],
+   "len": 3668
+  },
+  {
+   "file": "app.js",
+   "line": 2478,
+   "enclosing": "viewPatient",
+   "exprs": [
+    "getInitials(patient.name)",
+    "cleanName",
+    "badge",
+    "patient.status ? `<span class=\"patient-status-chip ${getPatientStatusClass(patient.status)",
+    "isAlta ? 'fa-graduation-cap' : 'fa-flag'",
+    "patient.status",
+    "cat === 'adolescent' ? '' : `<span class=\"dossier-badge-diag\"><i class=\"fas fa-stethoscope\"></i> ${patient.diagnosis || 'Pendiente de evaluación'",
+    "patient.age ? `<div class=\"hero-chip\"><i class=\"fas fa-user-clock\"></i> <span><strong>${patient.age",
+    "age",
+    "formatDate(patient.birthdate)",
+    "patient.gender ? `<div class=\"hero-chip\"><i class=\"fas fa-venus-mars\"></i> <span>${patient.gender",
+    "admissionStr ? formatDate(admissionStr) : '—'"
+   ],
+   "len": 7965
+  },
+  {
+   "file": "app.js",
+   "line": 3711,
+   "enclosing": "openPortalAccessModal",
+   "exprs": [
+    "(patient.name || 'P').charAt(0).toUpperCase()",
+    "typeof formatDisplayName === 'function' ? formatDisplayName(patient.name) : patient.name",
+    "stageBadgeClass",
+    "stageLabel",
+    "patient.portalEnabled ? 'active' : ''",
+    "patient.portalEnabled ? 'Portal Activo' : 'Inactivo'",
+    "formattedDate",
+    "hasCrisis ? `\n                <div class=\"portal-crisis-callout\">\n                    <div class=\"crisis-icon\">🚨</div>\n                    <div class=\"crisis-info\">\n                        <strong>Alerta SOS Activa:</strong> El paciente ha solicitado asistencia inmediata o registrado indicadores de riesgo elevado desde su portal.\n                    </div>\n                    <button class=\"btn-sm btn-danger\" onclick=\"openActiveCrisisProtocol(); closeModal('portalAccessModal');\">\n                        Ver Protocolo SOS\n                    </button>\n                </div>\n            ` : ''",
+    "portalUrl",
+    "patient.id",
+    "patient.id",
+    "patient.id"
+   ],
+   "len": 11032
+  },
+  {
+   "file": "app.js",
+   "line": 3967,
+   "enclosing": "showPortalQrCode",
+   "exprs": [
+    "qrImageUrl",
+    "patient.name",
+    "portalUrl",
+    "patient.id"
+   ],
+   "len": 1363
+  },
+  {
+   "file": "app.js",
+   "line": 4631,
+   "enclosing": "renderCalendarMonth",
+   "exprs": [
+    "monthApps.length"
+   ],
+   "len": 208
+  },
+  {
+   "file": "app.js",
+   "line": 4743,
+   "enclosing": "renderCalendarWeek",
+   "exprs": [
+    "weekApps.length"
+   ],
+   "len": 209
+  },
+  {
+   "file": "app.js",
+   "line": 4815,
+   "enclosing": "renderCalendarDay",
+   "exprs": [
+    "dayApps.length",
+    "completed"
+   ],
+   "len": 218
+  },
+  {
+   "file": "app.js",
+   "line": 4912,
+   "enclosing": "renderCalendarYear",
+   "exprs": [
+    "yearApps.length",
+    "year"
+   ],
+   "len": 216
+  },
+  {
+   "file": "app.js",
+   "line": 4984,
+   "enclosing": "renderAppointments",
+   "exprs": [
+    "dateFormatted",
+    "toDateInputValue(AppState.selectedDate)"
+   ],
+   "len": 342
+  },
+  {
+   "file": "app.js",
+   "line": 4987,
+   "enclosing": "renderAppointments",
+   "exprs": [
+    "p ? getInitials(p.name) : '?'",
+    "p ? p.name : 'Paciente'",
+    "catBadge",
+    "formatTime(app.time)",
+    "app.duration || 50",
+    "app.type || 'Terapia'",
+    "app.notes ? ' · ' + app.notes : ''",
+    "st",
+    "app.id",
+    "st === 'agendada' || st === 'pendiente' ? 'selected' : ''",
+    "st === 'completada' ? 'selected' : ''",
+    "st === 'reprogramada' ? 'selected' : ''"
+   ],
+   "len": 2664
+  },
+  {
+   "file": "app.js",
+   "line": 5165,
+   "enclosing": "suggestAppointmentSlots",
+   "exprs": [
+    "s.date",
+    "s.time",
+    "s.display",
+    "s.reason",
+    "s.score"
+   ],
+   "len": 397
+  },
+  {
+   "file": "app.js",
+   "line": 5260,
+   "enclosing": "renderNotes",
+   "exprs": [
+    "filter ? 'Sin coincidencias' : 'No hay reportes de atención registrados'",
+    "!filter ? '<button class=\"btn-primary\" onclick=\"openReporteAtencionModal()\"><i class=\"fas fa-file-signature\"></i> Registrar Primer Reporte de Atención</button>' : ''"
+   ],
+   "len": 315
+  },
+  {
+   "file": "app.js",
+   "line": 5263,
+   "enclosing": "renderNotes",
+   "exprs": [
+    "n.risk",
+    "n.scaleResult.score",
+    "n.sessionNum || 1",
+    "n.id",
+    "p ? getInitials(p.name) : '?'",
+    "sessionBadge",
+    "statusBadge",
+    "n.title",
+    "riskBadge",
+    "scaleBadge",
+    "p ? p.name : 'Paciente'",
+    "formatDate(n.date)"
+   ],
+   "len": 2091
+  },
+  {
+   "file": "app.js",
+   "line": 5472,
+   "enclosing": "saveDraft()",
+   "exprs": [
+    "timeStr"
+   ],
+   "len": 120
+  },
+  {
+   "file": "app.js",
+   "line": 5732,
+   "enclosing": "editNote",
+   "exprs": [
+    "idx + 1",
+    "formatDate(ad.date)",
+    "ad.author || 'Profesional'",
+    "ad.text"
+   ],
+   "len": 593
+  },
+  {
+   "file": "app.js",
+   "line": 5772,
+   "enclosing": "renderIntersessionTasksEditor",
+   "exprs": [
+    "(t.title || '').replace(/\"/g, '&quot;')",
+    "i",
+    "t.dueDate || ''",
+    "i",
+    "i",
+    "(t.description || '').replace(/\"/g, '&quot;')",
+    "i"
+   ],
+   "len": 1277
+  },
+  {
+   "file": "app.js",
+   "line": 5787,
+   "enclosing": "renderScaleModal",
+   "exprs": [
+    "scale.name",
+    "scale.questions.map((q, i) => `<div style=\"margin-bottom:16px;padding:12px;background:var(--bg-secondary);border-radius:var(--radius-md);\"><div style=\"font-size:14px;font-weight:500;margin-bottom:8px;\">${i + 1",
+    "q",
+    "scale.options.map((opt, j) => `<label style=\"display:flex;align-items:center;gap:8px;font-size:13px;cursor:pointer;\"><input type=\"radio\" name=\"q${i",
+    "j",
+    "opt",
+    "scaleKey",
+    "patientId"
+   ],
+   "len": 1015
+  },
+  {
+   "file": "app.js",
+   "line": 5883,
+   "enclosing": "handleAiChatSubmit",
+   "exprs": [
+    "escapeHtml(query)"
+   ],
+   "len": 51
+  },
+  {
+   "file": "app.js",
+   "line": 5901,
+   "enclosing": "handleAiChatSubmit",
+   "exprs": [
+    "err.message"
+   ],
+   "len": 61
+  },
+  {
+   "file": "app.js",
+   "line": 5922,
+   "enclosing": "runAiDiagnosticAnalysis",
+   "exprs": [
+    "patient.name"
+   ],
+   "len": 145
+  },
+  {
+   "file": "app.js",
+   "line": 5926,
+   "enclosing": "runAiDiagnosticAnalysis",
+   "exprs": [
+    "formatMarkdownResponse(result)"
+   ],
+   "len": 71
+  },
+  {
+   "file": "app.js",
+   "line": 5928,
+   "enclosing": "runAiDiagnosticAnalysis",
+   "exprs": [
+    "err.message"
+   ],
+   "len": 75
+  },
+  {
+   "file": "app.js",
+   "line": 5945,
+   "enclosing": "runAiSoapSynthesis",
+   "exprs": [
+    "soap.subjetivo",
+    "soap.objetivo",
+    "soap.analisis",
+    "soap.plan",
+    "encodedSoap"
+   ],
+   "len": 800
+  },
+  {
+   "file": "app.js",
+   "line": 5958,
+   "enclosing": "runAiSoapSynthesis",
+   "exprs": [
+    "err.message"
+   ],
+   "len": 60
+  },
+  {
+   "file": "app.js",
+   "line": 6087,
+   "enclosing": "handleGlobalSearch",
+   "exprs": [
+    "r.type",
+    "r.data.id",
+    "r.title",
+    "r.meta",
+    "tl[r.type]"
+   ],
+   "len": 312
+  },
+  {
+   "file": "app.js",
+   "line": 6107,
+   "enclosing": "updateStats",
+   "exprs": [
+    "(wc[i] / mc * 100) || 4",
+    "d"
+   ],
+   "len": 161
+  },
+  {
+   "file": "app.js",
+   "line": 6180,
+   "enclosing": "renderClinicalAnalytics",
+   "exprs": [
+    "diag",
+    "count",
+    "pct",
+    "color",
+    "pct"
+   ],
+   "len": 863
+  },
+  {
+   "file": "app.js",
+   "line": 6221,
+   "enclosing": "renderClinicalAnalytics",
+   "exprs": [
+    "avgImprovement >= 0 ? '#10b981' : '#ef4444'",
+    "avgImprovement >= 0 ? '-' + avgImprovement + '%' : '+' + Math.abs(avgImprovement) + '%'",
+    "deltaCount > 0 \n                        ? `${responseRate"
+   ],
+   "len": 967
+  },
+  {
+   "file": "app.js",
+   "line": 6278,
+   "enclosing": "renderClinicalAnalytics",
+   "exprs": [
+    "item.type === 'danger' ? 'rgba(239,68,68,0.08)' : 'rgba(245,158,11,0.08)'",
+    "item.type === 'danger' ? '#ef4444' : '#f59e0b'",
+    "item.icon",
+    "item.text",
+    "item.patient.id"
+   ],
+   "len": 816
+  },
+  {
+   "file": "app.js",
+   "line": 6391,
+   "enclosing": "showToast",
+   "exprs": [
+    "icons[type] || 'ℹ️'",
+    "message"
+   ],
+   "len": 48
+  },
+  {
+   "file": "app.js",
+   "line": 6405,
+   "enclosing": "showConfirmModal",
+   "exprs": [
+    "isDanger ? '⚠️' : '❓'",
+    "title || '¿Confirmar acción?'",
+    "message",
+    "isDanger ? 'background:#e16259;color:white;border:none;' : ''"
+   ],
+   "len": 1113
+  },
+  {
+   "file": "app.js",
+   "line": 6478,
+   "enclosing": "openTelehealthModal",
+   "exprs": [
+    "p.id",
+    "p.id === patientId ? 'selected' : ''",
+    "p.name"
+   ],
+   "len": 191
+  },
+  {
+   "file": "app.js",
+   "line": 6581,
+   "enclosing": "checkPortalCrisisAlerts",
+   "exprs": [
+    "alertPatient.name",
+    "reasonText"
+   ],
+   "len": 137
+  },
+  {
+   "file": "scales.js",
+   "line": 243,
+   "enclosing": "renderScalesView",
+   "exprs": [
+    "totalAssessments",
+    "highRiskCount",
+    "Object.keys(allScales).length",
+    "Object.values(allScales).map(s => `\n                    <div class=\"finance-goal-card\" style=\"justify-content:space-between;\">\n                        <div>\n                            <div style=\"display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;\">\n                                <span style=\"font-size:11px;font-weight:700;text-transform:uppercase;padding:3px 10px;border-radius:12px;background:var(--accent-light);color:var(--accent-primary);\">\n                                    ${s.domain",
+    "s.questions ? s.questions.length : 0",
+    "s.name",
+    "s.maxScore",
+    "s.id",
+    "s.id",
+    "renderScalesHistoryHtml(evaluations)"
+   ],
+   "len": 5536
+  },
+  {
+   "file": "scales.js",
+   "line": 428,
+   "enclosing": "openInteractiveScaleModal",
+   "exprs": [
+    "preselectedPatientId || ''",
+    "Object.values(allScales).map(s => `\n                            <option value=\"${s.id",
+    "s.id === scale.id ? 'selected' : ''",
+    "s.name",
+    "patients.map(p => `\n                            <option value=\"${p.id",
+    "String(p.id) === String(preselectedPatientId) ? 'selected' : ''",
+    "p.name",
+    "scale.name",
+    "scale.maxScore",
+    "scale.questions.map((q, i) => `\n                <div style=\"margin-bottom:14px;padding:14px;background:var(--bg-secondary);border-radius:var(--radius-md);border:1px solid var(--border-primary);\">\n                    <div style=\"font-size:14px;font-weight:600;color:var(--text-primary);margin-bottom:10px;\">\n                        ${i + 1",
+    "q",
+    "scale.options.map((opt) => `\n                            <label style=\"display:flex;align-items:center;gap:8px;font-size:13px;padding:8px 12px;background:var(--bg-card);border:1px solid var(--border-primary);border-radius:var(--radius-sm);cursor:pointer;transition:all 0.15s ease;\" class=\"scale-opt-label\">\n                                <input type=\"radio\" name=\"scale_q_${i"
+   ],
+   "len": 3793
+  },
+  {
+   "file": "finance.js",
+   "line": 141,
+   "enclosing": "renderFinanceView",
+   "exprs": [
+    "currentTab === 'transactions' ? `\n                    <button class=\"btn-secondary\" onclick=\"openCategoriesModal()\">\n                        <i class=\"fas fa-tags\"></i> Categorías\n                    </button>\n                    <button class=\"btn-primary\" onclick=\"openTransactionModal('income')\">\n                        <i class=\"fas fa-plus\"></i> Ingreso\n                    </button>\n                    <button class=\"btn-secondary\" onclick=\"openTransactionModal('expense')\" style=\"background:#e16259;color:white;border:none;\">\n                        <i class=\"fas fa-minus\"></i> Egreso\n                    </button>\n                    ${txs.length > 0 ? `\n                        <button class=\"btn-secondary\" onclick=\"clearAllFinanceTransactions()\" style=\"color:#e16259;border-color:rgba(225,98,89,0.3);\" title=\"Vaciar todo el historial financiero\">\n                            <i class=\"fas fa-trash-alt\"></i> Vaciar Registro\n                        </button>\n                    ` : ''",
+    "currentTab === 'transactions' ? 'active' : ''",
+    "currentTab === 'debts' ? 'active' : ''",
+    "getPendingPatientDebts().length > 0 ? `<span class=\"nav-badge\" style=\"background:#e16259;color:white;margin-left:6px;\">${getPendingPatientDebts().length",
+    "currentTab === 'goals' ? 'active' : ''",
+    "currentTab === 'rates' ? 'active' : ''",
+    "currentTab === 'transactions' ? renderTransactionsTabHtml(txs, totalIncome, totalExpense, netBalance) :\n              currentTab === 'debts' ? renderDebtsTabHtml() :\n              currentTab === 'goals' ? renderGoalsTabHtml(txs, netBalance) :\n              renderRatesTabHtml()"
+   ],
+   "len": 3619
+  },
+  {
+   "file": "finance.js",
+   "line": 444,
+   "enclosing": "openGoalModal",
+   "exprs": [
+    "g ? g.id : ''",
+    "g ? g.title : ''",
+    "g ? g.targetAmount : ''",
+    "g && g.category === 'income' ? 'selected' : ''",
+    "g && g.category === 'sessions' ? 'selected' : ''",
+    "g && g.category === 'balance' ? 'selected' : ''",
+    "g && g.period === 'monthly' ? 'selected' : ''",
+    "g && g.period === 'total' ? 'selected' : ''",
+    "g && g.description ? g.description : ''"
+   ],
+   "len": 2353
+  },
+  {
+   "file": "finance.js",
+   "line": 611,
+   "enclosing": "openRateModal",
+   "exprs": [
+    "r ? r.id : ''",
+    "r ? r.title : ''",
+    "r ? r.durationMinutes : 50",
+    "r ? r.amount : ''",
+    "r && r.description ? r.description : ''",
+    "r && r.isDefault ? 'checked' : (!r && rates.length === 0 ? 'checked' : '')"
+   ],
+   "len": 1909
+  },
+  {
+   "file": "finance.js",
+   "line": 716,
+   "enclosing": "openTransactionModal",
+   "exprs": [
+    "type",
+    "type === 'income' ? 'Ej: Honorarios sesión...' : 'Ej: Alquiler consultorio marzo...'",
+    "toDateInputValue(new Date())",
+    "type === 'income' ? '<option value=\"Consulta Clínica\">Consulta Clínica</option><option value=\"Supervisión Emitida\">Supervisión Emitida</option><option value=\"Taller / Docencia\">Taller / Docencia</option>' : categories.map(c => `<option value=\"${c",
+    "c"
+   ],
+   "len": 1572
+  },
+  {
+   "file": "finance.js",
+   "line": 775,
+   "enclosing": "openEditTransactionModal",
+   "exprs": [
+    "tx.id",
+    "tx.concept",
+    "tx.amount",
+    "tx.date",
+    "tx.type === 'income' \n                        ? ['Consulta Clínica', 'Supervisión Emitida', 'Taller / Docencia', 'Otros Ingresos'].map(c => `<option value=\"${c",
+    "tx.category === c ? 'selected' : ''",
+    "c",
+    "c",
+    "tx.category === c ? 'selected' : ''",
+    "c"
+   ],
+   "len": 1579
+  },
+  {
+   "file": "finance.js",
+   "line": 854,
+   "enclosing": "openCategoriesModal",
+   "exprs": [
+    "cats.map((c, idx) => `\n                <div style=\"padding:8px 12px;background:var(--bg-secondary);border-radius:var(--radius-sm);display:flex;justify-content:space-between;align-items:center;\">\n                    <span>${c",
+    "idx"
+   ],
+   "len": 939
+  },
+  {
+   "file": "adm.js",
+   "line": 96,
+   "enclosing": "openBillingConfig",
+   "exprs": [
+    "config.fiscalName",
+    "config.rif",
+    "config.phone || ''",
+    "config.address || ''",
+    "config.invoicePrefix",
+    "config.nextNumber",
+    "config.applyIGTF ? 'checked' : ''"
+   ],
+   "len": 2006
+  },
+  {
+   "file": "adm.js",
+   "line": 164,
+   "enclosing": "openInvoicesList",
+   "exprs": [
+    "config.fiscalName || 'Consulta Psicológica'",
+    "config.rif",
+    "config.address || 'No configurada'",
+    "invoices.length",
+    "invoices.length > 0 ? `\n                    <button class=\"btn-secondary\" onclick=\"clearAllInvoices()\" style=\"color:#e16259;border-color:rgba(225,98,89,0.3);\" title=\"Vaciar registro de facturas\">\n                        <i class=\"fas fa-trash-alt\"></i> Vaciar Facturas\n                    </button>\n                ` : ''",
+    "invoices.length === 0 ? `\n                <div class=\"empty-state\">\n                    <div class=\"empty-icon\">📄</div>\n                    <p>No se han emitido facturas aún</p>\n                    <button class=\"btn-primary\" onclick=\"openInvoiceCreator()\">Emitir primera factura</button>\n                </div>\n            ` : `\n                <div style=\"display:flex;flex-direction:column;gap:8px;\">\n                    ${invoices.sort((a,b) => new Date(b.date) - new Date(a.date)).map(inv => `\n                        <div style=\"padding:12px 16px;background:var(--bg-secondary);border-radius:var(--radius-md);display:flex;justify-content:space-between;align-items:center;gap:12px;\">\n                            <div style=\"min-width:0;flex:1;\">\n                                <div style=\"font-weight:700;font-size:14px;color:var(--text-primary);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;\">${inv.number",
+    "inv.clientName",
+    "inv.clientRif",
+    "formatDate(inv.date)",
+    "inv.paymentMethod",
+    "parseFloat(inv.totalUSD).toFixed(2)",
+    "inv.id"
+   ],
+   "len": 3196
+  },
+  {
+   "file": "adm.js",
+   "line": 246,
+   "enclosing": "openInvoiceCreator",
+   "exprs": [
+    "AppState.patients.map(p => `<option value=\"${p.id",
+    "p.name"
+   ],
+   "len": 2540
+  },
+  {
+   "file": "adm.js",
+   "line": 317,
+   "enclosing": "calculateInvoiceTotals",
+   "exprs": [
+    "amount.toFixed(2)",
+    "applyIGTF ? `\n                <div style=\"display:flex;justify-content:space-between;font-size:13px;color:#e67e22;margin-bottom:4px;\">\n                    <span>IGTF (3% Ley Divisas SENIAT):</span>\n                    <strong>+$${igtfAmount.toFixed(2)",
+    "total.toFixed(2)"
+   ],
+   "len": 923
+  },
+  {
+   "file": "session-reminders.js",
+   "line": 310,
+   "enclosing": "renderDashboardRemindersWidget",
+   "exprs": [
+    "summaryChipsHtml",
+    "cardsHtml",
+    "reminders.length > 4 ? `\n            <div style=\"text-align:center;margin-top:12px;\">\n                <button class=\"btn-secondary btn-sm\" onclick=\"toggleReminderDrawer()\">\n                    Ver los ${reminders.length"
+   ],
+   "len": 436
+  },
+  {
+   "file": "session-reminders.js",
+   "line": 554,
+   "enclosing": "openCustomReminderModal",
+   "exprs": [
+    "modalId",
+    "modalId",
+    "AppState.patients.sort((a,b)=>a.name.localeCompare(b.name)).map(p => `\n                                <option value=\"${p.id",
+    "p.name",
+    "toDateInputValue(new Date())",
+    "modalId"
+   ],
+   "len": 2766
+  },
+  {
+   "file": "backup.js",
+   "line": 79,
+   "enclosing": "openBackupModal",
+   "exprs": [
+    "AppState.currentUser?.email || 'Sesión activa'"
+   ],
+   "len": 2171
+  },
+  {
+   "file": "crisis-protocol.js",
+   "line": 148,
+   "enclosing": "renderCrisisModalContent",
+   "exprs": [
+    "modalId",
+    "modalId",
+    "triggerReason",
+    "patient.name",
+    "patient.age || 'Edad no reg.'",
+    "countryCode === 'VE' ? 'selected' : ''",
+    "countryCode === 'CO' ? 'selected' : ''",
+    "countryCode === 'AR' ? 'selected' : ''",
+    "countryCode === 'CL' ? 'selected' : ''",
+    "countryCode === 'MX' ? 'selected' : ''",
+    "countryCode === 'ES' ? 'selected' : ''",
+    "countryCode === 'US' ? 'selected' : ''"
+   ],
+   "len": 17442
+  },
+  {
+   "file": "crisis-protocol.js",
+   "line": 381,
+   "enclosing": "handleCrisisCountryChange",
+   "exprs": [
+    "h.name",
+    "h.phone",
+    "h.hours"
+   ],
+   "len": 463
+  },
+  {
+   "file": "consentimiento.js",
+   "line": 58,
+   "enclosing": "openInformedConsentModal",
+   "exprs": [
+    "modalDocTitle",
+    "patient.name",
+    "cat === 'child' ? 'Etapa: Niñez' : cat === 'adolescent' ? 'Etapa: Adolescencia' : 'Etapa: Adultez'",
+    "new Date().toLocaleDateString('es-ES')",
+    "consentIntro",
+    "consentClauses",
+    "sharedClauses",
+    "cat === 'child' ? 'Firma del Representante Legal / Tutor:' : cat === 'adolescent' ? 'Firma del Tutor / Asentimiento Adolescente:' : 'Firma del Paciente en pantalla:'"
+   ],
+   "len": 3920
+  },
+  {
+   "file": "historia-clinica.js",
+   "line": 778,
+   "enclosing": "openFullHistoryEditor()",
+   "exprs": [
+    "patient.name",
+    "therapistTag",
+    "cat === 'child' ? 'Niñez' : cat === 'adolescent' ? 'Adolescencia' : 'Adultez'",
+    "cat !== 'adult' ? '<button type=\"button\" class=\"hist-nav-tab\" onclick=\"ClinicalHistorySystem.switchEditorTab(\\'perinatal\\', this)\">5. Perinatal & Hitos</button>' : ''",
+    "cat !== 'adult' ? '<button type=\"button\" class=\"hist-nav-tab\" onclick=\"ClinicalHistorySystem.switchEditorTab(\\'escolar\\', this)\">6. Escolaridad</button>' : ''",
+    "cat === 'adolescent' ? '7. Entrevista Menor' : '7. Áreas Vitales'",
+    "patientId",
+    "h.ci",
+    "h.birthPlace",
+    "h.religion",
+    "h.livesWith",
+    "h.address"
+   ],
+   "len": 17297
+  },
+  {
+   "file": "historia-clinica.js",
+   "line": 1081,
+   "enclosing": "openGenogramModal()",
+   "exprs": [
+    "patient.name",
+    "h.fatherName || 'Padre'",
+    "h.motherName || 'Madre'",
+    "patient.name.split(' ')[0]",
+    "h.siblingsCount"
+   ],
+   "len": 3881
+  },
+  {
+   "file": "historia-clinica.js",
+   "line": 1926,
+   "enclosing": "openInAppPreconsultaForm()",
+   "exprs": [
+    "therapist.name",
+    "therapist.specialty",
+    "!isExisting ? 'checked' : ''",
+    "isExisting ? 'checked' : ''",
+    "initialStage === 'child' ? 'active' : ''",
+    "initialStage === 'child' ? 'background:var(--accent-primary);color:#fff;' : ''",
+    "initialStage === 'adolescent' ? 'active' : ''",
+    "initialStage === 'adolescent' ? 'background:var(--accent-primary);color:#fff;' : ''",
+    "initialStage === 'adult' ? 'active' : ''",
+    "initialStage === 'adult' ? 'background:var(--accent-primary);color:#fff;' : ''",
+    "isExisting ? 'block' : 'none'",
+    "patients.map(p => `<option value=\"${p.id"
+   ],
+   "len": 21244
+  },
+  {
+   "file": "portal.js",
+   "line": 585,
+   "enclosing": "renderTasks",
+   "exprs": [
+    "PortalState.currentFilter === 'completed' ? '🎉' : '✨'",
+    "PortalState.currentFilter === 'completed' ? 'Aún no has completado tareas' : 'No tienes tareas pendientes'",
+    "PortalState.currentFilter === 'completed' ? 'Completa tus tareas para verlas aquí' : 'Tu terapeuta te asignará actividades entre sesiones'"
+   ],
+   "len": 741
+  },
+  {
+   "file": "portal.js",
+   "line": 597,
+   "enclosing": "renderTasks",
+   "exprs": [
+    "task.completed ? 'completed' : ''",
+    "task.completed ? 'checked' : ''",
+    "task.id",
+    "task.completed ? '<i class=\"fas fa-check\" style=\"font-size:12px;\"></i>' : ''",
+    "task.title",
+    "task.description ? `<div class=\"task-description\">${task.description",
+    "task.dueDate ? `\n                        <div class=\"task-due ${isOverdue ? 'overdue' : ''",
+    "isOverdue ? 'Vencida: ' : 'Para: '",
+    "formatDateSafe(task.dueDate)"
+   ],
+   "len": 1057
+  },
+  {
+   "file": "portal.js",
+   "line": 1027,
+   "enclosing": "showTestResult",
+   "exprs": [
+    "icon",
+    "level",
+    "score",
+    "maxScore",
+    "message"
+   ],
+   "len": 460
+  },
+  {
+   "file": "portal.js",
+   "line": 1065,
+   "enclosing": "updateProgress",
+   "exprs": [
+    "a.icon",
+    "a.title",
+    "a.desc"
+   ],
+   "len": 334
+  },
+  {
+   "file": "portal.js",
+   "line": 1078,
+   "enclosing": "updateProgress",
+   "exprs": [
+    "e.type === 'phq9' ? '🌧️ Estado de Ánimo' : e.type === 'gad7' ? '🌊 Ansiedad' : '💭 Ánimo'",
+    "formatDateSafe(e.date)",
+    "e.score",
+    "e.maxScore"
+   ],
+   "len": 457
+  },
+  {
+   "file": "portal.js",
+   "line": 1375,
+   "enclosing": "renderGroundingStep",
+   "exprs": [
+    "currentGroundingStep + 1",
+    "step.icon",
+    "step.title",
+    "step.desc",
+    "step.placeholder",
+    "currentGroundingStep > 0 ? `<button class=\"btn-secondary\" onclick=\"currentGroundingStep--; renderGroundingStep();\">Atrás</button>` : ''"
+   ],
+   "len": 937
+  }
+ ],
+ "storage": {
+  "reads": [
+   {
+    "file": "ai-clinical.js",
+    "line": 23,
+    "key": "'psico_gemini_api_key'"
+   },
+   {
+    "file": "psychoed.js",
+    "line": 371,
+    "key": "taskKey"
+   },
+   {
+    "file": "reports.js",
+    "line": 74,
+    "key": "'psico_licence'"
+   },
+   {
+    "file": "reports.js",
+    "line": 78,
+    "key": "'psico_specialty'"
+   },
+   {
+    "file": "reports.js",
+    "line": 139,
+    "key": "'psico_therapist_name'"
+   },
+   {
+    "file": "reports.js",
+    "line": 141,
+    "key": "'psico_therapist_signature'"
+   },
+   {
+    "file": "app.js",
+    "line": 169,
+    "key": "'psico_therapist_specialty'"
+   },
+   {
+    "file": "app.js",
+    "line": 170,
+    "key": "'psico_therapist_registry'"
+   },
+   {
+    "file": "app.js",
+    "line": 171,
+    "key": "'psico_therapist_phone'"
+   },
+   {
+    "file": "app.js",
+    "line": 172,
+    "key": "'psico_therapist_institution'"
+   },
+   {
+    "file": "app.js",
+    "line": 284,
+    "key": "'psico_darkMode'"
+   },
+   {
+    "file": "app.js",
+    "line": 294,
+    "key": "userStorageKey('patients')"
+   },
+   {
+    "file": "app.js",
+    "line": 295,
+    "key": "userStorageKey('appointments')"
+   },
+   {
+    "file": "app.js",
+    "line": 296,
+    "key": "userStorageKey('notes')"
+   },
+   {
+    "file": "app.js",
+    "line": 297,
+    "key": "userStorageKey('plans')"
+   },
+   {
+    "file": "app.js",
+    "line": 361,
+    "key": "'psico_session_token'"
+   },
+   {
+    "file": "app.js",
+    "line": 389,
+    "key": "'psico_therapist_name'"
+   },
+   {
+    "file": "app.js",
+    "line": 391,
+    "key": "'psico_therapist_specialty'"
+   },
+   {
+    "file": "app.js",
+    "line": 392,
+    "key": "'psico_therapist_registry'"
+   },
+   {
+    "file": "app.js",
+    "line": 459,
+    "key": "'psico_session_token'"
+   },
+   {
+    "file": "app.js",
+    "line": 489,
+    "key": "'psico_therapist_signature'"
+   },
+   {
+    "file": "app.js",
+    "line": 490,
+    "key": "'psico_therapist_phone'"
+   },
+   {
+    "file": "app.js",
+    "line": 491,
+    "key": "'psico_therapist_institution'"
+   },
+   {
+    "file": "app.js",
+    "line": 492,
+    "key": "'psico_therapist_specialty'"
+   },
+   {
+    "file": "app.js",
+    "line": 493,
+    "key": "'psico_therapist_registry'"
+   },
+   {
+    "file": "app.js",
+    "line": 611,
+    "key": "'psico_therapist_signature'"
+   },
+   {
+    "file": "app.js",
+    "line": 740,
+    "key": "'psico_users'"
+   },
+   {
+    "file": "app.js",
+    "line": 745,
+    "key": "'psico_session'"
+   },
+   {
+    "file": "app.js",
+    "line": 1032,
+    "key": "'psico_therapist_specialty'"
+   },
+   {
+    "file": "app.js",
+    "line": 1033,
+    "key": "'psico_therapist_registry'"
+   },
+   {
+    "file": "app.js",
+    "line": 1034,
+    "key": "'psico_therapist_phone'"
+   },
+   {
+    "file": "app.js",
+    "line": 1035,
+    "key": "'psico_therapist_institution'"
+   },
+   {
+    "file": "app.js",
+    "line": 1173,
+    "key": "'psico_therapist_phone'"
+   },
+   {
+    "file": "app.js",
+    "line": 1174,
+    "key": "'psico_therapist_institution'"
+   },
+   {
+    "file": "app.js",
+    "line": 1235,
+    "key": "'psico_therapist_signature'"
+   },
+   {
+    "file": "app.js",
+    "line": 1561,
+    "key": "'psico_monthly_qualitative_goal'"
+   },
+   {
+    "file": "app.js",
+    "line": 3586,
+    "key": "'psico_portal_patients'"
+   },
+   {
+    "file": "app.js",
+    "line": 3592,
+    "key": "'psico_therapist_name'"
+   },
+   {
+    "file": "app.js",
+    "line": 3685,
+    "key": "`psico_portal_data_${patientId}`"
+   },
+   {
+    "file": "app.js",
+    "line": 3903,
+    "key": "'psico_therapist_name'"
+   },
+   {
+    "file": "app.js",
+    "line": 3921,
+    "key": "'psico_therapist_name'"
+   },
+   {
+    "file": "app.js",
+    "line": 3943,
+    "key": "'psico_therapist_name'"
+   },
+   {
+    "file": "app.js",
+    "line": 4043,
+    "key": "'psico_session_token'"
+   },
+   {
+    "file": "app.js",
+    "line": 4096,
+    "key": "`psico_portal_data_${patientId}`"
+   },
+   {
+    "file": "app.js",
+    "line": 4152,
+    "key": "key"
+   },
+   {
+    "file": "app.js",
+    "line": 4153,
+    "key": "keyMood"
+   },
+   {
+    "file": "app.js",
+    "line": 4154,
+    "key": "keyCbt"
+   },
+   {
+    "file": "app.js",
+    "line": 4156,
+    "key": "keyData"
+   },
+   {
+    "file": "app.js",
+    "line": 5479,
+    "key": "'psico_active_note_draft'"
+   },
+   {
+    "file": "app.js",
+    "line": 5495,
+    "key": "'psico_active_note_draft'"
+   },
+   {
+    "file": "app.js",
+    "line": 5631,
+    "key": "'psico_therapist_registry'"
+   },
+   {
+    "file": "app.js",
+    "line": 5673,
+    "key": "'psico_portal_tasks_bridge'"
+   },
+   {
+    "file": "app.js",
+    "line": 6554,
+    "key": "`psico_portal_data_${p.id}`"
+   },
+   {
+    "file": "app.js",
+    "line": 6602,
+    "key": "`psico_portal_data_${pId}`"
+   },
+   {
+    "file": "scales.js",
+    "line": 198,
+    "key": "`psico_custom_scales_${uid}`"
+   },
+   {
+    "file": "finance.js",
+    "line": 16,
+    "key": "getFinanceStorageKey('transactions')"
+   },
+   {
+    "file": "finance.js",
+    "line": 26,
+    "key": "getFinanceStorageKey('categories')"
+   },
+   {
+    "file": "finance.js",
+    "line": 42,
+    "key": "getFinanceStorageKey('rates')"
+   },
+   {
+    "file": "finance.js",
+    "line": 64,
+    "key": "getFinanceStorageKey('goals')"
+   },
+   {
+    "file": "adm.js",
+    "line": 12,
+    "key": "getBillingStorageKey('config')"
+   },
+   {
+    "file": "adm.js",
+    "line": 30,
+    "key": "'psico_session_token'"
+   },
+   {
+    "file": "adm.js",
+    "line": 49,
+    "key": "getBillingStorageKey('invoices')"
+   },
+   {
+    "file": "adm.js",
+    "line": 63,
+    "key": "'psico_session_token'"
+   },
+   {
+    "file": "adm.js",
+    "line": 368,
+    "key": "'psico_session_token'"
+   },
+   {
+    "file": "session-reminders.js",
+    "line": 28,
+    "key": "key"
+   },
+   {
+    "file": "crisis-protocol.js",
+    "line": 486,
+    "key": "key"
+   },
+   {
+    "file": "crisis-protocol.js",
+    "line": 516,
+    "key": "key"
+   },
+   {
+    "file": "historia-clinica.js",
+    "line": 23,
+    "key": "'psico_therapist_name'"
+   },
+   {
+    "file": "historia-clinica.js",
+    "line": 26,
+    "key": "'psico_therapist_specialty'"
+   },
+   {
+    "file": "historia-clinica.js",
+    "line": 29,
+    "key": "'psico_therapist_registry'"
+   },
+   {
+    "file": "portal.js",
+    "line": 41,
+    "key": "this.QUEUE_KEY"
+   },
+   {
+    "file": "portal.js",
+    "line": 260,
+    "key": "'psico_portal_session'"
+   },
+   {
+    "file": "portal.js",
+    "line": 361,
+    "key": "'psico_portal_patients'"
+   },
+   {
+    "file": "portal.js",
+    "line": 442,
+    "key": "`psico_portal_data_${PortalState.patientId}`"
+   },
+   {
+    "file": "portal.js",
+    "line": 491,
+    "key": "'psico_portal_tasks_bridge'"
+   },
+   {
+    "file": "portal.js",
+    "line": 649,
+    "key": "'psico_portal_tasks_bridge'"
+   },
+   {
+    "file": "portal.js",
+    "line": 1504,
+    "key": "`psico_portal_consent_${PortalState.patientId}`"
+   }
+  ],
+  "writes": [
+   {
+    "file": "ai-clinical.js",
+    "line": 36,
+    "key": "'psico_gemini_api_key'"
+   },
+   {
+    "file": "psychoed.js",
+    "line": 382,
+    "key": "taskKey"
+   },
+   {
+    "file": "reports.js",
+    "line": 136,
+    "key": "'psico_licence'"
+   },
+   {
+    "file": "reports.js",
+    "line": 137,
+    "key": "'psico_specialty'"
+   },
+   {
+    "file": "app.js",
+    "line": 417,
+    "key": "'psico_session_token'"
+   },
+   {
+    "file": "app.js",
+    "line": 443,
+    "key": "'psico_session_token'"
+   },
+   {
+    "file": "app.js",
+    "line": 612,
+    "key": "'psico_therapist_signature'"
+   },
+   {
+    "file": "app.js",
+    "line": 614,
+    "key": "'psico_therapist_phone'"
+   },
+   {
+    "file": "app.js",
+    "line": 615,
+    "key": "'psico_therapist_institution'"
+   },
+   {
+    "file": "app.js",
+    "line": 711,
+    "key": "userStorageKey('patients')"
+   },
+   {
+    "file": "app.js",
+    "line": 712,
+    "key": "userStorageKey('appointments')"
+   },
+   {
+    "file": "app.js",
+    "line": 713,
+    "key": "userStorageKey('notes')"
+   },
+   {
+    "file": "app.js",
+    "line": 714,
+    "key": "userStorageKey('plans')"
+   },
+   {
+    "file": "app.js",
+    "line": 715,
+    "key": "'psico_darkMode'"
+   },
+   {
+    "file": "app.js",
+    "line": 716,
+    "key": "'psico_portal_notes_backup'"
+   },
+   {
+    "file": "app.js",
+    "line": 744,
+    "key": "'psico_users'"
+   },
+   {
+    "file": "app.js",
+    "line": 746,
+    "key": "'psico_session'"
+   },
+   {
+    "file": "app.js",
+    "line": 997,
+    "key": "'psico_session_token'"
+   },
+   {
+    "file": "app.js",
+    "line": 1046,
+    "key": "'psico_therapist_name'"
+   },
+   {
+    "file": "app.js",
+    "line": 1047,
+    "key": "'psico_therapist_specialty'"
+   },
+   {
+    "file": "app.js",
+    "line": 1048,
+    "key": "'psico_therapist_registry'"
+   },
+   {
+    "file": "app.js",
+    "line": 1096,
+    "key": "'psico_session_token'"
+   },
+   {
+    "file": "app.js",
+    "line": 1125,
+    "key": "'psico_therapist_name'"
+   },
+   {
+    "file": "app.js",
+    "line": 1126,
+    "key": "'psico_therapist_specialty'"
+   },
+   {
+    "file": "app.js",
+    "line": 1127,
+    "key": "'psico_therapist_registry'"
+   },
+   {
+    "file": "app.js",
+    "line": 1271,
+    "key": "'psico_therapist_name'"
+   },
+   {
+    "file": "app.js",
+    "line": 1272,
+    "key": "'psico_therapist_specialty'"
+   },
+   {
+    "file": "app.js",
+    "line": 1273,
+    "key": "'psico_therapist_registry'"
+   },
+   {
+    "file": "app.js",
+    "line": 1274,
+    "key": "'psico_therapist_phone'"
+   },
+   {
+    "file": "app.js",
+    "line": 1275,
+    "key": "'psico_therapist_institution'"
+   },
+   {
+    "file": "app.js",
+    "line": 1283,
+    "key": "'psico_therapist_signature'"
+   },
+   {
+    "file": "app.js",
+    "line": 1600,
+    "key": "'psico_monthly_qualitative_goal'"
+   },
+   {
+    "file": "app.js",
+    "line": 3605,
+    "key": "'psico_portal_patients'"
+   },
+   {
+    "file": "app.js",
+    "line": 3904,
+    "key": "'psico_portal_session'"
+   },
+   {
+    "file": "app.js",
+    "line": 3922,
+    "key": "'psico_portal_session'"
+   },
+   {
+    "file": "app.js",
+    "line": 4064,
+    "key": "`psico_portal_mood_${patientId}`"
+   },
+   {
+    "file": "app.js",
+    "line": 4078,
+    "key": "`psico_portal_results_${patientId}`"
+   },
+   {
+    "file": "app.js",
+    "line": 4093,
+    "key": "`psico_portal_cbt_${patientId}`"
+   },
+   {
+    "file": "app.js",
+    "line": 4099,
+    "key": "`psico_portal_data_${patientId}`"
+   },
+   {
+    "file": "app.js",
+    "line": 5468,
+    "key": "'psico_active_note_draft'"
+   },
+   {
+    "file": "app.js",
+    "line": 5685,
+    "key": "'psico_portal_tasks_bridge'"
+   },
+   {
+    "file": "app.js",
+    "line": 6606,
+    "key": "`psico_portal_data_${pId}`"
+   },
+   {
+    "file": "app.js",
+    "line": 6775,
+    "key": "`psico_portal_data_${pilotPatientId}`"
+   },
+   {
+    "file": "scales.js",
+    "line": 206,
+    "key": "`psico_custom_scales_${uid}`"
+   },
+   {
+    "file": "finance.js",
+    "line": 21,
+    "key": "getFinanceStorageKey('transactions')"
+   },
+   {
+    "file": "finance.js",
+    "line": 33,
+    "key": "getFinanceStorageKey('categories')"
+   },
+   {
+    "file": "finance.js",
+    "line": 55,
+    "key": "getFinanceStorageKey('rates')"
+   },
+   {
+    "file": "finance.js",
+    "line": 75,
+    "key": "getFinanceStorageKey('goals')"
+   },
+   {
+    "file": "adm.js",
+    "line": 28,
+    "key": "getBillingStorageKey('config')"
+   },
+   {
+    "file": "adm.js",
+    "line": 54,
+    "key": "getBillingStorageKey('invoices')"
+   },
+   {
+    "file": "adm.js",
+    "line": 73,
+    "key": "getBillingStorageKey('config')"
+   },
+   {
+    "file": "adm.js",
+    "line": 83,
+    "key": "getBillingStorageKey('invoices')"
+   },
+   {
+    "file": "session-reminders.js",
+    "line": 46,
+    "key": "key"
+   },
+   {
+    "file": "crisis-protocol.js",
+    "line": 488,
+    "key": "key"
+   },
+   {
+    "file": "portal.js",
+    "line": 32,
+    "key": "this.QUEUE_KEY"
+   },
+   {
+    "file": "portal.js",
+    "line": 71,
+    "key": "this.QUEUE_KEY"
+   },
+   {
+    "file": "portal.js",
+    "line": 217,
+    "key": "'psico_portal_session'"
+   },
+   {
+    "file": "portal.js",
+    "line": 239,
+    "key": "'psico_portal_session'"
+   },
+   {
+    "file": "portal.js",
+    "line": 320,
+    "key": "'psico_portal_session'"
+   },
+   {
+    "file": "portal.js",
+    "line": 350,
+    "key": "'psico_portal_session'"
+   },
+   {
+    "file": "portal.js",
+    "line": 476,
+    "key": "`psico_portal_data_${PortalState.patientId}`"
+   },
+   {
+    "file": "portal.js",
+    "line": 480,
+    "key": "`psico_portal_results_${PortalState.patientId}`"
+   },
+   {
+    "file": "portal.js",
+    "line": 481,
+    "key": "`psico_portal_mood_${PortalState.patientId}`"
+   },
+   {
+    "file": "portal.js",
+    "line": 482,
+    "key": "`psico_portal_cbt_${PortalState.patientId}`"
+   },
+   {
+    "file": "portal.js",
+    "line": 654,
+    "key": "'psico_portal_tasks_bridge'"
+   },
+   {
+    "file": "portal.js",
+    "line": 1613,
+    "key": "`psico_portal_consent_${PortalState.patientId}`"
+   }
+  ]
+ },
+ "classList": {
+  "add": [
+   {
+    "cls": "active",
+    "file": "psychoed.js",
+    "line": 125
+   },
+   {
+    "cls": "screen-locked",
+    "file": "app.js",
+    "line": 74
+   },
+   {
+    "cls": "error",
+    "file": "app.js",
+    "line": 122
+   },
+   {
+    "cls": "hidden",
+    "file": "app.js",
+    "line": 760
+   },
+   {
+    "cls": "visible",
+    "file": "app.js",
+    "line": 843
+   },
+   {
+    "cls": "visible",
+    "file": "app.js",
+    "line": 864
+   },
+   {
+    "cls": "visible",
+    "file": "app.js",
+    "line": 877
+   },
+   {
+    "cls": "visible",
+    "file": "app.js",
+    "line": 909
+   },
+   {
+    "cls": "visible",
+    "file": "app.js",
+    "line": 914
+   },
+   {
+    "cls": "visible",
+    "file": "app.js",
+    "line": 919
+   },
+   {
+    "cls": "visible",
+    "file": "app.js",
+    "line": 950
+   },
+   {
+    "cls": "visible",
+    "file": "app.js",
+    "line": 966
+   },
+   {
+    "cls": "visible",
+    "file": "app.js",
+    "line": 1001
+   },
+   {
+    "cls": "visible",
+    "file": "app.js",
+    "line": 1014
+   },
+   {
+    "cls": "visible",
+    "file": "app.js",
+    "line": 1023
+   },
+   {
+    "cls": "visible",
+    "file": "app.js",
+    "line": 1073
+   },
+   {
+    "cls": "visible",
+    "file": "app.js",
+    "line": 1074
+   },
+   {
+    "cls": "visible",
+    "file": "app.js",
+    "line": 1100
+   },
+   {
+    "cls": "active",
+    "file": "app.js",
+    "line": 1398
+   },
+   {
+    "cls": "open",
+    "file": "app.js",
+    "line": 1442
+   },
+   {
+    "cls": "active",
+    "file": "app.js",
+    "line": 1443
+   },
+   {
+    "cls": "highlight-alta",
+    "file": "app.js",
+    "line": 2137
+   },
+   {
+    "cls": "active",
+    "file": "app.js",
+    "line": 2575
+   },
+   {
+    "cls": "active",
+    "file": "app.js",
+    "line": 2577
+   },
+   {
+    "cls": "btn-danger",
+    "file": "app.js",
+    "line": 3546
+   },
+   {
+    "cls": "mic-recording",
+    "file": "app.js",
+    "line": 5359
+   },
+   {
+    "cls": "mic-recording",
+    "file": "app.js",
+    "line": 5364
+   },
+   {
+    "cls": "active",
+    "file": "app.js",
+    "line": 6315
+   },
+   {
+    "cls": "has-active-modal",
+    "file": "app.js",
+    "line": 6317
+   },
+   {
+    "cls": "has-critical-alerts",
+    "file": "session-reminders.js",
+    "line": 256
+   },
+   {
+    "cls": "active",
+    "file": "session-reminders.js",
+    "line": 654
+   },
+   {
+    "cls": "active",
+    "file": "session-reminders.js",
+    "line": 669
+   },
+   {
+    "cls": "active",
+    "file": "historia-clinica.js",
+    "line": 968
+   },
+   {
+    "cls": "active",
+    "file": "historia-clinica.js",
+    "line": 970
+   },
+   {
+    "cls": "active",
+    "file": "historia-clinica.js",
+    "line": 2237
+   },
+   {
+    "cls": "error",
+    "file": "portal.js",
+    "line": 302
+   },
+   {
+    "cls": "error",
+    "file": "portal.js",
+    "line": 343
+   },
+   {
+    "cls": "active",
+    "file": "portal.js",
+    "line": 372
+   },
+   {
+    "cls": "active",
+    "file": "portal.js",
+    "line": 527
+   },
+   {
+    "cls": "active",
+    "file": "portal.js",
+    "line": 528
+   },
+   {
+    "cls": "selected",
+    "file": "portal.js",
+    "line": 542
+   },
+   {
+    "cls": "active",
+    "file": "portal.js",
+    "line": 622
+   },
+   {
+    "cls": "selected",
+    "file": "portal.js",
+    "line": 758
+   },
+   {
+    "cls": "signed",
+    "file": "portal.js",
+    "line": 1507
+   }
+  ],
+  "toggle": [
+   {
+    "cls": "recording",
+    "file": "voice-dictation.js",
+    "line": 163
+   },
+   {
+    "cls": "active",
+    "file": "app.js",
+    "line": 1382
+   },
+   {
+    "cls": "active",
+    "file": "app.js",
+    "line": 1389
+   },
+   {
+    "cls": "collapsed",
+    "file": "app.js",
+    "line": 1468
+   },
+   {
+    "cls": "active",
+    "file": "app.js",
+    "line": 2042
+   },
+   {
+    "cls": "active",
+    "file": "app.js",
+    "line": 2101
+   },
+   {
+    "cls": "active",
+    "file": "app.js",
+    "line": 2377
+   },
+   {
+    "cls": "active",
+    "file": "app.js",
+    "line": 4542
+   },
+   {
+    "cls": "active",
+    "file": "app.js",
+    "line": 5852
+   },
+   {
+    "cls": "active",
+    "file": "historia-clinica.js",
+    "line": 755
+   }
+  ],
+  "remove": [
+   {
+    "cls": "error",
+    "file": "app.js",
+    "line": 68
+   },
+   {
+    "cls": "screen-locked",
+    "file": "app.js",
+    "line": 131
+   },
+   {
+    "cls": "hidden",
+    "file": "app.js",
+    "line": 751
+   },
+   {
+    "cls": "visible",
+    "file": "app.js",
+    "line": 805
+   },
+   {
+    "cls": "visible",
+    "file": "app.js",
+    "line": 838
+   },
+   {
+    "cls": "visible",
+    "file": "app.js",
+    "line": 905
+   },
+   {
+    "cls": "visible",
+    "file": "app.js",
+    "line": 977
+   },
+   {
+    "cls": "visible",
+    "file": "app.js",
+    "line": 1065
+   },
+   {
+    "cls": "active",
+    "file": "app.js",
+    "line": 1396
+   },
+   {
+    "cls": "open",
+    "file": "app.js",
+    "line": 1439
+   },
+   {
+    "cls": "active",
+    "file": "app.js",
+    "line": 1440
+   },
+   {
+    "cls": "open",
+    "file": "app.js",
+    "line": 1450
+   },
+   {
+    "cls": "active",
+    "file": "app.js",
+    "line": 1451
+   },
+   {
+    "cls": "active",
+    "file": "app.js",
+    "line": 2031
+   },
+   {
+    "cls": "active",
+    "file": "app.js",
+    "line": 2038
+   },
+   {
+    "cls": "active",
+    "file": "app.js",
+    "line": 2113
+   },
+   {
+    "cls": "highlight-alta",
+    "file": "app.js",
+    "line": 2141
+   },
+   {
+    "cls": "active",
+    "file": "app.js",
+    "line": 2573
+   },
+   {
+    "cls": "active",
+    "file": "app.js",
+    "line": 2574
+   },
+   {
+    "cls": "btn-danger",
+    "file": "app.js",
+    "line": 3552
+   },
+   {
+    "cls": "mic-recording",
+    "file": "app.js",
+    "line": 5354
+   },
+   {
+    "cls": "mic-recording",
+    "file": "app.js",
+    "line": 5360
+   },
+   {
+    "cls": "active",
+    "file": "app.js",
+    "line": 6362
+   },
+   {
+    "cls": "has-active-modal",
+    "file": "app.js",
+    "line": 6365
+   },
+   {
+    "cls": "active",
+    "file": "app.js",
+    "line": 6447
+   },
+   {
+    "cls": "has-active-modal",
+    "file": "app.js",
+    "line": 6449
+   },
+   {
+    "cls": "has-critical-alerts",
+    "file": "session-reminders.js",
+    "line": 259
+   },
+   {
+    "cls": "has-critical-alerts",
+    "file": "session-reminders.js",
+    "line": 263
+   },
+   {
+    "cls": "active",
+    "file": "session-reminders.js",
+    "line": 660
+   },
+   {
+    "cls": "active",
+    "file": "session-reminders.js",
+    "line": 671
+   },
+   {
+    "cls": "active",
+    "file": "historia-clinica.js",
+    "line": 966
+   },
+   {
+    "cls": "active",
+    "file": "historia-clinica.js",
+    "line": 967
+   },
+   {
+    "cls": "active",
+    "file": "historia-clinica.js",
+    "line": 2241
+   },
+   {
+    "cls": "error",
+    "file": "portal.js",
+    "line": 299
+   },
+   {
+    "cls": "active",
+    "file": "portal.js",
+    "line": 525
+   },
+   {
+    "cls": "active",
+    "file": "portal.js",
+    "line": 526
+   },
+   {
+    "cls": "selected",
+    "file": "portal.js",
+    "line": 541
+   },
+   {
+    "cls": "selected",
+    "file": "portal.js",
+    "line": 566
+   },
+   {
+    "cls": "active",
+    "file": "portal.js",
+    "line": 621
+   },
+   {
+    "cls": "selected",
+    "file": "portal.js",
+    "line": 757
+   },
+   {
+    "cls": "signed",
+    "file": "portal.js",
+    "line": 1516
+   }
+  ]
+ }
+}

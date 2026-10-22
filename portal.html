@@ -1,0 +1,1115 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Mi Espacio - Psico Notes</title>
+    <meta name="theme-color" content="#6b9080">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@400;500;600;700;800&family=Inter:wght@400;500;600;700&family=Playfair+Display:wght@500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="portal.css">
+</head>
+<body>
+
+<!-- LIENZO DE CONFETTI Y ESTRELLAS MÁGICAS -->
+<canvas id="kidConfettiCanvas" class="kid-confetti-canvas"></canvas>
+
+<!-- PANTALLA DE ACCESO -->
+<div id="accessScreen" class="access-screen">
+    <div class="access-card">
+        <div class="access-logo">
+            <span class="logo-icon">🌱</span>
+            <span class="logo-text">Mi Espacio</span>
+        </div>
+        <p class="access-subtitle">Tu espacio personal de acompañamiento terapéutico</p>
+        
+        <div id="accessForm">
+            <div class="form-group">
+                <label>Código de acceso</label>
+                <input type="text" id="accessCode" placeholder="Ingresa tu código personal" autocomplete="off" style="text-transform: uppercase; letter-spacing: 2px; font-weight: 600;">
+                <small style="color: var(--text-tertiary); font-size: 11px; display: block; margin-top: 6px;">
+                    💡 Tu terapeuta te proporcionó este código
+                </small>
+            </div>
+            <div id="accessError" class="error-message"></div>
+            <button class="btn-primary full-width" onclick="handleAccess()">
+                <i class="fas fa-arrow-right"></i> Entrar a mi espacio
+            </button>
+        </div>
+        
+        <div id="welcomeBack" style="display: none;">
+            <div class="welcome-back-info">
+                <div class="patient-avatar-large" id="portalPatientAvatar">👤</div>
+                <h2 id="portalPatientName">Bienvenido/a</h2>
+                <p style="color: var(--text-secondary); font-size: 13px;">¿Continuamos donde lo dejamos?</p>
+            </div>
+            <button class="btn-primary full-width" onclick="enterPortal()">
+                <i class="fas fa-heart"></i> Entrar
+            </button>
+            <button class="btn-text" onclick="logoutPortal()">
+                Cambiar de cuenta
+            </button>
+        </div>
+    </div>
+</div>
+
+<!-- APP PRINCIPAL DEL PORTAL -->
+<div id="portalApp" class="portal-app" style="display: none;">
+    
+    <!-- HEADER -->
+    <header class="portal-header">
+        <div class="portal-header-left">
+            <div class="portal-avatar" id="headerAvatar">👤</div>
+            <div>
+                <div class="portal-greeting" id="headerGreeting">Hola</div>
+                <div class="portal-patient-name" id="headerName">Paciente</div>
+            </div>
+        </div>
+        <div style="display: flex; align-items: center; gap: 8px;">
+            <button id="btnKidSoundToggle" class="btn-kid-sound" style="display: none;" onclick="KidAudioEffects.toggleMute()" title="Efectos de sonido">
+                🔊
+            </button>
+            <div id="kidStarsBadge" class="kid-stars-counter" style="display: none;" title="Tus estrellas mágicas acumuladas">
+                ⭐ <span id="kidStarsCount">0</span>
+            </div>
+            <button id="btnKidModeToggle" class="btn-kid-toggle" style="display: none !important;" onclick="toggleKidMode()" title="Cambiar a Modo Kids / Espacio Lúdico">
+                <span class="kid-toggle-icon">🎈</span> <span class="kid-toggle-label">Modo Kids</span>
+            </button>
+            <span id="offlineSyncBadge" class="offline-sync-badge" style="display: none;" title="Registros pendientes de sincronizar con el terapeuta. Clic para sincronizar ahora." onclick="PortalOfflineQueue.flush()">
+                <i class="fas fa-cloud-arrow-up"></i> <span id="offlineSyncCount">0</span>
+            </span>
+            <button class="btn-sos" onclick="triggerPortalEmergencyHelp()" title="Obtener ayuda inmediata en crisis">
+                <i class="fas fa-life-ring"></i> SOS
+            </button>
+            <button class="btn-icon" onclick="logoutPortal()" title="Salir">
+                <i class="fas fa-sign-out-alt"></i>
+            </button>
+        </div>
+    </header>
+
+    <!-- BANNER PWA INSTALABLE -->
+    <div id="pwaInstallBanner" class="pwa-install-banner" style="display: none;">
+        <div class="pwa-banner-content">
+            <span class="pwa-banner-icon">📲</span>
+            <div>
+                <strong>Instala la App en tu Celular</strong>
+                <small>Acceso directo con un solo toque desde tu pantalla de inicio</small>
+            </div>
+        </div>
+        <div class="pwa-banner-actions">
+            <button class="btn-sm btn-pwa-install" onclick="promptPwaInstall()">Instalar</button>
+            <button class="btn-sm btn-pwa-dismiss" onclick="dismissPwaBanner()">✕</button>
+        </div>
+    </div>
+
+    <!-- CONTENIDO -->
+    <main class="portal-content">
+        
+        <!-- VISTA INICIO -->
+        <div class="portal-view active" id="viewHome">
+            <div class="mood-check-in">
+                <h2>¿Cómo te sientes hoy?</h2>
+                <p class="mood-subtitle">Tómate un momento para conectar contigo</p>
+                <div class="mood-selector">
+                    <button class="mood-btn" data-mood="5" onclick="selectMood(5)">
+                        <span class="mood-emoji">😊</span>
+                        <span class="mood-label">Muy bien</span>
+                    </button>
+                    <button class="mood-btn" data-mood="4" onclick="selectMood(4)">
+                        <span class="mood-emoji">🙂</span>
+                        <span class="mood-label">Bien</span>
+                    </button>
+                    <button class="mood-btn" data-mood="3" onclick="selectMood(3)">
+                        <span class="mood-emoji">😐</span>
+                        <span class="mood-label">Neutral</span>
+                    </button>
+                    <button class="mood-btn" data-mood="2" onclick="selectMood(2)">
+                        <span class="mood-emoji">😔</span>
+                        <span class="mood-label">Mal</span>
+                    </button>
+                    <button class="mood-btn" data-mood="1" onclick="selectMood(1)">
+                        <span class="mood-emoji">😞</span>
+                        <span class="mood-label">Muy mal</span>
+                    </button>
+                </div>
+                <div id="moodConfirmation" class="mood-confirmation" style="display: none;">
+                    <i class="fas fa-check-circle"></i>
+                    <span>¡Gracias por compartir! Tu estado ha sido registrado.</span>
+                </div>
+            </div>
+
+            <!-- TARJETA DE CONSENTIMIENTO INFORMADO -->
+            <div id="consentCardPortal" class="portal-consent-card" style="display: none;">
+                <div class="consent-card-left">
+                    <span class="consent-badge-icon">📜</span>
+                    <div>
+                        <strong id="consentCardTitle">Acuerdo Terapéutico y Confidencialidad</strong>
+                        <p id="consentCardDesc" style="margin:2px 0 0 0;font-size:12px;color:var(--text-secondary);">Revisa y firma digitalmente el marco de confidencialidad.</p>
+                    </div>
+                </div>
+                <button class="btn-sm btn-consent-action" id="btnConsentAction" onclick="openPortalConsentModal()">
+                    <i class="fas fa-signature"></i> Firmar
+                </button>
+            </div>
+
+            <div class="quick-stats">
+                <div class="quick-stat">
+                    <div class="stat-icon">📋</div>
+                    <div class="stat-info">
+                        <div class="stat-value" id="pendingTasksCount">0</div>
+                        <div class="stat-label">Tareas pendientes</div>
+                    </div>
+                </div>
+                <div class="quick-stat">
+                    <div class="stat-icon">📅</div>
+                    <div class="stat-info">
+                        <div class="stat-value" id="nextSessionText">—</div>
+                        <div class="stat-label">Próxima sesión</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- BOTIQUÍN DE CALMA Y REGULACIÓN EMOCIONAL -->
+            <div class="calm-kit-card">
+                <div class="calm-kit-header">
+                    <div>
+                        <span class="calm-kit-badge">✨ BOTIQUÍN EMOCIONAL</span>
+                        <h3 class="calm-kit-title">Herramientas de Calma Inmediata</h3>
+                        <p class="calm-kit-subtitle">Técnicas clínicas para regular la ansiedad y desacelerar tu mente</p>
+                    </div>
+                </div>
+                <div class="calm-kit-grid">
+                    <div class="calm-tool-btn" onclick="openBreathingExercise()">
+                        <div class="calm-tool-icon">🫁</div>
+                        <div class="calm-tool-info">
+                            <strong>Respiración 4-7-8</strong>
+                            <small>Reduce taquicardia y estrés en 2 min</small>
+                        </div>
+                        <i class="fas fa-play calm-tool-play"></i>
+                    </div>
+
+                    <div class="calm-tool-btn" onclick="openGroundingExercise()">
+                        <div class="calm-tool-icon">⚓</div>
+                        <div class="calm-tool-info">
+                            <strong>Anclaje 5-4-3-2-1</strong>
+                            <small>Frena pensamientos intrusivos y pánico</small>
+                        </div>
+                        <i class="fas fa-play calm-tool-play"></i>
+                    </div>
+                </div>
+            </div>
+
+            <div class="section-card">
+                <h3><i class="fas fa-lightbulb"></i> Reflexión del día</h3>
+                <p class="reflection-text" id="dailyReflection">Cargando...</p>
+            </div>
+        </div>
+
+        <!-- VISTA TAREAS -->
+        <div class="portal-view" id="viewTasks">
+            <div class="view-header">
+                <h2>Mis Tareas</h2>
+                <p class="view-subtitle">Actividades entre sesiones para tu crecimiento</p>
+            </div>
+            
+            <div class="tasks-filter">
+                <button class="filter-btn active" data-filter="pending" onclick="filterTasks('pending')">
+                    Pendientes <span class="filter-count" id="countPending">0</span>
+                </button>
+                <button class="filter-btn" data-filter="completed" onclick="filterTasks('completed')">
+                    Completadas <span class="filter-count" id="countCompleted">0</span>
+                </button>
+                <button class="filter-btn" data-filter="all" onclick="filterTasks('all')">
+                    Todas
+                </button>
+            </div>
+            
+            <div id="tasksList" class="tasks-list">
+                <div class="empty-state">
+                    <div class="empty-icon">✨</div>
+                    <p>No tienes tareas pendientes</p>
+                    <small>Tu terapeuta te asignará actividades entre sesiones</small>
+                </div>
+            </div>
+        </div>
+
+        <!-- VISTA TESTS -->
+        <div class="portal-view" id="viewTests">
+            <div class="view-header">
+                <h2>Mi Bienestar</h2>
+                <p class="view-subtitle">Evaluaciones para acompañar tu proceso</p>
+            </div>
+
+            <div class="tests-grid">
+                <div class="test-card" onclick="openTest('phq9')">
+                    <div class="test-icon">🌧️</div>
+                    <div class="test-info">
+                        <h3>Evaluación del Estado de Ánimo (PHQ-9)</h3>
+                        <p>9 preguntas · 2 minutos</p>
+                        <div class="test-last" id="lastPhq9">Sin realizar aún</div>
+                    </div>
+                    <i class="fas fa-chevron-right"></i>
+                </div>
+
+                <div class="test-card" onclick="openTest('gad7')">
+                    <div class="test-icon">🌊</div>
+                    <div class="test-info">
+                        <h3>Evaluación de Ansiedad (GAD-7)</h3>
+                        <p>7 preguntas · 2 minutos</p>
+                        <div class="test-last" id="lastGad7">Sin realizar aún</div>
+                    </div>
+                    <i class="fas fa-chevron-right"></i>
+                </div>
+
+                <div class="test-card" onclick="openTest('mood')">
+                    <div class="test-icon">💭</div>
+                    <div class="test-info">
+                        <h3>Registro de Ánimo Diario</h3>
+                        <p>3 preguntas · 1 minuto</p>
+                        <div class="test-last" id="lastMood">Sin registro hoy</div>
+                    </div>
+                    <i class="fas fa-chevron-right"></i>
+                </div>
+
+                <div class="test-card" onclick="openTest('cbt_thought')">
+                    <div class="test-icon">🧠</div>
+                    <div class="test-info">
+                        <h3>Registro de Pensamientos (ABC)</h3>
+                        <p>Identifica pensamientos, distorsiones y emociones · 3 min</p>
+                        <div class="test-last" id="lastCbt">Sin registro reciente</div>
+                    </div>
+                    <i class="fas fa-chevron-right"></i>
+                </div>
+            </div>
+
+            <div class="section-card">
+                <h3><i class="fas fa-chart-line"></i> Mi evolución</h3>
+                <div id="evolutionChart" class="evolution-chart">
+                    <div class="chart-empty">Completa evaluaciones para ver tu progreso</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- VISTA PROGRESO -->
+        <div class="portal-view" id="viewProgress">
+            <div class="view-header">
+                <h2>Mi Proceso</h2>
+                <p class="view-subtitle">Tu camino de crecimiento personal</p>
+            </div>
+
+            <div class="progress-summary">
+                <div class="progress-card">
+                    <div class="progress-icon">📅</div>
+                    <div class="progress-info">
+                        <div class="progress-value" id="totalSessions">0</div>
+                        <div class="progress-label">Evaluaciones realizadas</div>
+                    </div>
+                </div>
+                <div class="progress-card">
+                    <div class="progress-icon">✅</div>
+                    <div class="progress-info">
+                        <div class="progress-value" id="completedTasks">0</div>
+                        <div class="progress-label">Tareas realizadas</div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="section-card">
+                <h3><i class="fas fa-star"></i> Logros recientes</h3>
+                <div id="achievementsList" class="achievements-list">
+                    <div class="achievement">
+                        <div class="achievement-icon">🌱</div>
+                        <div class="achievement-info">
+                            <div class="achievement-title">Primer paso</div>
+                            <div class="achievement-desc">Comenzaste tu proceso terapéutico</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="section-card">
+                <h3><i class="fas fa-calendar"></i> Historial de evaluaciones</h3>
+                <div id="evaluationsHistory" class="evaluations-history">
+                    <div class="empty-state-small">Aún no hay evaluaciones registradas</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ========================================== -->
+        <!-- VISTAS DEL PORTAL PACIENTES KID            -->
+        <!-- ========================================== -->
+
+        <!-- VISTA 1: MI ESPACIO MÁGICO (HOME NIÑOS) -->
+        <div id="viewKidHome" class="portal-view kid-view" style="display: none;">
+            <!-- HERO BANNER CON NUBES Y AVATAR VIVO -->
+            <div class="kid-hero-island">
+                <div class="kid-floating-cloud cloud-1">☁️</div>
+                <div class="kid-floating-cloud cloud-2">⛅</div>
+                <div class="kid-floating-cloud cloud-3">✨</div>
+                
+                <div class="kid-hero-content">
+                    <div class="kid-hero-avatar-pedestal" onclick="switchKidView('kid-avatar')" title="¡Tócame para cambiar mi traje!">
+                        <div class="kid-avatar-pedestal-glow" id="kidHomeAvatarAura"></div>
+                        <div class="kid-avatar-pedestal-char" id="kidHomeAvatarBadge">🦊</div>
+                        <div class="kid-avatar-pedestal-acc" id="kidHomeAvatarAcc">🦸</div>
+                        <span class="kid-avatar-tap-hint">👆 ¡Tócame!</span>
+                    </div>
+                    <div class="kid-hero-speech">
+                        <div class="kid-greeting-tag">🌟 ¡Bienvenido a tu Mundo Mágico!</div>
+                        <h2 class="kid-main-title">¡Hola, <span id="kidGreetingName" class="kid-gradient-name">Explorador</span>! 🎈</h2>
+                        <p class="kid-main-desc">Hoy es un gran día para descubrir tus superpoderes emocionales. ¿Cómo late tu corazón?</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- EL CLIMA DE MI CORAZÓN (ISLAS VIBRANTES ANIMADAS) -->
+            <div class="kid-card kid-card-rainbow">
+                <div class="kid-card-topbar">
+                    <span class="kid-card-badge-icon">🌤️</span>
+                    <div>
+                        <h3 class="kid-card-heading">¿Cómo está el Clima de tu Corazón hoy?</h3>
+                        <p class="kid-card-subheading">Toca el clima que mejor muestre lo que sientes por dentro:</p>
+                    </div>
+                </div>
+
+                <div class="kid-weather-cards-grid">
+                    <button type="button" class="kid-weather-card-v2" data-weather="sunny" onclick="selectKidWeather('sunny')">
+                        <div class="weather-icon-bubble sunny-bubble">
+                            <span class="weather-emoji-animated sun-spin">☀️</span>
+                        </div>
+                        <strong class="weather-title-v2">Soleado</strong>
+                        <span class="weather-badge-tag tag-sunny">¡Super Feliz!</span>
+                        <small class="weather-desc-v2">Lleno de energía y risas</small>
+                    </button>
+
+                    <button type="button" class="kid-weather-card-v2" data-weather="partly_cloudy" onclick="selectKidWeather('partly_cloudy')">
+                        <div class="weather-icon-bubble cloudy-bubble">
+                            <span class="weather-emoji-animated cloud-float">🌤️</span>
+                        </div>
+                        <strong class="weather-title-v2">Sol con Nubes</strong>
+                        <span class="weather-badge-tag tag-calm">En Calma</span>
+                        <small class="weather-desc-v2">Tranquilo y relajado</small>
+                    </button>
+
+                    <button type="button" class="kid-weather-card-v2" data-weather="rainbow" onclick="selectKidWeather('rainbow')">
+                        <div class="weather-icon-bubble rainbow-bubble">
+                            <span class="weather-emoji-animated rainbow-glow">🌈</span>
+                        </div>
+                        <strong class="weather-title-v2">Arcoíris</strong>
+                        <span class="weather-badge-tag tag-creative">Creativo</span>
+                        <small class="weather-desc-v2">Lleno de ideas geniales</small>
+                    </button>
+
+                    <button type="button" class="kid-weather-card-v2" data-weather="rainy" onclick="selectKidWeather('rainy')">
+                        <div class="weather-icon-bubble rainy-bubble">
+                            <span class="weather-emoji-animated rain-drip">🌧️</span>
+                        </div>
+                        <strong class="weather-title-v2">Lluvia</strong>
+                        <span class="weather-badge-tag tag-sad">Apagado</span>
+                        <small class="weather-desc-v2">Un poco triste o cansado</small>
+                    </button>
+
+                    <button type="button" class="kid-weather-card-v2" data-weather="storm" onclick="selectKidWeather('storm')">
+                        <div class="weather-icon-bubble storm-bubble">
+                            <span class="weather-emoji-animated bolt-flash">⚡</span>
+                        </div>
+                        <strong class="weather-title-v2">Tormenta</strong>
+                        <span class="weather-badge-tag tag-mad">Enojado</span>
+                        <small class="weather-desc-v2">Molesto o con frustración</small>
+                    </button>
+
+                    <button type="button" class="kid-weather-card-v2" data-weather="tornado" onclick="selectKidWeather('tornado')">
+                        <div class="weather-icon-bubble tornado-bubble">
+                            <span class="weather-emoji-animated tornado-twirl">🌪️</span>
+                        </div>
+                        <strong class="weather-title-v2">Remolino</strong>
+                        <span class="weather-badge-tag tag-confused">Confuso</span>
+                        <small class="weather-desc-v2">Con miedo o muchos líos</small>
+                    </button>
+                </div>
+
+                <!-- SILUETA SOMÁTICA CORPORAL INTERACTIVA -->
+                <div class="kid-body-somatic-stage">
+                    <div class="kid-somatic-header">
+                        <span class="kid-badge-pill">🧍 El Mapa Mágico de tu Cuerpo</span>
+                        <h4>¿En qué parte de tu cuerpo sientes esa emoción?</h4>
+                        <p>Toca los puntos brillantes del muñequito o los botones para señalarlo:</p>
+                    </div>
+
+                    <div class="kid-somatic-interactive-layout">
+                        <!-- ILUSTRACIÓN DEL CUERPO CON PUNTOS TOUCH -->
+                        <div class="kid-body-figure-box">
+                            <div class="kid-speech-bubble" id="kidSomaticSpeechBubble">
+                                💭 ¡Tócame para ver dónde late tu emoción!
+                            </div>
+                            <svg class="kid-figure-svg" viewBox="0 0 200 300" xmlns="http://www.w3.org/2000/svg">
+                                <!-- Silueta amigable de personaje -->
+                                <circle cx="100" cy="50" r="32" fill="#E2E8F0" stroke="#94A3B8" stroke-width="3" />
+                                <path d="M78 100 Q100 85 122 100 L126 190 Q100 200 74 190 Z" fill="#E2E8F0" stroke="#94A3B8" stroke-width="3" />
+                                <!-- Brazos -->
+                                <path d="M76 105 L40 160 Q35 170 45 172 Q55 170 60 160 L80 125" fill="#CBD5E1" stroke="#94A3B8" stroke-width="3" />
+                                <path d="M124 105 L160 160 Q165 170 155 172 Q145 170 140 160 L120 125" fill="#CBD5E1" stroke="#94A3B8" stroke-width="3" />
+                                <!-- Piernas -->
+                                <path d="M82 195 L80 270 Q80 280 92 280 Q100 280 98 270 L100 200" fill="#CBD5E1" stroke="#94A3B8" stroke-width="3" />
+                                <path d="M118 195 L120 270 Q120 280 108 280 Q100 280 102 270 L100 200" fill="#CBD5E1" stroke="#94A3B8" stroke-width="3" />
+
+                                <!-- Carita feliz del robotito/muñequito -->
+                                <circle cx="90" cy="48" r="4" fill="#475569" />
+                                <circle cx="110" cy="48" r="4" fill="#475569" />
+                                <path d="M92 60 Q100 68 108 60" fill="none" stroke="#475569" stroke-width="3" stroke-linecap="round" />
+
+                                <!-- PUNTOS INTERACTIVOS (HOTSPOTS PULSANTES) -->
+                                <!-- 1. CABEZA -->
+                                <g class="somatic-hotspot-group" data-zone="head" onclick="selectKidBodyZone('head')">
+                                    <circle class="hotspot-pulse pulse-head" cx="100" cy="35" r="16" />
+                                    <circle class="hotspot-core" cx="100" cy="35" r="9" fill="#9333EA" />
+                                    <text x="100" y="38" text-anchor="middle" font-size="11" fill="#FFF">🧠</text>
+                                </g>
+
+                                <!-- 2. GARGANTA -->
+                                <g class="somatic-hotspot-group" data-zone="throat" onclick="selectKidBodyZone('throat')">
+                                    <circle class="hotspot-pulse pulse-throat" cx="100" cy="85" r="14" />
+                                    <circle class="hotspot-core" cx="100" cy="85" r="8" fill="#0284C7" />
+                                    <text x="100" y="88" text-anchor="middle" font-size="10" fill="#FFF">🗣️</text>
+                                </g>
+
+                                <!-- 3. PECHO -->
+                                <g class="somatic-hotspot-group" data-zone="chest" onclick="selectKidBodyZone('chest')">
+                                    <circle class="hotspot-pulse pulse-chest" cx="100" cy="125" r="16" />
+                                    <circle class="hotspot-core" cx="100" cy="125" r="10" fill="#E11D48" />
+                                    <text x="100" y="129" text-anchor="middle" font-size="11" fill="#FFF">💖</text>
+                                </g>
+
+                                <!-- 4. PANCITA -->
+                                <g class="somatic-hotspot-group" data-zone="belly" onclick="selectKidBodyZone('belly')">
+                                    <circle class="hotspot-pulse pulse-belly" cx="100" cy="165" r="16" />
+                                    <circle class="hotspot-core" cx="100" cy="165" r="10" fill="#D97706" />
+                                    <text x="100" y="169" text-anchor="middle" font-size="11" fill="#FFF">🌀</text>
+                                </g>
+
+                                <!-- 5. MANITAS -->
+                                <g class="somatic-hotspot-group" data-zone="hands" onclick="selectKidBodyZone('hands')">
+                                    <circle class="hotspot-pulse pulse-hands" cx="44" cy="168" r="14" />
+                                    <circle class="hotspot-core" cx="44" cy="168" r="8" fill="#16A34A" />
+                                    <circle class="hotspot-pulse pulse-hands" cx="156" cy="168" r="14" />
+                                    <circle class="hotspot-core" cx="156" cy="168" r="8" fill="#16A34A" />
+                                    <text x="44" y="171" text-anchor="middle" font-size="10" fill="#FFF">✊</text>
+                                    <text x="156" y="171" text-anchor="middle" font-size="10" fill="#FFF">✊</text>
+                                </g>
+                            </svg>
+                        </div>
+
+                        <!-- BOTONES COMPLEMENTARIOS CON TEXTO -->
+                        <div class="kid-zones-buttons-panel">
+                            <button type="button" class="kid-zone-pill pill-head" data-zone="head" onclick="selectKidBodyZone('head')">
+                                <span class="pill-icon">🧠</span>
+                                <div>
+                                    <strong>En la cabecita</strong>
+                                    <small>Ideas rápidas o vueltas</small>
+                                </div>
+                            </button>
+
+                            <button type="button" class="kid-zone-pill pill-throat" data-zone="throat" onclick="selectKidBodyZone('throat')">
+                                <span class="pill-icon">🗣️</span>
+                                <div>
+                                    <strong>En la garganta</strong>
+                                    <small>Un nudo o palabras atoradas</small>
+                                </div>
+                            </button>
+
+                            <button type="button" class="kid-zone-pill pill-chest" data-zone="chest" onclick="selectKidBodyZone('chest')">
+                                <span class="pill-icon">💖</span>
+                                <div>
+                                    <strong>En el pecho</strong>
+                                    <small>Latidos fuertes o calor</small>
+                                </div>
+                            </button>
+
+                            <button type="button" class="kid-zone-pill pill-belly" data-zone="belly" onclick="selectKidBodyZone('belly')">
+                                <span class="pill-icon">🌀</span>
+                                <div>
+                                    <strong>En la pancita</strong>
+                                    <small>Mariposas, cosquillas o nudos</small>
+                                </div>
+                            </button>
+
+                            <button type="button" class="kid-zone-pill pill-hands" data-zone="hands" onclick="selectKidBodyZone('hands')">
+                                <span class="pill-icon">✊</span>
+                                <div>
+                                    <strong>En manitas o pies</strong>
+                                    <small>Ganas de apretar o moverme</small>
+                                </div>
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- BOTÓN GIGANTE DE ENVÍO CON RECOMPENSA -->
+                    <div class="kid-action-center">
+                        <button type="button" class="btn-kid-puffy btn-kid-send-weather" onclick="submitKidWeatherAndBody()">
+                            <span class="btn-puffy-icon">🚀</span>
+                            <span class="btn-puffy-text">¡Enviar a mi Terapeuta!</span>
+                            <span class="btn-puffy-star-tag">+1 ⭐</span>
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- MINI-JUEGOS INTERACTIVOS (ISLAS DE DIVERSIÓN) -->
+            <div class="kid-section-divider">
+                <span>🎮 ¡Tus Islas de Juegos y Calma!</span>
+            </div>
+
+            <div class="kid-game-islands-grid">
+                <div class="kid-game-island island-bubbles" onclick="switchKidView('kid-bubbles')">
+                    <div class="island-floating-badge">¡Divertidísimo!</div>
+                    <div class="island-icon-animated">🫧</div>
+                    <div class="island-info">
+                        <h4>Cazador de Preocupaciones</h4>
+                        <p>¡Explota burbujas con sonidos mágicos y siéntete liviano!</p>
+                    </div>
+                    <span class="island-play-btn">¡Jugar Ahora! 🎯</span>
+                </div>
+
+                <div class="kid-game-island island-drawing" onclick="switchKidView('kid-drawing')">
+                    <div class="island-floating-badge">¡Creativo!</div>
+                    <div class="island-icon-animated">🎨</div>
+                    <div class="island-info">
+                        <h4>El Lienzo Mágico</h4>
+                        <p>Pinta con el Pincel Arcoíris y sellos mágicos que viajan al consultorio.</p>
+                    </div>
+                    <span class="island-play-btn">¡Dibujar! ✨</span>
+                </div>
+
+                <div class="kid-game-island island-calm" onclick="switchKidView('kid-calm')">
+                    <div class="island-floating-badge">¡Superpoder!</div>
+                    <div class="island-icon-animated">🎈</div>
+                    <div class="island-info">
+                        <h4>El Globo de la Calma</h4>
+                        <p>Respira junto a tu globo amigo para llenar tu cuerpo de paz.</p>
+                    </div>
+                    <span class="island-play-btn">¡Respirar! 🌬️</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- VISTA 2: CREADOR DE AVATAR (ESTILO PEDESTAL 3D Y GENERADOR DE NOMBRES) -->
+        <div id="viewKidAvatar" class="portal-view kid-view" style="display: none;">
+            <div class="kid-card kid-card-magic">
+                <div class="kid-card-topbar">
+                    <span class="kid-card-badge-icon">🦊</span>
+                    <div>
+                        <h3 class="kid-card-heading">Tu Compañero Avatar Mágico</h3>
+                        <p class="kid-card-subheading">Personalízalo como quieras. ¡Él te acompañará en cada aventura!</p>
+                    </div>
+                </div>
+
+                <!-- ESCENARIO PEDESTAL CÓSMICO -->
+                <div class="kid-avatar-stage-3d">
+                    <div class="kid-pedestal-stars-bg">
+                        <span>✨</span><span>⭐</span><span>💫</span><span>✨</span>
+                    </div>
+
+                    <div id="kidAvatarStageDisplay" class="kid-stage-aura-ring aura-gold">
+                        <div class="kid-stage-inner-glow">
+                            <span id="kidStageChar" class="kid-stage-emoji-big">🦊</span>
+                            <span id="kidStageAccessory" class="kid-stage-acc-badge">🦸</span>
+                        </div>
+                    </div>
+
+                    <div class="kid-avatar-title-box">
+                        <h3 class="kid-avatar-hero-name" id="kidAvatarDisplayName">Zorrito Valiente</h3>
+                        <button type="button" class="btn-kid-random-name" onclick="generateRandomKidAvatarName()" title="Generar un nombre superheroico al azar">
+                            🎲 ¡Inventar Nombre Mágico!
+                        </button>
+                    </div>
+                </div>
+
+                <!-- PASO 1: PERSONAJES ARQUETIPOS -->
+                <div class="kid-step-container">
+                    <div class="kid-step-label"><span class="step-circle">1</span> Elige tu Compañero Guía:</div>
+                    <div class="kid-options-puffy-grid">
+                        <button type="button" class="avatar-puffy-btn active" data-char="fox" onclick="pickAvatarChar('fox', '🦊', 'Zorrito Valiente')">
+                            <span class="puffy-emoji">🦊</span>
+                            <span class="puffy-text">Zorrito</span>
+                        </button>
+                        <button type="button" class="avatar-puffy-btn" data-char="bear" onclick="pickAvatarChar('bear', '🐻', 'Osito Protector')">
+                            <span class="puffy-emoji">🐻</span>
+                            <span class="puffy-text">Osito</span>
+                        </button>
+                        <button type="button" class="avatar-puffy-btn" data-char="owl" onclick="pickAvatarChar('owl', '🦉', 'Búho Sabio')">
+                            <span class="puffy-emoji">🦉</span>
+                            <span class="puffy-text">Búho</span>
+                        </button>
+                        <button type="button" class="avatar-puffy-btn" data-char="monster" onclick="pickAvatarChar('monster', '👾', 'Monstruito Amigo')">
+                            <span class="puffy-emoji">👾</span>
+                            <span class="puffy-text">Monstruito</span>
+                        </button>
+                        <button type="button" class="avatar-puffy-btn" data-char="explorer" onclick="pickAvatarChar('explorer', '🚀', 'Explorador Estelar')">
+                            <span class="puffy-emoji">🚀</span>
+                            <span class="puffy-text">Astronauta</span>
+                        </button>
+                        <button type="button" class="avatar-puffy-btn" data-char="unicorn" onclick="pickAvatarChar('unicorn', '🦄', 'Unicornio Mágico')">
+                            <span class="puffy-emoji">🦄</span>
+                            <span class="puffy-text">Unicornio</span>
+                        </button>
+                        <button type="button" class="avatar-puffy-btn" data-char="dino" onclick="pickAvatarChar('dino', '🦖', 'Dino Valiente')">
+                            <span class="puffy-emoji">🦖</span>
+                            <span class="puffy-text">Dinosaurio</span>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- PASO 2: AURA CROMÁTICA BRILLANTE -->
+                <div class="kid-step-container">
+                    <div class="kid-step-label"><span class="step-circle">2</span> Elige el Color de su Aura Mágica:</div>
+                    <div class="kid-auras-sparkle-row">
+                        <button type="button" class="aura-sparkle-btn active aura-gold-btn" onclick="pickAvatarAura('aura-gold')" title="Dorado Estrella">
+                            <span>⭐</span>
+                        </button>
+                        <button type="button" class="aura-sparkle-btn aura-purple-btn" onclick="pickAvatarAura('aura-purple')" title="Lavanda Cósmica">
+                            <span>🔮</span>
+                        </button>
+                        <button type="button" class="aura-sparkle-btn aura-teal-btn" onclick="pickAvatarAura('aura-teal')" title="Celeste Océano">
+                            <span>🌊</span>
+                        </button>
+                        <button type="button" class="aura-sparkle-btn aura-pink-btn" onclick="pickAvatarAura('aura-pink')" title="Fresa Dulce">
+                            <span>🍓</span>
+                        </button>
+                        <button type="button" class="aura-sparkle-btn aura-mint-btn" onclick="pickAvatarAura('aura-mint')" title="Menta Mágica">
+                            <span>🌿</span>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- PASO 3: ACCESORIO DE SUPERPODER -->
+                <div class="kid-step-container">
+                    <div class="kid-step-label"><span class="step-circle">3</span> Accesorio con Superpoder Especial:</div>
+                    <div class="kid-acc-puffy-grid">
+                        <button type="button" class="acc-puffy-btn active" data-acc="cape" onclick="pickAvatarAccessory('cape', '🦸')">
+                            <span class="acc-puffy-emoji">🦸</span>
+                            <span>Capa de Valor</span>
+                        </button>
+                        <button type="button" class="acc-puffy-btn" data-acc="glasses" onclick="pickAvatarAccessory('glasses', '👓')">
+                            <span class="acc-puffy-emoji">👓</span>
+                            <span>Gafas de Sabiduría</span>
+                        </button>
+                        <button type="button" class="acc-puffy-btn" data-acc="crown" onclick="pickAvatarAccessory('crown', '👑')">
+                            <span class="acc-puffy-emoji">👑</span>
+                            <span>Corona de Calma</span>
+                        </button>
+                        <button type="button" class="acc-puffy-btn" data-acc="star" onclick="pickAvatarAccessory('star', '⭐')">
+                            <span class="acc-puffy-emoji">⭐</span>
+                            <span>Estrella Guía</span>
+                        </button>
+                        <button type="button" class="acc-puffy-btn" data-acc="shield" onclick="pickAvatarAccessory('shield', '🛡️')">
+                            <span class="acc-puffy-emoji">🛡️</span>
+                            <span>Escudo Protector</span>
+                        </button>
+                    </div>
+                </div>
+
+                <div class="kid-action-center" style="margin-top: 24px;">
+                    <button type="button" class="btn-kid-puffy btn-kid-save-avatar" onclick="saveKidAvatar()">
+                        <span class="btn-puffy-icon">⭐</span>
+                        <span class="btn-puffy-text">¡Guardar mi Avatar Mágico!</span>
+                        <span class="btn-puffy-star-tag">+1 ⭐</span>
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- VISTA 3: CAZADOR DE PREOCUPACIONES (BURBUJAS 3D Y CONFETTI) -->
+        <div id="viewKidBubbles" class="portal-view kid-view" style="display: none;">
+            <div class="kid-card kid-card-ocean">
+                <div class="kid-card-topbar">
+                    <span class="kid-card-badge-icon">🫧</span>
+                    <div>
+                        <h3 class="kid-card-heading">Cazador de Preocupaciones</h3>
+                        <p class="kid-card-subheading">Toca las burbujas para explotarlas con un ¡POP! y siente cómo esa preocupación se va flotando suavemente hacia el espacio.</p>
+                    </div>
+                </div>
+
+                <div class="kid-bubbles-dashboard">
+                    <div class="kid-chest-counter">
+                        <span class="chest-icon">🧰</span>
+                        <div>
+                            <span class="chest-title">Preocupaciones Liberadas:</span>
+                            <strong class="chest-count" id="kidBubblesPoppedCount">0</strong>
+                        </div>
+                    </div>
+                    <button type="button" class="btn-kid-puffy-sm btn-kid-add-bubble" onclick="promptCustomBubble()">
+                        ➕ Soplar una nueva burbuja
+                    </button>
+                </div>
+
+                <!-- CAMPO DE JUEGO CELESTIAL DE BURBUJAS -->
+                <div id="kidBubblesPlayfield" class="kid-bubbles-playfield-v2">
+                    <!-- Burbujas renderizadas dinámicamente -->
+                </div>
+
+                <div class="kid-bubbles-encouragement">
+                    <div class="bubble-tip-icon">🌬️</div>
+                    <p><strong>Recuerda tu respiración:</strong> Cada vez que una burbuja haga <em>¡POP!</em>, inhala hondo por la nariz y suelta el aire despacio como una pluma.</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- VISTA 4: EL LIENZO MÁGICO (HTML5 CANVAS CON PINCEL ARCOÍRIS) -->
+        <div id="viewKidDrawing" class="portal-view kid-view" style="display: none;">
+            <div class="kid-card kid-card-art">
+                <div class="kid-card-topbar">
+                    <span class="kid-card-badge-icon">🎨</span>
+                    <div>
+                        <h3 class="kid-card-heading">El Lienzo Mágico de Colores</h3>
+                        <p class="kid-card-subheading">¡Dibuja lo que sientes hoy! Tus trazos y sellos viajarán como una carta secreta a tu terapeuta.</p>
+                    </div>
+                </div>
+
+                <!-- BARRA DE HERRAMIENTAS ESTILO ESTUCHE MÁGICO -->
+                <div class="kid-paintbox-toolbar">
+                    <!-- COLORES -->
+                    <div class="paintbox-group">
+                        <label class="paintbox-label">Crayones:</label>
+                        <div class="paintbox-colors-row">
+                            <button type="button" class="crayon-btn active" style="background:#202923;" onclick="setCanvasColor('#202923')" title="Negro noche"></button>
+                            <button type="button" class="crayon-btn" style="background:#3a86ff;" onclick="setCanvasColor('#3a86ff')" title="Azul cielo"></button>
+                            <button type="button" class="crayon-btn" style="background:#06d6a0;" onclick="setCanvasColor('#06d6a0')" title="Menta mágica"></button>
+                            <button type="button" class="crayon-btn" style="background:#ffd166;" onclick="setCanvasColor('#ffd166')" title="Amarillo sol"></button>
+                            <button type="button" class="crayon-btn" style="background:#ff7b00;" onclick="setCanvasColor('#ff7b00')" title="Naranja vitamina"></button>
+                            <button type="button" class="crayon-btn" style="background:#ff006e;" onclick="setCanvasColor('#ff006e')" title="Fresa brillante"></button>
+                            <button type="button" class="crayon-btn" style="background:#8338ec;" onclick="setCanvasColor('#8338ec')" title="Lavanda cósmica"></button>
+                            <button type="button" class="crayon-btn crayon-rainbow" onclick="setRainbowBrush()" title="¡Pincel Arcoíris Mágico!">🌈</button>
+                            <button type="button" class="crayon-btn crayon-eraser" onclick="toggleCanvasEraser()" title="Esponja borradora">🧽</button>
+                        </div>
+                    </div>
+
+                    <!-- GROSOR -->
+                    <div class="paintbox-group">
+                        <label class="paintbox-label">Grosor:</label>
+                        <div class="paintbox-sizes-row">
+                            <button type="button" class="size-pill-btn" onclick="setCanvasBrushSize(4)">Fino ✏️</button>
+                            <button type="button" class="size-pill-btn active" onclick="setCanvasBrushSize(10)">Medio 🖍️</button>
+                            <button type="button" class="size-pill-btn" onclick="setCanvasBrushSize(22)">Grueso 🖌️</button>
+                        </div>
+                    </div>
+
+                    <!-- SELLOS MÁGICOS -->
+                    <div class="paintbox-group">
+                        <label class="paintbox-label">Sellos Mágicos:</label>
+                        <div class="paintbox-stamps-row">
+                            <button type="button" class="stamp-pill-btn" onclick="setCanvasStamp('⭐')">⭐</button>
+                            <button type="button" class="stamp-pill-btn" onclick="setCanvasStamp('💖')">💖</button>
+                            <button type="button" class="stamp-pill-btn" onclick="setCanvasStamp('🌈')">🌈</button>
+                            <button type="button" class="stamp-pill-btn" onclick="setCanvasStamp('🐾')">🐾</button>
+                            <button type="button" class="stamp-pill-btn" onclick="setCanvasStamp('🚀')">🚀</button>
+                            <button type="button" class="stamp-pill-btn" onclick="setCanvasStamp('🦄')">🦄</button>
+                            <button type="button" class="stamp-pill-btn" onclick="setCanvasStamp('🌻')">🌻</button>
+                            <button type="button" class="stamp-pill-btn" onclick="setCanvasStamp('🍦')">🍦</button>
+                        </div>
+                    </div>
+
+                    <div class="paintbox-group paintbox-actions-group">
+                        <button type="button" class="btn-kid-clear-canvas" onclick="clearKidCanvas()">
+                            🗑️ Limpiar Todo
+                        </button>
+                    </div>
+                </div>
+
+                <!-- CABALLETE DE DIBUJO -->
+                <div class="kid-easel-frame">
+                    <canvas id="kidDrawingCanvas" width="640" height="420"></canvas>
+                </div>
+
+                <div class="kid-action-center" style="margin-top: 20px;">
+                    <button type="button" class="btn-kid-puffy btn-kid-send-drawing" onclick="submitKidDrawing()">
+                        <span class="btn-puffy-icon">🎨</span>
+                        <span class="btn-puffy-text">¡Enviar dibujo al consultorio!</span>
+                        <span class="btn-puffy-star-tag">+2 ⭐</span>
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- VISTA 5: EL GLOBO DE LA CALMA (RESPIRACIÓN ANIMADA) -->
+        <div id="viewKidCalm" class="portal-view kid-view" style="display: none;">
+            <div class="kid-card kid-card-zen">
+                <div class="kid-card-topbar">
+                    <span class="kid-card-badge-icon">🎈</span>
+                    <div>
+                        <h3 class="kid-card-heading">El Globo de la Calma</h3>
+                        <p class="kid-card-subheading">Respira despacito al ritmo del globo. Cuando el globo crezca, inhala por la nariz. Cuando se encoja, suelta el aire suavemente por la boca.</p>
+                    </div>
+                </div>
+
+                <!-- ESCENARIO DEL GLOBO FLOTANTE -->
+                <div class="kid-balloon-sky-stage">
+                    <div class="sky-cloud cloud-left">☁️</div>
+                    <div class="sky-cloud cloud-right">☁️</div>
+                    
+                    <div id="kidBalloon" class="kid-balloon-character">
+                        <div class="balloon-shine"></div>
+                        <div class="balloon-eyes" id="kidBalloonEyes">
+                            <span class="eye left">●</span>
+                            <span class="eye right">●</span>
+                        </div>
+                        <div class="balloon-mouth" id="kidBalloonMouth">‿</div>
+                        <div class="balloon-knot"></div>
+                        <div class="balloon-string"></div>
+                    </div>
+
+                    <div class="kid-breathing-guide-box">
+                        <div id="kidBreathingInstruction" class="kid-breathing-phrase">
+                            ¡Toca el botón para inflar la calma juntos!
+                        </div>
+                        <div class="kid-breathing-countdown" id="kidBreathingTimer">0s</div>
+                    </div>
+                </div>
+
+                <div class="kid-action-center" style="margin-top: 18px;">
+                    <button type="button" id="btnToggleBalloon" class="btn-kid-puffy btn-kid-balloon-action" onclick="toggleBalloonBreathing()">
+                        <span class="btn-puffy-icon">🎈</span>
+                        <span class="btn-puffy-text">¡Comenzar a Respirar!</span>
+                    </button>
+                </div>
+
+                <div class="kid-calm-trophy-counter">
+                    <span>🏆 Ciclos de Calma Completados: <strong id="kidCalmCycles">0</strong></span>
+                    <small>¡Cada 3 respiraciones completas ganas una nueva estrella mágica!</small>
+                </div>
+            </div>
+        </div>
+
+    </main>
+
+    <!-- NAVEGACIÓN INFERIOR ADULTOS / ESTÁNDAR -->
+    <nav class="portal-nav" id="standardNav">
+        <button class="nav-btn active" data-view="home" onclick="switchView('home')">
+            <i class="fas fa-home"></i>
+            <span>Inicio</span>
+        </button>
+        <button class="nav-btn" data-view="tasks" onclick="switchView('tasks')">
+            <i class="fas fa-tasks"></i>
+            <span>Tareas</span>
+        </button>
+        <button class="nav-btn" data-view="tests" onclick="switchView('tests')">
+            <i class="fas fa-heart"></i>
+            <span>Bienestar</span>
+        </button>
+        <button class="nav-btn" data-view="progress" onclick="switchView('progress')">
+            <i class="fas fa-chart-line"></i>
+            <span>Progreso</span>
+        </button>
+    </nav>
+
+    <!-- NAVEGACIÓN INFERIOR NIÑOS: ESTILO CONSOLA MÁGICA PORTÁTIL -->
+    <nav class="portal-nav kid-bottom-console" id="kidNav" style="display: none;">
+        <button class="kid-console-btn active" data-kid-view="kid-home" onclick="switchKidView('kid-home')">
+            <div class="console-btn-icon-wrapper btn-home-color">
+                <span class="console-icon">🏰</span>
+            </div>
+            <span class="console-label">Mi Espacio</span>
+        </button>
+
+        <button class="kid-console-btn" data-kid-view="kid-avatar" onclick="switchKidView('kid-avatar')">
+            <div class="console-btn-icon-wrapper btn-avatar-color">
+                <span class="console-icon">🦊</span>
+            </div>
+            <span class="console-label">Mi Avatar</span>
+        </button>
+
+        <button class="kid-console-btn" data-kid-view="kid-bubbles" onclick="switchKidView('kid-bubbles')">
+            <div class="console-btn-icon-wrapper btn-bubbles-color">
+                <span class="console-icon">🫧</span>
+            </div>
+            <span class="console-label">Burbujas</span>
+        </button>
+
+        <button class="kid-console-btn" data-kid-view="kid-drawing" onclick="switchKidView('kid-drawing')">
+            <div class="console-btn-icon-wrapper btn-drawing-color">
+                <span class="console-icon">🎨</span>
+            </div>
+            <span class="console-label">Dibujar</span>
+        </button>
+
+        <button class="kid-console-btn" data-kid-view="kid-calm" onclick="switchKidView('kid-calm')">
+            <div class="console-btn-icon-wrapper btn-calm-color">
+                <span class="console-icon">🎈</span>
+            </div>
+            <span class="console-label">Calma</span>
+        </button>
+    </nav>
+
+</div>
+
+<!-- MODAL DE TEST -->
+<div id="testModal" class="modal" style="display: none;">
+    <div class="modal-overlay" onclick="closeTestModal()"></div>
+    <div class="modal-content">
+        <div class="modal-header">
+            <h2 id="testModalTitle">Evaluación</h2>
+            <button class="btn-icon" onclick="closeTestModal()">
+                <i class="fas fa-times"></i>
+            </button>
+        </div>
+        <div class="modal-body" id="testModalBody">
+            <!-- Contenido dinámico -->
+        </div>
+    </div>
+</div>
+
+<!-- MODAL DE EMERGENCIA / PROTOCOLO SOS -->
+<div id="crisisHelpModal" class="modal" style="display: none;">
+    <div class="modal-overlay" onclick="closeCrisisHelpModal()"></div>
+    <div class="modal-content" style="border-top: 6px solid #e16259; max-width: 500px;">
+        <div class="modal-header">
+            <h2 style="color: #e16259; display: flex; align-items: center; gap: 8px;">
+                🚨 Apoyo Inmediato en Crisis
+            </h2>
+            <button class="btn-icon" onclick="closeCrisisHelpModal()">
+                <i class="fas fa-times"></i>
+            </button>
+        </div>
+        <div class="modal-body" style="padding: 16px 0;">
+            <div class="crisis-callout">
+                <h3>No estás solo/a. Hay ayuda disponible ahora mismo.</h3>
+                <p style="font-size: 13px; color: #4a5568; margin-bottom: 12px;">
+                    Si estás experimentando una sobrecarga emocional intensa o pensamientos de hacerte daño, por favor contacta a uno de estos servicios de contención gratuitos y confidenciales:
+                </p>
+                <div class="crisis-line-item">
+                    <div>
+                        <strong>🇻🇪 Línea FPVP / Ayuda Psicológica</strong><br>
+                        <small>Atención 24/7 en crisis</small>
+                    </div>
+                    <a href="tel:02122419288">📞 0212-241-92-88</a>
+                </div>
+                <div class="crisis-line-item">
+                    <div>
+                        <strong>🇻🇪 UCV Línea de Crisis</strong><br>
+                        <small>Orientación gratuita</small>
+                    </div>
+                    <a href="tel:02126052800">📞 0212-605-28-00</a>
+                </div>
+                <div class="crisis-line-item">
+                    <div>
+                        <strong>🌎 Emergencias Generales</strong><br>
+                        <small>Ambulancia y guardia médica</small>
+                    </div>
+                    <a href="tel:911">📞 911</a>
+                </div>
+            </div>
+
+            <div style="background: var(--bg-secondary); padding: 12px; border-radius: 8px; font-size: 13px; margin-bottom: 16px;">
+                <strong>Tu terapeuta ha sido notificado/a</strong> de tu solicitud de apoyo. Si es posible, comunícate también con tu familiar de confianza.
+            </div>
+
+            <button class="btn-primary full-width" onclick="closeCrisisHelpModal()">
+                Entendido, mantengo la calma
+            </button>
+        </div>
+    </div>
+</div>
+
+<!-- MODAL DE RESPIRACIÓN GUIADA 4-7-8 -->
+<div id="breathingModal" class="modal" style="display: none;">
+    <div class="modal-overlay" onclick="closeBreathingExercise()"></div>
+    <div class="modal-content modal-breathing-content">
+        <div class="modal-header">
+            <div>
+                <h2>Respiración Guiada 4-7-8</h2>
+                <small style="color: var(--text-secondary);">Técnica parasimpática de relajación profunda</small>
+            </div>
+            <button class="btn-icon" onclick="closeBreathingExercise()">
+                <i class="fas fa-times"></i>
+            </button>
+        </div>
+        <div class="modal-body breathing-modal-body">
+            <!-- ORBE DE RESPIRACIÓN ANIMADO -->
+            <div class="breathing-stage">
+                <div class="breathing-circle-outer">
+                    <div class="breathing-circle-inner" id="breathingOrb">
+                        <span class="breathing-countdown" id="breathingCountdown">4</span>
+                        <span class="breathing-instruction" id="breathingInstruction">Inhala</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- CONTROLES Y ESTADO -->
+            <div class="breathing-meta-bar">
+                <div class="breathing-chip">
+                    <span>Ciclo:</span> <strong id="breathingCycleCounter">1 / 4</strong>
+                </div>
+                <div class="breathing-chip">
+                    <button class="btn-sound-toggle" id="breathingSoundBtn" onclick="toggleBreathingSound()">
+                        <i class="fas fa-volume-high"></i> Sonido suave
+                    </button>
+                </div>
+            </div>
+
+            <div class="breathing-phase-guide" id="breathingPhaseGuide">
+                Inhala lentamente por la nariz llenando tu abdomen
+            </div>
+
+            <!-- BOTONES DE ACCIÓN -->
+            <div class="breathing-actions">
+                <button class="btn-primary full-width" id="btnBreathingToggle" onclick="toggleBreathingSession()">
+                    <i class="fas fa-play"></i> Iniciar Ejercicio
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- MODAL DE ANCLAJE GROUNDING 5-4-3-2-1 -->
+<div id="groundingModal" class="modal" style="display: none;">
+    <div class="modal-overlay" onclick="closeGroundingExercise()"></div>
+    <div class="modal-content modal-grounding-content">
+        <div class="modal-header">
+            <div>
+                <h2>Anclaje Sensorial 5-4-3-2-1</h2>
+                <small style="color: var(--text-secondary);">Conecta con el aquí y el ahora para detener la ansiedad</small>
+            </div>
+            <button class="btn-icon" onclick="closeGroundingExercise()">
+                <i class="fas fa-times"></i>
+            </button>
+        </div>
+        <div class="modal-body grounding-modal-body" id="groundingModalBody">
+            <!-- Paso dinámico renderizado por JS -->
+        </div>
+    </div>
+</div>
+
+<!-- MODAL DE FIRMA DIGITAL DE CONSENTIMIENTO EN EL PORTAL -->
+<div class="modal" id="consentModalPortal" style="display: none;">
+    <div class="modal-overlay" onclick="closePortalConsentModal()"></div>
+    <div class="modal-content" style="max-width: 440px;">
+        <div class="modal-header">
+            <h3>📜 Acuerdo Terapéutico y Secreto Profesional</h3>
+            <button class="btn-icon" onclick="closePortalConsentModal()">✕</button>
+        </div>
+        <div class="modal-body" style="padding: 16px;">
+            <div style="background:var(--bg-secondary); padding:12px; border-radius:var(--radius-sm); font-size:12px; line-height:1.5; max-height:150px; overflow-y:auto; margin-bottom:14px; border:1px solid var(--border-secondary);">
+                <p><strong>1. Secreto Profesional:</strong> Toda la información compartida durante nuestras sesiones está amparada por la confidencialidad médica y psicológica, salvo riesgo inminente para tu integridad o la de terceros.</p>
+                <p><strong>2. Compromiso:</strong> Las sesiones tienen una duración de 50 minutos. Si necesitas reagendar, por favor avisa con al menos 24 horas de antelación.</p>
+                <p><strong>3. Voluntariedad:</strong> Participas libremente en tu proceso y puedes revisar o acordar nuevos objetivos de cambio con tu terapeuta.</p>
+            </div>
+            <label style="font-size:12px; font-weight:700; color:var(--text-primary); display:flex; justify-content:space-between; margin-bottom:6px;">
+                <span>✍️ Firma con tu dedo en la pantalla:</span>
+                <button type="button" class="btn-sm btn-secondary" onclick="clearPortalSignaturePad()">Limpiar</button>
+            </label>
+            <div style="border: 2px dashed #6366f1; border-radius: var(--radius-sm); background: white; overflow: hidden; margin-bottom: 14px;">
+                <canvas id="portalConsentSignaturePad" width="380" height="130" style="width: 100%; height: 130px; display: block; cursor: crosshair; touch-action: none;"></canvas>
+            </div>
+            <button class="btn-primary" style="width:100%; justify-content:center; padding:12px;" onclick="confirmPortalConsentSignature()">
+                <i class="fas fa-check"></i> Confirmar y Firmar Acuerdo
+            </button>
+        </div>
+    </div>
+</div>
+
+<!-- TOAST CONTAINER -->
+<div id="toastContainer" class="toast-container"></div>
+
+<script src="portal.js"></script>
+</body>
+</html>

@@ -1,0 +1,337 @@
+{
+ "total": 284,
+ "undefinedGuards": [
+  {
+   "symbol": "window",
+   "count": 15,
+   "sites": [
+    {
+     "file": "phi-anonymizer.js",
+     "line": 194,
+     "snippet": "typeof window !== 'undefined') { wi"
+    },
+    {
+     "file": "voice-dictation.js",
+     "line": 170,
+     "snippet": "typeof window !== 'undefined') { wi"
+    },
+    {
+     "file": "ai-clinical.js",
+     "line": 303,
+     "snippet": "typeof window !== 'undefined') { wi"
+    },
+    {
+     "file": "psychoed.js",
+     "line": 419,
+     "snippet": "typeof window !== 'undefined') { wi"
+    },
+    {
+     "file": "app.js",
+     "line": 24,
+     "snippet": "typeof window !== 'undefined') { wi"
+    },
+    {
+     "file": "app.js",
+     "line": 6808,
+     "snippet": "typeof window !== 'undefined') { wi"
+    },
+    {
+     "file": "adm.js",
+     "line": 469,
+     "snippet": "typeof window !== 'undefined') { wi"
+    },
+    {
+     "file": "session-reminders.js",
+     "line": 18,
+     "snippet": "typeof window !== 'undefined' && window"
+    },
+    {
+     "file": "session-reminders.js",
+     "line": 64,
+     "snippet": "typeof window !== 'undefined' && typeof"
+    },
+    {
+     "file": "session-reminders.js",
+     "line": 711,
+     "snippet": "typeof window !== 'undefined') { wi"
+    },
+    {
+     "file": "backup.js",
+     "line": 109,
+     "snippet": "typeof window !== 'undefined') { wi"
+    },
+    {
+     "file": "crisis-protocol.js",
+     "line": 617,
+     "snippet": "typeof window !== 'undefined') { wi"
+    },
+    {
+     "file": "consentimiento.js",
+     "line": 328,
+     "snippet": "typeof window !== 'undefined') { wi"
+    },
+    {
+     "file": "historia-clinica.js",
+     "line": 1277,
+     "snippet": "typeof window !== 'undefined' && window"
+    },
+    {
+     "file": "historia-clinica.js",
+     "line": 2449,
+     "snippet": "typeof window !== 'undefined') { wi"
+    }
+   ]
+  },
+  {
+   "symbol": "global",
+   "count": 2,
+   "sites": [
+    {
+     "file": "phi-anonymizer.js",
+     "line": 196,
+     "snippet": "typeof global !== 'undefined') { gl"
+    },
+    {
+     "file": "ai-clinical.js",
+     "line": 306,
+     "snippet": "typeof global !== 'undefined') { gl"
+    }
+   ]
+  },
+  {
+   "symbol": "module",
+   "count": 6,
+   "sites": [
+    {
+     "file": "phi-anonymizer.js",
+     "line": 200,
+     "snippet": "typeof module !== 'undefined' && module"
+    },
+    {
+     "file": "voice-dictation.js",
+     "line": 175,
+     "snippet": "typeof module !== 'undefined' && module"
+    },
+    {
+     "file": "ai-clinical.js",
+     "line": 311,
+     "snippet": "typeof module !== 'undefined' && module"
+    },
+    {
+     "file": "psychoed.js",
+     "line": 423,
+     "snippet": "typeof module !== 'undefined' && module"
+    },
+    {
+     "file": "adm.js",
+     "line": 460,
+     "snippet": "typeof module !== 'undefined' && module"
+    },
+    {
+     "file": "crisis-protocol.js",
+     "line": 597,
+     "snippet": "typeof module !== 'undefined' && module"
+    }
+   ]
+  },
+  {
+   "symbol": "targetElementId",
+   "count": 1,
+   "sites": [
+    {
+     "file": "voice-dictation.js",
+     "line": 159,
+     "snippet": "typeof targetElementId === 'string' ? document.g"
+    }
+   ]
+  },
+  {
+   "symbol": "localStorage",
+   "count": 4,
+   "sites": [
+    {
+     "file": "ai-clinical.js",
+     "line": 22,
+     "snippet": "typeof localStorage === 'undefined') return; "
+    },
+    {
+     "file": "historia-clinica.js",
+     "line": 22,
+     "snippet": "typeof localStorage !== 'undefined') { "
+    },
+    {
+     "file": "historia-clinica.js",
+     "line": 25,
+     "snippet": "typeof localStorage !== 'undefined') { "
+    },
+    {
+     "file": "historia-clinica.js",
+     "line": 28,
+     "snippet": "typeof localStorage !== 'undefined') { "
+    }
+   ]
+  },
+  {
+   "symbol": "data.payload",
+   "count": 1,
+   "sites": [
+    {
+     "file": "app.js",
+     "line": 596,
+     "snippet": "typeof data.payload === 'string' ? JSON.parse"
+    }
+   ]
+  },
+  {
+   "symbol": "db",
+   "count": 1,
+   "sites": [
+    {
+     "file": "app.js",
+     "line": 1641,
+     "snippet": "typeof db !== 'undefined' && db.loc"
+    }
+   ]
+  },
+  {
+   "symbol": "checkNoteDraft",
+   "count": 1,
+   "sites": [
+    {
+     "file": "app.js",
+     "line": 1870,
+     "snippet": "typeof checkNoteDraft === 'function') checkNote"
+    }
+   ]
+  },
+  {
+   "symbol": "newWin.closed",
+   "count": 1,
+   "sites": [
+    {
+     "file": "app.js",
+     "line": 3933,
+     "snippet": "typeof newWin.closed === 'undefined') { "
+    }
+   ]
+  },
+  {
+   "symbol": "getPatientScaleResults",
+   "count": 1,
+   "sites": [
+    {
+     "file": "app.js",
+     "line": 5920,
+     "snippet": "typeof getPatientScaleResults === 'function') ? getPati"
+    }
+   ]
+  },
+  {
+   "symbol": "onConfirm",
+   "count": 1,
+   "sites": [
+    {
+     "file": "app.js",
+     "line": 6426,
+     "snippet": "typeof onConfirm === 'function') { "
+    }
+   ]
+  },
+  {
+   "symbol": "ClinicalTestSuite",
+   "count": 1,
+   "sites": [
+    {
+     "file": "app.js",
+     "line": 6628,
+     "snippet": "typeof ClinicalTestSuite !== 'undefined') { "
+    }
+   ]
+  },
+  {
+   "symbol": "c.interpret",
+   "count": 1,
+   "sites": [
+    {
+     "file": "scales.js",
+     "line": 216,
+     "snippet": "typeof c.interpret === 'function') ? c.inter"
+    }
+   ]
+  },
+  {
+   "symbol": "navigator",
+   "count": 4,
+   "sites": [
+    {
+     "file": "adm.js",
+     "line": 29,
+     "snippet": "typeof navigator !== 'undefined' && naviga"
+    },
+    {
+     "file": "adm.js",
+     "line": 61,
+     "snippet": "typeof navigator === 'undefined' || !navig"
+    },
+    {
+     "file": "adm.js",
+     "line": 367,
+     "snippet": "typeof navigator !== 'undefined' && naviga"
+    },
+    {
+     "file": "portal.js",
+     "line": 97,
+     "snippet": "typeof navigator !== 'undefined' && !navig"
+    }
+   ]
+  },
+  {
+   "symbol": "window.toDateInputValue",
+   "count": 1,
+   "sites": [
+    {
+     "file": "session-reminders.js",
+     "line": 64,
+     "snippet": "typeof window.toDateInputValue === 'function' ? window.t"
+    }
+   ]
+  },
+  {
+   "symbol": "globalThis",
+   "count": 2,
+   "sites": [
+    {
+     "file": "crisis-protocol.js",
+     "line": 605,
+     "snippet": "typeof globalThis !== 'undefined') { gl"
+    },
+    {
+     "file": "historia-clinica.js",
+     "line": 2452,
+     "snippet": "typeof globalThis !== 'undefined') { gl"
+    }
+   ]
+  },
+  {
+   "symbol": "document",
+   "count": 3,
+   "sites": [
+    {
+     "file": "consentimiento.js",
+     "line": 254,
+     "snippet": "typeof document !== 'undefined' && docume"
+    },
+    {
+     "file": "consentimiento.js",
+     "line": 255,
+     "snippet": "typeof document !== 'undefined' && docume"
+    },
+    {
+     "file": "historia-clinica.js",
+     "line": 1902,
+     "snippet": "typeof document === 'undefined') return; "
+    }
+   ]
+  }
+ ]
+}

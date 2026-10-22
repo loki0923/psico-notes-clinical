@@ -1,0 +1,1682 @@
+{
+ "index": {
+  "count": 317,
+  "unique": 317,
+  "dups": {}
+ },
+ "portal": {
+  "count": 55,
+  "unique": 55,
+  "dups": {}
+ },
+ "missingIndexIds": [
+  {
+   "id": "psychoedModal",
+   "line": 68,
+   "file": "psychoed.js",
+   "api": "getElementById"
+  },
+  {
+   "id": "psychoedPatientSelect",
+   "line": 294,
+   "file": "psychoed.js",
+   "api": "getElementById"
+  },
+  {
+   "id": "ws_sit",
+   "line": 305,
+   "file": "psychoed.js",
+   "api": "getElementById"
+  },
+  {
+   "id": "ws_thought",
+   "line": 308,
+   "file": "psychoed.js",
+   "api": "getElementById"
+  },
+  {
+   "id": "ws_emo",
+   "line": 311,
+   "file": "psychoed.js",
+   "api": "getElementById"
+  },
+  {
+   "id": "ws_resp",
+   "line": 314,
+   "file": "psychoed.js",
+   "api": "getElementById"
+  },
+  {
+   "id": "ws_res",
+   "line": 317,
+   "file": "psychoed.js",
+   "api": "getElementById"
+  },
+  {
+   "id": "ws_act_away",
+   "line": 323,
+   "file": "psychoed.js",
+   "api": "getElementById"
+  },
+  {
+   "id": "ws_act_towards",
+   "line": 324,
+   "file": "psychoed.js",
+   "api": "getElementById"
+  },
+  {
+   "id": "ws_act_avoid",
+   "line": 325,
+   "file": "psychoed.js",
+   "api": "getElementById"
+  },
+  {
+   "id": "ws_act_action",
+   "line": 326,
+   "file": "psychoed.js",
+   "api": "getElementById"
+  },
+  {
+   "id": "ws_suds_25",
+   "line": 331,
+   "file": "psychoed.js",
+   "api": "getElementById"
+  },
+  {
+   "id": "ws_suds_50",
+   "line": 332,
+   "file": "psychoed.js",
+   "api": "getElementById"
+  },
+  {
+   "id": "ws_suds_75",
+   "line": 333,
+   "file": "psychoed.js",
+   "api": "getElementById"
+  },
+  {
+   "id": "ws_suds_100",
+   "line": 334,
+   "file": "psychoed.js",
+   "api": "getElementById"
+  },
+  {
+   "id": "ws_sleep_agreements",
+   "line": 339,
+   "file": "psychoed.js",
+   "api": "getElementById"
+  },
+  {
+   "id": "ws_ba_1",
+   "line": 343,
+   "file": "psychoed.js",
+   "api": "getElementById"
+  },
+  {
+   "id": "ws_ba_2",
+   "line": 344,
+   "file": "psychoed.js",
+   "api": "getElementById"
+  },
+  {
+   "id": "ws_ba_3",
+   "line": 345,
+   "file": "psychoed.js",
+   "api": "getElementById"
+  },
+  {
+   "id": "ws_tipp_plan",
+   "line": 350,
+   "file": "psychoed.js",
+   "api": "getElementById"
+  },
+  {
+   "id": "ws_ground_notes",
+   "line": 354,
+   "file": "psychoed.js",
+   "api": "getElementById"
+  },
+  {
+   "id": "reportModal",
+   "line": 7,
+   "file": "reports.js",
+   "api": "getElementById"
+  },
+  {
+   "id": "repSummary",
+   "line": 103,
+   "file": "reports.js",
+   "api": "getElementById"
+  },
+  {
+   "id": "repTitle",
+   "line": 110,
+   "file": "reports.js",
+   "api": "getElementById"
+  },
+  {
+   "id": "repPatientId",
+   "line": 124,
+   "file": "reports.js",
+   "api": "getElementById"
+  },
+  {
+   "id": "repTitle",
+   "line": 128,
+   "file": "reports.js",
+   "api": "getElementById"
+  },
+  {
+   "id": "repRecipient",
+   "line": 129,
+   "file": "reports.js",
+   "api": "getElementById"
+  },
+  {
+   "id": "repSummary",
+   "line": 130,
+   "file": "reports.js",
+   "api": "getElementById"
+  },
+  {
+   "id": "repRecommendations",
+   "line": 131,
+   "file": "reports.js",
+   "api": "getElementById"
+  },
+  {
+   "id": "repLicence",
+   "line": 132,
+   "file": "reports.js",
+   "api": "getElementById"
+  },
+  {
+   "id": "repSpecialty",
+   "line": 133,
+   "file": "reports.js",
+   "api": "getElementById"
+  },
+  {
+   "id": "vademecumModal",
+   "line": 83,
+   "file": "vademecum.js",
+   "api": "getElementById"
+  },
+  {
+   "id": "vademecumList",
+   "line": 122,
+   "file": "vademecum.js",
+   "api": "getElementById"
+  },
+  {
+   "id": "tab-portal",
+   "line": 218,
+   "file": "app.js",
+   "api": "getElementById"
+  },
+  {
+   "id": "noteSessionNumber",
+   "line": 1868,
+   "file": "app.js",
+   "api": "getElementById"
+  },
+  {
+   "id": "patientSchoolName",
+   "line": 2304,
+   "file": "app.js",
+   "api": "getElementById"
+  },
+  {
+   "id": "patientDevelopmentalMilestones",
+   "line": 2305,
+   "file": "app.js",
+   "api": "getElementById"
+  },
+  {
+   "id": "patientEmergency",
+   "line": 2312,
+   "file": "app.js",
+   "api": "getElementById"
+  },
+  {
+   "id": "patientEmergencyRelation",
+   "line": 2313,
+   "file": "app.js",
+   "api": "getElementById"
+  },
+  {
+   "id": "patientDiagnosis",
+   "line": 2320,
+   "file": "app.js",
+   "api": "getElementById"
+  },
+  {
+   "id": "patientDiagnosis2",
+   "line": 2321,
+   "file": "app.js",
+   "api": "getElementById"
+  },
+  {
+   "id": "patientMedication",
+   "line": 2322,
+   "file": "app.js",
+   "api": "getElementById"
+  },
+  {
+   "id": "patientMedical",
+   "line": 2323,
+   "file": "app.js",
+   "api": "getElementById"
+  },
+  {
+   "id": "patientFamilyHistory",
+   "line": 2324,
+   "file": "app.js",
+   "api": "getElementById"
+  },
+  {
+   "id": "patientNotes",
+   "line": 2327,
+   "file": "app.js",
+   "api": "getElementById"
+  },
+  {
+   "id": "patientSchoolName",
+   "line": 2394,
+   "file": "app.js",
+   "api": "getElementById"
+  },
+  {
+   "id": "patientSchoolName",
+   "line": 2394,
+   "file": "app.js",
+   "api": "getElementById"
+  },
+  {
+   "id": "patientDevelopmentalMilestones",
+   "line": 2395,
+   "file": "app.js",
+   "api": "getElementById"
+  },
+  {
+   "id": "patientDevelopmentalMilestones",
+   "line": 2395,
+   "file": "app.js",
+   "api": "getElementById"
+  },
+  {
+   "id": "patientEmergency",
+   "line": 2405,
+   "file": "app.js",
+   "api": "getElementById"
+  },
+  {
+   "id": "patientEmergency",
+   "line": 2405,
+   "file": "app.js",
+   "api": "getElementById"
+  },
+  {
+   "id": "patientEmergencyRelation",
+   "line": 2406,
+   "file": "app.js",
+   "api": "getElementById"
+  },
+  {
+   "id": "patientEmergencyRelation",
+   "line": 2406,
+   "file": "app.js",
+   "api": "getElementById"
+  },
+  {
+   "id": "patientDiagnosis",
+   "line": 2415,
+   "file": "app.js",
+   "api": "getElementById"
+  },
+  {
+   "id": "patientDiagnosis",
+   "line": 2415,
+   "file": "app.js",
+   "api": "getElementById"
+  },
+  {
+   "id": "patientDiagnosis2",
+   "line": 2416,
+   "file": "app.js",
+   "api": "getElementById"
+  },
+  {
+   "id": "patientDiagnosis2",
+   "line": 2416,
+   "file": "app.js",
+   "api": "getElementById"
+  },
+  {
+   "id": "patientMedication",
+   "line": 2417,
+   "file": "app.js",
+   "api": "getElementById"
+  },
+  {
+   "id": "patientMedication",
+   "line": 2417,
+   "file": "app.js",
+   "api": "getElementById"
+  },
+  {
+   "id": "patientMedical",
+   "line": 2418,
+   "file": "app.js",
+   "api": "getElementById"
+  },
+  {
+   "id": "patientMedical",
+   "line": 2418,
+   "file": "app.js",
+   "api": "getElementById"
+  },
+  {
+   "id": "patientFamilyHistory",
+   "line": 2419,
+   "file": "app.js",
+   "api": "getElementById"
+  },
+  {
+   "id": "patientFamilyHistory",
+   "line": 2419,
+   "file": "app.js",
+   "api": "getElementById"
+  },
+  {
+   "id": "patientNotes",
+   "line": 2422,
+   "file": "app.js",
+   "api": "getElementById"
+  },
+  {
+   "id": "patientNotes",
+   "line": 2422,
+   "file": "app.js",
+   "api": "getElementById"
+  },
+  {
+   "id": "soapAiModal",
+   "line": 3378,
+   "file": "app.js",
+   "api": "getElementById"
+  },
+  {
+   "id": "soapAiModal",
+   "line": 3444,
+   "file": "app.js",
+   "api": "getElementById"
+  },
+  {
+   "id": "soapAiModal",
+   "line": 3448,
+   "file": "app.js",
+   "api": "getElementById"
+  },
+  {
+   "id": "soapAiInput",
+   "line": 3456,
+   "file": "app.js",
+   "api": "getElementById"
+  },
+  {
+   "id": "btnGenerateSoapAi",
+   "line": 3462,
+   "file": "app.js",
+   "api": "getElementById"
+  },
+  {
+   "id": "previewSoapS",
+   "line": 3485,
+   "file": "app.js",
+   "api": "getElementById"
+  },
+  {
+   "id": "previewSoapO",
+   "line": 3486,
+   "file": "app.js",
+   "api": "getElementById"
+  },
+  {
+   "id": "previewSoapA",
+   "line": 3487,
+   "file": "app.js",
+   "api": "getElementById"
+  },
+  {
+   "id": "previewSoapP",
+   "line": 3488,
+   "file": "app.js",
+   "api": "getElementById"
+  },
+  {
+   "id": "soapAiPreviewWrap",
+   "line": 3489,
+   "file": "app.js",
+   "api": "getElementById"
+  },
+  {
+   "id": "noteObservations",
+   "line": 3519,
+   "file": "app.js",
+   "api": "getElementById"
+  },
+  {
+   "id": "soapAiInput",
+   "line": 3541,
+   "file": "app.js",
+   "api": "getElementById"
+  },
+  {
+   "id": "btnSoapVoiceDictate",
+   "line": 3542,
+   "file": "app.js",
+   "api": "getElementById"
+  },
+  {
+   "id": "tab-portal",
+   "line": 4115,
+   "file": "app.js",
+   "api": "getElementById"
+  },
+  {
+   "id": "portalTabBadgeCount",
+   "line": 4116,
+   "file": "app.js",
+   "api": "getElementById"
+  },
+  {
+   "id": "confirmModal",
+   "line": 6397,
+   "file": "app.js",
+   "api": "getElementById"
+  },
+  {
+   "id": "confirmModalConfirmBtn",
+   "line": 6422,
+   "file": "app.js",
+   "api": "getElementById"
+  },
+  {
+   "id": "scalesHistoryList",
+   "line": 407,
+   "file": "scales.js",
+   "api": "getElementById"
+  },
+  {
+   "id": "interactivePatientSelect",
+   "line": 492,
+   "file": "scales.js",
+   "api": "getElementById"
+  },
+  {
+   "id": "liveScaleScore",
+   "line": 509,
+   "file": "scales.js",
+   "api": "getElementById"
+  },
+  {
+   "id": "liveScaleLevel",
+   "line": 510,
+   "file": "scales.js",
+   "api": "getElementById"
+  },
+  {
+   "id": "interactivePatientSelect",
+   "line": 521,
+   "file": "scales.js",
+   "api": "getElementById"
+  },
+  {
+   "id": "goalTitle",
+   "line": 490,
+   "file": "finance.js",
+   "api": "getElementById"
+  },
+  {
+   "id": "goalTarget",
+   "line": 491,
+   "file": "finance.js",
+   "api": "getElementById"
+  },
+  {
+   "id": "goalCategory",
+   "line": 492,
+   "file": "finance.js",
+   "api": "getElementById"
+  },
+  {
+   "id": "goalPeriod",
+   "line": 493,
+   "file": "finance.js",
+   "api": "getElementById"
+  },
+  {
+   "id": "goalDescription",
+   "line": 494,
+   "file": "finance.js",
+   "api": "getElementById"
+  },
+  {
+   "id": "rateTitle",
+   "line": 650,
+   "file": "finance.js",
+   "api": "getElementById"
+  },
+  {
+   "id": "rateDuration",
+   "line": 651,
+   "file": "finance.js",
+   "api": "getElementById"
+  },
+  {
+   "id": "rateAmount",
+   "line": 652,
+   "file": "finance.js",
+   "api": "getElementById"
+  },
+  {
+   "id": "rateDescription",
+   "line": 653,
+   "file": "finance.js",
+   "api": "getElementById"
+  },
+  {
+   "id": "rateIsDefault",
+   "line": 654,
+   "file": "finance.js",
+   "api": "getElementById"
+  },
+  {
+   "id": "txConcept",
+   "line": 752,
+   "file": "finance.js",
+   "api": "getElementById"
+  },
+  {
+   "id": "txAmount",
+   "line": 753,
+   "file": "finance.js",
+   "api": "getElementById"
+  },
+  {
+   "id": "txDate",
+   "line": 754,
+   "file": "finance.js",
+   "api": "getElementById"
+  },
+  {
+   "id": "txCategory",
+   "line": 755,
+   "file": "finance.js",
+   "api": "getElementById"
+  },
+  {
+   "id": "txConcept",
+   "line": 814,
+   "file": "finance.js",
+   "api": "getElementById"
+  },
+  {
+   "id": "txAmount",
+   "line": 815,
+   "file": "finance.js",
+   "api": "getElementById"
+  },
+  {
+   "id": "txDate",
+   "line": 816,
+   "file": "finance.js",
+   "api": "getElementById"
+  },
+  {
+   "id": "txCategory",
+   "line": 817,
+   "file": "finance.js",
+   "api": "getElementById"
+  },
+  {
+   "id": "newCatInput",
+   "line": 872,
+   "file": "finance.js",
+   "api": "getElementById"
+  },
+  {
+   "id": "cfgFiscalName",
+   "line": 143,
+   "file": "adm.js",
+   "api": "getElementById"
+  },
+  {
+   "id": "cfgRif",
+   "line": 144,
+   "file": "adm.js",
+   "api": "getElementById"
+  },
+  {
+   "id": "cfgPhone",
+   "line": 145,
+   "file": "adm.js",
+   "api": "getElementById"
+  },
+  {
+   "id": "cfgAddress",
+   "line": 146,
+   "file": "adm.js",
+   "api": "getElementById"
+  },
+  {
+   "id": "cfgPrefix",
+   "line": 147,
+   "file": "adm.js",
+   "api": "getElementById"
+  },
+  {
+   "id": "cfgNextNum",
+   "line": 148,
+   "file": "adm.js",
+   "api": "getElementById"
+  },
+  {
+   "id": "cfgIGTF",
+   "line": 150,
+   "file": "adm.js",
+   "api": "getElementById"
+  },
+  {
+   "id": "invClientName",
+   "line": 302,
+   "file": "adm.js",
+   "api": "getElementById"
+  },
+  {
+   "id": "invClientRif",
+   "line": 303,
+   "file": "adm.js",
+   "api": "getElementById"
+  },
+  {
+   "id": "invAmount",
+   "line": 308,
+   "file": "adm.js",
+   "api": "getElementById"
+  },
+  {
+   "id": "invPaymentMethod",
+   "line": 309,
+   "file": "adm.js",
+   "api": "getElementById"
+  },
+  {
+   "id": "invoiceSummaryBox",
+   "line": 315,
+   "file": "adm.js",
+   "api": "getElementById"
+  },
+  {
+   "id": "invAmount",
+   "line": 339,
+   "file": "adm.js",
+   "api": "getElementById"
+  },
+  {
+   "id": "invPaymentMethod",
+   "line": 340,
+   "file": "adm.js",
+   "api": "getElementById"
+  },
+  {
+   "id": "invClientName",
+   "line": 350,
+   "file": "adm.js",
+   "api": "getElementById"
+  },
+  {
+   "id": "invClientRif",
+   "line": 351,
+   "file": "adm.js",
+   "api": "getElementById"
+  },
+  {
+   "id": "invConcept",
+   "line": 352,
+   "file": "adm.js",
+   "api": "getElementById"
+  },
+  {
+   "id": "customReminderPatient",
+   "line": 612,
+   "file": "session-reminders.js",
+   "api": "getElementById"
+  },
+  {
+   "id": "customReminderTitle",
+   "line": 613,
+   "file": "session-reminders.js",
+   "api": "getElementById"
+  },
+  {
+   "id": "customReminderPriority",
+   "line": 614,
+   "file": "session-reminders.js",
+   "api": "getElementById"
+  },
+  {
+   "id": "customReminderDate",
+   "line": 615,
+   "file": "session-reminders.js",
+   "api": "getElementById"
+  },
+  {
+   "id": "customReminderNotes",
+   "line": 616,
+   "file": "session-reminders.js",
+   "api": "getElementById"
+  },
+  {
+   "id": "crisisSecCSSRS",
+   "line": 343,
+   "file": "crisis-protocol.js",
+   "api": "getElementById"
+  },
+  {
+   "id": "crisisSecDirectory",
+   "line": 344,
+   "file": "crisis-protocol.js",
+   "api": "getElementById"
+  },
+  {
+   "id": "crisisSecAction",
+   "line": 345,
+   "file": "crisis-protocol.js",
+   "api": "getElementById"
+  },
+  {
+   "id": "tabBtnCSSRS",
+   "line": 346,
+   "file": "crisis-protocol.js",
+   "api": "getElementById"
+  },
+  {
+   "id": "tabBtnDirectory",
+   "line": 347,
+   "file": "crisis-protocol.js",
+   "api": "getElementById"
+  },
+  {
+   "id": "tabBtnAction",
+   "line": 348,
+   "file": "crisis-protocol.js",
+   "api": "getElementById"
+  },
+  {
+   "id": "crisisModalGeneralFooter",
+   "line": 349,
+   "file": "crisis-protocol.js",
+   "api": "getElementById"
+  },
+  {
+   "id": "crisisHotlinesList",
+   "line": 379,
+   "file": "crisis-protocol.js",
+   "api": "getElementById"
+  },
+  {
+   "id": "cssrsWish",
+   "line": 393,
+   "file": "crisis-protocol.js",
+   "api": "getElementById"
+  },
+  {
+   "id": "cssrsIdeation",
+   "line": 394,
+   "file": "crisis-protocol.js",
+   "api": "getElementById"
+  },
+  {
+   "id": "cssrsMethod",
+   "line": 395,
+   "file": "crisis-protocol.js",
+   "api": "getElementById"
+  },
+  {
+   "id": "cssrsIntent",
+   "line": 396,
+   "file": "crisis-protocol.js",
+   "api": "getElementById"
+  },
+  {
+   "id": "cssrsPlan",
+   "line": 397,
+   "file": "crisis-protocol.js",
+   "api": "getElementById"
+  },
+  {
+   "id": "cssrsMeans",
+   "line": 398,
+   "file": "crisis-protocol.js",
+   "api": "getElementById"
+  },
+  {
+   "id": "cssrsAttempts",
+   "line": 399,
+   "file": "crisis-protocol.js",
+   "api": "getElementById"
+  },
+  {
+   "id": "cssrsProtective",
+   "line": 400,
+   "file": "crisis-protocol.js",
+   "api": "getElementById"
+  },
+  {
+   "id": "cssrsResultCard",
+   "line": 404,
+   "file": "crisis-protocol.js",
+   "api": "getElementById"
+  },
+  {
+   "id": "cssrsLevelText",
+   "line": 405,
+   "file": "crisis-protocol.js",
+   "api": "getElementById"
+  },
+  {
+   "id": "cssrsRecommendation",
+   "line": 406,
+   "file": "crisis-protocol.js",
+   "api": "getElementById"
+  },
+  {
+   "id": "crisisAttendedBy",
+   "line": 435,
+   "file": "crisis-protocol.js",
+   "api": "getElementById"
+  },
+  {
+   "id": "crisisAlertStatus",
+   "line": 436,
+   "file": "crisis-protocol.js",
+   "api": "getElementById"
+  },
+  {
+   "id": "crisisActionsTaken",
+   "line": 437,
+   "file": "crisis-protocol.js",
+   "api": "getElementById"
+  },
+  {
+   "id": "crisisReferral",
+   "line": 438,
+   "file": "crisis-protocol.js",
+   "api": "getElementById"
+  },
+  {
+   "id": "crisisFollowUp",
+   "line": 439,
+   "file": "crisis-protocol.js",
+   "api": "getElementById"
+  },
+  {
+   "id": "cssrsWish",
+   "line": 442,
+   "file": "crisis-protocol.js",
+   "api": "getElementById"
+  },
+  {
+   "id": "cssrsIdeation",
+   "line": 443,
+   "file": "crisis-protocol.js",
+   "api": "getElementById"
+  },
+  {
+   "id": "cssrsMethod",
+   "line": 444,
+   "file": "crisis-protocol.js",
+   "api": "getElementById"
+  },
+  {
+   "id": "cssrsIntent",
+   "line": 445,
+   "file": "crisis-protocol.js",
+   "api": "getElementById"
+  },
+  {
+   "id": "cssrsPlan",
+   "line": 446,
+   "file": "crisis-protocol.js",
+   "api": "getElementById"
+  },
+  {
+   "id": "cssrsMeans",
+   "line": 447,
+   "file": "crisis-protocol.js",
+   "api": "getElementById"
+  },
+  {
+   "id": "cssrsAttempts",
+   "line": 448,
+   "file": "crisis-protocol.js",
+   "api": "getElementById"
+  },
+  {
+   "id": "cssrsProtective",
+   "line": 449,
+   "file": "crisis-protocol.js",
+   "api": "getElementById"
+  },
+  {
+   "id": "consentModal",
+   "line": 15,
+   "file": "consentimiento.js",
+   "api": "getElementById"
+  },
+  {
+   "id": "signaturePadCanvas",
+   "line": 118,
+   "file": "consentimiento.js",
+   "api": "getElementById"
+  },
+  {
+   "id": "chkTelehealth",
+   "line": 254,
+   "file": "consentimiento.js",
+   "api": "getElementById"
+  },
+  {
+   "id": "chkAiAssisted",
+   "line": 255,
+   "file": "consentimiento.js",
+   "api": "getElementById"
+  },
+  {
+   "id": "fullHistoryModal",
+   "line": 767,
+   "file": "historia-clinica.js",
+   "api": "getElementById"
+  },
+  {
+   "id": "tab-historia",
+   "line": 1059,
+   "file": "historia-clinica.js",
+   "api": "getElementById"
+  },
+  {
+   "id": "genogramModal",
+   "line": 1073,
+   "file": "historia-clinica.js",
+   "api": "getElementById"
+  },
+  {
+   "id": "preconsultaModal",
+   "line": 1606,
+   "file": "historia-clinica.js",
+   "api": "getElementById"
+  },
+  {
+   "id": "preconsultaLinkText",
+   "line": 1675,
+   "file": "historia-clinica.js",
+   "api": "getElementById"
+  },
+  {
+   "id": "preconsultaLinkText",
+   "line": 1682,
+   "file": "historia-clinica.js",
+   "api": "getElementById"
+  },
+  {
+   "id": "gfImportModal",
+   "line": 1699,
+   "file": "historia-clinica.js",
+   "api": "getElementById"
+  },
+  {
+   "id": "gfImportText",
+   "line": 1740,
+   "file": "historia-clinica.js",
+   "api": "getElementById"
+  },
+  {
+   "id": "inAppPreconsultaModal",
+   "line": 1904,
+   "file": "historia-clinica.js",
+   "api": "getElementById"
+  },
+  {
+   "id": "inapp_existingSelectGroup",
+   "line": 2214,
+   "file": "historia-clinica.js",
+   "api": "getElementById"
+  },
+  {
+   "id": "inapp_editingPatientId",
+   "line": 2215,
+   "file": "historia-clinica.js",
+   "api": "getElementById"
+  },
+  {
+   "id": "inapp_patientSelect",
+   "line": 2222,
+   "file": "historia-clinica.js",
+   "api": "getElementById"
+  },
+  {
+   "id": "inapp_currentStage",
+   "line": 2230,
+   "file": "historia-clinica.js",
+   "api": "getElementById"
+  },
+  {
+   "id": "inapp_section_solicitante",
+   "line": 2248,
+   "file": "historia-clinica.js",
+   "api": "getElementById"
+  },
+  {
+   "id": "inapp_section_padres",
+   "line": 2249,
+   "file": "historia-clinica.js",
+   "api": "getElementById"
+  },
+  {
+   "id": "inapp_label_occupation",
+   "line": 2250,
+   "file": "historia-clinica.js",
+   "api": "getElementById"
+  },
+  {
+   "id": "inapp_patientOccupation",
+   "line": 2251,
+   "file": "historia-clinica.js",
+   "api": "getElementById"
+  },
+  {
+   "id": "inapp_patientAgeDisplay",
+   "line": 2268,
+   "file": "historia-clinica.js",
+   "api": "getElementById"
+  },
+  {
+   "id": "inapp_currentStage",
+   "line": 2366,
+   "file": "historia-clinica.js",
+   "api": "getElementById"
+  }
+ ],
+ "missingPortalIds": [
+  {
+   "id": "cbt_situation",
+   "line": 814,
+   "file": "portal.js",
+   "api": "getElementById"
+  },
+  {
+   "id": "cbt_thought",
+   "line": 815,
+   "file": "portal.js",
+   "api": "getElementById"
+  },
+  {
+   "id": "cbt_distortion",
+   "line": 816,
+   "file": "portal.js",
+   "api": "getElementById"
+  },
+  {
+   "id": "cbt_emotion",
+   "line": 817,
+   "file": "portal.js",
+   "api": "getElementById"
+  },
+  {
+   "id": "cbt_intensity_initial",
+   "line": 818,
+   "file": "portal.js",
+   "api": "getElementById"
+  },
+  {
+   "id": "cbt_rational",
+   "line": 819,
+   "file": "portal.js",
+   "api": "getElementById"
+  },
+  {
+   "id": "cbt_intensity_final",
+   "line": 820,
+   "file": "portal.js",
+   "api": "getElementById"
+  },
+  {
+   "id": "groundingInput",
+   "line": 1393,
+   "file": "portal.js",
+   "api": "getElementById"
+  }
+ ],
+ "dynamic": [
+  {
+   "id": "<DYNAMIC>",
+   "line": 159,
+   "file": "voice-dictation.js",
+   "api": "getElementById(dynamic)",
+   "snippet": "getElementById(targetElementId) : targetElementId;     if (!el) return;     VoiceDictation.toggle(el, (isRecording) => {"
+  },
+  {
+   "id": "<DYNAMIC>",
+   "line": 1397,
+   "file": "app.js",
+   "api": "getElementById(dynamic)",
+   "snippet": "getElementById(view + 'View');     if (targetView) targetView.classList.add('active');     const titles = {         dash"
+  },
+  {
+   "id": "<DYNAMIC>",
+   "line": 2052,
+   "file": "app.js",
+   "api": "getElementById(dynamic)",
+   "snippet": "getElementById(id);      // Título de la Sección de Datos     const titleEl = getEl('patientDataSectionTitle');     if ("
+  },
+  {
+   "id": "<DYNAMIC>",
+   "line": 4541,
+   "file": "app.js",
+   "api": "getElementById(dynamic)",
+   "snippet": "getElementById(`calMode${m.charAt(0).toUpperCase() + m.slice(1)}`);         if (btn) btn.classList.toggle('active', m =="
+  },
+  {
+   "id": "<DYNAMIC>",
+   "line": 5347,
+   "file": "app.js",
+   "api": "getElementById(dynamic)",
+   "snippet": "getElementById(fieldId);     if (!target) return;      if (typeof VoiceDictation !== 'undefined') {         const btn = "
+  },
+  {
+   "id": "<DYNAMIC>",
+   "line": 5850,
+   "file": "app.js",
+   "api": "getElementById(dynamic)",
+   "snippet": "getElementById(btnName);         const content = document.getElementById(`aiTab${t.charAt(0).toUpperCase() + t.slice(1)}"
+  },
+  {
+   "id": "<DYNAMIC>",
+   "line": 5851,
+   "file": "app.js",
+   "api": "getElementById(dynamic)",
+   "snippet": "getElementById(`aiTab${t.charAt(0).toUpperCase() + t.slice(1)}`);         if (btn) btn.classList.toggle('active', t === "
+  },
+  {
+   "id": "<DYNAMIC>",
+   "line": 6303,
+   "file": "app.js",
+   "api": "getElementById(dynamic)",
+   "snippet": "getElementById(id);         if (!s) return;         const cv = s.value;         s.innerHTML = '<option value=\"\">Seleccio"
+  },
+  {
+   "id": "<DYNAMIC>",
+   "line": 6313,
+   "file": "app.js",
+   "api": "getElementById(dynamic)",
+   "snippet": "getElementById(id);     if (!m) return;     m.classList.add('active');     document.body.style.overflow = 'hidden';     "
+  },
+  {
+   "id": "<DYNAMIC>",
+   "line": 6360,
+   "file": "app.js",
+   "api": "getElementById(dynamic)",
+   "snippet": "getElementById(id);     if (!m) return;     m.classList.remove('active');     if (!document.querySelector('.modal.active"
+  },
+  {
+   "id": "<DYNAMIC>",
+   "line": 545,
+   "file": "session-reminders.js",
+   "api": "getElementById(dynamic)",
+   "snippet": "getElementById(modalId);      if (!modal) {         modal = document.createElement('div');         modal.id = modalId;  "
+  },
+  {
+   "id": "<DYNAMIC>",
+   "line": 124,
+   "file": "crisis-protocol.js",
+   "api": "getElementById(dynamic)",
+   "snippet": "getElementById(modalId);      if (!modal) {         modal = document.createElement('div');         modal.id = modalId;  "
+  },
+  {
+   "id": "<DYNAMIC>",
+   "line": 142,
+   "file": "crisis-protocol.js",
+   "api": "getElementById(dynamic)",
+   "snippet": "getElementById(modalId);     if (!modal) return;      const countryData = CrisisEmergencyDirectory[countryCode] || Crisi"
+  },
+  {
+   "id": "<DYNAMIC>",
+   "line": 754,
+   "file": "historia-clinica.js",
+   "api": "getElementById(dynamic)",
+   "snippet": "getElementById(id);         if (el) el.classList.toggle('active');     },      // --------------------------------------"
+  },
+  {
+   "id": "<DYNAMIC>",
+   "line": 969,
+   "file": "historia-clinica.js",
+   "api": "getElementById(dynamic)",
+   "snippet": "getElementById(`htab-${tabKey}`);         if (target) target.classList.add('active');     },      handleSaveFullHistory("
+  },
+  {
+   "id": "<DYNAMIC>",
+   "line": 980,
+   "file": "historia-clinica.js",
+   "api": "getElementById(dynamic)",
+   "snippet": "getElementById(id);             return el ? el.value.trim() : '';         };          p.ci = getVal('fh_ci') || p.ci;   "
+  },
+  {
+   "id": "<DYNAMIC>",
+   "line": 2234,
+   "file": "historia-clinica.js",
+   "api": "getElementById(dynamic)",
+   "snippet": "getElementById(`inapp_btn_${s}`);             if (btn) {                 if (s === stage) {                     btn.clas"
+  },
+  {
+   "id": "<DYNAMIC>",
+   "line": 2299,
+   "file": "historia-clinica.js",
+   "api": "getElementById(dynamic)",
+   "snippet": "getElementById(id);             if (el) el.value = val !== undefined && val !== null ? val : '';         };          set"
+  },
+  {
+   "id": "<DYNAMIC>",
+   "line": 2347,
+   "file": "historia-clinica.js",
+   "api": "getElementById(dynamic)",
+   "snippet": "getElementById(id)?.value?.trim() || '';          const name = getV('inapp_patientName');         const birthdate = getV"
+  },
+  {
+   "id": "<DYNAMIC>",
+   "line": 527,
+   "file": "portal.js",
+   "api": "getElementById(dynamic)",
+   "snippet": "getElementById(`view${viewName.charAt(0).toUpperCase() + viewName.slice(1)}`).classList.add('active');     document.quer"
+  }
+ ],
+ "idList": {
+  "index": [
+   "activePatients",
+   "adultSpecificSection",
+   "agendaHeatmapContainer",
+   "aiChatBox",
+   "aiChatForm",
+   "aiChatInput",
+   "aiCopilotModal",
+   "aiDiagOutput",
+   "aiDiagPatientSelect",
+   "aiSoapDraft",
+   "aiSoapResult",
+   "aiSuggestResults",
+   "aiTabCopilot",
+   "aiTabDiagnostics",
+   "aiTabSoap",
+   "anxietyChart",
+   "apiKeyModal",
+   "appointmentCount",
+   "appointmentDate",
+   "appointmentDuration",
+   "appointmentForm",
+   "appointmentId",
+   "appointmentModal",
+   "appointmentModalTitle",
+   "appointmentNotes",
+   "appointmentPatient",
+   "appointmentStatus",
+   "appointmentTime",
+   "appointmentType",
+   "appointmentsList",
+   "appointmentsView",
+   "attendanceChart",
+   "authScreen",
+   "avgMood",
+   "backupModal",
+   "backupModalBody",
+   "backupModalTitle",
+   "billingContent",
+   "billingModal",
+   "billingModalBody",
+   "billingModalTitle",
+   "billingView",
+   "breadcrumb",
+   "btnNoteFormatFPV",
+   "btnNoteFormatSoap",
+   "btnRequestResetCode",
+   "btnSubmitNewPassword",
+   "calModeDay",
+   "calModeMonth",
+   "calModeWeek",
+   "calModeYear",
+   "calendarDayDetailsContainer",
+   "calendarGrid",
+   "calendarMainContainer",
+   "calendarQuickMetrics",
+   "calendarTitle",
+   "cancelForgotPassword",
+   "clinicalAlerts",
+   "clinicalHypothesisSection",
+   "cloudSyncStatusBtn",
+   "consultationHours",
+   "consultationInfoSection",
+   "contextualAgenda",
+   "countAdolescentPatients",
+   "countAdultPatients",
+   "countAllPatients",
+   "countChildPatients",
+   "crisisLiveBanner",
+   "crisisLiveText",
+   "currentDate",
+   "currentDay",
+   "customScaleEditId",
+   "dashboardView",
+   "dayDetailsSubtitle",
+   "dayDetailsTitle",
+   "diagnosticDistributionContainer",
+   "diagnosticDistributionList",
+   "encuadreSection",
+   "financeCategoriesModal",
+   "financeCategoriesModalBody",
+   "financeContent",
+   "financeGoalModal",
+   "financeGoalModalBody",
+   "financeGoalModalTitle",
+   "financeRateModal",
+   "financeRateModalBody",
+   "financeRateModalTitle",
+   "financeTransactionModal",
+   "financeTransactionModalBody",
+   "financeTransactionModalTitle",
+   "financeView",
+   "forgotCode",
+   "forgotEmail",
+   "forgotError",
+   "forgotNewPassword",
+   "forgotNewPassword2",
+   "forgotPasswordForm",
+   "forgotStep1",
+   "forgotStep2",
+   "forgotSuccess",
+   "fpvNoteContainer",
+   "geminiApiKeyInput",
+   "globalSearch",
+   "goalQualitativeNotes",
+   "goalTargetIncome",
+   "goalTargetSessions",
+   "guardianDetailsRow",
+   "guardianEmailWrapper",
+   "intersessionTasksEditor",
+   "lockTherapistName",
+   "loginEmail",
+   "loginError",
+   "loginForm",
+   "loginPassword",
+   "logoutBtn",
+   "mainContent",
+   "mobileBottomMoreBtn",
+   "mobileBottomNav",
+   "mobileMenuToggleBtn",
+   "mobileSidebarClose",
+   "monthAppointments",
+   "monthlyGoalsForm",
+   "monthlyGoalsModal",
+   "moodChart",
+   "nextMonth",
+   "noteAddendumsList",
+   "noteAddendumsSection",
+   "noteAnalisis",
+   "noteAppliedTechniques",
+   "noteAutosaveIndicator",
+   "noteClinicalFindings",
+   "noteConfidential",
+   "noteDate",
+   "noteDraftRecoveryBanner",
+   "noteForm",
+   "noteId",
+   "noteModal",
+   "noteModalTitle",
+   "noteMood",
+   "noteNewAddendum",
+   "noteNextSessionsPlan",
+   "noteObjetivo",
+   "noteObtainedResults",
+   "notePatient",
+   "notePlan",
+   "noteRisk",
+   "noteSessionDescription",
+   "noteSessionGoals",
+   "noteSessionNum",
+   "noteSignedBy",
+   "noteStatus",
+   "noteSubjetivo",
+   "noteTitle",
+   "notesCount",
+   "notesList",
+   "notesSearch",
+   "notesView",
+   "patientAddress",
+   "patientAddressWrapper",
+   "patientAdmissionDate",
+   "patientAge",
+   "patientAgeGroup",
+   "patientApplicantName",
+   "patientApplicantNameWrapper",
+   "patientBioHypothesis",
+   "patientBirthdate",
+   "patientCategory",
+   "patientContactRow",
+   "patientCount",
+   "patientDataSectionTitle",
+   "patientDatesInterventionRow",
+   "patientDetail",
+   "patientDetailModal",
+   "patientDischargeDate",
+   "patientDischargeDateGroup",
+   "patientEmail",
+   "patientEmailWrapper",
+   "patientForm",
+   "patientFrequency",
+   "patientGender",
+   "patientGoals",
+   "patientGoalsLabel",
+   "patientGuardianAge",
+   "patientGuardianConsent",
+   "patientGuardianEmail",
+   "patientGuardianMaritalStatus",
+   "patientGuardianName",
+   "patientGuardianOccupation",
+   "patientGuardianPhone",
+   "patientGuardianRelation",
+   "patientGuardianSchooling",
+   "patientId",
+   "patientInitiative",
+   "patientInitiativeGroup",
+   "patientInitiativeOther",
+   "patientIntervention",
+   "patientLivesWith",
+   "patientMaritalStatus",
+   "patientModal",
+   "patientModalTitle",
+   "patientModality",
+   "patientName",
+   "patientOccupation",
+   "patientPhone",
+   "patientPhoneWrapper",
+   "patientPreviousPsych",
+   "patientProtectiveFactors",
+   "patientPsychHypothesis",
+   "patientReason",
+   "patientReferralGroup",
+   "patientRiskFactors",
+   "patientSchoolGrade",
+   "patientSchoolLivesRow",
+   "patientSearch",
+   "patientSelfMotivation",
+   "patientShift",
+   "patientShiftGroup",
+   "patientSocialDesirability",
+   "patientSocialHypothesis",
+   "patientStatus",
+   "patientVulnerabilityFactors",
+   "patientsList",
+   "patientsView",
+   "pediatricFieldsSection",
+   "populationFilterTabs",
+   "portalAccessModal",
+   "portalAccessModalBody",
+   "prevMonth",
+   "priorityPatients",
+   "qaTestsModal",
+   "qaTestsResultsContainer",
+   "qaTestsStatusBadge",
+   "qrModal",
+   "qrModalBody",
+   "registerEmail",
+   "registerError",
+   "registerForm",
+   "registerName",
+   "registerPassword",
+   "registerPassword2",
+   "registerRegistry",
+   "registerSpecialty",
+   "reminderDrawerList",
+   "remissionMetricsContainer",
+   "remissionMetricsContent",
+   "resetError",
+   "retentionRadarContainer",
+   "retentionRadarList",
+   "scaleCutoffMild",
+   "scaleCutoffMod",
+   "scaleCutoffSev",
+   "scaleEditorForm",
+   "scaleEditorModal",
+   "scaleEditorModalTitle",
+   "scaleFormDomain",
+   "scaleFormMaxScore",
+   "scaleFormName",
+   "scaleFormOptionsType",
+   "scaleFormQuestions",
+   "scaleFormShortName",
+   "scaleModal",
+   "scaleModalBody",
+   "scalesView",
+   "screenLockOverlay",
+   "searchResults",
+   "searchView",
+   "sessionReminderBadge",
+   "sessionReminderBtn",
+   "sessionReminderDrawer",
+   "sessionRemindersBlock",
+   "sessionRemindersWidget",
+   "sessionsChart",
+   "showForgotPassword",
+   "showLogin",
+   "showRegister",
+   "sidebar",
+   "sidebarBackdrop",
+   "sidebarToggle",
+   "sidebarUserAvatar",
+   "sidebarUserEmail",
+   "sidebarUserName",
+   "sidebarUserRegistry",
+   "soapNoteContainer",
+   "statsView",
+   "tabBtnCopilot",
+   "tabBtnDiagnostics",
+   "tabBtnSoap",
+   "tabPopAdolescent",
+   "tabPopAdult",
+   "tabPopAll",
+   "tabPopChild",
+   "telehealthIframe",
+   "telehealthModal",
+   "telehealthNotesInput",
+   "telehealthPatientSelect",
+   "themeToggle",
+   "therapistProfileEmail",
+   "therapistProfileForm",
+   "therapistProfileInstitution",
+   "therapistProfileModal",
+   "therapistProfileName",
+   "therapistProfilePhone",
+   "therapistProfileRegistry",
+   "therapistProfileSpecialty",
+   "therapistSignatureCanvas",
+   "toastContainer",
+   "todaySessions",
+   "todaySessionsLabel",
+   "totalNotes",
+   "unlockError",
+   "unlockPasswordInput",
+   "weekGoals",
+   "weekGoalsLabel",
+   "weekdayChart",
+   "welcomeGreeting",
+   "welcomeSubtitle",
+   "welcomeTitle"
+  ],
+  "portal": [
+   "accessCode",
+   "accessError",
+   "accessForm",
+   "accessScreen",
+   "achievementsList",
+   "breathingCountdown",
+   "breathingCycleCounter",
+   "breathingInstruction",
+   "breathingModal",
+   "breathingOrb",
+   "breathingPhaseGuide",
+   "breathingSoundBtn",
+   "btnBreathingToggle",
+   "btnConsentAction",
+   "completedTasks",
+   "consentCardDesc",
+   "consentCardPortal",
+   "consentCardTitle",
+   "consentModalPortal",
+   "countCompleted",
+   "countPending",
+   "crisisHelpModal",
+   "dailyReflection",
+   "evaluationsHistory",
+   "evolutionChart",
+   "groundingModal",
+   "groundingModalBody",
+   "headerAvatar",
+   "headerGreeting",
+   "headerName",
+   "lastCbt",
+   "lastGad7",
+   "lastMood",
+   "lastPhq9",
+   "moodConfirmation",
+   "nextSessionText",
+   "offlineSyncBadge",
+   "offlineSyncCount",
+   "pendingTasksCount",
+   "portalApp",
+   "portalConsentSignaturePad",
+   "portalPatientAvatar",
+   "portalPatientName",
+   "pwaInstallBanner",
+   "tasksList",
+   "testModal",
+   "testModalBody",
+   "testModalTitle",
+   "toastContainer",
+   "totalSessions",
+   "viewHome",
+   "viewProgress",
+   "viewTasks",
+   "viewTests",
+   "welcomeBack"
+  ]
+ }
+}

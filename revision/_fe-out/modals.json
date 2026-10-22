@@ -1,0 +1,934 @@
+{
+ "calls": [
+  {
+   "file": "psychoed.js",
+   "line": 81,
+   "fn": "closeModal",
+   "target": "psychoedModal",
+   "ok": true
+  },
+  {
+   "file": "psychoed.js",
+   "line": 85,
+   "fn": "closeModal",
+   "target": "psychoedModal",
+   "ok": true
+  },
+  {
+   "file": "psychoed.js",
+   "line": 123,
+   "fn": "openModal",
+   "target": "psychoedModal",
+   "ok": true
+  },
+  {
+   "file": "psychoed.js",
+   "line": 386,
+   "fn": "closeModal",
+   "target": "psychoedModal",
+   "ok": true
+  },
+  {
+   "file": "reports.js",
+   "line": 20,
+   "fn": "closeModal",
+   "target": "reportModal",
+   "ok": true
+  },
+  {
+   "file": "reports.js",
+   "line": 24,
+   "fn": "closeModal",
+   "target": "reportModal",
+   "ok": true
+  },
+  {
+   "file": "reports.js",
+   "line": 84,
+   "fn": "closeModal",
+   "target": "reportModal",
+   "ok": true
+  },
+  {
+   "file": "reports.js",
+   "line": 94,
+   "fn": "openModal",
+   "target": "reportModal",
+   "ok": true
+  },
+  {
+   "file": "reports.js",
+   "line": 223,
+   "fn": "closeModal",
+   "target": "reportModal",
+   "ok": true
+  },
+  {
+   "file": "vademecum.js",
+   "line": 92,
+   "fn": "closeModal",
+   "target": "vademecumModal",
+   "ok": true
+  },
+  {
+   "file": "vademecum.js",
+   "line": 96,
+   "fn": "closeModal",
+   "target": "vademecumModal",
+   "ok": true
+  },
+  {
+   "file": "vademecum.js",
+   "line": 111,
+   "fn": "openModal",
+   "target": "vademecumModal",
+   "ok": true
+  },
+  {
+   "file": "app.js",
+   "line": 1176,
+   "fn": "openModal",
+   "target": "therapistProfileModal",
+   "ok": true
+  },
+  {
+   "file": "app.js",
+   "line": 1320,
+   "fn": "closeModal",
+   "target": "therapistProfileModal",
+   "ok": true
+  },
+  {
+   "file": "app.js",
+   "line": 1572,
+   "fn": "openModal",
+   "target": "monthlyGoalsModal",
+   "ok": true
+  },
+  {
+   "file": "app.js",
+   "line": 1601,
+   "fn": "closeModal",
+   "target": "monthlyGoalsModal",
+   "ok": true
+  },
+  {
+   "file": "app.js",
+   "line": 1820,
+   "fn": "openModal",
+   "target": "appointmentModal",
+   "ok": true
+  },
+  {
+   "file": "app.js",
+   "line": 1859,
+   "fn": "openModal",
+   "target": "noteModal",
+   "ok": true
+  },
+  {
+   "file": "app.js",
+   "line": 2125,
+   "fn": "openModal",
+   "target": "patientModal",
+   "ok": true
+  },
+  {
+   "file": "app.js",
+   "line": 2350,
+   "fn": "closeModal",
+   "target": "patientModal",
+   "ok": true
+  },
+  {
+   "file": "app.js",
+   "line": 2433,
+   "fn": "openModal",
+   "target": "patientModal",
+   "ok": true
+  },
+  {
+   "file": "app.js",
+   "line": 2508,
+   "fn": "closeModal",
+   "target": "patientDetailModal",
+   "ok": true
+  },
+  {
+   "file": "app.js",
+   "line": 2511,
+   "fn": "closeModal",
+   "target": "patientDetailModal",
+   "ok": true
+  },
+  {
+   "file": "app.js",
+   "line": 2514,
+   "fn": "closeModal",
+   "target": "patientDetailModal",
+   "ok": true
+  },
+  {
+   "file": "app.js",
+   "line": 2565,
+   "fn": "openModal",
+   "target": "patientDetailModal",
+   "ok": true
+  },
+  {
+   "file": "app.js",
+   "line": 2787,
+   "fn": "closeModal",
+   "target": "patientDetailModal",
+   "ok": true
+  },
+  {
+   "file": "app.js",
+   "line": 2869,
+   "fn": "closeModal",
+   "target": "patientDetailModal",
+   "ok": true
+  },
+  {
+   "file": "app.js",
+   "line": 2876,
+   "fn": "closeModal",
+   "target": "patientDetailModal",
+   "ok": true
+  },
+  {
+   "file": "app.js",
+   "line": 2889,
+   "fn": "closeModal",
+   "target": "patientDetailModal",
+   "ok": true
+  },
+  {
+   "file": "app.js",
+   "line": 2955,
+   "fn": "closeModal",
+   "target": "patientDetailModal",
+   "ok": true
+  },
+  {
+   "file": "app.js",
+   "line": 3737,
+   "fn": "closeModal",
+   "target": "portalAccessModal",
+   "ok": true
+  },
+  {
+   "file": "app.js",
+   "line": 3886,
+   "fn": "closeModal",
+   "target": "portalAccessModal",
+   "ok": true
+  },
+  {
+   "file": "app.js",
+   "line": 3889,
+   "fn": "closeModal",
+   "target": "portalAccessModal",
+   "ok": true
+  },
+  {
+   "file": "app.js",
+   "line": 3896,
+   "fn": "openModal",
+   "target": "portalAccessModal",
+   "ok": true
+  },
+  {
+   "file": "app.js",
+   "line": 3981,
+   "fn": "closeModal",
+   "target": "qrModal",
+   "ok": true
+  },
+  {
+   "file": "app.js",
+   "line": 3988,
+   "fn": "openModal",
+   "target": "qrModal",
+   "ok": true
+  },
+  {
+   "file": "app.js",
+   "line": 4587,
+   "fn": "openModal",
+   "target": "appointmentModal",
+   "ok": true
+  },
+  {
+   "file": "app.js",
+   "line": 5067,
+   "fn": "closeModal",
+   "target": "appointmentModal",
+   "ok": true
+  },
+  {
+   "file": "app.js",
+   "line": 5088,
+   "fn": "openModal",
+   "target": "appointmentModal",
+   "ok": true
+  },
+  {
+   "file": "app.js",
+   "line": 5197,
+   "fn": "openModal",
+   "target": "noteModal",
+   "ok": true
+  },
+  {
+   "file": "app.js",
+   "line": 5219,
+   "fn": "openModal",
+   "target": "noteModal",
+   "ok": true
+  },
+  {
+   "file": "app.js",
+   "line": 5243,
+   "fn": "openModal",
+   "target": "noteModal",
+   "ok": true
+  },
+  {
+   "file": "app.js",
+   "line": 5655,
+   "fn": "closeModal",
+   "target": "noteModal",
+   "ok": true
+  },
+  {
+   "file": "app.js",
+   "line": 5752,
+   "fn": "openModal",
+   "target": "noteModal",
+   "ok": true
+  },
+  {
+   "file": "app.js",
+   "line": 5787,
+   "fn": "closeModal",
+   "target": "scaleModal",
+   "ok": true
+  },
+  {
+   "file": "app.js",
+   "line": 5788,
+   "fn": "openModal",
+   "target": "scaleModal",
+   "ok": true
+  },
+  {
+   "file": "app.js",
+   "line": 5799,
+   "fn": "closeModal",
+   "target": "scaleModal",
+   "ok": true
+  },
+  {
+   "file": "app.js",
+   "line": 5843,
+   "fn": "openModal",
+   "target": "aiCopilotModal",
+   "ok": true
+  },
+  {
+   "file": "app.js",
+   "line": 5965,
+   "fn": "closeModal",
+   "target": "aiCopilotModal",
+   "ok": true
+  },
+  {
+   "file": "app.js",
+   "line": 5966,
+   "fn": "openModal",
+   "target": "noteModal",
+   "ok": true
+  },
+  {
+   "file": "app.js",
+   "line": 5980,
+   "fn": "openModal",
+   "target": "apiKeyModal",
+   "ok": true
+  },
+  {
+   "file": "app.js",
+   "line": 5988,
+   "fn": "closeModal",
+   "target": "apiKeyModal",
+   "ok": true
+  },
+  {
+   "file": "app.js",
+   "line": 6406,
+   "fn": "closeModal",
+   "target": "confirmModal",
+   "ok": true
+  },
+  {
+   "file": "app.js",
+   "line": 6412,
+   "fn": "closeModal",
+   "target": "confirmModal",
+   "ok": true
+  },
+  {
+   "file": "app.js",
+   "line": 6420,
+   "fn": "openModal",
+   "target": "confirmModal",
+   "ok": true
+  },
+  {
+   "file": "app.js",
+   "line": 6425,
+   "fn": "closeModal",
+   "target": "confirmModal",
+   "ok": true
+  },
+  {
+   "file": "app.js",
+   "line": 6456,
+   "fn": "openModal",
+   "target": "patientModal",
+   "ok": true
+  },
+  {
+   "file": "app.js",
+   "line": 6458,
+   "fn": "openModal",
+   "target": "noteModal",
+   "ok": true
+  },
+  {
+   "file": "app.js",
+   "line": 6459,
+   "fn": "openModal",
+   "target": "appointmentModal",
+   "ok": true
+  },
+  {
+   "file": "app.js",
+   "line": 6493,
+   "fn": "openModal",
+   "target": "telehealthModal",
+   "ok": true
+  },
+  {
+   "file": "app.js",
+   "line": 6526,
+   "fn": "closeModal",
+   "target": "telehealthModal",
+   "ok": true
+  },
+  {
+   "file": "app.js",
+   "line": 6527,
+   "fn": "openModal",
+   "target": "noteModal",
+   "ok": true
+  },
+  {
+   "file": "app.js",
+   "line": 6617,
+   "fn": "openModal",
+   "target": "qaTestsModal",
+   "ok": true
+  },
+  {
+   "file": "app.js",
+   "line": 6802,
+   "fn": "openModal",
+   "target": "patientModal",
+   "ok": true
+  },
+  {
+   "file": "app.js",
+   "line": 6803,
+   "fn": "openModal",
+   "target": "appointmentModal",
+   "ok": true
+  },
+  {
+   "file": "app.js",
+   "line": 6804,
+   "fn": "openModal",
+   "target": "noteModal",
+   "ok": true
+  },
+  {
+   "file": "app.js",
+   "line": 6805,
+   "fn": "openModal",
+   "target": "noteModal",
+   "ok": true
+  },
+  {
+   "file": "scales.js",
+   "line": 481,
+   "fn": "closeModal",
+   "target": "scaleModal",
+   "ok": true
+  },
+  {
+   "file": "scales.js",
+   "line": 488,
+   "fn": "openModal",
+   "target": "scaleModal",
+   "ok": true
+  },
+  {
+   "file": "scales.js",
+   "line": 574,
+   "fn": "closeModal",
+   "target": "scaleModal",
+   "ok": true
+  },
+  {
+   "file": "scales.js",
+   "line": 718,
+   "fn": "openModal",
+   "target": "scaleEditorModal",
+   "ok": true
+  },
+  {
+   "file": "scales.js",
+   "line": 800,
+   "fn": "closeModal",
+   "target": "scaleEditorModal",
+   "ok": true
+  },
+  {
+   "file": "finance.js",
+   "line": 478,
+   "fn": "closeModal",
+   "target": "financeGoalModal",
+   "ok": true
+  },
+  {
+   "file": "finance.js",
+   "line": 483,
+   "fn": "openModal",
+   "target": "financeGoalModal",
+   "ok": true
+  },
+  {
+   "file": "finance.js",
+   "line": 514,
+   "fn": "closeModal",
+   "target": "financeGoalModal",
+   "ok": true
+  },
+  {
+   "file": "finance.js",
+   "line": 638,
+   "fn": "closeModal",
+   "target": "financeRateModal",
+   "ok": true
+  },
+  {
+   "file": "finance.js",
+   "line": 643,
+   "fn": "openModal",
+   "target": "financeRateModal",
+   "ok": true
+  },
+  {
+   "file": "finance.js",
+   "line": 678,
+   "fn": "closeModal",
+   "target": "financeRateModal",
+   "ok": true
+  },
+  {
+   "file": "finance.js",
+   "line": 739,
+   "fn": "closeModal",
+   "target": "financeTransactionModal",
+   "ok": true
+  },
+  {
+   "file": "finance.js",
+   "line": 744,
+   "fn": "openModal",
+   "target": "financeTransactionModal",
+   "ok": true
+  },
+  {
+   "file": "finance.js",
+   "line": 761,
+   "fn": "closeModal",
+   "target": "financeTransactionModal",
+   "ok": true
+  },
+  {
+   "file": "finance.js",
+   "line": 801,
+   "fn": "closeModal",
+   "target": "financeTransactionModal",
+   "ok": true
+  },
+  {
+   "file": "finance.js",
+   "line": 806,
+   "fn": "openModal",
+   "target": "financeTransactionModal",
+   "ok": true
+  },
+  {
+   "file": "finance.js",
+   "line": 819,
+   "fn": "closeModal",
+   "target": "financeTransactionModal",
+   "ok": true
+  },
+  {
+   "file": "finance.js",
+   "line": 868,
+   "fn": "openModal",
+   "target": "financeCategoriesModal",
+   "ok": true
+  },
+  {
+   "file": "adm.js",
+   "line": 132,
+   "fn": "closeModal",
+   "target": "billingModal",
+   "ok": true
+  },
+  {
+   "file": "adm.js",
+   "line": 137,
+   "fn": "openModal",
+   "target": "billingModal",
+   "ok": true
+  },
+  {
+   "file": "adm.js",
+   "line": 153,
+   "fn": "closeModal",
+   "target": "billingModal",
+   "ok": true
+  },
+  {
+   "file": "adm.js",
+   "line": 289,
+   "fn": "closeModal",
+   "target": "billingModal",
+   "ok": true
+  },
+  {
+   "file": "adm.js",
+   "line": 294,
+   "fn": "openModal",
+   "target": "billingModal",
+   "ok": true
+  },
+  {
+   "file": "adm.js",
+   "line": 384,
+   "fn": "closeModal",
+   "target": "billingModal",
+   "ok": true
+  },
+  {
+   "file": "session-reminders.js",
+   "line": 444,
+   "fn": "openModal",
+   "target": "noteModal",
+   "ok": true
+  },
+  {
+   "file": "session-reminders.js",
+   "line": 555,
+   "fn": "closeModal",
+   "target": "${modalId}",
+   "ok": false
+  },
+  {
+   "file": "session-reminders.js",
+   "line": 559,
+   "fn": "closeModal",
+   "target": "${modalId}",
+   "ok": false
+  },
+  {
+   "file": "session-reminders.js",
+   "line": 599,
+   "fn": "closeModal",
+   "target": "${modalId}",
+   "ok": false
+  },
+  {
+   "file": "session-reminders.js",
+   "line": 632,
+   "fn": "closeModal",
+   "target": "customReminderModal",
+   "ok": false
+  },
+  {
+   "file": "backup.js",
+   "line": 105,
+   "fn": "openModal",
+   "target": "backupModal",
+   "ok": true
+  },
+  {
+   "file": "crisis-protocol.js",
+   "line": 149,
+   "fn": "closeModal",
+   "target": "${modalId}",
+   "ok": false
+  },
+  {
+   "file": "crisis-protocol.js",
+   "line": 160,
+   "fn": "closeModal",
+   "target": "${modalId}",
+   "ok": false
+  },
+  {
+   "file": "crisis-protocol.js",
+   "line": 317,
+   "fn": "closeModal",
+   "target": "${modalId}",
+   "ok": false
+  },
+  {
+   "file": "crisis-protocol.js",
+   "line": 327,
+   "fn": "closeModal",
+   "target": "${modalId}",
+   "ok": false
+  },
+  {
+   "file": "crisis-protocol.js",
+   "line": 477,
+   "fn": "closeModal",
+   "target": "crisisModal",
+   "ok": false
+  },
+  {
+   "file": "consentimiento.js",
+   "line": 59,
+   "fn": "closeModal",
+   "target": "consentModal",
+   "ok": true
+  },
+  {
+   "file": "consentimiento.js",
+   "line": 63,
+   "fn": "closeModal",
+   "target": "consentModal",
+   "ok": true
+  },
+  {
+   "file": "consentimiento.js",
+   "line": 104,
+   "fn": "closeModal",
+   "target": "consentModal",
+   "ok": true
+  },
+  {
+   "file": "consentimiento.js",
+   "line": 113,
+   "fn": "openModal",
+   "target": "consentModal",
+   "ok": true
+  },
+  {
+   "file": "consentimiento.js",
+   "line": 316,
+   "fn": "closeModal",
+   "target": "consentModal",
+   "ok": true
+  },
+  {
+   "file": "historia-clinica.js",
+   "line": 258,
+   "fn": "closeModal",
+   "target": "patientDetailModal",
+   "ok": true
+  },
+  {
+   "file": "historia-clinica.js",
+   "line": 779,
+   "fn": "closeModal",
+   "target": "fullHistoryModal",
+   "ok": true
+  },
+  {
+   "file": "historia-clinica.js",
+   "line": 786,
+   "fn": "closeModal",
+   "target": "fullHistoryModal",
+   "ok": true
+  },
+  {
+   "file": "historia-clinica.js",
+   "line": 955,
+   "fn": "closeModal",
+   "target": "fullHistoryModal",
+   "ok": true
+  },
+  {
+   "file": "historia-clinica.js",
+   "line": 962,
+   "fn": "openModal",
+   "target": "fullHistoryModal",
+   "ok": true
+  },
+  {
+   "file": "historia-clinica.js",
+   "line": 1055,
+   "fn": "closeModal",
+   "target": "fullHistoryModal",
+   "ok": true
+  },
+  {
+   "file": "historia-clinica.js",
+   "line": 1082,
+   "fn": "closeModal",
+   "target": "genogramModal",
+   "ok": true
+  },
+  {
+   "file": "historia-clinica.js",
+   "line": 1086,
+   "fn": "closeModal",
+   "target": "genogramModal",
+   "ok": true
+  },
+  {
+   "file": "historia-clinica.js",
+   "line": 1132,
+   "fn": "openModal",
+   "target": "genogramModal",
+   "ok": true
+  },
+  {
+   "file": "historia-clinica.js",
+   "line": 1615,
+   "fn": "closeModal",
+   "target": "preconsultaModal",
+   "ok": true
+  },
+  {
+   "file": "historia-clinica.js",
+   "line": 1619,
+   "fn": "closeModal",
+   "target": "preconsultaModal",
+   "ok": true
+  },
+  {
+   "file": "historia-clinica.js",
+   "line": 1632,
+   "fn": "closeModal",
+   "target": "preconsultaModal",
+   "ok": true
+  },
+  {
+   "file": "historia-clinica.js",
+   "line": 1671,
+   "fn": "openModal",
+   "target": "preconsultaModal",
+   "ok": true
+  },
+  {
+   "file": "historia-clinica.js",
+   "line": 1708,
+   "fn": "closeModal",
+   "target": "gfImportModal",
+   "ok": true
+  },
+  {
+   "file": "historia-clinica.js",
+   "line": 1712,
+   "fn": "closeModal",
+   "target": "gfImportModal",
+   "ok": true
+  },
+  {
+   "file": "historia-clinica.js",
+   "line": 1728,
+   "fn": "closeModal",
+   "target": "gfImportModal",
+   "ok": true
+  },
+  {
+   "file": "historia-clinica.js",
+   "line": 1736,
+   "fn": "openModal",
+   "target": "gfImportModal",
+   "ok": true
+  },
+  {
+   "file": "historia-clinica.js",
+   "line": 1787,
+   "fn": "closeModal",
+   "target": "gfImportModal",
+   "ok": true
+  },
+  {
+   "file": "historia-clinica.js",
+   "line": 1788,
+   "fn": "closeModal",
+   "target": "preconsultaModal",
+   "ok": true
+  },
+  {
+   "file": "historia-clinica.js",
+   "line": 1927,
+   "fn": "closeModal",
+   "target": "inAppPreconsultaModal",
+   "ok": true
+  },
+  {
+   "file": "historia-clinica.js",
+   "line": 1934,
+   "fn": "closeModal",
+   "target": "inAppPreconsultaModal",
+   "ok": true
+  },
+  {
+   "file": "historia-clinica.js",
+   "line": 2196,
+   "fn": "closeModal",
+   "target": "inAppPreconsultaModal",
+   "ok": true
+  },
+  {
+   "file": "historia-clinica.js",
+   "line": 2210,
+   "fn": "openModal",
+   "target": "inAppPreconsultaModal",
+   "ok": true
+  },
+  {
+   "file": "historia-clinica.js",
+   "line": 2414,
+   "fn": "closeModal",
+   "target": "inAppPreconsultaModal",
+   "ok": true
+  },
+  {
+   "file": "historia-clinica.js",
+   "line": 2432,
+   "fn": "closeModal",
+   "target": "inAppPreconsultaModal",
+   "ok": true
+  }
+ ],
+ "missing": [
+  "${modalId}",
+  "customReminderModal",
+  "crisisModal"
+ ],
+ "deadModals": []
+}

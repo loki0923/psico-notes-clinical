@@ -1,0 +1,2319 @@
+{
+ "trueDead": [
+  {
+   "id": "noteSessionNumber",
+   "line": 1868,
+   "file": "app.js",
+   "api": "getElementById"
+  },
+  {
+   "id": "patientSchoolName",
+   "line": 2304,
+   "file": "app.js",
+   "api": "getElementById"
+  },
+  {
+   "id": "patientDevelopmentalMilestones",
+   "line": 2305,
+   "file": "app.js",
+   "api": "getElementById"
+  },
+  {
+   "id": "patientEmergency",
+   "line": 2312,
+   "file": "app.js",
+   "api": "getElementById"
+  },
+  {
+   "id": "patientEmergencyRelation",
+   "line": 2313,
+   "file": "app.js",
+   "api": "getElementById"
+  },
+  {
+   "id": "patientDiagnosis",
+   "line": 2320,
+   "file": "app.js",
+   "api": "getElementById"
+  },
+  {
+   "id": "patientDiagnosis2",
+   "line": 2321,
+   "file": "app.js",
+   "api": "getElementById"
+  },
+  {
+   "id": "patientMedication",
+   "line": 2322,
+   "file": "app.js",
+   "api": "getElementById"
+  },
+  {
+   "id": "patientMedical",
+   "line": 2323,
+   "file": "app.js",
+   "api": "getElementById"
+  },
+  {
+   "id": "patientFamilyHistory",
+   "line": 2324,
+   "file": "app.js",
+   "api": "getElementById"
+  },
+  {
+   "id": "patientNotes",
+   "line": 2327,
+   "file": "app.js",
+   "api": "getElementById"
+  },
+  {
+   "id": "patientSchoolName",
+   "line": 2394,
+   "file": "app.js",
+   "api": "getElementById"
+  },
+  {
+   "id": "patientSchoolName",
+   "line": 2394,
+   "file": "app.js",
+   "api": "getElementById"
+  },
+  {
+   "id": "patientDevelopmentalMilestones",
+   "line": 2395,
+   "file": "app.js",
+   "api": "getElementById"
+  },
+  {
+   "id": "patientDevelopmentalMilestones",
+   "line": 2395,
+   "file": "app.js",
+   "api": "getElementById"
+  },
+  {
+   "id": "patientEmergency",
+   "line": 2405,
+   "file": "app.js",
+   "api": "getElementById"
+  },
+  {
+   "id": "patientEmergency",
+   "line": 2405,
+   "file": "app.js",
+   "api": "getElementById"
+  },
+  {
+   "id": "patientEmergencyRelation",
+   "line": 2406,
+   "file": "app.js",
+   "api": "getElementById"
+  },
+  {
+   "id": "patientEmergencyRelation",
+   "line": 2406,
+   "file": "app.js",
+   "api": "getElementById"
+  },
+  {
+   "id": "patientDiagnosis",
+   "line": 2415,
+   "file": "app.js",
+   "api": "getElementById"
+  },
+  {
+   "id": "patientDiagnosis",
+   "line": 2415,
+   "file": "app.js",
+   "api": "getElementById"
+  },
+  {
+   "id": "patientDiagnosis2",
+   "line": 2416,
+   "file": "app.js",
+   "api": "getElementById"
+  },
+  {
+   "id": "patientDiagnosis2",
+   "line": 2416,
+   "file": "app.js",
+   "api": "getElementById"
+  },
+  {
+   "id": "patientMedication",
+   "line": 2417,
+   "file": "app.js",
+   "api": "getElementById"
+  },
+  {
+   "id": "patientMedication",
+   "line": 2417,
+   "file": "app.js",
+   "api": "getElementById"
+  },
+  {
+   "id": "patientMedical",
+   "line": 2418,
+   "file": "app.js",
+   "api": "getElementById"
+  },
+  {
+   "id": "patientMedical",
+   "line": 2418,
+   "file": "app.js",
+   "api": "getElementById"
+  },
+  {
+   "id": "patientFamilyHistory",
+   "line": 2419,
+   "file": "app.js",
+   "api": "getElementById"
+  },
+  {
+   "id": "patientFamilyHistory",
+   "line": 2419,
+   "file": "app.js",
+   "api": "getElementById"
+  },
+  {
+   "id": "patientNotes",
+   "line": 2422,
+   "file": "app.js",
+   "api": "getElementById"
+  },
+  {
+   "id": "patientNotes",
+   "line": 2422,
+   "file": "app.js",
+   "api": "getElementById"
+  },
+  {
+   "id": "noteObservations",
+   "line": 3519,
+   "file": "app.js",
+   "api": "getElementById"
+  }
+ ],
+ "trueDeadPortal": [
+  {
+   "id": "cbt_situation",
+   "line": 814,
+   "file": "portal.js",
+   "api": "getElementById"
+  },
+  {
+   "id": "cbt_thought",
+   "line": 815,
+   "file": "portal.js",
+   "api": "getElementById"
+  },
+  {
+   "id": "cbt_distortion",
+   "line": 816,
+   "file": "portal.js",
+   "api": "getElementById"
+  },
+  {
+   "id": "cbt_emotion",
+   "line": 817,
+   "file": "portal.js",
+   "api": "getElementById"
+  },
+  {
+   "id": "cbt_intensity_initial",
+   "line": 818,
+   "file": "portal.js",
+   "api": "getElementById"
+  },
+  {
+   "id": "cbt_rational",
+   "line": 819,
+   "file": "portal.js",
+   "api": "getElementById"
+  },
+  {
+   "id": "cbt_intensity_final",
+   "line": 820,
+   "file": "portal.js",
+   "api": "getElementById"
+  },
+  {
+   "id": "groundingInput",
+   "line": 1393,
+   "file": "portal.js",
+   "api": "getElementById"
+  }
+ ],
+ "dynCreatedCount": 151,
+ "dynCreatedPortalCount": 0,
+ "dynCreated": [
+  {
+   "id": "psychoedModal",
+   "line": 68,
+   "file": "psychoed.js",
+   "api": "getElementById",
+   "created": [
+    {
+     "file": "psychoed.js",
+     "line": 71,
+     "text": "modal.id = 'psychoedModal';"
+    },
+    {
+     "file": "psychoed.js",
+     "line": 71,
+     "text": "modal.id = 'psychoedModal';"
+    }
+   ]
+  },
+  {
+   "id": "psychoedPatientSelect",
+   "line": 294,
+   "file": "psychoed.js",
+   "api": "getElementById",
+   "created": [
+    {
+     "file": "psychoed.js",
+     "line": 93,
+     "text": "<select id=\"psychoedPatientSelect\" class=\"form-control\">"
+    }
+   ]
+  },
+  {
+   "id": "ws_sit",
+   "line": 305,
+   "file": "psychoed.js",
+   "api": "getElementById",
+   "created": [
+    {
+     "file": "psychoed.js",
+     "line": 133,
+     "text": "<div class=\"form-group\"><label>1. Situación (¿Qué sucedió? ¿Dónde? ¿Con quién?):</label><textarea id=\"ws_sit\" rows=\"2\" placeholder=\"Ej: Presentando reporte en l"
+    }
+   ]
+  },
+  {
+   "id": "ws_thought",
+   "line": 308,
+   "file": "psychoed.js",
+   "api": "getElementById",
+   "created": [
+    {
+     "file": "psychoed.js",
+     "line": 134,
+     "text": "<div class=\"form-group\"><label>2. Pensamiento Automático (¿Qué pasó por tu mente?):</label><textarea id=\"ws_thought\" rows=\"2\" placeholder=\"Ej: Me voy a equivoca"
+    }
+   ]
+  },
+  {
+   "id": "ws_emo",
+   "line": 311,
+   "file": "psychoed.js",
+   "api": "getElementById",
+   "created": [
+    {
+     "file": "psychoed.js",
+     "line": 135,
+     "text": "<div class=\"form-group\"><label>3. Emoción (¿Qué sentiste y con qué intensidad 0-100%?):</label><input type=\"text\" id=\"ws_emo\" placeholder=\"Ej: Ansiedad (85%), V"
+    }
+   ]
+  },
+  {
+   "id": "ws_resp",
+   "line": 314,
+   "file": "psychoed.js",
+   "api": "getElementById",
+   "created": [
+    {
+     "file": "psychoed.js",
+     "line": 136,
+     "text": "<div class=\"form-group\"><label>4. Respuesta Racional / Evidencia en Contra:</label><textarea id=\"ws_resp\" rows=\"2\" placeholder=\"Ej: He preparado el tema, si tro"
+    }
+   ]
+  },
+  {
+   "id": "ws_res",
+   "line": 317,
+   "file": "psychoed.js",
+   "api": "getElementById",
+   "created": [
+    {
+     "file": "psychoed.js",
+     "line": 137,
+     "text": "<div class=\"form-group\"><label>5. Resultado (¿Cómo te sientes ahora 0-100%?):</label><input type=\"text\" id=\"ws_res\" placeholder=\"Ej: Ansiedad (35%), Mayor autoc"
+    }
+   ]
+  },
+  {
+   "id": "ws_act_away",
+   "line": 323,
+   "file": "psychoed.js",
+   "api": "getElementById",
+   "created": [
+    {
+     "file": "psychoed.js",
+     "line": 146,
+     "text": "<textarea id=\"ws_act_away\" rows=\"3\" placeholder=\"Ansiedad, miedo al rechazo, pensamientos de incapacidad...\"></textarea>"
+    }
+   ]
+  },
+  {
+   "id": "ws_act_towards",
+   "line": 324,
+   "file": "psychoed.js",
+   "api": "getElementById",
+   "created": [
+    {
+     "file": "psychoed.js",
+     "line": 150,
+     "text": "<textarea id=\"ws_act_towards\" rows=\"3\" placeholder=\"Ser honesto, cuidar a mi familia, crecimiento profesional...\"></textarea>"
+    }
+   ]
+  },
+  {
+   "id": "ws_act_avoid",
+   "line": 325,
+   "file": "psychoed.js",
+   "api": "getElementById",
+   "created": [
+    {
+     "file": "psychoed.js",
+     "line": 154,
+     "text": "<textarea id=\"ws_act_avoid\" rows=\"3\" placeholder=\"Procrastinar, aislarme, consumo compulsivo de pantallas...\"></textarea>"
+    }
+   ]
+  },
+  {
+   "id": "ws_act_action",
+   "line": 326,
+   "file": "psychoed.js",
+   "api": "getElementById",
+   "created": [
+    {
+     "file": "psychoed.js",
+     "line": 158,
+     "text": "<textarea id=\"ws_act_action\" rows=\"3\" placeholder=\"Enviar correo importante, practicar 5 min de respiración...\"></textarea>"
+    }
+   ]
+  },
+  {
+   "id": "ws_suds_25",
+   "line": 331,
+   "file": "psychoed.js",
+   "api": "getElementById",
+   "created": [
+    {
+     "file": "psychoed.js",
+     "line": 167,
+     "text": "<div class=\"form-group\"><label>Nivel Bajo (SUDS 25 - Ansiedad leve):</label><input type=\"text\" id=\"ws_suds_25\" placeholder=\"Ej: Pensar en hablar en público\"></d"
+    }
+   ]
+  },
+  {
+   "id": "ws_suds_50",
+   "line": 332,
+   "file": "psychoed.js",
+   "api": "getElementById",
+   "created": [
+    {
+     "file": "psychoed.js",
+     "line": 168,
+     "text": "<div class=\"form-group\"><label>Nivel Moderado (SUDS 50 - Ansiedad notable):</label><input type=\"text\" id=\"ws_suds_50\" placeholder=\"Ej: Estar en la sala antes de"
+    }
+   ]
+  },
+  {
+   "id": "ws_suds_75",
+   "line": 333,
+   "file": "psychoed.js",
+   "api": "getElementById",
+   "created": [
+    {
+     "file": "psychoed.js",
+     "line": 169,
+     "text": "<div class=\"form-group\"><label>Nivel Alto (SUDS 75 - Ansiedad intensa):</label><input type=\"text\" id=\"ws_suds_75\" placeholder=\"Ej: Mirar a la audiencia antes de"
+    }
+   ]
+  },
+  {
+   "id": "ws_suds_100",
+   "line": 334,
+   "file": "psychoed.js",
+   "api": "getElementById",
+   "created": [
+    {
+     "file": "psychoed.js",
+     "line": 170,
+     "text": "<div class=\"form-group\"><label>Nivel Máximo (SUDS 100 - Pánico/Malestar extremo):</label><input type=\"text\" id=\"ws_suds_100\" placeholder=\"Ej: Quedarme en blanco"
+    }
+   ]
+  },
+  {
+   "id": "ws_sleep_agreements",
+   "line": 339,
+   "file": "psychoed.js",
+   "api": "getElementById",
+   "created": [
+    {
+     "file": "psychoed.js",
+     "line": 186,
+     "text": "<textarea id=\"ws_sleep_agreements\" rows=\"3\" placeholder=\"Ej: Apagar el móvil a las 10:30 PM, leer un libro físico...\"></textarea>"
+    }
+   ]
+  },
+  {
+   "id": "ws_ba_1",
+   "line": 343,
+   "file": "psychoed.js",
+   "api": "getElementById",
+   "created": [
+    {
+     "file": "psychoed.js",
+     "line": 195,
+     "text": "<div class=\"form-group\"><label>Actividad 1 (Nivel bajo esfuerzo):</label><input type=\"text\" id=\"ws_ba_1\" placeholder=\"Ej: Caminar 15 minutos en el parque (P: 6,"
+    }
+   ]
+  },
+  {
+   "id": "ws_ba_2",
+   "line": 344,
+   "file": "psychoed.js",
+   "api": "getElementById",
+   "created": [
+    {
+     "file": "psychoed.js",
+     "line": 196,
+     "text": "<div class=\"form-group\"><label>Actividad 2 (Nivel medio):</label><input type=\"text\" id=\"ws_ba_2\" placeholder=\"Ej: Llamar a un amigo cercano (P: 7, L: 6)\"></div>"
+    }
+   ]
+  },
+  {
+   "id": "ws_ba_3",
+   "line": 345,
+   "file": "psychoed.js",
+   "api": "getElementById",
+   "created": [
+    {
+     "file": "psychoed.js",
+     "line": 197,
+     "text": "<div class=\"form-group\"><label>Actividad 3 (Nivel reto):</label><input type=\"text\" id=\"ws_ba_3\" placeholder=\"Ej: Organizar el escritorio de trabajo (P: 4, L: 9)"
+    }
+   ]
+  },
+  {
+   "id": "ws_tipp_plan",
+   "line": 350,
+   "file": "psychoed.js",
+   "api": "getElementById",
+   "created": [
+    {
+     "file": "psychoed.js",
+     "line": 213,
+     "text": "<textarea id=\"ws_tipp_plan\" rows=\"2\" placeholder=\"Tener un pack de gel frío en el congelador para momentos de sobrecarga...\"></textarea>"
+    }
+   ]
+  },
+  {
+   "id": "ws_ground_notes",
+   "line": 354,
+   "file": "psychoed.js",
+   "api": "getElementById",
+   "created": [
+    {
+     "file": "psychoed.js",
+     "line": 287,
+     "text": "<textarea id=\"ws_ground_notes\" rows=\"2\" placeholder=\"Sensación de calma lograda (0-10)...\"></textarea>"
+    }
+   ]
+  },
+  {
+   "id": "reportModal",
+   "line": 7,
+   "file": "reports.js",
+   "api": "getElementById",
+   "created": [
+    {
+     "file": "reports.js",
+     "line": 10,
+     "text": "modal.id = 'reportModal';"
+    },
+    {
+     "file": "reports.js",
+     "line": 10,
+     "text": "modal.id = 'reportModal';"
+    }
+   ]
+  },
+  {
+   "id": "repSummary",
+   "line": 103,
+   "file": "reports.js",
+   "api": "getElementById",
+   "created": [
+    {
+     "file": "reports.js",
+     "line": 61,
+     "text": "<textarea id=\"repSummary\" rows=\"4\" placeholder=\"Describa el cuadro actual, sintomatología predominante y razones de la derivación o evaluación...\"></textarea>"
+    }
+   ]
+  },
+  {
+   "id": "repTitle",
+   "line": 110,
+   "file": "reports.js",
+   "api": "getElementById",
+   "created": [
+    {
+     "file": "reports.js",
+     "line": 51,
+     "text": "<input type=\"text\" id=\"repTitle\" value=\"INFORME DE DERIVACIÓN PSIQUIÁTRICA\" required>"
+    }
+   ]
+  },
+  {
+   "id": "repPatientId",
+   "line": 124,
+   "file": "reports.js",
+   "api": "getElementById",
+   "created": [
+    {
+     "file": "reports.js",
+     "line": 31,
+     "text": "<select id=\"repPatientId\" required class=\"form-control\" onchange=\"ClinicalReports.onPatientChange(this.value)\">"
+    }
+   ]
+  },
+  {
+   "id": "repTitle",
+   "line": 128,
+   "file": "reports.js",
+   "api": "getElementById",
+   "created": [
+    {
+     "file": "reports.js",
+     "line": 51,
+     "text": "<input type=\"text\" id=\"repTitle\" value=\"INFORME DE DERIVACIÓN PSIQUIÁTRICA\" required>"
+    }
+   ]
+  },
+  {
+   "id": "repRecipient",
+   "line": 129,
+   "file": "reports.js",
+   "api": "getElementById",
+   "created": [
+    {
+     "file": "reports.js",
+     "line": 56,
+     "text": "<input type=\"text\" id=\"repRecipient\" placeholder=\"Ej: Dr. / Dra. Especialista en Psiquiatría o A quien corresponda\">"
+    }
+   ]
+  },
+  {
+   "id": "repSummary",
+   "line": 130,
+   "file": "reports.js",
+   "api": "getElementById",
+   "created": [
+    {
+     "file": "reports.js",
+     "line": 61,
+     "text": "<textarea id=\"repSummary\" rows=\"4\" placeholder=\"Describa el cuadro actual, sintomatología predominante y razones de la derivación o evaluación...\"></textarea>"
+    }
+   ]
+  },
+  {
+   "id": "repRecommendations",
+   "line": 131,
+   "file": "reports.js",
+   "api": "getElementById",
+   "created": [
+    {
+     "file": "reports.js",
+     "line": 66,
+     "text": "<textarea id=\"repRecommendations\" rows=\"3\" placeholder=\"Sugerencias de evaluación psicofarmacológica, seguimiento conjunto...\"></textarea>"
+    }
+   ]
+  },
+  {
+   "id": "repLicence",
+   "line": 132,
+   "file": "reports.js",
+   "api": "getElementById",
+   "created": [
+    {
+     "file": "reports.js",
+     "line": 74,
+     "text": "<input type=\"text\" id=\"repLicence\" placeholder=\"Ej: FPV-12345 / Col. 9876\" value=\"${localStorage.getItem('psico_licence') || ''}\">"
+    }
+   ]
+  },
+  {
+   "id": "repSpecialty",
+   "line": 133,
+   "file": "reports.js",
+   "api": "getElementById",
+   "created": [
+    {
+     "file": "reports.js",
+     "line": 78,
+     "text": "<input type=\"text\" id=\"repSpecialty\" placeholder=\"Ej: Psicología Clínica & Salud Mental\" value=\"${localStorage.getItem('psico_specialty') || ''}\">"
+    }
+   ]
+  },
+  {
+   "id": "vademecumModal",
+   "line": 83,
+   "file": "vademecum.js",
+   "api": "getElementById",
+   "created": [
+    {
+     "file": "vademecum.js",
+     "line": 86,
+     "text": "modal.id = 'vademecumModal';"
+    },
+    {
+     "file": "vademecum.js",
+     "line": 86,
+     "text": "modal.id = 'vademecumModal';"
+    }
+   ]
+  },
+  {
+   "id": "vademecumList",
+   "line": 122,
+   "file": "vademecum.js",
+   "api": "getElementById",
+   "created": [
+    {
+     "file": "vademecum.js",
+     "line": 104,
+     "text": "<div id=\"vademecumList\" style=\"display:flex;flex-direction:column;gap:12px;max-height:480px;overflow-y:auto;padding-right:4px;\">"
+    }
+   ]
+  },
+  {
+   "id": "tab-portal",
+   "line": 218,
+   "file": "app.js",
+   "api": "getElementById",
+   "created": [
+    {
+     "file": "app.js",
+     "line": 2563,
+     "text": "<div id=\"tab-portal\" class=\"patient-tab-content\">${renderPortalTab(id)}</div>"
+    }
+   ]
+  },
+  {
+   "id": "soapAiModal",
+   "line": 3378,
+   "file": "app.js",
+   "api": "getElementById",
+   "created": [
+    {
+     "file": "app.js",
+     "line": 3381,
+     "text": "modal.id = 'soapAiModal';"
+    },
+    {
+     "file": "app.js",
+     "line": 3381,
+     "text": "modal.id = 'soapAiModal';"
+    }
+   ]
+  },
+  {
+   "id": "soapAiModal",
+   "line": 3444,
+   "file": "app.js",
+   "api": "getElementById",
+   "created": [
+    {
+     "file": "app.js",
+     "line": 3381,
+     "text": "modal.id = 'soapAiModal';"
+    },
+    {
+     "file": "app.js",
+     "line": 3381,
+     "text": "modal.id = 'soapAiModal';"
+    }
+   ]
+  },
+  {
+   "id": "soapAiModal",
+   "line": 3448,
+   "file": "app.js",
+   "api": "getElementById",
+   "created": [
+    {
+     "file": "app.js",
+     "line": 3381,
+     "text": "modal.id = 'soapAiModal';"
+    },
+    {
+     "file": "app.js",
+     "line": 3381,
+     "text": "modal.id = 'soapAiModal';"
+    }
+   ]
+  },
+  {
+   "id": "soapAiInput",
+   "line": 3456,
+   "file": "app.js",
+   "api": "getElementById",
+   "created": [
+    {
+     "file": "app.js",
+     "line": 3405,
+     "text": "<textarea id=\"soapAiInput\" rows=\"4\" style=\"width:100%; border-radius:8px; padding:10px; font-size:13px;\" placeholder=\"Ejemplo: Paciente refiere que la ansiedad "
+    }
+   ]
+  },
+  {
+   "id": "btnGenerateSoapAi",
+   "line": 3462,
+   "file": "app.js",
+   "api": "getElementById",
+   "created": [
+    {
+     "file": "app.js",
+     "line": 3409,
+     "text": "<button type=\"button\" class=\"btn-primary full-width\" id=\"btnGenerateSoapAi\" onclick=\"generateSoapFromAiModal()\">"
+    }
+   ]
+  },
+  {
+   "id": "previewSoapS",
+   "line": 3485,
+   "file": "app.js",
+   "api": "getElementById",
+   "created": [
+    {
+     "file": "app.js",
+     "line": 3420,
+     "text": "<div id=\"previewSoapS\" style=\"margin-top:4px; color:var(--text-secondary);\"></div>"
+    }
+   ]
+  },
+  {
+   "id": "previewSoapO",
+   "line": 3486,
+   "file": "app.js",
+   "api": "getElementById",
+   "created": [
+    {
+     "file": "app.js",
+     "line": 3424,
+     "text": "<div id=\"previewSoapO\" style=\"margin-top:4px; color:var(--text-secondary);\"></div>"
+    }
+   ]
+  },
+  {
+   "id": "previewSoapA",
+   "line": 3487,
+   "file": "app.js",
+   "api": "getElementById",
+   "created": [
+    {
+     "file": "app.js",
+     "line": 3428,
+     "text": "<div id=\"previewSoapA\" style=\"margin-top:4px; color:var(--text-secondary);\"></div>"
+    }
+   ]
+  },
+  {
+   "id": "previewSoapP",
+   "line": 3488,
+   "file": "app.js",
+   "api": "getElementById",
+   "created": [
+    {
+     "file": "app.js",
+     "line": 3432,
+     "text": "<div id=\"previewSoapP\" style=\"margin-top:4px; color:var(--text-secondary);\"></div>"
+    }
+   ]
+  },
+  {
+   "id": "soapAiPreviewWrap",
+   "line": 3489,
+   "file": "app.js",
+   "api": "getElementById",
+   "created": [
+    {
+     "file": "app.js",
+     "line": 3415,
+     "text": "<div id=\"soapAiPreviewWrap\" style=\"display:none; background:var(--bg-primary); border:1px solid var(--border-color); border-radius:10px; padding:14px; margin-bo"
+    }
+   ]
+  },
+  {
+   "id": "soapAiInput",
+   "line": 3541,
+   "file": "app.js",
+   "api": "getElementById",
+   "created": [
+    {
+     "file": "app.js",
+     "line": 3405,
+     "text": "<textarea id=\"soapAiInput\" rows=\"4\" style=\"width:100%; border-radius:8px; padding:10px; font-size:13px;\" placeholder=\"Ejemplo: Paciente refiere que la ansiedad "
+    }
+   ]
+  },
+  {
+   "id": "btnSoapVoiceDictate",
+   "line": 3542,
+   "file": "app.js",
+   "api": "getElementById",
+   "created": [
+    {
+     "file": "app.js",
+     "line": 3401,
+     "text": "<button type=\"button\" class=\"btn-sm btn-secondary\" id=\"btnSoapVoiceDictate\" onclick=\"toggleSoapVoiceDictation()\">"
+    }
+   ]
+  },
+  {
+   "id": "tab-portal",
+   "line": 4115,
+   "file": "app.js",
+   "api": "getElementById",
+   "created": [
+    {
+     "file": "app.js",
+     "line": 2563,
+     "text": "<div id=\"tab-portal\" class=\"patient-tab-content\">${renderPortalTab(id)}</div>"
+    }
+   ]
+  },
+  {
+   "id": "portalTabBadgeCount",
+   "line": 4116,
+   "file": "app.js",
+   "api": "getElementById",
+   "created": [
+    {
+     "file": "app.js",
+     "line": 2552,
+     "text": "<span id=\"portalTabBadgeCount\" style=\"background: var(--accent-success); color: white; padding: 2px 6px; border-radius: 10px; font-size: 10px; margin-left: 4px;"
+    }
+   ]
+  },
+  {
+   "id": "confirmModal",
+   "line": 6397,
+   "file": "app.js",
+   "api": "getElementById",
+   "created": [
+    {
+     "file": "app.js",
+     "line": 6400,
+     "text": "modal.id = 'confirmModal';"
+    },
+    {
+     "file": "app.js",
+     "line": 6400,
+     "text": "modal.id = 'confirmModal';"
+    }
+   ]
+  },
+  {
+   "id": "confirmModalConfirmBtn",
+   "line": 6422,
+   "file": "app.js",
+   "api": "getElementById",
+   "created": [
+    {
+     "file": "app.js",
+     "line": 6413,
+     "text": "<button type=\"button\" id=\"confirmModalConfirmBtn\" class=\"btn-primary\" style=\"flex:1;justify-content:center;${isDanger ? 'background:#e16259;color:white;border:n"
+    }
+   ]
+  },
+  {
+   "id": "scalesHistoryList",
+   "line": 407,
+   "file": "scales.js",
+   "api": "getElementById",
+   "created": [
+    {
+     "file": "scales.js",
+     "line": 331,
+     "text": "<div id=\"scalesHistoryList\">"
+    }
+   ]
+  },
+  {
+   "id": "interactivePatientSelect",
+   "line": 492,
+   "file": "scales.js",
+   "api": "getElementById",
+   "created": [
+    {
+     "file": "scales.js",
+     "line": 441,
+     "text": "<select id=\"interactivePatientSelect\" required>"
+    }
+   ]
+  },
+  {
+   "id": "liveScaleScore",
+   "line": 509,
+   "file": "scales.js",
+   "api": "getElementById",
+   "created": [
+    {
+     "file": "scales.js",
+     "line": 457,
+     "text": "<div style=\"font-size:18px;font-weight:800;color:var(--accent-primary);\" id=\"liveScaleScore\">0 / ${scale.maxScore} pts</div>"
+    }
+   ]
+  },
+  {
+   "id": "liveScaleLevel",
+   "line": 510,
+   "file": "scales.js",
+   "api": "getElementById",
+   "created": [
+    {
+     "file": "scales.js",
+     "line": 458,
+     "text": "<div style=\"font-size:11px;font-weight:700;color:var(--text-tertiary);\" id=\"liveScaleLevel\">Puntuación Inicial</div>"
+    }
+   ]
+  },
+  {
+   "id": "interactivePatientSelect",
+   "line": 521,
+   "file": "scales.js",
+   "api": "getElementById",
+   "created": [
+    {
+     "file": "scales.js",
+     "line": 441,
+     "text": "<select id=\"interactivePatientSelect\" required>"
+    }
+   ]
+  },
+  {
+   "id": "goalTitle",
+   "line": 490,
+   "file": "finance.js",
+   "api": "getElementById",
+   "created": [
+    {
+     "file": "finance.js",
+     "line": 448,
+     "text": "<input type=\"text\" id=\"goalTitle\" required placeholder=\"Ej: Facturación Mensual Objetivo\" value=\"${g ? g.title : ''}\">"
+    }
+   ]
+  },
+  {
+   "id": "goalTarget",
+   "line": 491,
+   "file": "finance.js",
+   "api": "getElementById",
+   "created": [
+    {
+     "file": "finance.js",
+     "line": 453,
+     "text": "<input type=\"number\" step=\"0.01\" id=\"goalTarget\" required placeholder=\"Ej: 2000\" value=\"${g ? g.targetAmount : ''}\">"
+    }
+   ]
+  },
+  {
+   "id": "goalCategory",
+   "line": 492,
+   "file": "finance.js",
+   "api": "getElementById",
+   "created": [
+    {
+     "file": "finance.js",
+     "line": 457,
+     "text": "<select id=\"goalCategory\">"
+    }
+   ]
+  },
+  {
+   "id": "goalPeriod",
+   "line": 493,
+   "file": "finance.js",
+   "api": "getElementById",
+   "created": [
+    {
+     "file": "finance.js",
+     "line": 467,
+     "text": "<select id=\"goalPeriod\">"
+    }
+   ]
+  },
+  {
+   "id": "goalDescription",
+   "line": 494,
+   "file": "finance.js",
+   "api": "getElementById",
+   "created": [
+    {
+     "file": "finance.js",
+     "line": 475,
+     "text": "<textarea id=\"goalDescription\" rows=\"2\" placeholder=\"Ej: Honorarios mínimos para cubrir gastos fijos y ahorro...\">${g && g.description ? g.description : ''}</te"
+    }
+   ]
+  },
+  {
+   "id": "rateTitle",
+   "line": 650,
+   "file": "finance.js",
+   "api": "getElementById",
+   "created": [
+    {
+     "file": "finance.js",
+     "line": 615,
+     "text": "<input type=\"text\" id=\"rateTitle\" required placeholder=\"Ej: Consulta Psicoterapéutica Individual\" value=\"${r ? r.title : ''}\">"
+    }
+   ]
+  },
+  {
+   "id": "rateDuration",
+   "line": 651,
+   "file": "finance.js",
+   "api": "getElementById",
+   "created": [
+    {
+     "file": "finance.js",
+     "line": 620,
+     "text": "<input type=\"number\" id=\"rateDuration\" required placeholder=\"Ej: 50\" value=\"${r ? r.durationMinutes : 50}\">"
+    }
+   ]
+  },
+  {
+   "id": "rateAmount",
+   "line": 652,
+   "file": "finance.js",
+   "api": "getElementById",
+   "created": [
+    {
+     "file": "finance.js",
+     "line": 624,
+     "text": "<input type=\"number\" step=\"0.01\" id=\"rateAmount\" required placeholder=\"Ej: 45.00\" value=\"${r ? r.amount : ''}\">"
+    }
+   ]
+  },
+  {
+   "id": "rateDescription",
+   "line": 653,
+   "file": "finance.js",
+   "api": "getElementById",
+   "created": [
+    {
+     "file": "finance.js",
+     "line": 629,
+     "text": "<textarea id=\"rateDescription\" rows=\"2\" placeholder=\"Ej: Sesión estándar de 50 minutos para terapia individual...\">${r && r.description ? r.description : ''}</t"
+    }
+   ]
+  },
+  {
+   "id": "rateIsDefault",
+   "line": 654,
+   "file": "finance.js",
+   "api": "getElementById",
+   "created": [
+    {
+     "file": "finance.js",
+     "line": 633,
+     "text": "<input type=\"checkbox\" id=\"rateIsDefault\" ${r && r.isDefault ? 'checked' : (!r && rates.length === 0 ? 'checked' : '')}>"
+    }
+   ]
+  },
+  {
+   "id": "txConcept",
+   "line": 752,
+   "file": "finance.js",
+   "api": "getElementById",
+   "created": [
+    {
+     "file": "finance.js",
+     "line": 720,
+     "text": "<input type=\"text\" id=\"txConcept\" required placeholder=\"${type === 'income' ? 'Ej: Honorarios sesión...' : 'Ej: Alquiler consultorio marzo...'}\">"
+    },
+    {
+     "file": "finance.js",
+     "line": 779,
+     "text": "<input type=\"text\" id=\"txConcept\" required value=\"${tx.concept}\">"
+    }
+   ]
+  },
+  {
+   "id": "txAmount",
+   "line": 753,
+   "file": "finance.js",
+   "api": "getElementById",
+   "created": [
+    {
+     "file": "finance.js",
+     "line": 725,
+     "text": "<input type=\"number\" step=\"0.01\" id=\"txAmount\" required placeholder=\"0.00\">"
+    },
+    {
+     "file": "finance.js",
+     "line": 784,
+     "text": "<input type=\"number\" step=\"0.01\" id=\"txAmount\" required value=\"${tx.amount}\">"
+    }
+   ]
+  },
+  {
+   "id": "txDate",
+   "line": 754,
+   "file": "finance.js",
+   "api": "getElementById",
+   "created": [
+    {
+     "file": "finance.js",
+     "line": 729,
+     "text": "<input type=\"date\" id=\"txDate\" required value=\"${toDateInputValue(new Date())}\">"
+    },
+    {
+     "file": "finance.js",
+     "line": 788,
+     "text": "<input type=\"date\" id=\"txDate\" required value=\"${tx.date}\">"
+    }
+   ]
+  },
+  {
+   "id": "txCategory",
+   "line": 755,
+   "file": "finance.js",
+   "api": "getElementById",
+   "created": [
+    {
+     "file": "finance.js",
+     "line": 734,
+     "text": "<select id=\"txCategory\">"
+    },
+    {
+     "file": "finance.js",
+     "line": 793,
+     "text": "<select id=\"txCategory\">"
+    }
+   ]
+  },
+  {
+   "id": "txConcept",
+   "line": 814,
+   "file": "finance.js",
+   "api": "getElementById",
+   "created": [
+    {
+     "file": "finance.js",
+     "line": 720,
+     "text": "<input type=\"text\" id=\"txConcept\" required placeholder=\"${type === 'income' ? 'Ej: Honorarios sesión...' : 'Ej: Alquiler consultorio marzo...'}\">"
+    },
+    {
+     "file": "finance.js",
+     "line": 779,
+     "text": "<input type=\"text\" id=\"txConcept\" required value=\"${tx.concept}\">"
+    }
+   ]
+  },
+  {
+   "id": "txAmount",
+   "line": 815,
+   "file": "finance.js",
+   "api": "getElementById",
+   "created": [
+    {
+     "file": "finance.js",
+     "line": 725,
+     "text": "<input type=\"number\" step=\"0.01\" id=\"txAmount\" required placeholder=\"0.00\">"
+    },
+    {
+     "file": "finance.js",
+     "line": 784,
+     "text": "<input type=\"number\" step=\"0.01\" id=\"txAmount\" required value=\"${tx.amount}\">"
+    }
+   ]
+  },
+  {
+   "id": "txDate",
+   "line": 816,
+   "file": "finance.js",
+   "api": "getElementById",
+   "created": [
+    {
+     "file": "finance.js",
+     "line": 729,
+     "text": "<input type=\"date\" id=\"txDate\" required value=\"${toDateInputValue(new Date())}\">"
+    },
+    {
+     "file": "finance.js",
+     "line": 788,
+     "text": "<input type=\"date\" id=\"txDate\" required value=\"${tx.date}\">"
+    }
+   ]
+  },
+  {
+   "id": "txCategory",
+   "line": 817,
+   "file": "finance.js",
+   "api": "getElementById",
+   "created": [
+    {
+     "file": "finance.js",
+     "line": 734,
+     "text": "<select id=\"txCategory\">"
+    },
+    {
+     "file": "finance.js",
+     "line": 793,
+     "text": "<select id=\"txCategory\">"
+    }
+   ]
+  },
+  {
+   "id": "newCatInput",
+   "line": 872,
+   "file": "finance.js",
+   "api": "getElementById",
+   "created": [
+    {
+     "file": "finance.js",
+     "line": 856,
+     "text": "<input type=\"text\" id=\"newCatInput\" placeholder=\"Nueva categoría...\" style=\"flex:1;padding:8px;border:1px solid var(--border-primary);border-radius:var(--radius"
+    }
+   ]
+  },
+  {
+   "id": "cfgFiscalName",
+   "line": 143,
+   "file": "adm.js",
+   "api": "getElementById",
+   "created": [
+    {
+     "file": "adm.js",
+     "line": 100,
+     "text": "<input type=\"text\" id=\"cfgFiscalName\" required value=\"${config.fiscalName}\" placeholder=\"Dr. / Lcdo. ...\">"
+    }
+   ]
+  },
+  {
+   "id": "cfgRif",
+   "line": 144,
+   "file": "adm.js",
+   "api": "getElementById",
+   "created": [
+    {
+     "file": "adm.js",
+     "line": 105,
+     "text": "<input type=\"text\" id=\"cfgRif\" required value=\"${config.rif}\" placeholder=\"V-12345678-0\">"
+    }
+   ]
+  },
+  {
+   "id": "cfgPhone",
+   "line": 145,
+   "file": "adm.js",
+   "api": "getElementById",
+   "created": [
+    {
+     "file": "adm.js",
+     "line": 109,
+     "text": "<input type=\"text\" id=\"cfgPhone\" value=\"${config.phone || ''}\">"
+    }
+   ]
+  },
+  {
+   "id": "cfgAddress",
+   "line": 146,
+   "file": "adm.js",
+   "api": "getElementById",
+   "created": [
+    {
+     "file": "adm.js",
+     "line": 114,
+     "text": "<textarea id=\"cfgAddress\" required rows=\"2\">${config.address || ''}</textarea>"
+    }
+   ]
+  },
+  {
+   "id": "cfgPrefix",
+   "line": 147,
+   "file": "adm.js",
+   "api": "getElementById",
+   "created": [
+    {
+     "file": "adm.js",
+     "line": 119,
+     "text": "<input type=\"text\" id=\"cfgPrefix\" value=\"${config.invoicePrefix}\">"
+    }
+   ]
+  },
+  {
+   "id": "cfgNextNum",
+   "line": 148,
+   "file": "adm.js",
+   "api": "getElementById",
+   "created": [
+    {
+     "file": "adm.js",
+     "line": 123,
+     "text": "<input type=\"number\" id=\"cfgNextNum\" value=\"${config.nextNumber}\">"
+    }
+   ]
+  },
+  {
+   "id": "cfgIGTF",
+   "line": 150,
+   "file": "adm.js",
+   "api": "getElementById",
+   "created": [
+    {
+     "file": "adm.js",
+     "line": 128,
+     "text": "<input type=\"checkbox\" id=\"cfgIGTF\" ${config.applyIGTF ? 'checked' : ''}> Aplicar 3% IGTF a pagos en Divisas / USD"
+    }
+   ]
+  },
+  {
+   "id": "invClientName",
+   "line": 302,
+   "file": "adm.js",
+   "api": "getElementById",
+   "created": [
+    {
+     "file": "adm.js",
+     "line": 258,
+     "text": "<input type=\"text\" id=\"invClientName\" required>"
+    }
+   ]
+  },
+  {
+   "id": "invClientRif",
+   "line": 303,
+   "file": "adm.js",
+   "api": "getElementById",
+   "created": [
+    {
+     "file": "adm.js",
+     "line": 262,
+     "text": "<input type=\"text\" id=\"invClientRif\" required placeholder=\"V-12345678\">"
+    }
+   ]
+  },
+  {
+   "id": "invAmount",
+   "line": 308,
+   "file": "adm.js",
+   "api": "getElementById",
+   "created": [
+    {
+     "file": "adm.js",
+     "line": 272,
+     "text": "<input type=\"number\" step=\"0.01\" id=\"invAmount\" required value=\"40.00\" onchange=\"calculateInvoiceTotals()\">"
+    }
+   ]
+  },
+  {
+   "id": "invPaymentMethod",
+   "line": 309,
+   "file": "adm.js",
+   "api": "getElementById",
+   "created": [
+    {
+     "file": "adm.js",
+     "line": 276,
+     "text": "<select id=\"invPaymentMethod\" onchange=\"calculateInvoiceTotals()\">"
+    }
+   ]
+  },
+  {
+   "id": "invoiceSummaryBox",
+   "line": 315,
+   "file": "adm.js",
+   "api": "getElementById",
+   "created": [
+    {
+     "file": "adm.js",
+     "line": 284,
+     "text": "<div style=\"background:var(--bg-secondary);padding:12px;border-radius:var(--radius-md);margin-top:12px;\" id=\"invoiceSummaryBox\">"
+    }
+   ]
+  },
+  {
+   "id": "invAmount",
+   "line": 339,
+   "file": "adm.js",
+   "api": "getElementById",
+   "created": [
+    {
+     "file": "adm.js",
+     "line": 272,
+     "text": "<input type=\"number\" step=\"0.01\" id=\"invAmount\" required value=\"40.00\" onchange=\"calculateInvoiceTotals()\">"
+    }
+   ]
+  },
+  {
+   "id": "invPaymentMethod",
+   "line": 340,
+   "file": "adm.js",
+   "api": "getElementById",
+   "created": [
+    {
+     "file": "adm.js",
+     "line": 276,
+     "text": "<select id=\"invPaymentMethod\" onchange=\"calculateInvoiceTotals()\">"
+    }
+   ]
+  },
+  {
+   "id": "invClientName",
+   "line": 350,
+   "file": "adm.js",
+   "api": "getElementById",
+   "created": [
+    {
+     "file": "adm.js",
+     "line": 258,
+     "text": "<input type=\"text\" id=\"invClientName\" required>"
+    }
+   ]
+  },
+  {
+   "id": "invClientRif",
+   "line": 351,
+   "file": "adm.js",
+   "api": "getElementById",
+   "created": [
+    {
+     "file": "adm.js",
+     "line": 262,
+     "text": "<input type=\"text\" id=\"invClientRif\" required placeholder=\"V-12345678\">"
+    }
+   ]
+  },
+  {
+   "id": "invConcept",
+   "line": 352,
+   "file": "adm.js",
+   "api": "getElementById",
+   "created": [
+    {
+     "file": "adm.js",
+     "line": 267,
+     "text": "<input type=\"text\" id=\"invConcept\" required value=\"Honorarios Profesionales - Consulta Psicológica\">"
+    }
+   ]
+  },
+  {
+   "id": "customReminderPatient",
+   "line": 612,
+   "file": "session-reminders.js",
+   "api": "getElementById",
+   "created": [
+    {
+     "file": "session-reminders.js",
+     "line": 565,
+     "text": "<select id=\"customReminderPatient\">"
+    }
+   ]
+  },
+  {
+   "id": "customReminderTitle",
+   "line": 613,
+   "file": "session-reminders.js",
+   "api": "getElementById",
+   "created": [
+    {
+     "file": "session-reminders.js",
+     "line": 575,
+     "text": "<input type=\"text\" id=\"customReminderTitle\" required placeholder=\"Ej. Revisar informe neuropsicológico previo a la cita\">"
+    }
+   ]
+  },
+  {
+   "id": "customReminderPriority",
+   "line": 614,
+   "file": "session-reminders.js",
+   "api": "getElementById",
+   "created": [
+    {
+     "file": "session-reminders.js",
+     "line": 581,
+     "text": "<select id=\"customReminderPriority\">"
+    }
+   ]
+  },
+  {
+   "id": "customReminderDate",
+   "line": 615,
+   "file": "session-reminders.js",
+   "api": "getElementById",
+   "created": [
+    {
+     "file": "session-reminders.js",
+     "line": 589,
+     "text": "<input type=\"date\" id=\"customReminderDate\" value=\"${toDateInputValue(new Date())}\">"
+    }
+   ]
+  },
+  {
+   "id": "customReminderNotes",
+   "line": 616,
+   "file": "session-reminders.js",
+   "api": "getElementById",
+   "created": [
+    {
+     "file": "session-reminders.js",
+     "line": 595,
+     "text": "<textarea id=\"customReminderNotes\" rows=\"3\" placeholder=\"Detalles o tareas asociadas a este recordatorio...\"></textarea>"
+    }
+   ]
+  },
+  {
+   "id": "crisisSecCSSRS",
+   "line": 343,
+   "file": "crisis-protocol.js",
+   "api": "getElementById",
+   "created": [
+    {
+     "file": "crisis-protocol.js",
+     "line": 186,
+     "text": "<div id=\"crisisSecCSSRS\">"
+    }
+   ]
+  },
+  {
+   "id": "crisisSecDirectory",
+   "line": 344,
+   "file": "crisis-protocol.js",
+   "api": "getElementById",
+   "created": [
+    {
+     "file": "crisis-protocol.js",
+     "line": 234,
+     "text": "<div id=\"crisisSecDirectory\" style=\"display:none;\">"
+    }
+   ]
+  },
+  {
+   "id": "crisisSecAction",
+   "line": 345,
+   "file": "crisis-protocol.js",
+   "api": "getElementById",
+   "created": [
+    {
+     "file": "crisis-protocol.js",
+     "line": 278,
+     "text": "<div id=\"crisisSecAction\" style=\"display:none;\">"
+    }
+   ]
+  },
+  {
+   "id": "tabBtnCSSRS",
+   "line": 346,
+   "file": "crisis-protocol.js",
+   "api": "getElementById",
+   "created": [
+    {
+     "file": "crisis-protocol.js",
+     "line": 174,
+     "text": "<button type=\"button\" class=\"tab-btn active\" id=\"tabBtnCSSRS\" onclick=\"switchCrisisTab('cssrs')\" style=\"padding:8px 14px; font-weight:600; border:none; backgrou"
+    }
+   ]
+  },
+  {
+   "id": "tabBtnDirectory",
+   "line": 347,
+   "file": "crisis-protocol.js",
+   "api": "getElementById",
+   "created": [
+    {
+     "file": "crisis-protocol.js",
+     "line": 177,
+     "text": "<button type=\"button\" class=\"tab-btn\" id=\"tabBtnDirectory\" onclick=\"switchCrisisTab('directory')\" style=\"padding:8px 14px; font-weight:600; border:none; backgro"
+    }
+   ]
+  },
+  {
+   "id": "tabBtnAction",
+   "line": 348,
+   "file": "crisis-protocol.js",
+   "api": "getElementById",
+   "created": [
+    {
+     "file": "crisis-protocol.js",
+     "line": 180,
+     "text": "<button type=\"button\" class=\"tab-btn\" id=\"tabBtnAction\" onclick=\"switchCrisisTab('action')\" style=\"padding:8px 14px; font-weight:600; border:none; background:no"
+    }
+   ]
+  },
+  {
+   "id": "crisisModalGeneralFooter",
+   "line": 349,
+   "file": "crisis-protocol.js",
+   "api": "getElementById",
+   "created": [
+    {
+     "file": "crisis-protocol.js",
+     "line": 326,
+     "text": "<div class=\"modal-actions\" id=\"crisisModalGeneralFooter\" style=\"display:flex; justify-content:space-between; align-items:center; margin-top:20px; border-top:1px"
+    }
+   ]
+  },
+  {
+   "id": "crisisHotlinesList",
+   "line": 379,
+   "file": "crisis-protocol.js",
+   "api": "getElementById",
+   "created": [
+    {
+     "file": "crisis-protocol.js",
+     "line": 258,
+     "text": "<div style=\"display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-bottom:16px;\" id=\"crisisHotlinesList\">"
+    }
+   ]
+  },
+  {
+   "id": "cssrsWish",
+   "line": 393,
+   "file": "crisis-protocol.js",
+   "api": "getElementById",
+   "created": [
+    {
+     "file": "crisis-protocol.js",
+     "line": 193,
+     "text": "<input type=\"checkbox\" id=\"cssrsWish\" onchange=\"updateLiveCSSRSCalculation()\">"
+    }
+   ]
+  },
+  {
+   "id": "cssrsIdeation",
+   "line": 394,
+   "file": "crisis-protocol.js",
+   "api": "getElementById",
+   "created": [
+    {
+     "file": "crisis-protocol.js",
+     "line": 197,
+     "text": "<input type=\"checkbox\" id=\"cssrsIdeation\" onchange=\"updateLiveCSSRSCalculation()\">"
+    }
+   ]
+  },
+  {
+   "id": "cssrsMethod",
+   "line": 395,
+   "file": "crisis-protocol.js",
+   "api": "getElementById",
+   "created": [
+    {
+     "file": "crisis-protocol.js",
+     "line": 201,
+     "text": "<input type=\"checkbox\" id=\"cssrsMethod\" onchange=\"updateLiveCSSRSCalculation()\">"
+    }
+   ]
+  },
+  {
+   "id": "cssrsIntent",
+   "line": 396,
+   "file": "crisis-protocol.js",
+   "api": "getElementById",
+   "created": [
+    {
+     "file": "crisis-protocol.js",
+     "line": 205,
+     "text": "<input type=\"checkbox\" id=\"cssrsIntent\" onchange=\"updateLiveCSSRSCalculation()\">"
+    }
+   ]
+  },
+  {
+   "id": "cssrsPlan",
+   "line": 397,
+   "file": "crisis-protocol.js",
+   "api": "getElementById",
+   "created": [
+    {
+     "file": "crisis-protocol.js",
+     "line": 209,
+     "text": "<input type=\"checkbox\" id=\"cssrsPlan\" onchange=\"updateLiveCSSRSCalculation()\">"
+    }
+   ]
+  },
+  {
+   "id": "cssrsMeans",
+   "line": 398,
+   "file": "crisis-protocol.js",
+   "api": "getElementById",
+   "created": [
+    {
+     "file": "crisis-protocol.js",
+     "line": 213,
+     "text": "<input type=\"checkbox\" id=\"cssrsMeans\" onchange=\"updateLiveCSSRSCalculation()\">"
+    }
+   ]
+  },
+  {
+   "id": "cssrsAttempts",
+   "line": 399,
+   "file": "crisis-protocol.js",
+   "api": "getElementById",
+   "created": [
+    {
+     "file": "crisis-protocol.js",
+     "line": 217,
+     "text": "<input type=\"checkbox\" id=\"cssrsAttempts\" onchange=\"updateLiveCSSRSCalculation()\">"
+    }
+   ]
+  },
+  {
+   "id": "cssrsProtective",
+   "line": 400,
+   "file": "crisis-protocol.js",
+   "api": "getElementById",
+   "created": [
+    {
+     "file": "crisis-protocol.js",
+     "line": 224,
+     "text": "<input type=\"text\" id=\"cssrsProtective\" placeholder=\"Ej. Apoyo familiar activo, mascota, creencias espirituales, vínculo terapéutico...\" style=\"width:100%; font"
+    }
+   ]
+  },
+  {
+   "id": "cssrsResultCard",
+   "line": 404,
+   "file": "crisis-protocol.js",
+   "api": "getElementById",
+   "created": [
+    {
+     "file": "crisis-protocol.js",
+     "line": 227,
+     "text": "<div id=\"cssrsResultCard\" style=\"background:var(--bg-secondary); border:1px solid var(--border-color); border-radius:8px; padding:12px 16px; margin-bottom:16px;"
+    }
+   ]
+  },
+  {
+   "id": "cssrsLevelText",
+   "line": 405,
+   "file": "crisis-protocol.js",
+   "api": "getElementById",
+   "created": [
+    {
+     "file": "crisis-protocol.js",
+     "line": 228,
+     "text": "<div style=\"font-weight:700; font-size:14px;\" id=\"cssrsLevelText\">Nivel de Riesgo Evaluado: Bajo Riesgo (Monitorizar)</div>"
+    }
+   ]
+  },
+  {
+   "id": "cssrsRecommendation",
+   "line": 406,
+   "file": "crisis-protocol.js",
+   "api": "getElementById",
+   "created": [
+    {
+     "file": "crisis-protocol.js",
+     "line": 229,
+     "text": "<div style=\"font-size:12px; color:var(--text-secondary); margin-top:4px;\" id=\"cssrsRecommendation\">Mantener canal de apoyo habitual y pautas de afrontamiento.</"
+    }
+   ]
+  },
+  {
+   "id": "crisisAttendedBy",
+   "line": 435,
+   "file": "crisis-protocol.js",
+   "api": "getElementById",
+   "created": [
+    {
+     "file": "crisis-protocol.js",
+     "line": 283,
+     "text": "<input type=\"text\" id=\"crisisAttendedBy\" required value=\"${AppState.currentUser?.name || 'Psicólogo Clínico'}\" style=\"width:100%; font-size:13px;\">"
+    }
+   ]
+  },
+  {
+   "id": "crisisAlertStatus",
+   "line": 436,
+   "file": "crisis-protocol.js",
+   "api": "getElementById",
+   "created": [
+    {
+     "file": "crisis-protocol.js",
+     "line": 287,
+     "text": "<select id=\"crisisAlertStatus\" style=\"width:100%; font-size:13px; padding:8px; border-radius:6px; border:1px solid var(--border-color);\">"
+    }
+   ]
+  },
+  {
+   "id": "crisisActionsTaken",
+   "line": 437,
+   "file": "crisis-protocol.js",
+   "api": "getElementById",
+   "created": [
+    {
+     "file": "crisis-protocol.js",
+     "line": 298,
+     "text": "<textarea id=\"crisisActionsTaken\" required rows=\"3\" style=\"width:100%; font-size:13px;\" placeholder=\"Detallar: Entrevista de contención telefónica/presencial, c"
+    }
+   ]
+  },
+  {
+   "id": "crisisReferral",
+   "line": 438,
+   "file": "crisis-protocol.js",
+   "api": "getElementById",
+   "created": [
+    {
+     "file": "crisis-protocol.js",
+     "line": 304,
+     "text": "<input type=\"text\" id=\"crisisReferral\" placeholder=\"Ej. Guardia Psiquiátrica Hospitalaria...\" style=\"width:100%; font-size:13px;\">"
+    }
+   ]
+  },
+  {
+   "id": "crisisFollowUp",
+   "line": 439,
+   "file": "crisis-protocol.js",
+   "api": "getElementById",
+   "created": [
+    {
+     "file": "crisis-protocol.js",
+     "line": 308,
+     "text": "<input type=\"text\" id=\"crisisFollowUp\" placeholder=\"Ej. Llamada de control a las 18:00 y cita mañana\" style=\"width:100%; font-size:13px;\">"
+    }
+   ]
+  },
+  {
+   "id": "cssrsWish",
+   "line": 442,
+   "file": "crisis-protocol.js",
+   "api": "getElementById",
+   "created": [
+    {
+     "file": "crisis-protocol.js",
+     "line": 193,
+     "text": "<input type=\"checkbox\" id=\"cssrsWish\" onchange=\"updateLiveCSSRSCalculation()\">"
+    }
+   ]
+  },
+  {
+   "id": "cssrsIdeation",
+   "line": 443,
+   "file": "crisis-protocol.js",
+   "api": "getElementById",
+   "created": [
+    {
+     "file": "crisis-protocol.js",
+     "line": 197,
+     "text": "<input type=\"checkbox\" id=\"cssrsIdeation\" onchange=\"updateLiveCSSRSCalculation()\">"
+    }
+   ]
+  },
+  {
+   "id": "cssrsMethod",
+   "line": 444,
+   "file": "crisis-protocol.js",
+   "api": "getElementById",
+   "created": [
+    {
+     "file": "crisis-protocol.js",
+     "line": 201,
+     "text": "<input type=\"checkbox\" id=\"cssrsMethod\" onchange=\"updateLiveCSSRSCalculation()\">"
+    }
+   ]
+  },
+  {
+   "id": "cssrsIntent",
+   "line": 445,
+   "file": "crisis-protocol.js",
+   "api": "getElementById",
+   "created": [
+    {
+     "file": "crisis-protocol.js",
+     "line": 205,
+     "text": "<input type=\"checkbox\" id=\"cssrsIntent\" onchange=\"updateLiveCSSRSCalculation()\">"
+    }
+   ]
+  },
+  {
+   "id": "cssrsPlan",
+   "line": 446,
+   "file": "crisis-protocol.js",
+   "api": "getElementById",
+   "created": [
+    {
+     "file": "crisis-protocol.js",
+     "line": 209,
+     "text": "<input type=\"checkbox\" id=\"cssrsPlan\" onchange=\"updateLiveCSSRSCalculation()\">"
+    }
+   ]
+  },
+  {
+   "id": "cssrsMeans",
+   "line": 447,
+   "file": "crisis-protocol.js",
+   "api": "getElementById",
+   "created": [
+    {
+     "file": "crisis-protocol.js",
+     "line": 213,
+     "text": "<input type=\"checkbox\" id=\"cssrsMeans\" onchange=\"updateLiveCSSRSCalculation()\">"
+    }
+   ]
+  },
+  {
+   "id": "cssrsAttempts",
+   "line": 448,
+   "file": "crisis-protocol.js",
+   "api": "getElementById",
+   "created": [
+    {
+     "file": "crisis-protocol.js",
+     "line": 217,
+     "text": "<input type=\"checkbox\" id=\"cssrsAttempts\" onchange=\"updateLiveCSSRSCalculation()\">"
+    }
+   ]
+  },
+  {
+   "id": "cssrsProtective",
+   "line": 449,
+   "file": "crisis-protocol.js",
+   "api": "getElementById",
+   "created": [
+    {
+     "file": "crisis-protocol.js",
+     "line": 224,
+     "text": "<input type=\"text\" id=\"cssrsProtective\" placeholder=\"Ej. Apoyo familiar activo, mascota, creencias espirituales, vínculo terapéutico...\" style=\"width:100%; font"
+    }
+   ]
+  },
+  {
+   "id": "consentModal",
+   "line": 15,
+   "file": "consentimiento.js",
+   "api": "getElementById",
+   "created": [
+    {
+     "file": "consentimiento.js",
+     "line": 18,
+     "text": "modal.id = 'consentModal';"
+    },
+    {
+     "file": "consentimiento.js",
+     "line": 18,
+     "text": "modal.id = 'consentModal';"
+    }
+   ]
+  },
+  {
+   "id": "signaturePadCanvas",
+   "line": 118,
+   "file": "consentimiento.js",
+   "api": "getElementById",
+   "created": [
+    {
+     "file": "consentimiento.js",
+     "line": 99,
+     "text": "<canvas id=\"signaturePadCanvas\" width=\"600\" height=\"150\" style=\"width: 100%; height: 150px; cursor: crosshair; display: block;\"></canvas>"
+    }
+   ]
+  },
+  {
+   "id": "chkTelehealth",
+   "line": 254,
+   "file": "consentimiento.js",
+   "api": "getElementById",
+   "created": [
+    {
+     "file": "consentimiento.js",
+     "line": 84,
+     "text": "<input type=\"checkbox\" id=\"chkTelehealth\" checked>"
+    }
+   ]
+  },
+  {
+   "id": "chkAiAssisted",
+   "line": 255,
+   "file": "consentimiento.js",
+   "api": "getElementById",
+   "created": [
+    {
+     "file": "consentimiento.js",
+     "line": 88,
+     "text": "<input type=\"checkbox\" id=\"chkAiAssisted\" checked>"
+    }
+   ]
+  },
+  {
+   "id": "fullHistoryModal",
+   "line": 767,
+   "file": "historia-clinica.js",
+   "api": "getElementById",
+   "created": [
+    {
+     "file": "historia-clinica.js",
+     "line": 770,
+     "text": "modal.id = 'fullHistoryModal';"
+    },
+    {
+     "file": "historia-clinica.js",
+     "line": 770,
+     "text": "modal.id = 'fullHistoryModal';"
+    }
+   ]
+  },
+  {
+   "id": "tab-historia",
+   "line": 1059,
+   "file": "historia-clinica.js",
+   "api": "getElementById",
+   "created": [
+    {
+     "file": "app.js",
+     "line": 2558,
+     "text": "<div id=\"tab-historia\" class=\"patient-tab-content\">${renderTabHistoria(patient)}</div>"
+    }
+   ]
+  },
+  {
+   "id": "genogramModal",
+   "line": 1073,
+   "file": "historia-clinica.js",
+   "api": "getElementById",
+   "created": [
+    {
+     "file": "historia-clinica.js",
+     "line": 1076,
+     "text": "modal.id = 'genogramModal';"
+    },
+    {
+     "file": "historia-clinica.js",
+     "line": 1076,
+     "text": "modal.id = 'genogramModal';"
+    }
+   ]
+  },
+  {
+   "id": "preconsultaModal",
+   "line": 1606,
+   "file": "historia-clinica.js",
+   "api": "getElementById",
+   "created": [
+    {
+     "file": "historia-clinica.js",
+     "line": 1609,
+     "text": "modal.id = 'preconsultaModal';"
+    },
+    {
+     "file": "historia-clinica.js",
+     "line": 1609,
+     "text": "modal.id = 'preconsultaModal';"
+    }
+   ]
+  },
+  {
+   "id": "preconsultaLinkText",
+   "line": 1675,
+   "file": "historia-clinica.js",
+   "api": "getElementById",
+   "created": [
+    {
+     "file": "historia-clinica.js",
+     "line": 1652,
+     "text": "<div class=\"link-display\" id=\"preconsultaLinkText\">"
+    }
+   ]
+  },
+  {
+   "id": "preconsultaLinkText",
+   "line": 1682,
+   "file": "historia-clinica.js",
+   "api": "getElementById",
+   "created": [
+    {
+     "file": "historia-clinica.js",
+     "line": 1652,
+     "text": "<div class=\"link-display\" id=\"preconsultaLinkText\">"
+    }
+   ]
+  },
+  {
+   "id": "gfImportModal",
+   "line": 1699,
+   "file": "historia-clinica.js",
+   "api": "getElementById",
+   "created": [
+    {
+     "file": "historia-clinica.js",
+     "line": 1702,
+     "text": "modal.id = 'gfImportModal';"
+    },
+    {
+     "file": "historia-clinica.js",
+     "line": 1702,
+     "text": "modal.id = 'gfImportModal';"
+    }
+   ]
+  },
+  {
+   "id": "gfImportText",
+   "line": 1740,
+   "file": "historia-clinica.js",
+   "api": "getElementById",
+   "created": [
+    {
+     "file": "historia-clinica.js",
+     "line": 1717,
+     "text": "<textarea id=\"gfImportText\" rows=\"10\" placeholder=\"Ejemplo de texto pegado:"
+    }
+   ]
+  },
+  {
+   "id": "inAppPreconsultaModal",
+   "line": 1904,
+   "file": "historia-clinica.js",
+   "api": "getElementById",
+   "created": [
+    {
+     "file": "historia-clinica.js",
+     "line": 1907,
+     "text": "modal.id = 'inAppPreconsultaModal';"
+    },
+    {
+     "file": "historia-clinica.js",
+     "line": 1907,
+     "text": "modal.id = 'inAppPreconsultaModal';"
+    }
+   ]
+  },
+  {
+   "id": "inapp_existingSelectGroup",
+   "line": 2214,
+   "file": "historia-clinica.js",
+   "api": "getElementById",
+   "created": [
+    {
+     "file": "historia-clinica.js",
+     "line": 1969,
+     "text": "<div id=\"inapp_existingSelectGroup\" style=\"display:${isExisting ? 'block' : 'none'};margin-bottom:18px;background:rgba(13,148,136,0.06);padding:12px 14px;border"
+    }
+   ]
+  },
+  {
+   "id": "inapp_editingPatientId",
+   "line": 2215,
+   "file": "historia-clinica.js",
+   "api": "getElementById",
+   "created": [
+    {
+     "file": "historia-clinica.js",
+     "line": 1979,
+     "text": "<input type=\"hidden\" id=\"inapp_editingPatientId\" value=\"${selectedPatient ? selectedPatient.id : ''}\">"
+    }
+   ]
+  },
+  {
+   "id": "inapp_patientSelect",
+   "line": 2222,
+   "file": "historia-clinica.js",
+   "api": "getElementById",
+   "created": [
+    {
+     "file": "historia-clinica.js",
+     "line": 1971,
+     "text": "<select id=\"inapp_patientSelect\" onchange=\"ClinicalHistorySystem.loadPatientIntoInAppForm(this.value)\" style=\"width:100%;padding:8px 12px;border-radius:6px;bord"
+    }
+   ]
+  },
+  {
+   "id": "inapp_currentStage",
+   "line": 2230,
+   "file": "historia-clinica.js",
+   "api": "getElementById",
+   "created": [
+    {
+     "file": "historia-clinica.js",
+     "line": 1978,
+     "text": "<input type=\"hidden\" id=\"inapp_currentStage\" value=\"${initialStage}\">"
+    }
+   ]
+  },
+  {
+   "id": "inapp_section_solicitante",
+   "line": 2248,
+   "file": "historia-clinica.js",
+   "api": "getElementById",
+   "created": [
+    {
+     "file": "historia-clinica.js",
+     "line": 1982,
+     "text": "<div id=\"inapp_section_solicitante\" style=\"display:${initialStage === 'adult' ? 'none' : 'block'};\">"
+    }
+   ]
+  },
+  {
+   "id": "inapp_section_padres",
+   "line": 2249,
+   "file": "historia-clinica.js",
+   "api": "getElementById",
+   "created": [
+    {
+     "file": "historia-clinica.js",
+     "line": 2080,
+     "text": "<div id=\"inapp_section_padres\" style=\"display:${initialStage === 'adult' ? 'none' : 'block'};\">"
+    }
+   ]
+  },
+  {
+   "id": "inapp_label_occupation",
+   "line": 2250,
+   "file": "historia-clinica.js",
+   "api": "getElementById",
+   "created": [
+    {
+     "file": "historia-clinica.js",
+     "line": 2045,
+     "text": "<label id=\"inapp_label_occupation\">${initialStage === 'adult' ? 'Ocupación / Profesión' : 'Nivel de Escolaridad / Grado'}</label>"
+    }
+   ]
+  },
+  {
+   "id": "inapp_patientOccupation",
+   "line": 2251,
+   "file": "historia-clinica.js",
+   "api": "getElementById",
+   "created": [
+    {
+     "file": "historia-clinica.js",
+     "line": 2046,
+     "text": "<input type=\"text\" id=\"inapp_patientOccupation\" placeholder=\"${initialStage === 'adult' ? 'Ej. Ingeniero, Contador, Comerciante...' : 'Ej. 5to Grado Primaria / "
+    }
+   ]
+  },
+  {
+   "id": "inapp_patientAgeDisplay",
+   "line": 2268,
+   "file": "historia-clinica.js",
+   "api": "getElementById",
+   "created": [
+    {
+     "file": "historia-clinica.js",
+     "line": 2035,
+     "text": "<input type=\"text\" id=\"inapp_patientAgeDisplay\" readonly placeholder=\"Se calcula automáticamente\" style=\"background:var(--bg-secondary);\">"
+    }
+   ]
+  },
+  {
+   "id": "inapp_currentStage",
+   "line": 2366,
+   "file": "historia-clinica.js",
+   "api": "getElementById",
+   "created": [
+    {
+     "file": "historia-clinica.js",
+     "line": 1978,
+     "text": "<input type=\"hidden\" id=\"inapp_currentStage\" value=\"${initialStage}\">"
+    }
+   ]
+  }
+ ],
+ "dynCreatedPortal": []
+}

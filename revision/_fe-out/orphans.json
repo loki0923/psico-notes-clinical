@@ -1,0 +1,20 @@
+[
+ {
+  "name": "generatePortalToken",
+  "file": "app.js",
+  "line": 4035,
+  "refs": 1
+ },
+ {
+  "name": "openInGoogleCalendar",
+  "file": "app.js",
+  "line": 6026,
+  "refs": 1
+ },
+ {
+  "name": "downloadICSFile",
+  "file": "app.js",
+  "line": 6032,
+  "refs": 1
+ }
+]

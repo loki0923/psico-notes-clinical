@@ -1,0 +1,2132 @@
+{
+ "handlers": [
+  {
+   "file": "index.html",
+   "line": 40,
+   "evt": "click",
+   "body": "openForgotPasswordUI(event)",
+   "calls": [
+    "openForgotPasswordUI"
+   ],
+   "tag": "a"
+  },
+  {
+   "file": "index.html",
+   "line": 52,
+   "evt": "submit",
+   "body": "event.preventDefault();",
+   "calls": [
+    "preventDefault"
+   ],
+   "tag": "form"
+  },
+  {
+   "file": "index.html",
+   "line": 66,
+   "evt": "click",
+   "body": "handleRequestResetCode(event)",
+   "calls": [
+    "handleRequestResetCode"
+   ],
+   "tag": "button"
+  },
+  {
+   "file": "index.html",
+   "line": 86,
+   "evt": "click",
+   "body": "handleSubmitNewPassword(event)",
+   "calls": [
+    "handleSubmitNewPassword"
+   ],
+   "tag": "button"
+  },
+  {
+   "file": "index.html",
+   "line": 92,
+   "evt": "click",
+   "body": "closeForgotPasswordUI(event)",
+   "calls": [
+    "closeForgotPasswordUI"
+   ],
+   "tag": "a"
+  },
+  {
+   "file": "index.html",
+   "line": 196,
+   "evt": "click",
+   "body": "closeMobileSidebar()",
+   "calls": [
+    "closeMobileSidebar"
+   ],
+   "tag": "button"
+  },
+  {
+   "file": "index.html",
+   "line": 233,
+   "evt": "click",
+   "body": "openRatesManagementModal()",
+   "calls": [
+    "openRatesManagementModal"
+   ],
+   "tag": "a"
+  },
+  {
+   "file": "index.html",
+   "line": 237,
+   "evt": "click",
+   "body": "openMonthlyGoalsModal()",
+   "calls": [
+    "openMonthlyGoalsModal"
+   ],
+   "tag": "a"
+  },
+  {
+   "file": "index.html",
+   "line": 248,
+   "evt": "click",
+   "body": "ClinicalHistorySystem.openInAppPreconsultaForm()",
+   "calls": [
+    "openInAppPreconsultaForm"
+   ],
+   "tag": "a"
+  },
+  {
+   "file": "index.html",
+   "line": 252,
+   "evt": "click",
+   "body": "PsychoEd.openWorksheetModal('tcc_5col')",
+   "calls": [
+    "openWorksheetModal"
+   ],
+   "tag": "a"
+  },
+  {
+   "file": "index.html",
+   "line": 256,
+   "evt": "click",
+   "body": "Vademecum.openVademecumModal()",
+   "calls": [
+    "openVademecumModal"
+   ],
+   "tag": "a"
+  },
+  {
+   "file": "index.html",
+   "line": 260,
+   "evt": "click",
+   "body": "ClinicalReports.openReportGeneratorModal()",
+   "calls": [
+    "openReportGeneratorModal"
+   ],
+   "tag": "a"
+  },
+  {
+   "file": "index.html",
+   "line": 279,
+   "evt": "click",
+   "body": "ClinicalSecurity.lockApp()",
+   "calls": [
+    "lockApp"
+   ],
+   "tag": "button"
+  },
+  {
+   "file": "index.html",
+   "line": 282,
+   "evt": "click",
+   "body": "openTherapistProfileModal()",
+   "calls": [
+    "openTherapistProfileModal"
+   ],
+   "tag": "button"
+  },
+  {
+   "file": "index.html",
+   "line": 285,
+   "evt": "click",
+   "body": "exportBackupFile()",
+   "calls": [
+    "exportBackupFile"
+   ],
+   "tag": "button"
+  },
+  {
+   "file": "index.html",
+   "line": 288,
+   "evt": "click",
+   "body": "importBackup()",
+   "calls": [
+    "importBackup"
+   ],
+   "tag": "button"
+  },
+  {
+   "file": "index.html",
+   "line": 291,
+   "evt": "click",
+   "body": "openBackupModal()",
+   "calls": [
+    "openBackupModal"
+   ],
+   "tag": "button"
+  },
+  {
+   "file": "index.html",
+   "line": 294,
+   "evt": "click",
+   "body": "preloadAIModel()",
+   "calls": [
+    "preloadAIModel"
+   ],
+   "tag": "button"
+  },
+  {
+   "file": "index.html",
+   "line": 298,
+   "evt": "click",
+   "body": "openTherapistProfileModal()",
+   "calls": [
+    "openTherapistProfileModal"
+   ],
+   "tag": "div"
+  },
+  {
+   "file": "index.html",
+   "line": 305,
+   "evt": "click",
+   "body": "event.stopPropagation(); handleLogout();",
+   "calls": [
+    "stopPropagation",
+    "handleLogout"
+   ],
+   "tag": "button"
+  },
+  {
+   "file": "index.html",
+   "line": 313,
+   "evt": "click",
+   "body": "closeMobileSidebar()",
+   "calls": [
+    "closeMobileSidebar"
+   ],
+   "tag": "div"
+  },
+  {
+   "file": "index.html",
+   "line": 319,
+   "evt": "click",
+   "body": "toggleMobileSidebar()",
+   "calls": [
+    "toggleMobileSidebar"
+   ],
+   "tag": "button"
+  },
+  {
+   "file": "index.html",
+   "line": 328,
+   "evt": "click",
+   "body": "if(window.CloudSyncManager) window.CloudSyncManager.manualSyncClick()",
+   "calls": [
+    "if",
+    "manualSyncClick"
+   ],
+   "tag": "button"
+  },
+  {
+   "file": "index.html",
+   "line": 331,
+   "evt": "click",
+   "body": "openTelehealthModal()",
+   "calls": [
+    "openTelehealthModal"
+   ],
+   "tag": "button"
+  },
+  {
+   "file": "index.html",
+   "line": 334,
+   "evt": "click",
+   "body": "openQaTestsModal()",
+   "calls": [
+    "openQaTestsModal"
+   ],
+   "tag": "button"
+  },
+  {
+   "file": "index.html",
+   "line": 352,
+   "evt": "click",
+   "body": "openActiveCrisisProtocol()",
+   "calls": [
+    "openActiveCrisisProtocol"
+   ],
+   "tag": "button"
+  },
+  {
+   "file": "index.html",
+   "line": 353,
+   "evt": "click",
+   "body": "dismissCrisisBanner()",
+   "calls": [
+    "dismissCrisisBanner"
+   ],
+   "tag": "button"
+  },
+  {
+   "file": "index.html",
+   "line": 388,
+   "evt": "click",
+   "body": "openMonthlyGoalsModal()",
+   "calls": [
+    "openMonthlyGoalsModal"
+   ],
+   "tag": "div"
+  },
+  {
+   "file": "index.html",
+   "line": 412,
+   "evt": "click",
+   "body": "openCustomReminderModal()",
+   "calls": [
+    "openCustomReminderModal"
+   ],
+   "tag": "button"
+  },
+  {
+   "file": "index.html",
+   "line": 454,
+   "evt": "click",
+   "body": "openModal('appointmentModal')",
+   "calls": [
+    "openModal"
+   ],
+   "tag": "button"
+  },
+  {
+   "file": "index.html",
+   "line": 468,
+   "evt": "click",
+   "body": "ClinicalHistorySystem.openInAppPreconsultaForm()",
+   "calls": [
+    "openInAppPreconsultaForm"
+   ],
+   "tag": "button"
+  },
+  {
+   "file": "index.html",
+   "line": 471,
+   "evt": "click",
+   "body": "ClinicalHistorySystem.openPreconsultaModal()",
+   "calls": [
+    "openPreconsultaModal"
+   ],
+   "tag": "button"
+  },
+  {
+   "file": "index.html",
+   "line": 474,
+   "evt": "click",
+   "body": "ClinicalHistorySystem.openGoogleFormImportModal()",
+   "calls": [
+    "openGoogleFormImportModal"
+   ],
+   "tag": "button"
+  },
+  {
+   "file": "index.html",
+   "line": 477,
+   "evt": "click",
+   "body": "openModal('patientModal')",
+   "calls": [
+    "openModal"
+   ],
+   "tag": "button"
+  },
+  {
+   "file": "index.html",
+   "line": 484,
+   "evt": "click",
+   "body": "setPatientCategoryFilter('all')",
+   "calls": [
+    "setPatientCategoryFilter"
+   ],
+   "tag": "button"
+  },
+  {
+   "file": "index.html",
+   "line": 488,
+   "evt": "click",
+   "body": "setPatientCategoryFilter('child')",
+   "calls": [
+    "setPatientCategoryFilter"
+   ],
+   "tag": "button"
+  },
+  {
+   "file": "index.html",
+   "line": 494,
+   "evt": "click",
+   "body": "setPatientCategoryFilter('adolescent')",
+   "calls": [
+    "setPatientCategoryFilter"
+   ],
+   "tag": "button"
+  },
+  {
+   "file": "index.html",
+   "line": 500,
+   "evt": "click",
+   "body": "setPatientCategoryFilter('adult')",
+   "calls": [
+    "setPatientCategoryFilter"
+   ],
+   "tag": "button"
+  },
+  {
+   "file": "index.html",
+   "line": 524,
+   "evt": "click",
+   "body": "setCalendarViewMode('day')",
+   "calls": [
+    "setCalendarViewMode"
+   ],
+   "tag": "button"
+  },
+  {
+   "file": "index.html",
+   "line": 527,
+   "evt": "click",
+   "body": "setCalendarViewMode('week')",
+   "calls": [
+    "setCalendarViewMode"
+   ],
+   "tag": "button"
+  },
+  {
+   "file": "index.html",
+   "line": 530,
+   "evt": "click",
+   "body": "setCalendarViewMode('month')",
+   "calls": [
+    "setCalendarViewMode"
+   ],
+   "tag": "button"
+  },
+  {
+   "file": "index.html",
+   "line": 533,
+   "evt": "click",
+   "body": "setCalendarViewMode('year')",
+   "calls": [
+    "setCalendarViewMode"
+   ],
+   "tag": "button"
+  },
+  {
+   "file": "index.html",
+   "line": 538,
+   "evt": "click",
+   "body": "openModal('appointmentModal')",
+   "calls": [
+    "openModal"
+   ],
+   "tag": "button"
+  },
+  {
+   "file": "index.html",
+   "line": 547,
+   "evt": "click",
+   "body": "navigateCalendarToday()",
+   "calls": [
+    "navigateCalendarToday"
+   ],
+   "tag": "button"
+  },
+  {
+   "file": "index.html",
+   "line": 551,
+   "evt": "click",
+   "body": "navigateCalendarPeriod(-1)",
+   "calls": [
+    "navigateCalendarPeriod"
+   ],
+   "tag": "button"
+  },
+  {
+   "file": "index.html",
+   "line": 554,
+   "evt": "click",
+   "body": "navigateCalendarPeriod(1)",
+   "calls": [
+    "navigateCalendarPeriod"
+   ],
+   "tag": "button"
+  },
+  {
+   "file": "index.html",
+   "line": 589,
+   "evt": "click",
+   "body": "openReporteAtencionModal()",
+   "calls": [
+    "openReporteAtencionModal"
+   ],
+   "tag": "button"
+  },
+  {
+   "file": "index.html",
+   "line": 613,
+   "evt": "click",
+   "body": "openBillingConfig()",
+   "calls": [
+    "openBillingConfig"
+   ],
+   "tag": "button"
+  },
+  {
+   "file": "index.html",
+   "line": 616,
+   "evt": "click",
+   "body": "openInvoiceCreator()",
+   "calls": [
+    "openInvoiceCreator"
+   ],
+   "tag": "button"
+  },
+  {
+   "file": "index.html",
+   "line": 720,
+   "evt": "click",
+   "body": "switchMobileView('dashboard')",
+   "calls": [
+    "switchMobileView"
+   ],
+   "tag": "button"
+  },
+  {
+   "file": "index.html",
+   "line": 724,
+   "evt": "click",
+   "body": "switchMobileView('patients')",
+   "calls": [
+    "switchMobileView"
+   ],
+   "tag": "button"
+  },
+  {
+   "file": "index.html",
+   "line": 728,
+   "evt": "click",
+   "body": "switchMobileView('appointments')",
+   "calls": [
+    "switchMobileView"
+   ],
+   "tag": "button"
+  },
+  {
+   "file": "index.html",
+   "line": 732,
+   "evt": "click",
+   "body": "switchMobileView('notes')",
+   "calls": [
+    "switchMobileView"
+   ],
+   "tag": "button"
+  },
+  {
+   "file": "index.html",
+   "line": 736,
+   "evt": "click",
+   "body": "toggleMobileSidebar()",
+   "calls": [
+    "toggleMobileSidebar"
+   ],
+   "tag": "button"
+  },
+  {
+   "file": "index.html",
+   "line": 744,
+   "evt": "click",
+   "body": "closeModal('patientModal')",
+   "calls": [
+    "closeModal"
+   ],
+   "tag": "div"
+  },
+  {
+   "file": "index.html",
+   "line": 748,
+   "evt": "click",
+   "body": "closeModal('patientModal')",
+   "calls": [
+    "closeModal"
+   ],
+   "tag": "button"
+  },
+  {
+   "file": "index.html",
+   "line": 760,
+   "evt": "change",
+   "body": "onPatientStatusChange()",
+   "calls": [
+    "onPatientStatusChange"
+   ],
+   "tag": "select"
+  },
+  {
+   "file": "index.html",
+   "line": 771,
+   "evt": "change",
+   "body": "onPatientCategoryChange()",
+   "calls": [
+    "onPatientCategoryChange"
+   ],
+   "tag": "select"
+  },
+  {
+   "file": "index.html",
+   "line": 779,
+   "evt": "change",
+   "body": "onPatientBirthdateChange()",
+   "calls": [
+    "onPatientBirthdateChange"
+   ],
+   "tag": "input"
+  },
+  {
+   "file": "index.html",
+   "line": 779,
+   "evt": "input",
+   "body": "onPatientBirthdateChange()",
+   "calls": [
+    "onPatientBirthdateChange"
+   ],
+   "tag": "input"
+  },
+  {
+   "file": "index.html",
+   "line": 879,
+   "evt": "change",
+   "body": "onReferralChange(this)",
+   "calls": [
+    "onReferralChange"
+   ],
+   "tag": "input"
+  },
+  {
+   "file": "index.html",
+   "line": 880,
+   "evt": "change",
+   "body": "onReferralChange(this)",
+   "calls": [
+    "onReferralChange"
+   ],
+   "tag": "input"
+  },
+  {
+   "file": "index.html",
+   "line": 881,
+   "evt": "change",
+   "body": "onReferralChange(this)",
+   "calls": [
+    "onReferralChange"
+   ],
+   "tag": "input"
+  },
+  {
+   "file": "index.html",
+   "line": 882,
+   "evt": "change",
+   "body": "onReferralChange(this)",
+   "calls": [
+    "onReferralChange"
+   ],
+   "tag": "input"
+  },
+  {
+   "file": "index.html",
+   "line": 883,
+   "evt": "change",
+   "body": "onReferralChange(this)",
+   "calls": [
+    "onReferralChange"
+   ],
+   "tag": "input"
+  },
+  {
+   "file": "index.html",
+   "line": 884,
+   "evt": "change",
+   "body": "onReferralChange(this)",
+   "calls": [
+    "onReferralChange"
+   ],
+   "tag": "input"
+  },
+  {
+   "file": "index.html",
+   "line": 994,
+   "evt": "change",
+   "body": "onInitiativeChange()",
+   "calls": [
+    "onInitiativeChange"
+   ],
+   "tag": "select"
+  },
+  {
+   "file": "index.html",
+   "line": 1080,
+   "evt": "click",
+   "body": "closeModal('patientModal')",
+   "calls": [
+    "closeModal"
+   ],
+   "tag": "button"
+  },
+  {
+   "file": "index.html",
+   "line": 1091,
+   "evt": "click",
+   "body": "closeModal('patientDetailModal')",
+   "calls": [
+    "closeModal"
+   ],
+   "tag": "div"
+  },
+  {
+   "file": "index.html",
+   "line": 1095,
+   "evt": "click",
+   "body": "closeModal('patientDetailModal')",
+   "calls": [
+    "closeModal"
+   ],
+   "tag": "button"
+  },
+  {
+   "file": "index.html",
+   "line": 1105,
+   "evt": "click",
+   "body": "closeModal('appointmentModal')",
+   "calls": [
+    "closeModal"
+   ],
+   "tag": "div"
+  },
+  {
+   "file": "index.html",
+   "line": 1109,
+   "evt": "click",
+   "body": "closeModal('appointmentModal')",
+   "calls": [
+    "closeModal"
+   ],
+   "tag": "button"
+  },
+  {
+   "file": "index.html",
+   "line": 1122,
+   "evt": "click",
+   "body": "suggestAppointmentSlots()",
+   "calls": [
+    "suggestAppointmentSlots"
+   ],
+   "tag": "button"
+  },
+  {
+   "file": "index.html",
+   "line": 1170,
+   "evt": "click",
+   "body": "closeModal('appointmentModal')",
+   "calls": [
+    "closeModal"
+   ],
+   "tag": "button"
+  },
+  {
+   "file": "index.html",
+   "line": 1181,
+   "evt": "click",
+   "body": "closeModal('noteModal')",
+   "calls": [
+    "closeModal"
+   ],
+   "tag": "div"
+  },
+  {
+   "file": "index.html",
+   "line": 1185,
+   "evt": "click",
+   "body": "closeModal('noteModal')",
+   "calls": [
+    "closeModal"
+   ],
+   "tag": "button"
+  },
+  {
+   "file": "index.html",
+   "line": 1192,
+   "evt": "click",
+   "body": "restoreNoteDraft()",
+   "calls": [
+    "restoreNoteDraft"
+   ],
+   "tag": "button"
+  },
+  {
+   "file": "index.html",
+   "line": 1193,
+   "evt": "click",
+   "body": "discardNoteDraft()",
+   "calls": [
+    "discardNoteDraft"
+   ],
+   "tag": "button"
+  },
+  {
+   "file": "index.html",
+   "line": 1216,
+   "evt": "click",
+   "body": "switchNoteFormat('fpv')",
+   "calls": [
+    "switchNoteFormat"
+   ],
+   "tag": "button"
+  },
+  {
+   "file": "index.html",
+   "line": 1219,
+   "evt": "click",
+   "body": "switchNoteFormat('soap')",
+   "calls": [
+    "switchNoteFormat"
+   ],
+   "tag": "button"
+  },
+  {
+   "file": "index.html",
+   "line": 1243,
+   "evt": "click",
+   "body": "toggleDictation('noteSessionGoals')",
+   "calls": [
+    "toggleDictation"
+   ],
+   "tag": "button"
+  },
+  {
+   "file": "index.html",
+   "line": 1250,
+   "evt": "click",
+   "body": "toggleDictation('noteSessionDescription')",
+   "calls": [
+    "toggleDictation"
+   ],
+   "tag": "button"
+  },
+  {
+   "file": "index.html",
+   "line": 1257,
+   "evt": "click",
+   "body": "toggleDictation('noteClinicalFindings')",
+   "calls": [
+    "toggleDictation"
+   ],
+   "tag": "button"
+  },
+  {
+   "file": "index.html",
+   "line": 1283,
+   "evt": "click",
+   "body": "openSoapAiModal()",
+   "calls": [
+    "openSoapAiModal"
+   ],
+   "tag": "button"
+  },
+  {
+   "file": "index.html",
+   "line": 1290,
+   "evt": "change",
+   "body": "applySoapTemplate(this.value)",
+   "calls": [
+    "applySoapTemplate"
+   ],
+   "tag": "select"
+  },
+  {
+   "file": "index.html",
+   "line": 1302,
+   "evt": "click",
+   "body": "toggleDictation('noteSubjetivo')",
+   "calls": [
+    "toggleDictation"
+   ],
+   "tag": "button"
+  },
+  {
+   "file": "index.html",
+   "line": 1311,
+   "evt": "click",
+   "body": "toggleDictation('noteObjetivo')",
+   "calls": [
+    "toggleDictation"
+   ],
+   "tag": "button"
+  },
+  {
+   "file": "index.html",
+   "line": 1320,
+   "evt": "click",
+   "body": "toggleDictation('noteAnalisis')",
+   "calls": [
+    "toggleDictation"
+   ],
+   "tag": "button"
+  },
+  {
+   "file": "index.html",
+   "line": 1329,
+   "evt": "click",
+   "body": "toggleDictation('notePlan')",
+   "calls": [
+    "toggleDictation"
+   ],
+   "tag": "button"
+  },
+  {
+   "file": "index.html",
+   "line": 1340,
+   "evt": "click",
+   "body": "addIntersessionTask()",
+   "calls": [
+    "addIntersessionTask"
+   ],
+   "tag": "button"
+  },
+  {
+   "file": "index.html",
+   "line": 1396,
+   "evt": "click",
+   "body": "closeModal('noteModal')",
+   "calls": [
+    "closeModal"
+   ],
+   "tag": "button"
+  },
+  {
+   "file": "index.html",
+   "line": 1397,
+   "evt": "click",
+   "body": "ClinicalHistorySystem.exportReporteAtencionPDF(document.getElementById('noteId').value)",
+   "calls": [
+    "exportReporteAtencionPDF",
+    "getElementById"
+   ],
+   "tag": "button"
+  },
+  {
+   "file": "index.html",
+   "line": 1410,
+   "evt": "click",
+   "body": "closeModal('scaleModal')",
+   "calls": [
+    "closeModal"
+   ],
+   "tag": "div"
+  },
+  {
+   "file": "index.html",
+   "line": 1414,
+   "evt": "click",
+   "body": "closeModal('scaleModal')",
+   "calls": [
+    "closeModal"
+   ],
+   "tag": "button"
+  },
+  {
+   "file": "index.html",
+   "line": 1424,
+   "evt": "click",
+   "body": "closeModal('billingModal')",
+   "calls": [
+    "closeModal"
+   ],
+   "tag": "div"
+  },
+  {
+   "file": "index.html",
+   "line": 1428,
+   "evt": "click",
+   "body": "closeModal('billingModal')",
+   "calls": [
+    "closeModal"
+   ],
+   "tag": "button"
+  },
+  {
+   "file": "index.html",
+   "line": 1438,
+   "evt": "click",
+   "body": "closeModal('backupModal')",
+   "calls": [
+    "closeModal"
+   ],
+   "tag": "div"
+  },
+  {
+   "file": "index.html",
+   "line": 1442,
+   "evt": "click",
+   "body": "closeModal('backupModal')",
+   "calls": [
+    "closeModal"
+   ],
+   "tag": "button"
+  },
+  {
+   "file": "index.html",
+   "line": 1452,
+   "evt": "click",
+   "body": "closeModal('financeTransactionModal')",
+   "calls": [
+    "closeModal"
+   ],
+   "tag": "div"
+  },
+  {
+   "file": "index.html",
+   "line": 1456,
+   "evt": "click",
+   "body": "closeModal('financeTransactionModal')",
+   "calls": [
+    "closeModal"
+   ],
+   "tag": "button"
+  },
+  {
+   "file": "index.html",
+   "line": 1466,
+   "evt": "click",
+   "body": "closeModal('financeCategoriesModal')",
+   "calls": [
+    "closeModal"
+   ],
+   "tag": "div"
+  },
+  {
+   "file": "index.html",
+   "line": 1470,
+   "evt": "click",
+   "body": "closeModal('financeCategoriesModal')",
+   "calls": [
+    "closeModal"
+   ],
+   "tag": "button"
+  },
+  {
+   "file": "index.html",
+   "line": 1480,
+   "evt": "click",
+   "body": "closeModal('financeGoalModal')",
+   "calls": [
+    "closeModal"
+   ],
+   "tag": "div"
+  },
+  {
+   "file": "index.html",
+   "line": 1484,
+   "evt": "click",
+   "body": "closeModal('financeGoalModal')",
+   "calls": [
+    "closeModal"
+   ],
+   "tag": "button"
+  },
+  {
+   "file": "index.html",
+   "line": 1494,
+   "evt": "click",
+   "body": "closeModal('financeRateModal')",
+   "calls": [
+    "closeModal"
+   ],
+   "tag": "div"
+  },
+  {
+   "file": "index.html",
+   "line": 1498,
+   "evt": "click",
+   "body": "closeModal('financeRateModal')",
+   "calls": [
+    "closeModal"
+   ],
+   "tag": "button"
+  },
+  {
+   "file": "index.html",
+   "line": 1508,
+   "evt": "click",
+   "body": "closeReminderDrawer()",
+   "calls": [
+    "closeReminderDrawer"
+   ],
+   "tag": "div"
+  },
+  {
+   "file": "index.html",
+   "line": 1515,
+   "evt": "click",
+   "body": "closeReminderDrawer()",
+   "calls": [
+    "closeReminderDrawer"
+   ],
+   "tag": "button"
+  },
+  {
+   "file": "index.html",
+   "line": 1519,
+   "evt": "click",
+   "body": "filterReminderDrawerCategory('all')",
+   "calls": [
+    "filterReminderDrawerCategory"
+   ],
+   "tag": "span"
+  },
+  {
+   "file": "index.html",
+   "line": 1520,
+   "evt": "click",
+   "body": "filterReminderDrawerCategory('no_note')",
+   "calls": [
+    "filterReminderDrawerCategory"
+   ],
+   "tag": "span"
+  },
+  {
+   "file": "index.html",
+   "line": 1521,
+   "evt": "click",
+   "body": "filterReminderDrawerCategory('starting_soon')",
+   "calls": [
+    "filterReminderDrawerCategory"
+   ],
+   "tag": "span"
+  },
+  {
+   "file": "index.html",
+   "line": 1522,
+   "evt": "click",
+   "body": "filterReminderDrawerCategory('unconfirmed')",
+   "calls": [
+    "filterReminderDrawerCategory"
+   ],
+   "tag": "span"
+  },
+  {
+   "file": "index.html",
+   "line": 1523,
+   "evt": "click",
+   "body": "filterReminderDrawerCategory('custom')",
+   "calls": [
+    "filterReminderDrawerCategory"
+   ],
+   "tag": "span"
+  },
+  {
+   "file": "index.html",
+   "line": 1529,
+   "evt": "click",
+   "body": "openCustomReminderModal()",
+   "calls": [
+    "openCustomReminderModal"
+   ],
+   "tag": "button"
+  },
+  {
+   "file": "index.html",
+   "line": 1538,
+   "evt": "click",
+   "body": "closeModal('aiCopilotModal')",
+   "calls": [
+    "closeModal"
+   ],
+   "tag": "div"
+  },
+  {
+   "file": "index.html",
+   "line": 1543,
+   "evt": "click",
+   "body": "openApiKeyConfigModal()",
+   "calls": [
+    "openApiKeyConfigModal"
+   ],
+   "tag": "button"
+  },
+  {
+   "file": "index.html",
+   "line": 1546,
+   "evt": "click",
+   "body": "closeModal('aiCopilotModal')",
+   "calls": [
+    "closeModal"
+   ],
+   "tag": "button"
+  },
+  {
+   "file": "index.html",
+   "line": 1552,
+   "evt": "click",
+   "body": "switchAiTab('copilot')",
+   "calls": [
+    "switchAiTab"
+   ],
+   "tag": "button"
+  },
+  {
+   "file": "index.html",
+   "line": 1553,
+   "evt": "click",
+   "body": "switchAiTab('diagnostics')",
+   "calls": [
+    "switchAiTab"
+   ],
+   "tag": "button"
+  },
+  {
+   "file": "index.html",
+   "line": 1554,
+   "evt": "click",
+   "body": "switchAiTab('soap')",
+   "calls": [
+    "switchAiTab"
+   ],
+   "tag": "button"
+  },
+  {
+   "file": "index.html",
+   "line": 1567,
+   "evt": "submit",
+   "body": "handleAiChatSubmit(event)",
+   "calls": [
+    "handleAiChatSubmit"
+   ],
+   "tag": "form"
+  },
+  {
+   "file": "index.html",
+   "line": 1577,
+   "evt": "change",
+   "body": "runAiDiagnosticAnalysis()",
+   "calls": [
+    "runAiDiagnosticAnalysis"
+   ],
+   "tag": "select"
+  },
+  {
+   "file": "index.html",
+   "line": 1597,
+   "evt": "click",
+   "body": "runAiSoapSynthesis()",
+   "calls": [
+    "runAiSoapSynthesis"
+   ],
+   "tag": "button"
+  },
+  {
+   "file": "index.html",
+   "line": 1607,
+   "evt": "click",
+   "body": "closeModal('apiKeyModal')",
+   "calls": [
+    "closeModal"
+   ],
+   "tag": "div"
+  },
+  {
+   "file": "index.html",
+   "line": 1611,
+   "evt": "click",
+   "body": "closeModal('apiKeyModal')",
+   "calls": [
+    "closeModal"
+   ],
+   "tag": "button"
+  },
+  {
+   "file": "index.html",
+   "line": 1625,
+   "evt": "click",
+   "body": "saveGeminiKeyFromModal()",
+   "calls": [
+    "saveGeminiKeyFromModal"
+   ],
+   "tag": "button"
+  },
+  {
+   "file": "index.html",
+   "line": 1633,
+   "evt": "click",
+   "body": "closeModal('telehealthModal')",
+   "calls": [
+    "closeModal"
+   ],
+   "tag": "div"
+  },
+  {
+   "file": "index.html",
+   "line": 1637,
+   "evt": "click",
+   "body": "closeModal('telehealthModal')",
+   "calls": [
+    "closeModal"
+   ],
+   "tag": "button"
+  },
+  {
+   "file": "index.html",
+   "line": 1643,
+   "evt": "change",
+   "body": "updateTelehealthPatient(this.value)",
+   "calls": [
+    "updateTelehealthPatient"
+   ],
+   "tag": "select"
+  },
+  {
+   "file": "index.html",
+   "line": 1648,
+   "evt": "click",
+   "body": "copyTelehealthLink()",
+   "calls": [
+    "copyTelehealthLink"
+   ],
+   "tag": "button"
+  },
+  {
+   "file": "index.html",
+   "line": 1649,
+   "evt": "click",
+   "body": "openTelehealthSeparateTab()",
+   "calls": [
+    "openTelehealthSeparateTab"
+   ],
+   "tag": "button"
+  },
+  {
+   "file": "index.html",
+   "line": 1660,
+   "evt": "click",
+   "body": "toggleDictation('telehealthNotesInput')",
+   "calls": [
+    "toggleDictation"
+   ],
+   "tag": "button"
+  },
+  {
+   "file": "index.html",
+   "line": 1663,
+   "evt": "click",
+   "body": "transferTelehealthNotesToSoap()",
+   "calls": [
+    "transferTelehealthNotesToSoap"
+   ],
+   "tag": "button"
+  },
+  {
+   "file": "index.html",
+   "line": 1672,
+   "evt": "click",
+   "body": "closeModal('qaTestsModal')",
+   "calls": [
+    "closeModal"
+   ],
+   "tag": "div"
+  },
+  {
+   "file": "index.html",
+   "line": 1676,
+   "evt": "click",
+   "body": "closeModal('qaTestsModal')",
+   "calls": [
+    "closeModal"
+   ],
+   "tag": "button"
+  },
+  {
+   "file": "index.html",
+   "line": 1687,
+   "evt": "click",
+   "body": "runAutomatedQaTests()",
+   "calls": [
+    "runAutomatedQaTests"
+   ],
+   "tag": "button"
+  },
+  {
+   "file": "index.html",
+   "line": 1695,
+   "evt": "click",
+   "body": "closeModal('therapistProfileModal')",
+   "calls": [
+    "closeModal"
+   ],
+   "tag": "div"
+  },
+  {
+   "file": "index.html",
+   "line": 1699,
+   "evt": "click",
+   "body": "closeModal('therapistProfileModal')",
+   "calls": [
+    "closeModal"
+   ],
+   "tag": "button"
+  },
+  {
+   "file": "index.html",
+   "line": 1701,
+   "evt": "submit",
+   "body": "handleSaveTherapistProfile(event)",
+   "calls": [
+    "handleSaveTherapistProfile"
+   ],
+   "tag": "form"
+  },
+  {
+   "file": "index.html",
+   "line": 1736,
+   "evt": "click",
+   "body": "clearTherapistSignaturePad()",
+   "calls": [
+    "clearTherapistSignaturePad"
+   ],
+   "tag": "button"
+  },
+  {
+   "file": "index.html",
+   "line": 1746,
+   "evt": "click",
+   "body": "closeModal('therapistProfileModal')",
+   "calls": [
+    "closeModal"
+   ],
+   "tag": "button"
+  },
+  {
+   "file": "index.html",
+   "line": 1755,
+   "evt": "click",
+   "body": "closeModal('portalAccessModal')",
+   "calls": [
+    "closeModal"
+   ],
+   "tag": "div"
+  },
+  {
+   "file": "index.html",
+   "line": 1767,
+   "evt": "click",
+   "body": "closeModal('portalAccessModal')",
+   "calls": [
+    "closeModal"
+   ],
+   "tag": "button"
+  },
+  {
+   "file": "index.html",
+   "line": 1788,
+   "evt": "submit",
+   "body": "ClinicalSecurity.unlockApp(event)",
+   "calls": [
+    "unlockApp"
+   ],
+   "tag": "form"
+  },
+  {
+   "file": "index.html",
+   "line": 1802,
+   "evt": "click",
+   "body": "closeModal('qrModal')",
+   "calls": [
+    "closeModal"
+   ],
+   "tag": "div"
+  },
+  {
+   "file": "index.html",
+   "line": 1806,
+   "evt": "click",
+   "body": "closeModal('qrModal')",
+   "calls": [
+    "closeModal"
+   ],
+   "tag": "button"
+  },
+  {
+   "file": "index.html",
+   "line": 1816,
+   "evt": "click",
+   "body": "closeModal('monthlyGoalsModal')",
+   "calls": [
+    "closeModal"
+   ],
+   "tag": "div"
+  },
+  {
+   "file": "index.html",
+   "line": 1820,
+   "evt": "click",
+   "body": "closeModal('monthlyGoalsModal')",
+   "calls": [
+    "closeModal"
+   ],
+   "tag": "button"
+  },
+  {
+   "file": "index.html",
+   "line": 1822,
+   "evt": "submit",
+   "body": "handleMonthlyGoalsSubmit(event)",
+   "calls": [
+    "handleMonthlyGoalsSubmit"
+   ],
+   "tag": "form"
+  },
+  {
+   "file": "index.html",
+   "line": 1841,
+   "evt": "click",
+   "body": "closeModal('monthlyGoalsModal')",
+   "calls": [
+    "closeModal"
+   ],
+   "tag": "button"
+  },
+  {
+   "file": "index.html",
+   "line": 1850,
+   "evt": "click",
+   "body": "closeModal('scaleEditorModal')",
+   "calls": [
+    "closeModal"
+   ],
+   "tag": "div"
+  },
+  {
+   "file": "index.html",
+   "line": 1854,
+   "evt": "click",
+   "body": "closeModal('scaleEditorModal')",
+   "calls": [
+    "closeModal"
+   ],
+   "tag": "button"
+  },
+  {
+   "file": "index.html",
+   "line": 1856,
+   "evt": "submit",
+   "body": "handleSaveCustomScale(event)",
+   "calls": [
+    "handleSaveCustomScale"
+   ],
+   "tag": "form"
+  },
+  {
+   "file": "index.html",
+   "line": 1909,
+   "evt": "click",
+   "body": "closeModal('scaleEditorModal')",
+   "calls": [
+    "closeModal"
+   ],
+   "tag": "button"
+  },
+  {
+   "file": "portal.html",
+   "line": 33,
+   "evt": "click",
+   "body": "handleAccess()",
+   "calls": [
+    "handleAccess"
+   ],
+   "tag": "button"
+  },
+  {
+   "file": "portal.html",
+   "line": 44,
+   "evt": "click",
+   "body": "enterPortal()",
+   "calls": [
+    "enterPortal"
+   ],
+   "tag": "button"
+  },
+  {
+   "file": "portal.html",
+   "line": 47,
+   "evt": "click",
+   "body": "logoutPortal()",
+   "calls": [
+    "logoutPortal"
+   ],
+   "tag": "button"
+  },
+  {
+   "file": "portal.html",
+   "line": 67,
+   "evt": "click",
+   "body": "PortalOfflineQueue.flush()",
+   "calls": [
+    "flush"
+   ],
+   "tag": "span"
+  },
+  {
+   "file": "portal.html",
+   "line": 70,
+   "evt": "click",
+   "body": "triggerPortalEmergencyHelp()",
+   "calls": [
+    "triggerPortalEmergencyHelp"
+   ],
+   "tag": "button"
+  },
+  {
+   "file": "portal.html",
+   "line": 73,
+   "evt": "click",
+   "body": "logoutPortal()",
+   "calls": [
+    "logoutPortal"
+   ],
+   "tag": "button"
+  },
+  {
+   "file": "portal.html",
+   "line": 89,
+   "evt": "click",
+   "body": "promptPwaInstall()",
+   "calls": [
+    "promptPwaInstall"
+   ],
+   "tag": "button"
+  },
+  {
+   "file": "portal.html",
+   "line": 90,
+   "evt": "click",
+   "body": "dismissPwaBanner()",
+   "calls": [
+    "dismissPwaBanner"
+   ],
+   "tag": "button"
+  },
+  {
+   "file": "portal.html",
+   "line": 103,
+   "evt": "click",
+   "body": "selectMood(5)",
+   "calls": [
+    "selectMood"
+   ],
+   "tag": "button"
+  },
+  {
+   "file": "portal.html",
+   "line": 107,
+   "evt": "click",
+   "body": "selectMood(4)",
+   "calls": [
+    "selectMood"
+   ],
+   "tag": "button"
+  },
+  {
+   "file": "portal.html",
+   "line": 111,
+   "evt": "click",
+   "body": "selectMood(3)",
+   "calls": [
+    "selectMood"
+   ],
+   "tag": "button"
+  },
+  {
+   "file": "portal.html",
+   "line": 115,
+   "evt": "click",
+   "body": "selectMood(2)",
+   "calls": [
+    "selectMood"
+   ],
+   "tag": "button"
+  },
+  {
+   "file": "portal.html",
+   "line": 119,
+   "evt": "click",
+   "body": "selectMood(1)",
+   "calls": [
+    "selectMood"
+   ],
+   "tag": "button"
+  },
+  {
+   "file": "portal.html",
+   "line": 139,
+   "evt": "click",
+   "body": "openPortalConsentModal()",
+   "calls": [
+    "openPortalConsentModal"
+   ],
+   "tag": "button"
+  },
+  {
+   "file": "portal.html",
+   "line": 171,
+   "evt": "click",
+   "body": "openBreathingExercise()",
+   "calls": [
+    "openBreathingExercise"
+   ],
+   "tag": "div"
+  },
+  {
+   "file": "portal.html",
+   "line": 180,
+   "evt": "click",
+   "body": "openGroundingExercise()",
+   "calls": [
+    "openGroundingExercise"
+   ],
+   "tag": "div"
+  },
+  {
+   "file": "portal.html",
+   "line": 205,
+   "evt": "click",
+   "body": "filterTasks('pending')",
+   "calls": [
+    "filterTasks"
+   ],
+   "tag": "button"
+  },
+  {
+   "file": "portal.html",
+   "line": 208,
+   "evt": "click",
+   "body": "filterTasks('completed')",
+   "calls": [
+    "filterTasks"
+   ],
+   "tag": "button"
+  },
+  {
+   "file": "portal.html",
+   "line": 211,
+   "evt": "click",
+   "body": "filterTasks('all')",
+   "calls": [
+    "filterTasks"
+   ],
+   "tag": "button"
+  },
+  {
+   "file": "portal.html",
+   "line": 233,
+   "evt": "click",
+   "body": "openTest('phq9')",
+   "calls": [
+    "openTest"
+   ],
+   "tag": "div"
+  },
+  {
+   "file": "portal.html",
+   "line": 243,
+   "evt": "click",
+   "body": "openTest('gad7')",
+   "calls": [
+    "openTest"
+   ],
+   "tag": "div"
+  },
+  {
+   "file": "portal.html",
+   "line": 253,
+   "evt": "click",
+   "body": "openTest('mood')",
+   "calls": [
+    "openTest"
+   ],
+   "tag": "div"
+  },
+  {
+   "file": "portal.html",
+   "line": 263,
+   "evt": "click",
+   "body": "openTest('cbt_thought')",
+   "calls": [
+    "openTest"
+   ],
+   "tag": "div"
+  },
+  {
+   "file": "portal.html",
+   "line": 331,
+   "evt": "click",
+   "body": "switchView('home')",
+   "calls": [
+    "switchView"
+   ],
+   "tag": "button"
+  },
+  {
+   "file": "portal.html",
+   "line": 335,
+   "evt": "click",
+   "body": "switchView('tasks')",
+   "calls": [
+    "switchView"
+   ],
+   "tag": "button"
+  },
+  {
+   "file": "portal.html",
+   "line": 339,
+   "evt": "click",
+   "body": "switchView('tests')",
+   "calls": [
+    "switchView"
+   ],
+   "tag": "button"
+  },
+  {
+   "file": "portal.html",
+   "line": 343,
+   "evt": "click",
+   "body": "switchView('progress')",
+   "calls": [
+    "switchView"
+   ],
+   "tag": "button"
+  },
+  {
+   "file": "portal.html",
+   "line": 353,
+   "evt": "click",
+   "body": "closeTestModal()",
+   "calls": [
+    "closeTestModal"
+   ],
+   "tag": "div"
+  },
+  {
+   "file": "portal.html",
+   "line": 357,
+   "evt": "click",
+   "body": "closeTestModal()",
+   "calls": [
+    "closeTestModal"
+   ],
+   "tag": "button"
+  },
+  {
+   "file": "portal.html",
+   "line": 369,
+   "evt": "click",
+   "body": "closeCrisisHelpModal()",
+   "calls": [
+    "closeCrisisHelpModal"
+   ],
+   "tag": "div"
+  },
+  {
+   "file": "portal.html",
+   "line": 375,
+   "evt": "click",
+   "body": "closeCrisisHelpModal()",
+   "calls": [
+    "closeCrisisHelpModal"
+   ],
+   "tag": "button"
+  },
+  {
+   "file": "portal.html",
+   "line": 412,
+   "evt": "click",
+   "body": "closeCrisisHelpModal()",
+   "calls": [
+    "closeCrisisHelpModal"
+   ],
+   "tag": "button"
+  },
+  {
+   "file": "portal.html",
+   "line": 421,
+   "evt": "click",
+   "body": "closeBreathingExercise()",
+   "calls": [
+    "closeBreathingExercise"
+   ],
+   "tag": "div"
+  },
+  {
+   "file": "portal.html",
+   "line": 428,
+   "evt": "click",
+   "body": "closeBreathingExercise()",
+   "calls": [
+    "closeBreathingExercise"
+   ],
+   "tag": "button"
+  },
+  {
+   "file": "portal.html",
+   "line": 449,
+   "evt": "click",
+   "body": "toggleBreathingSound()",
+   "calls": [
+    "toggleBreathingSound"
+   ],
+   "tag": "button"
+  },
+  {
+   "file": "portal.html",
+   "line": 461,
+   "evt": "click",
+   "body": "toggleBreathingSession()",
+   "calls": [
+    "toggleBreathingSession"
+   ],
+   "tag": "button"
+  },
+  {
+   "file": "portal.html",
+   "line": 471,
+   "evt": "click",
+   "body": "closeGroundingExercise()",
+   "calls": [
+    "closeGroundingExercise"
+   ],
+   "tag": "div"
+  },
+  {
+   "file": "portal.html",
+   "line": 478,
+   "evt": "click",
+   "body": "closeGroundingExercise()",
+   "calls": [
+    "closeGroundingExercise"
+   ],
+   "tag": "button"
+  },
+  {
+   "file": "portal.html",
+   "line": 490,
+   "evt": "click",
+   "body": "closePortalConsentModal()",
+   "calls": [
+    "closePortalConsentModal"
+   ],
+   "tag": "div"
+  },
+  {
+   "file": "portal.html",
+   "line": 494,
+   "evt": "click",
+   "body": "closePortalConsentModal()",
+   "calls": [
+    "closePortalConsentModal"
+   ],
+   "tag": "button"
+  },
+  {
+   "file": "portal.html",
+   "line": 504,
+   "evt": "click",
+   "body": "clearPortalSignaturePad()",
+   "calls": [
+    "clearPortalSignaturePad"
+   ],
+   "tag": "button"
+  },
+  {
+   "file": "portal.html",
+   "line": 509,
+   "evt": "click",
+   "body": "confirmPortalConsentSignature()",
+   "calls": [
+    "confirmPortalConsentSignature"
+   ],
+   "tag": "button"
+  }
+ ],
+ "unresolved": [
+  {
+   "file": "index.html",
+   "line": 40,
+   "evt": "click",
+   "body": "openForgotPasswordUI(event)",
+   "calls": [
+    "openForgotPasswordUI"
+   ],
+   "tag": "a"
+  },
+  {
+   "file": "index.html",
+   "line": 52,
+   "evt": "submit",
+   "body": "event.preventDefault();",
+   "calls": [
+    "preventDefault"
+   ],
+   "tag": "form"
+  },
+  {
+   "file": "index.html",
+   "line": 92,
+   "evt": "click",
+   "body": "closeForgotPasswordUI(event)",
+   "calls": [
+    "closeForgotPasswordUI"
+   ],
+   "tag": "a"
+  },
+  {
+   "file": "index.html",
+   "line": 248,
+   "evt": "click",
+   "body": "ClinicalHistorySystem.openInAppPreconsultaForm()",
+   "calls": [
+    "openInAppPreconsultaForm"
+   ],
+   "tag": "a"
+  },
+  {
+   "file": "index.html",
+   "line": 252,
+   "evt": "click",
+   "body": "PsychoEd.openWorksheetModal('tcc_5col')",
+   "calls": [
+    "openWorksheetModal"
+   ],
+   "tag": "a"
+  },
+  {
+   "file": "index.html",
+   "line": 256,
+   "evt": "click",
+   "body": "Vademecum.openVademecumModal()",
+   "calls": [
+    "openVademecumModal"
+   ],
+   "tag": "a"
+  },
+  {
+   "file": "index.html",
+   "line": 260,
+   "evt": "click",
+   "body": "ClinicalReports.openReportGeneratorModal()",
+   "calls": [
+    "openReportGeneratorModal"
+   ],
+   "tag": "a"
+  },
+  {
+   "file": "index.html",
+   "line": 279,
+   "evt": "click",
+   "body": "ClinicalSecurity.lockApp()",
+   "calls": [
+    "lockApp"
+   ],
+   "tag": "button"
+  },
+  {
+   "file": "index.html",
+   "line": 305,
+   "evt": "click",
+   "body": "event.stopPropagation(); handleLogout();",
+   "calls": [
+    "stopPropagation",
+    "handleLogout"
+   ],
+   "tag": "button"
+  },
+  {
+   "file": "index.html",
+   "line": 328,
+   "evt": "click",
+   "body": "if(window.CloudSyncManager) window.CloudSyncManager.manualSyncClick()",
+   "calls": [
+    "if",
+    "manualSyncClick"
+   ],
+   "tag": "button"
+  },
+  {
+   "file": "index.html",
+   "line": 468,
+   "evt": "click",
+   "body": "ClinicalHistorySystem.openInAppPreconsultaForm()",
+   "calls": [
+    "openInAppPreconsultaForm"
+   ],
+   "tag": "button"
+  },
+  {
+   "file": "index.html",
+   "line": 471,
+   "evt": "click",
+   "body": "ClinicalHistorySystem.openPreconsultaModal()",
+   "calls": [
+    "openPreconsultaModal"
+   ],
+   "tag": "button"
+  },
+  {
+   "file": "index.html",
+   "line": 474,
+   "evt": "click",
+   "body": "ClinicalHistorySystem.openGoogleFormImportModal()",
+   "calls": [
+    "openGoogleFormImportModal"
+   ],
+   "tag": "button"
+  },
+  {
+   "file": "index.html",
+   "line": 1397,
+   "evt": "click",
+   "body": "ClinicalHistorySystem.exportReporteAtencionPDF(document.getElementById('noteId').value)",
+   "calls": [
+    "exportReporteAtencionPDF",
+    "getElementById"
+   ],
+   "tag": "button"
+  },
+  {
+   "file": "index.html",
+   "line": 1788,
+   "evt": "submit",
+   "body": "ClinicalSecurity.unlockApp(event)",
+   "calls": [
+    "unlockApp"
+   ],
+   "tag": "form"
+  },
+  {
+   "file": "portal.html",
+   "line": 67,
+   "evt": "click",
+   "body": "PortalOfflineQueue.flush()",
+   "calls": [
+    "flush"
+   ],
+   "tag": "span"
+  }
+ ]
+}

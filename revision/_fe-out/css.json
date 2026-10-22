@@ -1,0 +1,108 @@
+{
+ "missing": [
+  "btn-danger",
+  "recording",
+  "toastContainer",
+  "alert-box",
+  "session-reminder-drawer",
+  "btn-sm"
+ ],
+ "zs": [
+  {
+   "sel": "/* Layout */ .sidebar",
+   "z": 100
+  },
+  {
+   "sel": "/* Top Bar */ .top-bar",
+   "z": 50
+  },
+  {
+   "sel": "/* Modales - Apple Modal Sheet & Google Dialog Spec */ .modal",
+   "z": 2200
+  },
+  {
+   "sel": ".modal-content",
+   "z": 1
+  },
+  {
+   "sel": ".modal-header",
+   "z": 10
+  },
+  {
+   "sel": "/* Pestañas estilo Apple Segmented Control - Barra Superior y Sticky *",
+   "z": 25
+  },
+  {
+   "sel": "/* Toast */ .toast-container",
+   "z": 2000
+  },
+  {
+   "sel": "/* Auth */ .auth-screen",
+   "z": 2000
+  },
+  {
+   "sel": "/* 3. Top Bar Responsive Layout */ .top-bar",
+   "z": 100
+  },
+  {
+   "sel": "/* 4. Drawer Sidebar & Backdrop Overlay */ .sidebar",
+   "z": 1250
+  },
+  {
+   "sel": ".sidebar-backdrop",
+   "z": 1200
+  },
+  {
+   "sel": "/* 5. Mobile Bottom Navigation Bar */ .mobile-bottom-nav",
+   "z": 1050
+  },
+  {
+   "sel": ".modal",
+   "z": 2200
+  },
+  {
+   "sel": ".modal-header",
+   "z": 20
+  },
+  {
+   "sel": ".modal-actions",
+   "z": 20
+  },
+  {
+   "sel": ".toast-container",
+   "z": 3000
+  },
+  {
+   "sel": "/* DRAWER LATERAL */ .reminder-drawer",
+   "z": 1000
+  },
+  {
+   "sel": "/* ==================================================== PANTALLA DE BL",
+   "z": 99999999
+  },
+  {
+   "sel": ".screen-lock-card",
+   "z": 10000000
+  },
+  {
+   "sel": ".portal-header",
+   "z": 10
+  },
+  {
+   "sel": "/* ============================================ NAVEGACIÓN INFERIOR ==",
+   "z": 100
+  },
+  {
+   "sel": "/* ============================================ MODAL ================",
+   "z": 1000
+  },
+  {
+   "sel": ".modal-content",
+   "z": 1
+  },
+  {
+   "sel": "/* ============================================ TOAST ================",
+   "z": 2000
+  }
+ ]
+}

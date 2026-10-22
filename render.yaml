@@ -1,0 +1,12 @@
+services:
+  - type: web
+    name: psico-notes-clinical
+    env: node
+    plan: free
+    buildCommand: npm run build
+    startCommand: node server.js
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: SESSION_SECRET
+        generateValue: true

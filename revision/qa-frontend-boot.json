@@ -1,0 +1,64 @@
+{
+  "generatedAt": "2026-10-21T20:22:09.210Z",
+  "scripts": [
+    "phi-anonymizer.js",
+    "voice-dictation.js",
+    "ai-clinical.js",
+    "psychoed.js",
+    "reports.js",
+    "vademecum.js",
+    "app.js",
+    "scales.js",
+    "finance.js",
+    "adm.js",
+    "session-reminders.js",
+    "backup.js",
+    "crisis-protocol.js",
+    "consentimiento.js",
+    "historia-clinica.js"
+  ],
+  "loadErrors": [],
+  "init": {
+    "anonimo": {
+      "label": "anonimo",
+      "loadErrors": [],
+      "asyncErrors": [],
+      "initError": null,
+      "listeners": 1,
+      "timersRun": 1,
+      "sweepErrors": [],
+      "sweepOk": 15,
+      "unhandled": []
+    },
+    "conSesion": {
+      "label": "conSesion",
+      "loadErrors": [],
+      "asyncErrors": [],
+      "initError": null,
+      "listeners": 1,
+      "timersRun": 1,
+      "sweepErrors": [],
+      "sweepOk": 15,
+      "unhandled": []
+    }
+  },
+  "symbols": {
+    "phi-anonymizer.js": [],
+    "voice-dictation.js": [],
+    "ai-clinical.js": [],
+    "psychoed.js": [],
+    "reports.js": [],
+    "vademecum.js": [],
+    "app.js": [],
+    "scales.js": [],
+    "finance.js": [],
+    "adm.js": [],
+    "session-reminders.js": [],
+    "backup.js": [],
+    "crisis-protocol.js": [],
+    "consentimiento.js": [],
+    "historia-clinica.js": []
+  },
+  "order": [],
+  "missionGlobalsAbsent": []
+}
