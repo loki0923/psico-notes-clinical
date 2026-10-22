@@ -493,6 +493,12 @@ const CloudSyncManager = {
                     config: typeof getBillingConfig === 'function' ? getBillingConfig() : null,
                     invoices: typeof getInvoices === 'function' ? getInvoices() : []
                 },
+                finance: {
+                    transactions: (typeof getFinanceTransactions === 'function') ? getFinanceTransactions() : [],
+                    rates: (typeof getFinanceRates === 'function') ? getFinanceRates() : [],
+                    goals: (typeof getFinanceGoals === 'function') ? getFinanceGoals() : [],
+                    categories: (typeof getFinanceCategories === 'function') ? getFinanceCategories() : []
+                },
                 settings: {
                     signature: localStorage.getItem('psico_therapist_signature') || '',
                     phone: localStorage.getItem('psico_therapist_phone') || '',
@@ -639,6 +645,33 @@ const CloudSyncManager = {
                         const localInvoices = getInvoices();
                         const mergedInvoices = this.mergeCollections(localInvoices, cloud.billing.invoices);
                         saveInvoices(mergedInvoices);
+                    }
+                }
+
+                // Sincronización de finanzas (transacciones, tarifas, metas, categorías)
+                if (cloud.finance) {
+                    if (Array.isArray(cloud.finance.transactions) && typeof getFinanceTransactions === 'function' && typeof saveFinanceTransactions === 'function') {
+                        const localTxs = getFinanceTransactions();
+                        const mergedTxs = this.mergeCollections(localTxs, cloud.finance.transactions);
+                        saveFinanceTransactions(mergedTxs);
+                    }
+                    if (Array.isArray(cloud.finance.rates) && typeof getFinanceRates === 'function' && typeof saveFinanceRates === 'function') {
+                        const localRates = getFinanceRates();
+                        const mergedRates = this.mergeCollections(localRates, cloud.finance.rates);
+                        saveFinanceRates(mergedRates);
+                    }
+                    if (Array.isArray(cloud.finance.goals) && typeof getFinanceGoals === 'function' && typeof saveFinanceGoals === 'function') {
+                        const localGoals = getFinanceGoals();
+                        const mergedGoals = this.mergeCollections(localGoals, cloud.finance.goals);
+                        saveFinanceGoals(mergedGoals);
+                    }
+                    if (Array.isArray(cloud.finance.categories) && typeof getFinanceCategories === 'function' && typeof saveFinanceCategories === 'function') {
+                        const localCats = getFinanceCategories();
+                        const mergedCats = Array.from(new Set([...localCats, ...cloud.finance.categories]));
+                        saveFinanceCategories(mergedCats);
+                    }
+                    if (AppState.currentView === 'finance' && typeof renderFinanceView === 'function') {
+                        renderFinanceView();
                     }
                 }
 
@@ -7609,7 +7642,11 @@ if (typeof window !== 'undefined') {
     if (typeof applySuggestedSlot === 'function') window.applySuggestedSlot = applySuggestedSlot;
     if (typeof closeSoapAiModal === 'function') window.closeSoapAiModal = closeSoapAiModal;
     if (typeof deleteNote === 'function') window.deleteNote = deleteNote;
-    if (typeof deleteGoal === 'function') window.deleteGoal = deleteGoal;
+    if (typeof deleteGoal === 'function') {
+        window.deleteTreatmentGoal = deleteGoal;
+        window._originalTreatmentDeleteGoal = deleteGoal;
+        window.deleteGoal = deleteGoal;
+    }
     if (typeof editNote === 'function') window.editNote = editNote;
     if (typeof generateSoapFromAiModal === 'function') window.generateSoapFromAiModal = generateSoapFromAiModal;
     if (typeof handleAiChatSubmit === 'function') window.handleAiChatSubmit = handleAiChatSubmit;

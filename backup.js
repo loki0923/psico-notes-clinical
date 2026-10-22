@@ -17,10 +17,12 @@ function exportBackupFile() {
         appointments: AppState.appointments,
         notes: AppState.notes,
         treatmentPlans: AppState.treatmentPlans,
-        financeTransactions: getFinanceTransactions(),
-        financeCategories: getFinanceCategories(),
-        billingConfig: getBillingConfig(),
-        invoices: getInvoices()
+        financeTransactions: (typeof getFinanceTransactions === 'function') ? getFinanceTransactions() : [],
+        financeRates: (typeof getFinanceRates === 'function') ? getFinanceRates() : [],
+        financeGoals: (typeof getFinanceGoals === 'function') ? getFinanceGoals() : [],
+        financeCategories: (typeof getFinanceCategories === 'function') ? getFinanceCategories() : [],
+        billingConfig: (typeof getBillingConfig === 'function') ? getBillingConfig() : null,
+        invoices: (typeof getInvoices === 'function') ? getInvoices() : []
     };
 
     const blob = new Blob([JSON.stringify(backupData, null, 2)], { type: 'application/json' });
@@ -57,10 +59,12 @@ function importBackup() {
                         if (data.notes) AppState.notes = data.notes;
                         if (data.treatmentPlans) AppState.treatmentPlans = data.treatmentPlans;
 
-                        if (data.financeTransactions) saveFinanceTransactions(data.financeTransactions);
-                        if (data.financeCategories) saveFinanceCategories(data.financeCategories);
-                        if (data.billingConfig) saveBillingConfig(data.billingConfig);
-                        if (data.invoices) saveInvoices(data.invoices);
+                        if (data.financeTransactions && typeof saveFinanceTransactions === 'function') saveFinanceTransactions(data.financeTransactions);
+                        if (data.financeRates && typeof saveFinanceRates === 'function') saveFinanceRates(data.financeRates);
+                        if (data.financeGoals && typeof saveFinanceGoals === 'function') saveFinanceGoals(data.financeGoals);
+                        if (data.financeCategories && typeof saveFinanceCategories === 'function') saveFinanceCategories(data.financeCategories);
+                        if (data.billingConfig && typeof saveBillingConfig === 'function') saveBillingConfig(data.billingConfig);
+                        if (data.invoices && typeof saveInvoices === 'function') saveInvoices(data.invoices);
 
                         await saveData();
                         

@@ -4105,6 +4105,181 @@ ClinicalTestSuite.add('TC-SEC-28', 'Recuperación de contraseña, expiración de
     }
 });
 
+// 29. TC-DOM-01: Verificación de Integridad Estructural del DOM (Cero Modales Anidados en index.html)
+ClinicalTestSuite.add('TC-DOM-01', 'Verificación de Integridad Estructural del DOM (Cero Modales Anidados en index.html)', async () => {
+    const fs = await import('fs');
+    const path = await import('path');
+
+    const html = fs.readFileSync(path.resolve('./index.html'), 'utf8');
+
+    // Extraer todos los modales del documento
+    const modalMatches = [...html.matchAll(/<div\s+class=["'][^"']*modal[^"']*["']\s+id=["']([^"']+)["']/g)];
+    if (modalMatches.length === 0) {
+        throw new Error('No se encontraron modales en index.html');
+    }
+
+    const modalIds = modalMatches.map(m => m[1]);
+
+    // Verificar con parser de pila que ningún modal esté dentro de otro modal
+    const regex = /<(\/)?([a-zA-Z0-9]+)([^>]*)>/g;
+    const lines = html.split('\n');
+    const stack = [];
+    let currentModal = null;
+
+    for (let i = 0; i < lines.length; i++) {
+        const line = lines[i];
+        let m;
+        while ((m = regex.exec(line)) !== null) {
+            const isClosing = m[1] === '/';
+            const tag = m[2].toLowerCase();
+            const rest = m[3];
+            const isSelfClosing = rest.endsWith('/') || ['meta', 'link', 'img', 'br', 'hr', 'input'].includes(tag);
+
+            if (tag === 'script' || tag === 'style') continue;
+            if (isSelfClosing) continue;
+
+            if (!isClosing) {
+                const isModal = tag === 'div' && (rest.includes('class="modal"') || rest.includes("class='modal'"));
+                const idMatch = rest.match(/id=["']([^"']+)["']/);
+                const elementId = idMatch ? idMatch[1] : null;
+
+                if (isModal) {
+                    if (currentModal) {
+                        throw new Error(`VIOLACIÓN ESTRUCTURAL DOM: El modal #${elementId} está anidado dentro de #${currentModal.id} en línea ${i + 1}`);
+                    }
+                    currentModal = { id: elementId, depth: stack.length };
+                }
+                stack.push({ tag, elementId, isModal });
+            } else {
+                const popped = stack.pop();
+                if (popped && popped.isModal && currentModal && currentModal.id === popped.elementId) {
+                    currentModal = null;
+                }
+            }
+        }
+    }
+
+    // Certificar específicamente que los 4 modales financieros existen y son independientes
+    const criticalModals = ['financeTransactionModal', 'financeCategoriesModal', 'financeGoalModal', 'financeRateModal'];
+    for (const cm of criticalModals) {
+        if (!modalIds.includes(cm)) {
+            throw new Error(`El modal crítico #${cm} no existe en index.html`);
+        }
+    }
+});
+
+// 30. TC-FIN-07: Apertura Reactiva, Inyección Dinámica y Persistencia de Modales Financieros
+ClinicalTestSuite.add('TC-FIN-07', 'Apertura Reactiva, Inyección Dinámica y Persistencia de Modales Financieros', async () => {
+    const fs = await import('fs');
+    const path = await import('path');
+
+    const domMock = {
+        elements: {},
+        getElementById(id) {
+            if (!this.elements[id]) {
+                this.elements[id] = {
+                    id,
+                    innerHTML: '',
+                    value: '',
+                    checked: false,
+                    classList: {
+                        classes: new Set(),
+                        add(c) { this.classes.add(c); },
+                        remove(c) { this.classes.delete(c); },
+                        contains(c) { return this.classes.has(c); }
+                    },
+                    style: {}
+                };
+            }
+            return this.elements[id];
+        }
+    };
+
+    const prevDoc = global.document;
+    const prevWin = global.window;
+    const prevStorage = global.localStorage;
+
+    try {
+        global.document = {
+            getElementById: (id) => domMock.getElementById(id),
+            body: {
+                style: {},
+                classList: { add() {}, remove() {} }
+            },
+            querySelector: () => null
+        };
+        global.window = global;
+        global.openModal = (id) => {
+            const el = domMock.getElementById(id);
+            el.classList.add('active');
+        };
+        global.closeModal = (id) => {
+            const el = domMock.getElementById(id);
+            el.classList.remove('active');
+        };
+
+        await import('./finance.js');
+        const scope = (typeof window !== 'undefined') ? window : globalThis;
+        const {
+            openTransactionModal,
+            openGoalModal,
+            openRateModal,
+            openCategoriesModal,
+            deleteFinanceGoal
+        } = scope;
+
+        // 1. Probar modal de transacción (+ Ingreso)
+        openTransactionModal('income');
+        const txModal = domMock.getElementById('financeTransactionModal');
+        if (!txModal.classList.contains('active')) {
+            throw new Error('openTransactionModal no activó el modal financeTransactionModal');
+        }
+        const txBody = domMock.getElementById('financeTransactionModalBody').innerHTML;
+        if (!txBody.includes('txConcept') || !txBody.includes('txAmount')) {
+            throw new Error('openTransactionModal no inyectó los campos txConcept / txAmount');
+        }
+
+        // 2. Probar modal de metas financieras
+        openGoalModal();
+        const goalModal = domMock.getElementById('financeGoalModal');
+        if (!goalModal.classList.contains('active')) {
+            throw new Error('openGoalModal no activó el modal financeGoalModal');
+        }
+        const goalBody = domMock.getElementById('financeGoalModalBody').innerHTML;
+        if (!goalBody.includes('goalTitle') || !goalBody.includes('goalTarget')) {
+            throw new Error('openGoalModal no inyectó los campos goalTitle / goalTarget');
+        }
+
+        // 3. Probar modal de tarifas por tiempo
+        openRateModal();
+        const rateModal = domMock.getElementById('financeRateModal');
+        if (!rateModal.classList.contains('active')) {
+            throw new Error('openRateModal no activó el modal financeRateModal');
+        }
+        const rateBody = domMock.getElementById('financeRateModalBody').innerHTML;
+        if (!rateBody.includes('rateTitle') || !rateBody.includes('rateDuration')) {
+            throw new Error('openRateModal no inyectó los campos rateTitle / rateDuration');
+        }
+
+        // 4. Probar modal de categorías de egresos
+        openCategoriesModal();
+        const catModal = domMock.getElementById('financeCategoriesModal');
+        if (!catModal.classList.contains('active')) {
+            throw new Error('openCategoriesModal no activó el modal financeCategoriesModal');
+        }
+
+        // 5. Verificar desacoplamiento de deleteFinanceGoal
+        if (typeof deleteFinanceGoal !== 'function') {
+            throw new Error('finance.js no exporta deleteFinanceGoal');
+        }
+
+    } finally {
+        global.document = prevDoc;
+        global.window = prevWin;
+        global.localStorage = prevStorage;
+    }
+});
+
 // Auto-ejecución si se corre desde Node.js (CLI)
 if (typeof process !== 'undefined' && process.argv && process.argv[1] && process.argv[1].endsWith('tests.js')) {
     ClinicalTestSuite.runAll().then(res => {
