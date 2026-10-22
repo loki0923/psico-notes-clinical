@@ -2734,6 +2734,333 @@ ClinicalTestSuite.add('TC-FILE-01', 'Resiliencia ante Apertura Directa de Archiv
     }
 });
 
+// 67. TC-SEC-15: Bloqueo de Descarga No Autenticada de Almacén Clínico y Archivos JSON (HTTP 403)
+ClinicalTestSuite.add('TC-SEC-15', 'Bloqueo estricto de acceso no autenticado a /data/psiconotes_relacional.json (HTTP 403)', async () => {
+    const baseUrl = await ensureTestServer();
+    const res = await fetch(`${baseUrl}/data/psiconotes_relacional.json`);
+    if (res.status !== 403) {
+        throw new Error(`FALLO CRÍTICO P0: El almacén /data/psiconotes_relacional.json fue accesible con status ${res.status} (esperado: 403)`);
+    }
+    const resGenericJson = await fetch(`${baseUrl}/data/cualquier_archivo.json`);
+    if (resGenericJson.status !== 403) {
+        throw new Error(`FALLO: Extensión .json en carpeta data no fue bloqueada con 403 (status: ${resGenericJson.status})`);
+    }
+});
+
+// 68. TC-SEC-16: Prevención de Fabricación de Contenido Clínico SOAP por Fallback de IA (HTTP 503)
+ClinicalTestSuite.add('TC-SEC-16', 'Prevención de notas clínicas inventadas por IA cuando falta API Key (HTTP 503)', async () => {
+    const baseUrl = await ensureTestServer();
+    const { generateSessionToken } = await import('./server.js');
+    const token = generateSessionToken('dr_ai_test_' + Date.now(), 'ai_test@clinica.com');
+
+    // Forzar entorno sin GEMINI_API_KEY para verificar que no invente datos
+    const savedKey = process.env.GEMINI_API_KEY;
+    delete process.env.GEMINI_API_KEY;
+
+    try {
+        const res = await fetch(`${baseUrl}/api/v1/clinical/soap-synthesize`, {
+            method: 'POST',
+            headers: {
+                'Authorization': `Bearer ${token}`,
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ notes: 'Paciente acude con angustia y llanto intermitente.' })
+        });
+
+        if (res.status !== 503) {
+            throw new Error(`FALLO ÉTICO/CLÍNICO: Endpoint de síntesis SOAP respondió con status ${res.status} en vez de 503 ante ausencia de API key`);
+        }
+        const data = await res.json();
+        if (data.source !== 'unavailable') {
+            throw new Error("La respuesta ante ausencia de IA debe declarar explícitamente source: 'unavailable'");
+        }
+        if (data.objetivo || data.analisis || data.plan) {
+            throw new Error('FALLO: Se fabricó contenido clínico falso en respuesta SOAP');
+        }
+    } finally {
+        if (savedKey) process.env.GEMINI_API_KEY = savedKey;
+    }
+});
+
+// 69. TC-SEC-17: Aislamiento BOLA/IDOR para Expedientes Huérfanos sin therapist_id (HTTP 403)
+ClinicalTestSuite.add('TC-SEC-17', 'Aislamiento BOLA/IDOR para expedientes huérfanos sin therapist_id asignado (HTTP 403)', async () => {
+    const baseUrl = await ensureTestServer();
+    const { generateSessionToken } = await import('./server.js');
+    const { db } = await import('./db.js');
+
+    const randomTherapist = 'dr_stranger_' + Date.now();
+    const token = generateSessionToken(randomTherapist, 'stranger@clinica.com');
+
+    // Crear paciente huérfano (sin therapist_id) directamente en base de datos
+    const orphanPatient = {
+        id: 'pat_orphan_test_' + Date.now(),
+        name: 'Paciente Sin Terapeuta Asignado',
+        diagnosis: 'F32.1 Episodio Depresivo Moderado',
+        therapist_id: null
+    };
+    await db.upsertPatient(orphanPatient);
+
+    // El terapeuta intenta consultar este paciente huérfano: debe ser estrictamente denegado con 403
+    const res = await fetch(`${baseUrl}/api/v1/portal/data/${orphanPatient.id}`, {
+        headers: { 'Authorization': `Bearer ${token}` }
+    });
+
+    if (res.status !== 403) {
+        throw new Error(`FALLO BOLA: Paciente huérfano pudo ser consultado por terapeuta arbitrario (status: ${res.status}, esperado: 403)`);
+    }
+
+    // Verificar que getPatientsByTherapist no devuelva pacientes huérfanos
+    const list = await db.getPatientsByTherapist(randomTherapist);
+    const foundOrphan = list.some(p => p.id === orphanPatient.id);
+    if (foundOrphan) {
+        throw new Error('FALLO MULTITENANT: getPatientsByTherapist incluyó un paciente con therapist_id nulo en el listado');
+    }
+});
+
+// 70. TC-SEC-18: Prevención de Bypass en Registro y Fuga Cero de password_hash
+ClinicalTestSuite.add('TC-SEC-18', 'Prevención de bypass de registro por ID y verificación de cero fuga de password_hash', async () => {
+    const baseUrl = await ensureTestServer();
+    const email = `victim_${Date.now()}@clinica.com`;
+    const realHash = 'hash_original_secreto_123';
+    const fakeHash = 'hash_atacante_falso_999';
+
+    // 1. Registro legítimo del terapeuta
+    const regRes = await fetch(`${baseUrl}/api/v1/auth/register`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+            name: 'Dra. Víctima',
+            email,
+            passwordHash: realHash,
+            specialty: 'Psicología'
+        })
+    });
+    const regData = await regRes.json();
+    if (regRes.status !== 200 || !regData.therapist) {
+        throw new Error('Fallo al crear terapeuta inicial de prueba');
+    }
+    if (regData.therapist.password_hash || regData.therapist.passwordHash) {
+        throw new Error('FUGA DE CREDENCIALES: El endpoint de registro devolvió el campo password_hash en la respuesta JSON');
+    }
+
+    const victimId = regData.therapist.id;
+
+    // 2. Intento de atacante de registrar con el mismo email, contraseña falsa pero pasando victimId
+    const attackRes = await fetch(`${baseUrl}/api/v1/auth/register`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+            id: victimId,
+            email,
+            passwordHash: fakeHash
+        })
+    });
+
+    if (attackRes.status !== 409) {
+        throw new Error(`FALLO DE AUTENTICACIÓN: Atacante pudo secuestrar sesión pasando el ID en register (status: ${attackRes.status}, esperado: 409)`);
+    }
+});
+
+// 71. TC-SEC-19: Persistencia Atómica y Resguardo de Respaldo .bak
+ClinicalTestSuite.add('TC-SEC-19', 'Persistencia atómica y generación automática de respaldo .bak en operaciones clínicas', async () => {
+    const { db } = await import('./db.js');
+    const fs = await import('fs');
+    const path = await import('path');
+
+    const testPatient = {
+        id: 'pat_atomic_test_' + Date.now(),
+        name: 'Paciente Prueba Atómica',
+        therapist_id: 'dr_atomic_tester'
+    };
+
+    await db.upsertPatient(testPatient);
+
+    const bakPath = path.join('data', 'psiconotes_relacional.json.bak');
+    const mainPath = path.join('data', 'psiconotes_relacional.json');
+
+    if (!fs.existsSync(mainPath)) {
+        throw new Error('El archivo principal psiconotes_relacional.json debe existir tras persistencia');
+    }
+    if (!fs.existsSync(bakPath)) {
+        throw new Error('El archivo de respaldo atómico psiconotes_relacional.json.bak debe generarse preventivamente');
+    }
+});
+
+// 72. TC-SEC-20: Seguridad en Proxy de Consultas IA y Control de Claves del Servidor
+ClinicalTestSuite.add('TC-SEC-20', 'Protección del proxy /api/v1/clinical/ai-query y rechazo sin autenticación (HTTP 401/503)', async () => {
+    const baseUrl = await ensureTestServer();
+    const { generateSessionToken } = await import('./server.js');
+
+    // 1. Acceso no autenticado debe responder 401
+    const unauthRes = await fetch(`${baseUrl}/api/v1/clinical/ai-query`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ prompt: 'Explicar técnica de defusión cognitiva' })
+    });
+
+    if (unauthRes.status !== 401) {
+        throw new Error(`FALLO DE SEGURIDAD: ai-query sin autenticación devolvió status ${unauthRes.status} (esperado 401)`);
+    }
+
+    // 2. Acceso autenticado sin GEMINI_API_KEY en entorno debe responder 503 source: unavailable
+    const token = generateSessionToken('therapist_ai_test_' + Date.now(), 'ai_tester@clinica.com');
+    const savedKey = process.env.GEMINI_API_KEY;
+    delete process.env.GEMINI_API_KEY;
+
+    try {
+        const resNoKey = await fetch(`${baseUrl}/api/v1/clinical/ai-query`, {
+            method: 'POST',
+            headers: {
+                'Authorization': `Bearer ${token}`,
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ prompt: 'Explicar técnica de defusión cognitiva' })
+        });
+
+        if (resNoKey.status !== 503) {
+            throw new Error(`FALLO: ai-query sin API key debe responder 503, obtenido ${resNoKey.status}`);
+        }
+        const data = await resNoKey.json();
+        if (data.source !== 'unavailable') {
+            throw new Error('ai-query debe declarar explícitamente source: unavailable ante ausencia de credenciales');
+        }
+
+        // 3. Status endpoint
+        const statusRes = await fetch(`${baseUrl}/api/v1/clinical/ai-status`, {
+            headers: { 'Authorization': `Bearer ${token}` }
+        });
+        const statusData = await statusRes.json();
+        if (statusData.available !== false) {
+            throw new Error('ai-status debe reportar available: false cuando falta GEMINI_API_KEY');
+        }
+    } finally {
+        if (savedKey) process.env.GEMINI_API_KEY = savedKey;
+    }
+});
+
+// 73. TC-KID-01: Portal Pacientes Kid — Registro Lúdico y Recuperación
+ClinicalTestSuite.add('TC-KID-01', 'Portal Pacientes Kid: Registro de actividades lúdicas (clima, avatar, dibujo) y obtención por token', async () => {
+    const baseUrl = await ensureTestServer();
+    const { db } = await import('./db.js');
+
+    const patId = 'pat_kid_test_' + Date.now();
+    const token = 'KID-' + Math.random().toString(36).substring(2, 8).toUpperCase();
+
+    await db.upsertPatient({
+        id: patId,
+        name: 'Tomás Explorador',
+        category: 'child',
+        portal_token: token,
+        therapist_id: 'therapist_kid_01'
+    });
+
+    // 1. Enviar actividad de clima y mapa somático
+    const postRes = await fetch(`${baseUrl}/api/v1/portal/kid/activity`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+            patientToken: token,
+            activityType: 'weather_body',
+            data: {
+                weather: 'sunny',
+                weatherLabel: 'Soleado ☀️',
+                bodyZone: 'belly',
+                bodyZoneLabel: 'En la pancita 🌀'
+            }
+        })
+    });
+
+    if (postRes.status !== 201) {
+        throw new Error(`Esperado status 201 en kid activity, recibido ${postRes.status}`);
+    }
+    const postJson = await postRes.json();
+    if (!postJson.rewardStar) {
+        throw new Error('La respuesta de actividad infantil debe otorgar una rewardStar');
+    }
+
+    // 2. Enviar personalización de avatar
+    await fetch(`${baseUrl}/api/v1/portal/kid/activity`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+            patientToken: token,
+            activityType: 'avatar_customization',
+            data: {
+                character: 'fox',
+                emoji: '🦊',
+                name: 'Zorrito Valiente',
+                aura: 'aura-gold',
+                accessory: 'cape'
+            }
+        })
+    });
+
+    // 3. Consultar actividades desde el portal del niño
+    const getRes = await fetch(`${baseUrl}/api/v1/portal/kid/activity?token=${encodeURIComponent(token)}`);
+    if (getRes.status !== 200) {
+        throw new Error(`Esperado status 200 en get kid activities, recibido ${getRes.status}`);
+    }
+    const getJson = await getRes.json();
+    if (!Array.isArray(getJson.activities) || getJson.activities.length < 2) {
+        throw new Error('Debe retornar la lista de actividades registradas para el paciente pediátrico');
+    }
+});
+
+// 74. TC-KID-02: Portal Pacientes Kid — Control BOLA/IDOR para Acceso Clínico
+ClinicalTestSuite.add('TC-KID-02', 'Portal Pacientes Kid: Prevención BOLA/IDOR en lectura clínica por parte de terapeutas', async () => {
+    const baseUrl = await ensureTestServer();
+    const { db } = await import('./db.js');
+    const { generateSessionToken } = await import('./server.js');
+
+    const assignedTherapistId = 'dr_assigned_' + Date.now();
+    const intruderTherapistId = 'dr_intruder_' + Date.now();
+    const patId = 'pat_kid_bola_' + Date.now();
+    const token = 'KID-BOLA-' + Math.random().toString(36).substring(2, 8).toUpperCase();
+
+    await db.upsertPatient({
+        id: patId,
+        name: 'Sofía Valiente',
+        category: 'child',
+        portal_token: token,
+        therapist_id: assignedTherapistId
+    });
+
+    // Guardar una actividad lúdica
+    await db.saveKidActivity(patId, {
+        activityType: 'drawing',
+        data: { imageDataUrl: 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==' }
+    });
+
+    const assignedToken = generateSessionToken(assignedTherapistId, 'assigned@clinica.com');
+    const intruderToken = generateSessionToken(intruderTherapistId, 'intruder@clinica.com');
+
+    // 1. Acceso sin token -> 401
+    const unauthRes = await fetch(`${baseUrl}/api/v1/patients/${patId}/kid-activity`);
+    if (unauthRes.status !== 401) {
+        throw new Error(`Esperado 401 sin autenticación, recibido ${unauthRes.status}`);
+    }
+
+    // 2. Acceso por terapeuta no autorizado (BOLA/IDOR) -> 403
+    const intruderRes = await fetch(`${baseUrl}/api/v1/patients/${patId}/kid-activity`, {
+        headers: { 'Authorization': `Bearer ${intruderToken}` }
+    });
+    if (intruderRes.status !== 403) {
+        throw new Error(`FALLO BOLA/IDOR: Terapeuta no asignado debe recibir 403, recibido ${intruderRes.status}`);
+    }
+
+    // 3. Acceso por terapeuta asignado -> 200
+    const assignedRes = await fetch(`${baseUrl}/api/v1/patients/${patId}/kid-activity`, {
+        headers: { 'Authorization': `Bearer ${assignedToken}` }
+    });
+    if (assignedRes.status !== 200) {
+        throw new Error(`Terapeuta asignado debe acceder con 200, recibido ${assignedRes.status}`);
+    }
+    const assignedJson = await assignedRes.json();
+    if (!Array.isArray(assignedJson.activities) || assignedJson.activities.length === 0) {
+        throw new Error('Debe devolver el historial de actividades lúdicas del niño');
+    }
+});
+
 // Auto-ejecución si se corre desde Node.js (CLI)
 if (typeof process !== 'undefined' && process.argv && process.argv[1] && process.argv[1].endsWith('tests.js')) {
     ClinicalTestSuite.runAll().then(res => {

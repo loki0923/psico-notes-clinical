@@ -2,32 +2,32 @@
 PORTAL DEL PACIENTE - ESTILOS
 ============================================ */
 :root {
-    --bg-primary: #faf9f6;
-    --bg-secondary: #f3efe8;
-    --bg-tertiary: #ebe5dc;
-    --bg-card: #ffffff;
-    --text-primary: #252e2a;
-    --text-secondary: #56645e;
-    --text-tertiary: #8b9993;
-    --accent-primary: #3b7a6c;
-    --accent-hover: #2e6256;
-    --accent-light: rgba(59, 122, 108, 0.09);
-    --accent-focus: rgba(59, 122, 108, 0.18);
-    --accent-success: #2e856e;
-    --accent-warning: #c28838;
-    --accent-danger: #c85348;
-    --border-primary: rgba(45, 55, 50, 0.08);
-    --border-secondary: rgba(45, 55, 50, 0.14);
-    --border-hover: rgba(45, 55, 50, 0.24);
-    --shadow-sm: 0 1px 3px rgba(35, 45, 40, 0.03), 0 1px 2px rgba(35, 45, 40, 0.02);
-    --shadow-md: 0 6px 18px -3px rgba(35, 45, 40, 0.06), 0 2px 6px -1px rgba(35, 45, 40, 0.02);
-    --shadow-lg: 0 16px 40px -4px rgba(35, 45, 40, 0.08), 0 6px 14px -2px rgba(35, 45, 40, 0.03);
+    --bg-primary: #F7F8F6;
+    --bg-secondary: #EEF1ED;
+    --bg-tertiary: #E5E9E5;
+    --bg-card: #FFFFFF;
+    --text-primary: #202923;
+    --text-secondary: #69736D;
+    --text-tertiary: #8A958E;
+    --accent-primary: #285C50;
+    --accent-hover: #1E463D;
+    --accent-light: #E7F0EB;
+    --accent-focus: rgba(40, 92, 80, 0.22);
+    --accent-success: #1E7E34;
+    --accent-warning: #B45309;
+    --accent-danger: #D32F2F;
+    --border-primary: #E5E9E5;
+    --border-secondary: #D7DED8;
+    --border-hover: #285C50;
+    --shadow-sm: 0 1px 3px rgba(32, 41, 35, 0.04), 0 1px 2px rgba(32, 41, 35, 0.02);
+    --shadow-md: 0 6px 18px -3px rgba(32, 41, 35, 0.06), 0 2px 6px -1px rgba(32, 41, 35, 0.02);
+    --shadow-lg: 0 16px 40px -4px rgba(32, 41, 35, 0.08), 0 6px 14px -2px rgba(32, 41, 35, 0.03);
     --radius-sm: 8px;
     --radius-md: 12px;
     --radius-lg: 16px;
-    --radius-xl: 24px;
-    --font-sans: 'Inter', -apple-system, sans-serif;
-    --font-serif: 'Playfair Display', Georgia, serif;
+    --radius-xl: 20px;
+    --font-sans: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    --font-serif: 'Inter', -apple-system, sans-serif;
 }
 
 * { margin: 0; padding: 0; box-sizing: border-box; }
@@ -1503,6 +1503,699 @@ MODAL DE ANCLAJE GROUNDING 5-4-3-2-1
     background: #4f46e5;
     transform: translateY(-1px);
 }
+
+/* ==========================================================================
+   PORTAL PACIENTES KID — ESTILOS LÚDICOS Y ACCESIBLES (PSICO KIDS SPACE)
+   ========================================================================== */
+
+/* Toggle en Header y Contador de Estrellas */
+.btn-kid-toggle {
+    background: linear-gradient(135deg, #ffbe0b, #fb5607);
+    color: #fff;
+    border: none;
+    border-radius: 20px;
+    padding: 6px 12px;
+    font-size: 13px;
+    font-weight: 700;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    box-shadow: 0 2px 8px rgba(251, 86, 7, 0.3);
+    transition: all 0.25s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+.btn-kid-toggle:hover {
+    transform: scale(1.05) translateY(-1px);
+    box-shadow: 0 4px 12px rgba(251, 86, 7, 0.4);
+}
+.btn-kid-toggle.active {
+    background: linear-gradient(135deg, #3a86ff, #8338ec);
+    box-shadow: 0 2px 8px rgba(131, 56, 236, 0.35);
+}
+.kid-stars-counter {
+    background: #fff8e1;
+    border: 1.5px solid #ffb703;
+    color: #b25e00;
+    font-weight: 800;
+    font-size: 13px;
+    padding: 4px 10px;
+    border-radius: 16px;
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    box-shadow: 0 2px 6px rgba(255, 183, 3, 0.25);
+    animation: starPulse 2.5s infinite;
+}
+@keyframes starPulse {
+    0%, 100% { transform: scale(1); }
+    50% { transform: scale(1.06); }
+}
+
+/* Tarjeta Hero Kids */
+.kid-hero-card {
+    background: linear-gradient(135deg, #f7f0ff 0%, #e8f4fd 100%);
+    border: 2px dashed #b8c1ec;
+    border-radius: 20px;
+    padding: 20px;
+    display: flex;
+    align-items: center;
+    gap: 18px;
+    margin-bottom: 20px;
+    box-shadow: 0 4px 16px rgba(184, 193, 236, 0.18);
+}
+.kid-hero-avatar-wrapper {
+    position: relative;
+    cursor: pointer;
+    flex-shrink: 0;
+}
+.kid-avatar-badge {
+    width: 64px;
+    height: 64px;
+    border-radius: 50%;
+    background: #ffffff;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 34px;
+    border: 3px solid #ffb703;
+    transition: transform 0.2s;
+}
+.kid-hero-avatar-wrapper:hover .kid-avatar-badge {
+    transform: scale(1.08) rotate(6deg);
+}
+.kid-hero-badge-tag {
+    position: absolute;
+    bottom: -6px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: #285c50;
+    color: #ffffff;
+    font-size: 9px;
+    font-weight: 700;
+    padding: 2px 6px;
+    border-radius: 8px;
+    white-space: nowrap;
+}
+.kid-hero-text .kid-title {
+    font-size: 20px;
+    font-weight: 800;
+    color: #202923;
+    margin: 0 0 6px 0;
+}
+.kid-hero-text .kid-subtitle {
+    font-size: 13px;
+    color: #556058;
+    margin: 0;
+    line-height: 1.4;
+}
+
+/* Tarjetas Generales Kid */
+.kid-card {
+    background: #ffffff;
+    border-radius: 20px;
+    border: 1.5px solid #e7ede8;
+    padding: 22px;
+    margin-bottom: 22px;
+    box-shadow: 0 4px 14px rgba(0, 0, 0, 0.04);
+}
+.kid-card-header {
+    display: flex;
+    align-items: flex-start;
+    gap: 14px;
+    margin-bottom: 18px;
+}
+.kid-card-icon {
+    font-size: 32px;
+    line-height: 1;
+}
+.kid-card-title {
+    font-size: 18px;
+    font-weight: 800;
+    color: #202923;
+    margin: 0 0 4px 0;
+}
+.kid-card-desc {
+    font-size: 13px;
+    color: #69736d;
+    margin: 0;
+    line-height: 1.4;
+}
+
+/* Clima de mi Corazón */
+.kid-weather-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
+    gap: 12px;
+    margin-bottom: 22px;
+}
+.kid-weather-btn {
+    background: #fbfcfb;
+    border: 2px solid #e5e9e5;
+    border-radius: 16px;
+    padding: 14px 10px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+    gap: 6px;
+    cursor: pointer;
+    transition: all 0.2s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+.kid-weather-btn:hover {
+    transform: translateY(-3px);
+    border-color: #285c50;
+    background: #f4f8f6;
+}
+.kid-weather-btn.selected {
+    background: #eef7f4;
+    border-color: #285c50;
+    box-shadow: 0 0 0 3px rgba(40, 92, 80, 0.18);
+    transform: scale(1.03);
+}
+.kid-weather-emoji {
+    font-size: 36px;
+    line-height: 1;
+}
+.kid-weather-name {
+    font-size: 13px;
+    font-weight: 700;
+    color: #202923;
+}
+.kid-weather-hint {
+    font-size: 11px;
+    color: #69736d;
+    line-height: 1.2;
+}
+
+/* Mapa Somático Corporal */
+.kid-somatic-box {
+    background: #fbfbfd;
+    border: 1.5px solid #ecebf3;
+    border-radius: 16px;
+    padding: 18px;
+    margin-top: 10px;
+}
+.kid-somatic-title {
+    font-size: 14px;
+    font-weight: 700;
+    color: #202923;
+    margin: 0 0 6px 0;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+.kid-zones-grid {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    margin: 14px 0 16px 0;
+}
+.kid-zone-btn {
+    background: #ffffff;
+    border: 1.5px solid #dcdde5;
+    border-radius: 20px;
+    padding: 8px 14px;
+    font-size: 12px;
+    font-weight: 600;
+    color: #3d4540;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    transition: all 0.2s;
+}
+.kid-zone-btn:hover {
+    border-color: #8338ec;
+    background: #f8f4ff;
+    transform: translateY(-2px);
+}
+.kid-zone-btn.selected {
+    background: #8338ec;
+    color: #ffffff;
+    border-color: #8338ec;
+    box-shadow: 0 2px 8px rgba(131, 56, 236, 0.3);
+}
+.kid-zone-emoji {
+    font-size: 16px;
+}
+.kid-submit-row {
+    display: flex;
+    justify-content: flex-end;
+    margin-top: 14px;
+}
+.btn-kid-action {
+    border: none;
+    border-radius: 16px;
+    padding: 12px 22px;
+    font-size: 14px;
+    font-weight: 800;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    transition: all 0.25s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+.btn-kid-primary {
+    background: linear-gradient(135deg, #285c50 0%, #1d433b 100%);
+    color: #ffffff;
+    box-shadow: 0 4px 14px rgba(40, 92, 80, 0.25);
+}
+.btn-kid-primary:hover {
+    transform: translateY(-2px) scale(1.02);
+    box-shadow: 0 6px 18px rgba(40, 92, 80, 0.35);
+}
+
+/* Tarjetas de Accesos Rápidos Lúdicos */
+.kid-quick-games-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 16px;
+    margin-top: 14px;
+}
+.kid-game-card {
+    border-radius: 18px;
+    padding: 20px;
+    cursor: pointer;
+    transition: all 0.25s cubic-bezier(0.34, 1.56, 0.64, 1);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.04);
+}
+.kid-game-card:hover {
+    transform: translateY(-4px);
+    box-shadow: 0 8px 20px rgba(0, 0, 0, 0.08);
+}
+.kid-game-card.card-bubbles {
+    background: linear-gradient(135deg, #f0f7ff 0%, #e0f2fe 100%);
+    border: 2px solid #bae6fd;
+}
+.kid-game-card.card-drawing {
+    background: linear-gradient(135deg, #fff7ed 0%, #ffedd5 100%);
+    border: 2px solid #fed7aa;
+}
+.kid-game-card.card-calm {
+    background: linear-gradient(135deg, #fdf2f8 0%, #fce7f3 100%);
+    border: 2px solid #fbcfe8;
+}
+.kid-game-icon {
+    font-size: 38px;
+    margin-bottom: 10px;
+}
+.kid-game-card h4 {
+    margin: 0 0 6px 0;
+    font-size: 15px;
+    font-weight: 800;
+    color: #202923;
+}
+.kid-game-card p {
+    margin: 0;
+    font-size: 12px;
+    color: #556058;
+    line-height: 1.35;
+}
+
+/* Creador de Avatar */
+.kid-avatar-preview-stage {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 24px;
+    background: radial-gradient(circle, #f8f9ff 0%, #f0f3fa 100%);
+    border-radius: 20px;
+    margin-bottom: 24px;
+}
+.kid-stage-aura {
+    width: 130px;
+    height: 130px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    position: relative;
+    box-shadow: 0 0 30px rgba(255, 183, 3, 0.3);
+    transition: all 0.3s ease;
+    animation: pulseAura 3s infinite ease-in-out;
+}
+@keyframes pulseAura {
+    0%, 100% { transform: scale(1); }
+    50% { transform: scale(1.05); }
+}
+.aura-gold { background: radial-gradient(circle, #fff3b0 20%, #ffc300 100%); box-shadow: 0 0 35px rgba(255, 195, 0, 0.45); }
+.aura-purple { background: radial-gradient(circle, #e0aaff 20%, #9d4edd 100%); box-shadow: 0 0 35px rgba(157, 78, 221, 0.45); }
+.aura-teal { background: radial-gradient(circle, #cbf3f0 20%, #2ec4b6 100%); box-shadow: 0 0 35px rgba(46, 196, 182, 0.45); }
+.aura-pink { background: radial-gradient(circle, #ffccd5 20%, #ff4d6d 100%); box-shadow: 0 0 35px rgba(255, 77, 109, 0.45); }
+.aura-mint { background: radial-gradient(circle, #d8f3dc 20%, #52b788 100%); box-shadow: 0 0 35px rgba(82, 183, 136, 0.45); }
+
+.kid-stage-emoji {
+    font-size: 64px;
+    line-height: 1;
+}
+.kid-stage-acc {
+    position: absolute;
+    bottom: 4px;
+    right: 4px;
+    font-size: 30px;
+    background: #ffffff;
+    border-radius: 50%;
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.15);
+    padding: 2px;
+}
+.kid-avatar-name-display {
+    margin-top: 12px;
+    font-size: 16px;
+    font-weight: 800;
+    color: #202923;
+}
+.kid-avatar-step {
+    margin-bottom: 20px;
+}
+.kid-avatar-step h4 {
+    font-size: 14px;
+    font-weight: 700;
+    color: #202923;
+    margin: 0 0 10px 0;
+}
+.kid-avatar-options, .kid-acc-options {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+}
+.avatar-opt-btn, .acc-opt-btn {
+    background: #fbfcfb;
+    border: 1.5px solid #dce2dc;
+    border-radius: 16px;
+    padding: 8px 14px;
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+.avatar-opt-btn:hover, .acc-opt-btn:hover {
+    border-color: #285c50;
+    transform: translateY(-2px);
+}
+.avatar-opt-btn.active, .acc-opt-btn.active {
+    background: #285c50;
+    color: #ffffff;
+    border-color: #285c50;
+    box-shadow: 0 2px 8px rgba(40, 92, 80, 0.25);
+}
+.opt-emoji {
+    font-size: 20px;
+}
+.kid-aura-options {
+    display: flex;
+    gap: 12px;
+}
+.aura-opt-btn {
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    border: 3px solid #ffffff;
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.15);
+    cursor: pointer;
+    transition: transform 0.2s;
+}
+.aura-opt-btn:hover {
+    transform: scale(1.15);
+}
+.aura-opt-btn.active {
+    outline: 3px solid #202923;
+    outline-offset: 2px;
+}
+.aura-gold-btn { background: #ffc300; }
+.aura-purple-btn { background: #9d4edd; }
+.aura-teal-btn { background: #2ec4b6; }
+.aura-pink-btn { background: #ff4d6d; }
+.aura-mint-btn { background: #52b788; }
+
+/* Cazador de Burbujas */
+.kid-bubbles-stats {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 14px;
+    font-size: 13px;
+    font-weight: 700;
+    color: #285c50;
+}
+.btn-kid-sm {
+    background: #eef7f4;
+    border: 1px solid #285c50;
+    color: #285c50;
+    border-radius: 12px;
+    padding: 6px 12px;
+    font-size: 12px;
+    font-weight: 700;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+.btn-kid-sm:hover {
+    background: #285c50;
+    color: #ffffff;
+}
+.kid-bubbles-playfield {
+    min-height: 280px;
+    background: radial-gradient(ellipse at bottom, #e0f2fe 0%, #f0fdf4 100%);
+    border-radius: 20px;
+    border: 2px dashed #93c5fd;
+    padding: 20px;
+    position: relative;
+    overflow: hidden;
+    display: flex;
+    flex-wrap: wrap;
+    align-content: center;
+    justify-content: center;
+    gap: 14px;
+}
+.kid-bubble {
+    background: radial-gradient(circle at 30% 30%, rgba(255, 255, 255, 0.95), rgba(186, 230, 253, 0.65));
+    border: 2px solid rgba(147, 197, 253, 0.85);
+    border-radius: 50px;
+    padding: 12px 18px;
+    font-size: 13px;
+    font-weight: 700;
+    color: #0369a1;
+    cursor: pointer;
+    box-shadow: 0 4px 14px rgba(125, 211, 252, 0.4), inset 0 2px 6px rgba(255, 255, 255, 0.8);
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    animation: floatBubble 4s infinite ease-in-out;
+    user-select: none;
+    transition: transform 0.15s, opacity 0.3s;
+}
+.kid-bubble:hover {
+    transform: scale(1.08) translateY(-4px);
+    background: radial-gradient(circle at 30% 30%, #ffffff, rgba(147, 197, 253, 0.8));
+}
+.kid-bubble.popping {
+    transform: scale(1.4);
+    opacity: 0;
+}
+@keyframes floatBubble {
+    0%, 100% { transform: translateY(0px) rotate(0deg); }
+    50% { transform: translateY(-8px) rotate(1.5deg); }
+}
+.kid-bubbles-footer {
+    margin-top: 14px;
+    text-align: center;
+}
+.kid-calm-reminder {
+    font-size: 13px;
+    font-weight: 600;
+    color: #0369a1;
+    margin: 0;
+}
+
+/* Lienzo Mágico (Canvas) */
+.kid-canvas-toolbar {
+    background: #fbfbfb;
+    border: 1px solid #e5e9e5;
+    border-radius: 16px;
+    padding: 12px;
+    margin-bottom: 14px;
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 16px;
+}
+.kid-tool-group {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+.kid-tool-group label {
+    font-size: 12px;
+    font-weight: 700;
+    color: #556058;
+}
+.kid-color-palette {
+    display: flex;
+    gap: 6px;
+}
+.color-btn {
+    width: 26px;
+    height: 26px;
+    border-radius: 50%;
+    border: 2px solid #ffffff;
+    box-shadow: 0 1px 4px rgba(0, 0, 0, 0.2);
+    cursor: pointer;
+    transition: transform 0.15s;
+}
+.color-btn:hover {
+    transform: scale(1.2);
+}
+.color-btn.active {
+    outline: 2px solid #202923;
+    outline-offset: 1px;
+}
+.eraser-btn {
+    background: #ffffff !important;
+    font-size: 14px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+.kid-size-buttons, .kid-stamps-palette {
+    display: flex;
+    gap: 4px;
+}
+.size-btn, .stamp-btn {
+    background: #ffffff;
+    border: 1px solid #dcdde5;
+    border-radius: 10px;
+    padding: 4px 8px;
+    font-size: 11px;
+    font-weight: 700;
+    cursor: pointer;
+    transition: all 0.15s;
+}
+.stamp-btn {
+    font-size: 14px;
+    padding: 3px 6px;
+}
+.size-btn.active, .stamp-btn.active {
+    background: #285c50;
+    color: #ffffff;
+    border-color: #285c50;
+}
+.btn-clear {
+    border-color: #e63946 !important;
+    color: #e63946 !important;
+}
+.kid-canvas-wrapper {
+    background: #ffffff;
+    border: 2px solid #dce2dc;
+    border-radius: 16px;
+    overflow: hidden;
+    display: flex;
+    justify-content: center;
+    touch-action: none;
+    box-shadow: inset 0 1px 4px rgba(0, 0, 0, 0.05);
+}
+#kidDrawingCanvas {
+    background: #ffffff;
+    display: block;
+    max-width: 100%;
+    height: auto;
+    cursor: crosshair;
+}
+
+/* El Globo de la Calma */
+.kid-balloon-stage {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    min-height: 260px;
+    padding: 24px;
+    background: radial-gradient(circle, #fdf4ff 0%, #fae8ff 100%);
+    border-radius: 20px;
+    margin-bottom: 20px;
+}
+.kid-balloon {
+    width: 110px;
+    height: 130px;
+    background: radial-gradient(circle at 35% 30%, #ff80bf, #f43f5e);
+    border-radius: 50% 50% 50% 50% / 40% 40% 60% 60%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: 0 10px 25px rgba(244, 63, 94, 0.35);
+    position: relative;
+    transition: transform 0.5s ease;
+}
+.kid-balloon::after {
+    content: '';
+    position: absolute;
+    bottom: -8px;
+    width: 10px;
+    height: 8px;
+    background: #f43f5e;
+    clip-path: polygon(50% 100%, 0 0, 100% 0);
+}
+.kid-balloon-face {
+    font-size: 38px;
+}
+.kid-balloon.inhale {
+    transform: scale(1.65);
+    transition: transform 4s cubic-bezier(0.4, 0, 0.2, 1);
+}
+.kid-balloon.exhale {
+    transform: scale(0.9);
+    transition: transform 6s cubic-bezier(0.4, 0, 0.2, 1);
+}
+.kid-breathing-instruction {
+    margin-top: 26px;
+    font-size: 16px;
+    font-weight: 800;
+    color: #86198f;
+    text-align: center;
+}
+.kid-breathing-timer {
+    font-size: 14px;
+    font-weight: 700;
+    color: #a21caf;
+    margin-top: 4px;
+}
+.kid-calm-controls {
+    display: flex;
+    justify-content: center;
+    margin-bottom: 14px;
+}
+.kid-calm-counter {
+    text-align: center;
+    font-size: 13px;
+    font-weight: 700;
+    color: #556058;
+}
+
+/* Doble Navegación Inferior Niños */
+.kid-bottom-nav {
+    background: #ffffff;
+    border-top: 2px solid #e2e8f0;
+    box-shadow: 0 -4px 16px rgba(0, 0, 0, 0.05);
+}
+.kid-bottom-nav .nav-btn {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 4px;
+}
+.kid-bottom-nav .kid-nav-icon {
+    font-size: 20px;
+}
+.kid-bottom-nav .nav-btn.active {
+    color: #285c50;
+    font-weight: 800;
+    transform: translateY(-2px);
+}
+
 
 
 

@@ -2478,3 +2478,131 @@ flowchart TD
 - Incorporada la prueba automatizada **TC-FILE-01** en [`tests.js`](file:///c:/Users/Windows%2011/OneDrive/Desktop/psico-notes-clinical/tests.js).
 - Cobertura: 67 de 67 pruebas unitarias y de integración pasando al 100% (cero fallos).
 
+---
+
+## 26. Arquitectura del Portal de Pacientes KID (Psico Kids Space)
+
+### 26.1. Visión y Fundamentación Clínica Pediátrica
+En la psicoterapia infanto-juvenil (edades comprendidas entre 4 y 12 años), los modelos de auto-reporte textual estandarizados de adultos (escalas tipo Likert, registros de pensamientos de columnas densas) resultan clínicamente inapropiados y cognitivamente inaccesibles. La expresión emocional en la infancia se canaliza mediante el juego simbólico (*Play Therapy*), la proyección artística y la identificación con personajes arquetípicos.
+
+El **Portal Pacientes KID** ("Espacio Mágico") transforma la toma de datos intersesión en una experiencia gamificada, empática, segura y altamente visual, permitiendo al niño expresar lo que siente sin barreras de lectoescritura avanzada.
+
+```mermaid
+flowchart TD
+    subgraph PortalKID["🧒 Portal Pacientes KID (Psico Kids Space)"]
+        AvatarCreator["🎨 Creador de Avatar / Compañero Mágico"]
+        WeatherMood["🌤️ El Clima de Mi Corazón (Ánimo & Somatización)"]
+        BubbleGame["🎈 El Cazador de Preocupaciones (Burbujas Pop)"]
+        MagicCanvas["🖍️ El Lienzo de Colores (Dibujo Terapéutico)"]
+        SecretChest["📦 El Cofre de Mensajes Secretos"]
+        CalmBalloon["🎈 El Globo Mágico (Respiración Guiada)"]
+    end
+
+    subgraph SecurityGateway["🛡️ Gateway Seguro (server.js)"]
+        TokenAuth["Validación Token Niño / PIN"]
+        PayloadAudit["Sanitización de Datos y Cero Exposición PHI"]
+        RateLimitKid["Limitador de Tasa Anti-Abuso"]
+    end
+
+    subgraph DataStore["💾 Persistencia Híbrida (db.js)"]
+        KidStore[("kid_portal_activities (PostgreSQL / Local)")]
+    end
+
+    subgraph TherapistPanel["👩‍⚕️ Panel del Terapeuta (Historia Clínica Infantil)"]
+        KidDashboard["🌟 Visualizador de Actividad Kids"]
+        AvatarCard["Ficha de Avatar y Clima Longitudinal"]
+        DrawingGallery["Galería de Dibujos con Interpretación"]
+        BubbleSummary["Mapeo de Preocupaciones y Estresores Infantiles"]
+    end
+
+    AvatarCreator --> TokenAuth
+    WeatherMood --> TokenAuth
+    BubbleGame --> TokenAuth
+    MagicCanvas --> TokenAuth
+    SecretChest --> TokenAuth
+    CalmBalloon --> TokenAuth
+
+    TokenAuth --> RateLimitKid
+    RateLimitKid --> PayloadAudit
+    PayloadAudit --> KidStore
+
+    KidStore --> KidDashboard
+    KidDashboard --> AvatarCard
+    KidDashboard --> DrawingGallery
+    KidDashboard --> BubbleSummary
+```
+
+### 26.2. Módulos y Dinámicas de Juego Clínico
+
+#### 1. Creador de Avatar Emocional ("Mi Compañero")
+- **Arquetipos Disponibles:** Zorrito Curioso, Osito Guardián, Búho Sabio, Monstruito Alegre, Superhéroe/Explorador.
+- **Personalización:** Color de pelaje/piel, accesorios (capa de valentía, corona de calma, estrella de luz, gafas mágicas).
+- **Expresión:** El avatar adopta la expresión del estado de ánimo seleccionado.
+
+#### 2. El Clima de Mi Corazón (Medidor de Ánimo y Somatización)
+- **Estados Meteorológicos:**
+  - ☀️ Soleado (Muy feliz, con mucha energía positiva)
+  - 🌤️ Sol con nubes (Tranquilo, en calma)
+  - 🌈 Arcoíris (Creativo, ilusionado)
+  - 🌧️ Lluvia (Triste, desganado)
+  - ⚡ Tormenta (Enojado, con rabia)
+  - 🌪️ Remolino (Preocupado, con miedo o confusión)
+- **Mapa Corporal Interactivo:** El niño toca la zona del cuerpo donde "siente la emoción" (Pancita, Pecho/Corazón, Garganta, Cabeza, Manos/Pies), aportando datos invaluables de somatización para el terapeuta.
+
+#### 3. El Cazador de Preocupaciones (Burbujas Pop)
+- Burbujas flotantes animadas con temáticas universales infantiles:
+  - 🏫 Escuela y deberes
+  - 👥 Amiguitos y peleas
+  - 🌙 Oscuridad y pesadillas
+  - 🏠 Cosas de casa / Papás tristes o enojados
+  - 💔 Sentirme solito / No comprendido
+- El niño selecciona la burbuja que más le pesa, la revienta con una animación de partículas y sonido suave, completando un ciclo de desahogo y respiración profunda.
+
+#### 4. El Lienzo Mágico (Dibujo Terapéutico Digital)
+- Canvas HTML5 interactivo con paleta de colores pasteles y primarios, grosores de trazo, borrador y sellos emocionales.
+- Al guardar, el dibujo se codifica de forma segura en Base64/PNG o trazos vectoriales y se envía al expediente clínico del terapeuta.
+
+#### 5. El Botiquín del Globo Mágico (Regulación Autonómica)
+- Animación interactiva de un globo que se infla (inhalar en 4s) y se desinfla (exhalar en 6s), promoviendo la activación del sistema nervioso parasimpático en crisis de hiperactivación o berrinche/angustia.
+
+### 26.3. Diagrama de Secuencia: Flujo Lúdico del Niño hacia el Terapeuta
+
+```mermaid
+sequenceDiagram
+    autonumber
+    actor Nino as 🧒 Niño en Portal KID
+    participant Portal as 📱 portal.html (Modo Kids)
+    participant Server as 🛡️ Backend (/api/v1/portal/kid)
+    participant DB as 💾 db.js (kid_portal_activities)
+    actor Terapeuta as 👩‍⚕️ Psicólogo(a) Infantil
+    participant App as 💻 Expediente Clínico (app.js)
+
+    Nino->>Portal: Elige su Avatar (Zorrito) y selecciona Clima (⚡ Tormenta en la Pancita)
+    Portal->>Nino: Feedback positivo con sonido suave y animación
+    Nino->>Portal: Juega en el Lienzo Mágico y dibuja su día
+    Nino->>Portal: Presiona "Enviar a mi Psicólogo/a" 🚀
+    Portal->>Server: POST /api/v1/portal/kid/activity { patientToken, type: 'drawing', data, weather, somaticZone }
+    Note over Server: Valida token, integridad multitenant y sanitiza entrada
+    Server->>DB: Guarda registro en kid_portal_activities
+    Server-->>Portal: HTTP 201 { status: 'saved', reward: '🌟 Estrella Mágica' }
+    Portal-->>Nino: Muestra estrella mágica ganada y animación de confeti
+
+    Terapeuta->>App: Abre Expediente del Paciente Infantil
+    App->>Server: GET /api/v1/patients/:id/kid-activity (Bearer Token)
+    Server->>DB: Consulta actividades del paciente
+    DB-->>Server: Retorna avatar, estados de ánimo somáticos y dibujos
+    Server-->>App: HTTP 200 [Historial de Actividades Kids]
+    App-->>Terapeuta: Despliega tarjeta "🎨 Actividad Lúdica del Portal Kids" con dibujo visible y clima somático
+```
+
+### 26.4. Contratos de API REST del Subsistema KID
+
+| Método | Endpoint | Autenticación | Descripción |
+|---|---|---|---|
+| `POST` | `/api/v1/portal/kid/activity` | `patientToken` | Registra avatar, clima emocional, somatización, burbujas o dibujos |
+| `GET` | `/api/v1/portal/kid/activity` | `patientToken` | Recupera el estado lúdico y avatar del niño para continuar su juego |
+| `GET` | `/api/v1/patients/:id/kid-activity` | `Bearer Token` (Terapeuta) | Consulta la actividad del niño para visualizarla en la ficha clínica |
+
+---
+
+

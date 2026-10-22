@@ -11,7 +11,23 @@ const PortalState = {
     moodLog: [],
     cbtRecords: [],
     activeCrisisAlert: false,
-    currentFilter: 'pending'
+    currentFilter: 'pending',
+    // --- PORTAL PACIENTES KID (PSICO KIDS SPACE) ---
+    isKidMode: false,
+    kidStars: 0,
+    kidAvatar: {
+        character: 'fox',
+        emoji: '🦊',
+        name: 'Zorrito Valiente',
+        aura: 'aura-gold',
+        accessory: 'cape',
+        accEmoji: '🦸'
+    },
+    kidWeather: null,
+    kidBodyZone: null,
+    kidBubblesPopped: 0,
+    kidCalmCycles: 0,
+    kidActivities: []
 };
 
 // ============================================
@@ -380,6 +396,7 @@ async function enterPortal() {
     updateTestsLastResults();
     updateProgress();
     checkConsentCard();
+    initKidModeState();
     PortalOfflineQueue.updateBadge();
     PortalOfflineQueue.flush();
     showToast(`Bienvenido/a, ${(PortalState.patientName || 'Paciente').split(' ')[0]}`, 'success');
@@ -426,6 +443,29 @@ async function loadPatientData() {
                     PortalState.activeCrisisAlert = Boolean(data.hasActiveCrisisAlert);
                     if (data.therapistName) PortalState.therapistName = data.therapistName;
 
+                    // Datos específicos de actividades lúdicas infantiles
+                    if (Array.isArray(data.kidActivities)) {
+                        PortalState.kidActivities = data.kidActivities;
+                        // Extraer el último avatar configurado si existe
+                        const avatarAct = data.kidActivities.find(a => a.activity_type === 'avatar_customization');
+                        if (avatarAct && avatarAct.data) {
+                            PortalState.kidAvatar = { ...PortalState.kidAvatar, ...avatarAct.data };
+                        }
+                    }
+
+                    // Auto-activar Kid Mode si el paciente es pediátrico
+                    const isChildPatient = data.patient && (
+                        data.patient.category === 'child' ||
+                        data.patient.life_stage === 'child' ||
+                        data.patient.category === 'infantil'
+                    );
+                    const savedKidMode = localStorage.getItem(`psico_portal_kid_mode_${PortalState.patientId}`);
+                    if (savedKidMode !== null) {
+                        PortalState.isKidMode = savedKidMode === 'true';
+                    } else if (isChildPatient) {
+                        PortalState.isKidMode = true;
+                    }
+
                     savePatientDataLocally();
                     return;
                 }
@@ -449,12 +489,22 @@ function loadPatientDataLocally() {
             PortalState.moodLog = data.moodLog || [];
             PortalState.cbtRecords = data.cbtRecords || [];
             PortalState.activeCrisisAlert = Boolean(data.activeCrisisAlert);
+            PortalState.kidStars = typeof data.kidStars === 'number' ? data.kidStars : 0;
+            PortalState.kidAvatar = data.kidAvatar || PortalState.kidAvatar;
+            PortalState.kidActivities = data.kidActivities || [];
         } else {
             PortalState.tasks = [];
             PortalState.evaluations = [];
             PortalState.moodLog = [];
             PortalState.cbtRecords = [];
             PortalState.activeCrisisAlert = false;
+            PortalState.kidStars = 0;
+            PortalState.kidActivities = [];
+        }
+
+        const savedKidMode = localStorage.getItem(`psico_portal_kid_mode_${PortalState.patientId}`);
+        if (savedKidMode !== null) {
+            PortalState.isKidMode = savedKidMode === 'true';
         }
     } catch (e) {
         console.error('Error cargando datos locales del portal:', e);
@@ -473,6 +523,9 @@ function savePatientData() {
             moodLog: PortalState.moodLog,
             cbtRecords: PortalState.cbtRecords,
             activeCrisisAlert: PortalState.activeCrisisAlert,
+            kidStars: PortalState.kidStars,
+            kidAvatar: PortalState.kidAvatar,
+            kidActivities: PortalState.kidActivities,
             lastUpdate: new Date().toISOString()
         };
         localStorage.setItem(`psico_portal_data_${PortalState.patientId}`, JSON.stringify(data));
@@ -482,6 +535,11 @@ function savePatientData() {
             localStorage.setItem(`psico_portal_results_${PortalState.patientId}`, JSON.stringify(PortalState.evaluations));
             localStorage.setItem(`psico_portal_mood_${PortalState.patientId}`, JSON.stringify(PortalState.moodLog));
             localStorage.setItem(`psico_portal_cbt_${PortalState.patientId}`, JSON.stringify(PortalState.cbtRecords));
+            localStorage.setItem(`psico_portal_kid_${PortalState.patientId}`, JSON.stringify({
+                avatar: PortalState.kidAvatar,
+                stars: PortalState.kidStars,
+                activities: PortalState.kidActivities
+            }));
         }
     } catch (e) {
         console.error('Error guardando datos del portal:', e);
@@ -1634,3 +1692,692 @@ function confirmPortalConsentSignature() {
     showToast('¡Acuerdo firmado con éxito! Gracias por tu compromiso.', 'success');
 }
 
+// ==========================================================================
+// PORTAL PACIENTES KID — LÓGICA INTERACTIVA Y CLÍNICA (PSICO KIDS SPACE)
+// ==========================================================================
+
+function initKidModeState() {
+    const starsEl = document.getElementById('kidStarsCount');
+    const badgeEl = document.getElementById('kidStarsBadge');
+    if (starsEl) starsEl.textContent = PortalState.kidStars || 0;
+    
+    // Configurar avatar en home y header
+    updateKidAvatarDisplays();
+
+    // Actualizar nombre en saludo infantil
+    const greetingNameEl = document.getElementById('kidGreetingName');
+    if (greetingNameEl) {
+        greetingNameEl.textContent = (PortalState.patientName || 'Explorador').split(' ')[0];
+    }
+
+    if (PortalState.isKidMode) {
+        toggleKidMode(true);
+    }
+}
+
+function toggleKidMode(forceValue) {
+    if (typeof forceValue === 'boolean') {
+        PortalState.isKidMode = forceValue;
+    } else {
+        PortalState.isKidMode = !PortalState.isKidMode;
+    }
+
+    const toggleBtn = document.getElementById('btnKidModeToggle');
+    const badgeEl = document.getElementById('kidStarsBadge');
+    const stdNav = document.getElementById('standardNav');
+    const kidNav = document.getElementById('kidNav');
+
+    if (PortalState.isKidMode) {
+        if (toggleBtn) {
+            toggleBtn.classList.add('active');
+            toggleBtn.innerHTML = '<span class="kid-toggle-icon">🏡</span> <span class="kid-toggle-label">Modo Estándar</span>';
+        }
+        if (badgeEl) badgeEl.style.display = 'inline-flex';
+        if (stdNav) stdNav.style.display = 'none';
+        if (kidNav) kidNav.style.display = 'flex';
+        switchKidView('kid-home');
+        showToast('🎈 ¡Bienvenido a tu Espacio Mágico!', 'success');
+    } else {
+        if (toggleBtn) {
+            toggleBtn.classList.remove('active');
+            toggleBtn.innerHTML = '<span class="kid-toggle-icon">🎈</span> <span class="kid-toggle-label">Modo Kids</span>';
+        }
+        if (badgeEl) badgeEl.style.display = 'none';
+        if (stdNav) stdNav.style.display = 'flex';
+        if (kidNav) kidNav.style.display = 'none';
+        switchView('home');
+    }
+
+    if (PortalState.patientId) {
+        localStorage.setItem(`psico_portal_kid_mode_${PortalState.patientId}`, PortalState.isKidMode ? 'true' : 'false');
+    }
+}
+
+function switchKidView(viewKey) {
+    document.querySelectorAll('.portal-view').forEach(v => {
+        v.classList.remove('active');
+        v.style.display = 'none';
+    });
+    document.querySelectorAll('.kid-bottom-nav .nav-btn').forEach(b => b.classList.remove('active'));
+
+    let targetId = 'viewKidHome';
+    if (viewKey === 'kid-avatar') targetId = 'viewKidAvatar';
+    else if (viewKey === 'kid-bubbles') targetId = 'viewKidBubbles';
+    else if (viewKey === 'kid-drawing') targetId = 'viewKidDrawing';
+    else if (viewKey === 'kid-calm') targetId = 'viewKidCalm';
+
+    const targetView = document.getElementById(targetId);
+    if (targetView) {
+        targetView.classList.add('active');
+        targetView.style.display = 'block';
+    }
+
+    const activeBtn = document.querySelector(`.kid-bottom-nav .nav-btn[data-kid-view="${viewKey}"]`);
+    if (activeBtn) activeBtn.classList.add('active');
+
+    // Inicializaciones bajo demanda
+    if (viewKey === 'kid-bubbles') initKidBubbles();
+    if (viewKey === 'kid-drawing') initKidDrawingCanvas();
+}
+
+function updateKidAvatarDisplays() {
+    const avatar = PortalState.kidAvatar || { emoji: '🦊', name: 'Zorrito Valiente', aura: 'aura-gold', accEmoji: '🦸' };
+    const homeBadge = document.getElementById('kidHomeAvatarBadge');
+    if (homeBadge) homeBadge.textContent = avatar.emoji;
+
+    const stageDisplay = document.getElementById('kidAvatarStageDisplay');
+    const stageChar = document.getElementById('kidStageChar');
+    const stageAcc = document.getElementById('kidStageAccessory');
+    const stageName = document.getElementById('kidAvatarDisplayName');
+
+    if (stageDisplay) {
+        stageDisplay.className = `kid-stage-aura ${avatar.aura || 'aura-gold'}`;
+    }
+    if (stageChar) stageChar.textContent = avatar.emoji || '🦊';
+    if (stageAcc) stageAcc.textContent = avatar.accEmoji || '🦸';
+    if (stageName) stageName.textContent = avatar.name || 'Zorrito Valiente';
+
+    // Header avatar
+    const headerAvatar = document.getElementById('headerAvatar');
+    if (headerAvatar && PortalState.isKidMode) {
+        headerAvatar.textContent = avatar.emoji;
+    }
+}
+
+// ----------------------------------------------------
+// 1. CLIMA EMOCIONAL & MAPA SOMÁTICO CORPORAL
+// ----------------------------------------------------
+function selectKidWeather(weatherKey) {
+    PortalState.kidWeather = weatherKey;
+    document.querySelectorAll('.kid-weather-btn').forEach(btn => {
+        btn.classList.toggle('selected', btn.getAttribute('data-weather') === weatherKey);
+    });
+}
+
+function selectKidBodyZone(zoneKey) {
+    PortalState.kidBodyZone = zoneKey;
+    document.querySelectorAll('.kid-zone-btn').forEach(btn => {
+        btn.classList.toggle('selected', btn.getAttribute('data-zone') === zoneKey);
+    });
+}
+
+async function submitKidWeatherAndBody() {
+    if (!PortalState.kidWeather) {
+        showToast('¡Por favor elige el clima de tu corazón primero! ☀️🌧️', 'warning');
+        return;
+    }
+
+    const weatherNames = {
+        sunny: 'Soleado ☀️ (Alegre y con energía)',
+        partly_cloudy: 'Sol con nubes 🌤️ (Tranqui, en calma)',
+        rainbow: 'Arcoíris 🌈 (Creativo y contento)',
+        rainy: 'Lluvia 🌧️ (Un poco triste o apagado)',
+        storm: 'Tormenta ⚡ (Enojado o frustrado)',
+        tornado: 'Remolino 🌪️ (Con miedo o confuso)'
+    };
+
+    const zoneNames = {
+        head: 'En la cabecita 🧠',
+        throat: 'En la garganta 🗣️',
+        chest: 'En el pecho 💖',
+        belly: 'En la pancita 🌀',
+        hands: 'En las manitas ✊'
+    };
+
+    const payloadData = {
+        weather: PortalState.kidWeather,
+        weatherLabel: weatherNames[PortalState.kidWeather] || PortalState.kidWeather,
+        bodyZone: PortalState.kidBodyZone || 'general',
+        bodyZoneLabel: zoneNames[PortalState.kidBodyZone] || 'En todo el cuerpo',
+        recordedAt: new Date().toISOString()
+    };
+
+    // Registrar en actividad local
+    const activityRecord = {
+        id: 'act_' + Date.now(),
+        activity_type: 'weather_body',
+        data: payloadData,
+        created_at: new Date().toISOString()
+    };
+    PortalState.kidActivities.unshift(activityRecord);
+
+    // Sumar +1 Estrella ⭐
+    awardKidStars(1);
+
+    // Enviar al backend PostgreSQL con cola offline
+    if (PortalState.portalToken) {
+        sendPortalPost('/api/v1/portal/kid/activity', {
+            patientToken: PortalState.portalToken,
+            activityType: 'weather_body',
+            data: payloadData
+        });
+    }
+
+    savePatientData();
+    showToast('✨ ¡Genial! Tu clima emocional llegó a tu terapeuta (+1 ⭐)', 'success');
+}
+
+function awardKidStars(amount) {
+    PortalState.kidStars = (PortalState.kidStars || 0) + (amount || 1);
+    const starsEl = document.getElementById('kidStarsCount');
+    if (starsEl) starsEl.textContent = PortalState.kidStars;
+    savePatientData();
+}
+
+// ----------------------------------------------------
+// 2. CREADOR DE AVATAR
+// ----------------------------------------------------
+function pickAvatarChar(charKey, emoji, name) {
+    if (!PortalState.kidAvatar) PortalState.kidAvatar = {};
+    PortalState.kidAvatar.character = charKey;
+    PortalState.kidAvatar.emoji = emoji;
+    PortalState.kidAvatar.name = name;
+
+    document.querySelectorAll('.avatar-opt-btn').forEach(b => {
+        b.classList.toggle('active', b.getAttribute('data-char') === charKey);
+    });
+
+    const stageChar = document.getElementById('kidStageChar');
+    const stageName = document.getElementById('kidAvatarDisplayName');
+    if (stageChar) stageChar.textContent = emoji;
+    if (stageName) stageName.textContent = name;
+}
+
+function pickAvatarAura(auraClass) {
+    if (!PortalState.kidAvatar) PortalState.kidAvatar = {};
+    PortalState.kidAvatar.aura = auraClass;
+
+    document.querySelectorAll('.aura-opt-btn').forEach(b => {
+        b.classList.toggle('active', b.classList.contains(auraClass + '-btn'));
+    });
+
+    const stageDisplay = document.getElementById('kidAvatarStageDisplay');
+    if (stageDisplay) {
+        stageDisplay.className = `kid-stage-aura ${auraClass}`;
+    }
+}
+
+function pickAvatarAccessory(accKey, accEmoji) {
+    if (!PortalState.kidAvatar) PortalState.kidAvatar = {};
+    PortalState.kidAvatar.accessory = accKey;
+    PortalState.kidAvatar.accEmoji = accEmoji;
+
+    document.querySelectorAll('.acc-opt-btn').forEach(b => {
+        b.classList.toggle('active', b.getAttribute('data-acc') === accKey);
+    });
+
+    const stageAcc = document.getElementById('kidStageAccessory');
+    if (stageAcc) stageAcc.textContent = accEmoji;
+}
+
+async function saveKidAvatar() {
+    updateKidAvatarDisplays();
+    awardKidStars(1);
+
+    const payloadData = {
+        ...PortalState.kidAvatar,
+        updatedAt: new Date().toISOString()
+    };
+
+    const activityRecord = {
+        id: 'act_' + Date.now(),
+        activity_type: 'avatar_customization',
+        data: payloadData,
+        created_at: new Date().toISOString()
+    };
+    PortalState.kidActivities.unshift(activityRecord);
+
+    if (PortalState.portalToken) {
+        sendPortalPost('/api/v1/portal/kid/activity', {
+            patientToken: PortalState.portalToken,
+            activityType: 'avatar_customization',
+            data: payloadData
+        });
+    }
+
+    savePatientData();
+    showToast('🌟 ¡Avatar guardado! Te acompañará en todo tu espacio mágico (+1 ⭐)', 'success');
+}
+
+// ----------------------------------------------------
+// 3. CAZADOR DE PREOCUPACIONES (BURBUJAS)
+// ----------------------------------------------------
+const DEFAULT_KID_WORRIES = [
+    'Un mal sueño 🌙',
+    'Miedo a equivocarme 📝',
+    'Pelea en el recreo ⚽',
+    'Nervios antes de clase 🎒',
+    'Tristeza repentina 🌧️',
+    'Enojo atorado ⚡',
+    'Ganas de llorar 💧',
+    'Miedo a la oscuridad 🔦'
+];
+
+function initKidBubbles() {
+    const playfield = document.getElementById('kidBubblesPlayfield');
+    if (!playfield) return;
+
+    const countEl = document.getElementById('kidBubblesPoppedCount');
+    if (countEl) countEl.textContent = PortalState.kidBubblesPopped || 0;
+
+    // Solo rellenar si está vacío
+    if (playfield.children.length === 0) {
+        DEFAULT_KID_WORRIES.forEach(worry => {
+            const bubble = createBubbleElement(worry);
+            playfield.appendChild(bubble);
+        });
+    }
+}
+
+function createBubbleElement(text) {
+    const b = document.createElement('div');
+    b.className = 'kid-bubble';
+    b.innerHTML = `<span>🫧 ${text}</span>`;
+    b.onclick = () => popKidBubble(b, text);
+    return b;
+}
+
+function popKidBubble(el, worryText) {
+    if (el.classList.contains('popping')) return;
+    el.classList.add('popping');
+
+    PortalState.kidBubblesPopped = (PortalState.kidBubblesPopped || 0) + 1;
+    const countEl = document.getElementById('kidBubblesPoppedCount');
+    if (countEl) countEl.textContent = PortalState.kidBubblesPopped;
+
+    setTimeout(() => {
+        if (el.parentNode) el.parentNode.removeChild(el);
+
+        // Si se vacía el campo, rellenar de nuevo con nuevas burbujas
+        const playfield = document.getElementById('kidBubblesPlayfield');
+        if (playfield && playfield.children.length === 0) {
+            initKidBubbles();
+            awardKidStars(1);
+            showToast('🎉 ¡Has limpiado todas las burbujas! ¡Gran trabajo soltando tensiones! (+1 ⭐)', 'success');
+        }
+    }, 280);
+
+    // Notificar al terapeuta
+    if (PortalState.portalToken) {
+        sendPortalPost('/api/v1/portal/kid/activity', {
+            patientToken: PortalState.portalToken,
+            activityType: 'bubble_popped',
+            data: {
+                worryText,
+                totalPopped: PortalState.kidBubblesPopped,
+                poppedAt: new Date().toISOString()
+            }
+        });
+    }
+}
+
+function promptCustomBubble() {
+    const custom = prompt('¿Qué preocupación o pensamiento quieres meter en una burbuja para dejarla ir?');
+    if (custom && custom.trim()) {
+        const playfield = document.getElementById('kidBubblesPlayfield');
+        if (playfield) {
+            const newBubble = createBubbleElement(custom.trim());
+            playfield.insertBefore(newBubble, playfield.firstChild);
+            showToast('🫧 ¡Burbuja creada! Tócala cuando estés listo para soltarla.', 'info');
+        }
+    }
+}
+
+// ----------------------------------------------------
+// 4. EL LIENZO MÁGICO (HTML5 CANVAS DIBUJO)
+// ----------------------------------------------------
+let kidCanvasState = {
+    canvas: null,
+    ctx: null,
+    isDrawing: false,
+    color: '#202923',
+    brushSize: 8,
+    isEraser: false,
+    selectedStamp: null
+};
+
+function initKidDrawingCanvas() {
+    const canvas = document.getElementById('kidDrawingCanvas');
+    if (!canvas) return;
+
+    kidCanvasState.canvas = canvas;
+    const ctx = canvas.getContext('2d');
+    kidCanvasState.ctx = ctx;
+
+    // Inicializar fondo blanco si está en blanco
+    if (!canvas.getAttribute('data-initialized')) {
+        ctx.fillStyle = '#ffffff';
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+        canvas.setAttribute('data-initialized', 'true');
+    }
+
+    // Configuración de trazo suave
+    ctx.lineCap = 'round';
+    ctx.lineJoin = 'round';
+
+    function getCoords(e) {
+        const rect = canvas.getBoundingClientRect();
+        const scaleX = canvas.width / rect.width;
+        const scaleY = canvas.height / rect.height;
+        if (e.touches && e.touches.length > 0) {
+            return {
+                x: (e.touches[0].clientX - rect.left) * scaleX,
+                y: (e.touches[0].clientY - rect.top) * scaleY
+            };
+        }
+        return {
+            x: (e.clientX - rect.left) * scaleX,
+            y: (e.clientY - rect.top) * scaleY
+        };
+    }
+
+    function startDraw(e) {
+        e.preventDefault();
+        const coords = getCoords(e);
+
+        if (kidCanvasState.selectedStamp) {
+            // Estampar emoji
+            ctx.font = '48px sans-serif';
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            ctx.fillText(kidCanvasState.selectedStamp, coords.x, coords.y);
+            return;
+        }
+
+        kidCanvasState.isDrawing = true;
+        ctx.beginPath();
+        ctx.moveTo(coords.x, coords.y);
+        ctx.strokeStyle = kidCanvasState.isEraser ? '#ffffff' : kidCanvasState.color;
+        ctx.lineWidth = kidCanvasState.isEraser ? kidCanvasState.brushSize * 2.5 : kidCanvasState.brushSize;
+    }
+
+    function moveDraw(e) {
+        if (!kidCanvasState.isDrawing || kidCanvasState.selectedStamp) return;
+        e.preventDefault();
+        const coords = getCoords(e);
+        ctx.lineTo(coords.x, coords.y);
+        ctx.stroke();
+    }
+
+    function endDraw(e) {
+        if (kidCanvasState.isDrawing) {
+            kidCanvasState.isDrawing = false;
+            ctx.closePath();
+        }
+    }
+
+    // Reasignar listeners limpios
+    canvas.onmousedown = startDraw;
+    canvas.onmousemove = moveDraw;
+    canvas.onmouseup = endDraw;
+    canvas.onmouseleave = endDraw;
+
+    canvas.ontouchstart = startDraw;
+    canvas.ontouchmove = moveDraw;
+    canvas.ontouchend = endDraw;
+    canvas.ontouchcancel = endDraw;
+}
+
+function setCanvasColor(hexColor) {
+    kidCanvasState.color = hexColor;
+    kidCanvasState.isEraser = false;
+    kidCanvasState.selectedStamp = null;
+
+    document.querySelectorAll('.kid-color-palette .color-btn').forEach(btn => {
+        btn.classList.toggle('active', btn.style.backgroundColor.includes(hexColor.toLowerCase()) || btn.style.background.includes(hexColor.toLowerCase()));
+    });
+    document.querySelectorAll('.stamp-btn').forEach(btn => btn.classList.remove('active'));
+}
+
+function setCanvasBrushSize(size) {
+    kidCanvasState.brushSize = size;
+    document.querySelectorAll('.kid-size-buttons .size-btn').forEach(btn => {
+        const text = btn.textContent.toLowerCase();
+        btn.classList.toggle('active', 
+            (size === 3 && text.includes('fino')) ||
+            (size === 8 && text.includes('medio')) ||
+            (size === 18 && text.includes('grueso'))
+        );
+    });
+}
+
+function toggleCanvasEraser() {
+    kidCanvasState.isEraser = true;
+    kidCanvasState.selectedStamp = null;
+    document.querySelectorAll('.kid-color-palette .color-btn').forEach(btn => btn.classList.remove('active'));
+    document.querySelectorAll('.stamp-btn').forEach(btn => btn.classList.remove('active'));
+    const eraserBtn = document.querySelector('.eraser-btn');
+    if (eraserBtn) eraserBtn.classList.add('active');
+}
+
+function setCanvasStamp(emoji) {
+    kidCanvasState.selectedStamp = emoji;
+    kidCanvasState.isEraser = false;
+    document.querySelectorAll('.stamp-btn').forEach(btn => {
+        btn.classList.toggle('active', btn.textContent.trim() === emoji);
+    });
+    document.querySelectorAll('.kid-color-palette .color-btn').forEach(btn => btn.classList.remove('active'));
+}
+
+function clearKidCanvas() {
+    if (confirm('¿Quieres limpiar todo el lienzo para empezar un dibujo nuevo? 🎨')) {
+        const canvas = kidCanvasState.canvas || document.getElementById('kidDrawingCanvas');
+        if (canvas) {
+            const ctx = canvas.getContext('2d');
+            ctx.fillStyle = '#ffffff';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+        }
+    }
+}
+
+async function submitKidDrawing() {
+    const canvas = kidCanvasState.canvas || document.getElementById('kidDrawingCanvas');
+    if (!canvas) return;
+
+    let drawingDataUrl = '';
+    try {
+        drawingDataUrl = canvas.toDataURL('image/png', 0.85);
+    } catch (e) {
+        showToast('Error al procesar el dibujo', 'error');
+        return;
+    }
+
+    const payloadData = {
+        imageDataUrl: drawingDataUrl,
+        sentAt: new Date().toISOString()
+    };
+
+    const activityRecord = {
+        id: 'act_' + Date.now(),
+        activity_type: 'drawing',
+        data: payloadData,
+        created_at: new Date().toISOString()
+    };
+    PortalState.kidActivities.unshift(activityRecord);
+
+    awardKidStars(2);
+
+    if (PortalState.portalToken) {
+        sendPortalPost('/api/v1/portal/kid/activity', {
+            patientToken: PortalState.portalToken,
+            activityType: 'drawing',
+            data: payloadData
+        });
+    }
+
+    savePatientData();
+    showToast('🎨✨ ¡Precioso dibujo! Ya está en el consultorio de tu terapeuta (+2 ⭐)', 'success');
+}
+
+// ----------------------------------------------------
+// 5. EL GLOBO DE LA CALMA (RESPIRACIÓN GUIADA)
+// ----------------------------------------------------
+let balloonBreathingTimer = null;
+let balloonBreathingActive = false;
+let balloonPhaseSeconds = 0;
+let isBalloonInhaling = true;
+
+function toggleBalloonBreathing() {
+    if (balloonBreathingActive) {
+        stopBalloonBreathing();
+    } else {
+        startBalloonBreathing();
+    }
+}
+
+function startBalloonBreathing() {
+    balloonBreathingActive = true;
+    const btn = document.getElementById('btnToggleBalloon');
+    if (btn) btn.innerHTML = '<span>Pausar Respiración ⏸️</span>';
+
+    runBalloonCycle();
+}
+
+function stopBalloonBreathing() {
+    balloonBreathingActive = false;
+    if (balloonBreathingTimer) {
+        clearInterval(balloonBreathingTimer);
+        balloonBreathingTimer = null;
+    }
+
+    const balloon = document.getElementById('kidBalloon');
+    const instruction = document.getElementById('kidBreathingInstruction');
+    const timer = document.getElementById('kidBreathingTimer');
+    const btn = document.getElementById('btnToggleBalloon');
+
+    if (balloon) {
+        balloon.classList.remove('inhale', 'exhale');
+    }
+    if (instruction) instruction.textContent = '¡Muy bien hecho! Puedes volver a respirar cuando quieras.';
+    if (timer) timer.textContent = '0s';
+    if (btn) btn.innerHTML = '<span>Comenzar a Respirar 🎈</span>';
+}
+
+function runBalloonCycle() {
+    if (!balloonBreathingActive) return;
+
+    const balloon = document.getElementById('kidBalloon');
+    const face = document.getElementById('kidBalloonFace');
+    const instruction = document.getElementById('kidBreathingInstruction');
+    const timer = document.getElementById('kidBreathingTimer');
+
+    // Fase 1: Inhalar (4 segundos)
+    isBalloonInhaling = true;
+    balloonPhaseSeconds = 4;
+    if (balloon) {
+        balloon.classList.remove('exhale');
+        balloon.classList.add('inhale');
+    }
+    if (face) face.textContent = '😮';
+    if (instruction) instruction.textContent = '🌬️ Inhala suavemente por la nariz... llenando el globo';
+    if (timer) timer.textContent = `${balloonPhaseSeconds}s`;
+
+    let elapsed = 0;
+    balloonBreathingTimer = setInterval(() => {
+        if (!balloonBreathingActive) return;
+        elapsed++;
+        const remaining = balloonPhaseSeconds - elapsed;
+        if (timer) timer.textContent = `${Math.max(0, remaining)}s`;
+
+        if (elapsed >= balloonPhaseSeconds) {
+            clearInterval(balloonBreathingTimer);
+            // Pasar a Fase 2: Exhalar (6 segundos)
+            startBalloonExhale();
+        }
+    }, 1000);
+}
+
+function startBalloonExhale() {
+    if (!balloonBreathingActive) return;
+
+    const balloon = document.getElementById('kidBalloon');
+    const face = document.getElementById('kidBalloonFace');
+    const instruction = document.getElementById('kidBreathingInstruction');
+    const timer = document.getElementById('kidBreathingTimer');
+
+    isBalloonInhaling = false;
+    balloonPhaseSeconds = 6;
+    if (balloon) {
+        balloon.classList.remove('inhale');
+        balloon.classList.add('exhale');
+    }
+    if (face) face.textContent = '😌';
+    if (instruction) instruction.textContent = '🍃 Exhala despacito por la boca... soltando el aire como una pluma';
+    if (timer) timer.textContent = `${balloonPhaseSeconds}s`;
+
+    let elapsed = 0;
+    balloonBreathingTimer = setInterval(() => {
+        if (!balloonBreathingActive) return;
+        elapsed++;
+        const remaining = balloonPhaseSeconds - elapsed;
+        if (timer) timer.textContent = `${Math.max(0, remaining)}s`;
+
+        if (elapsed >= balloonPhaseSeconds) {
+            clearInterval(balloonBreathingTimer);
+
+            // Ciclo completado
+            PortalState.kidCalmCycles = (PortalState.kidCalmCycles || 0) + 1;
+            const cyclesEl = document.getElementById('kidCalmCycles');
+            if (cyclesEl) cyclesEl.textContent = PortalState.kidCalmCycles;
+
+            if (PortalState.kidCalmCycles % 3 === 0) {
+                awardKidStars(1);
+                showToast('⭐ ¡Superpoder de calma desbloqueado! 3 respiraciones completas (+1 ⭐)', 'success');
+            }
+
+            // Notificar al backend
+            if (PortalState.portalToken) {
+                sendPortalPost('/api/v1/portal/kid/activity', {
+                    patientToken: PortalState.portalToken,
+                    activityType: 'calm_breathing',
+                    data: {
+                        cyclesCompleted: PortalState.kidCalmCycles,
+                        timestamp: new Date().toISOString()
+                    }
+                });
+            }
+
+            // Repetir siguiente ciclo
+            runBalloonCycle();
+        }
+    }, 1000);
+}
+
+// Exponer funciones globales para eventos onClick en portal.html
+window.toggleKidMode = toggleKidMode;
+window.switchKidView = switchKidView;
+window.selectKidWeather = selectKidWeather;
+window.selectKidBodyZone = selectKidBodyZone;
+window.submitKidWeatherAndBody = submitKidWeatherAndBody;
+window.pickAvatarChar = pickAvatarChar;
+window.pickAvatarAura = pickAvatarAura;
+window.pickAvatarAccessory = pickAvatarAccessory;
+window.saveKidAvatar = saveKidAvatar;
+window.promptCustomBubble = promptCustomBubble;
+window.setCanvasColor = setCanvasColor;
+window.setCanvasBrushSize = setCanvasBrushSize;
+window.toggleCanvasEraser = toggleCanvasEraser;
+window.setCanvasStamp = setCanvasStamp;
+window.clearKidCanvas = clearKidCanvas;
+window.submitKidDrawing = submitKidDrawing;
+window.toggleBalloonBreathing = toggleBalloonBreathing;

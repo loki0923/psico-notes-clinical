@@ -239,3 +239,16 @@ CREATE TABLE IF NOT EXISTS billing_invoices (
 CREATE INDEX IF NOT EXISTS idx_invoices_therapist ON billing_invoices(therapist_id);
 CREATE INDEX IF NOT EXISTS idx_invoices_patient ON billing_invoices(patient_id);
 
+-- 15. Actividades y Entradas Lúdicas del Portal KID (Psico Kids Space)
+CREATE TABLE IF NOT EXISTS kid_portal_activities (
+    id VARCHAR(64) PRIMARY KEY,
+    patient_id VARCHAR(64) NOT NULL REFERENCES patients(id) ON DELETE CASCADE,
+    activity_type VARCHAR(50) NOT NULL, -- 'avatar', 'weather_mood', 'bubble_pop', 'drawing', 'secret_chest'
+    data JSONB NOT NULL,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE INDEX IF NOT EXISTS idx_kid_act_patient ON kid_portal_activities(patient_id);
+CREATE INDEX IF NOT EXISTS idx_kid_act_type ON kid_portal_activities(activity_type);
+CREATE INDEX IF NOT EXISTS idx_kid_act_created ON kid_portal_activities(created_at DESC);
+

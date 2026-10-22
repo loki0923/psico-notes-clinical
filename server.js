@@ -24,7 +24,15 @@ const PORT = process.env.PORT || 3000;
 // ============================================
 // GESTIÓN CRIPTOGRÁFICA DE SESIONES (HMAC-SHA256)
 // ============================================
-const SESSION_SECRET = process.env.SESSION_SECRET || 'psico-clinical-hmac-sha256-secret-key-prod-v6-2026';
+const isProd = process.env.NODE_ENV === 'production';
+const DEFAULT_INSECURE_SECRET = 'psico-clinical-hmac-sha256-secret-key-prod-v6-2026';
+
+if (isProd && (!process.env.SESSION_SECRET || process.env.SESSION_SECRET === DEFAULT_INSECURE_SECRET || process.env.SESSION_SECRET.length < 32)) {
+    console.error('❌ FATAL: En modo producción, SESSION_SECRET debe estar configurado en las variables de entorno con una clave criptográfica de al menos 32 caracteres.');
+    process.exit(1);
+}
+
+const SESSION_SECRET = process.env.SESSION_SECRET || DEFAULT_INSECURE_SECRET;
 const TOKEN_EXPIRY_MS = 7 * 24 * 60 * 60 * 1000; // 7 días de validez máxima para sesiones clínicas
 
 /**
@@ -232,21 +240,34 @@ app.use((req, res, next) => {
     next();
 });
 
-// Cortafuegos de Archivos Sensibles (Prevención de Exposición de Código Fuente y Credenciales)
+// Cortafuegos de Archivos Sensibles y Datos Clínicos (Prevención P0 de Exposición de PHI)
 const RESTRICTED_FILES = new Set([
     'server.js', 'db.js', 'schema.sql', 'docker-compose.yml',
-    'package.json', 'package-lock.json', 'tests.js', 'plan_pruebas.md'
+    'package.json', 'package-lock.json', 'tests.js', 'plan_pruebas.md',
+    'psiconotes_relacional.json'
 ]);
-const RESTRICTED_EXTS = ['.env', '.sql', '.yml', '.yaml', '.log'];
+const RESTRICTED_EXTS = ['.env', '.sql', '.yml', '.yaml', '.log', '.json', '.bak', '.tmp', '.md'];
 
 app.use((req, res, next) => {
-    const parsedPath = path.basename(req.path.toLowerCase());
+    const rawPath = (req.path || '').toLowerCase();
+    // Los endpoints de la API REST se manejan con sus respectivos middlewares de autenticación y lógica clínica
+    if (rawPath.startsWith('/api/')) {
+        return next();
+    }
+
+    const normalized = path.normalize(rawPath).replace(/\\/g, '/');
+    const parsedPath = path.basename(normalized);
+
     if (
+        normalized.startsWith('/data') ||
+        normalized.includes('/data/') ||
+        normalized.startsWith('/revision') ||
+        normalized.includes('/revision/') ||
         RESTRICTED_FILES.has(parsedPath) ||
         RESTRICTED_EXTS.some(ext => parsedPath.endsWith(ext)) ||
         parsedPath.startsWith('.')
     ) {
-        return res.status(403).json({ error: 'Acceso no autorizado: Archivo protegido por políticas de seguridad clínica.' });
+        return res.status(403).json({ error: 'Acceso no autorizado: Archivo o recurso protegido por políticas de seguridad clínica.' });
     }
     next();
 });
@@ -274,7 +295,7 @@ const syncedStorage = new Map();
 // ============================================
 // ENDPOINTS DE SALUD Y ESTADO
 // ============================================
-app.get('/api/health', (req, res) => {
+app.get(['/api/health', '/api/v1/health'], (req, res) => {
     res.json({
         status: 'ok',
         version: '6.0.0',
@@ -463,6 +484,102 @@ app.post('/api/v1/portal/crisis', async (req, res) => {
 });
 
 // ============================================
+// SUBSISTEMA PORTAL PACIENTES KID (PSICO KIDS SPACE)
+// ============================================
+
+// Registrar actividad lúdica del niño (avatar, clima de corazón, burbujas o dibujo)
+app.post('/api/v1/portal/kid/activity', async (req, res) => {
+    try {
+        const { patientId, token, activityType, data } = req.body;
+        const patientToken = token || req.body.patientToken;
+
+        if (!patientToken || !activityType) {
+            return res.status(400).json({ error: 'Faltan parámetros requeridos (token y activityType)' });
+        }
+
+        const patient = await db.findPatientByToken(patientToken);
+        if (!patient) {
+            return res.status(401).json({ error: 'Token no autorizado o portal inactivo' });
+        }
+
+        if (patientId && patient.id !== patientId) {
+            return res.status(403).json({ error: 'Token no coincide con el paciente' });
+        }
+
+        const record = await db.saveKidActivity(patient.id, { activityType, data: data || {} });
+        await recordAuditLog(patient.therapist_id, patient.id, 'RECORD_KID_ACTIVITY', 'PORTAL_KID', req);
+
+        res.status(201).json({
+            status: 'saved',
+            record,
+            rewardStar: true,
+            reward: {
+                stars: 1,
+                message: '¡Excelente trabajo! Has ganado una estrella mágica 🌟'
+            }
+        });
+    } catch (err) {
+        handleClinicalError(res, err, 'Error registrando actividad infantil en portal kid');
+    }
+});
+
+// Recuperar actividades lúdicas del niño para su espacio personal
+app.get('/api/v1/portal/kid/activity', async (req, res) => {
+    try {
+        const token = (req.query.token || req.query.patientToken || '').trim();
+        if (!token) {
+            return res.status(401).json({ error: 'Token de acceso requerido' });
+        }
+
+        const patient = await db.findPatientByToken(token);
+        if (!patient) {
+            return res.status(401).json({ error: 'Token no autorizado o expirado' });
+        }
+
+        const activities = await db.getKidActivities(patient.id);
+        res.json({
+            status: 'ok',
+            patientName: patient.name,
+            activities
+        });
+    } catch (err) {
+        handleClinicalError(res, err, 'Error obteniendo actividades kid');
+    }
+});
+
+// Consulta del terapeuta para ver actividades del portal kid con aislamiento BOLA/IDOR
+app.get('/api/v1/patients/:id/kid-activity', requireTherapistAuth, async (req, res) => {
+    try {
+        const patientId = req.params.id;
+        let patient = null;
+        if (db.isPostgresConnected && db.pgPool) {
+            const check = await db.pgPool.query('SELECT * FROM patients WHERE id = $1', [patientId]);
+            patient = check.rows[0];
+        } else {
+            patient = (db.localStore.patients || []).find(p => p.id === patientId);
+        }
+
+        if (!patient) {
+            return res.status(404).json({ error: 'Paciente no encontrado' });
+        }
+
+        // BOLA / IDOR Prevention: Solo el terapeuta asignado puede consultar las actividades del niño
+        if (!patient.therapist_id || patient.therapist_id !== req.therapistId) {
+            await recordAuditLog(req.therapistId, patientId, 'CROSS_TENANT_KID_ACTIVITY_ATTEMPT_BLOCKED', 'PATIENTS', req);
+            return res.status(403).json({
+                error: 'Acceso denegado: El expediente consultado pertenece a otro profesional de la salud o carece de asignación válida.'
+            });
+        }
+
+        const activities = await db.getKidActivities(patientId);
+        await recordAuditLog(req.therapistId, patientId, 'READ_KID_ACTIVITIES', 'PATIENTS', req);
+        res.json({ status: 'ok', activities });
+    } catch (err) {
+        handleClinicalError(res, err, 'Error obteniendo actividades infantiles para el terapeuta');
+    }
+});
+
+// ============================================
 // CONSULTA CLÍNICA DEL TERAPEUTA (PROTECCIÓN MULTITENANT & BOLA P0)
 // ============================================
 
@@ -475,10 +592,10 @@ app.get('/api/v1/portal/data/:patientId', requireTherapistAuth, async (req, res)
         }
 
         // BOLA / IDOR Prevention: Verificar estrictamente que el paciente pertenezca al terapeuta autenticado
-        if (data.patient.therapist_id && data.patient.therapist_id !== req.therapistId) {
+        if (!data.patient.therapist_id || data.patient.therapist_id !== req.therapistId) {
             await recordAuditLog(req.therapistId, req.params.patientId, 'CROSS_TENANT_READ_ATTEMPT_BLOCKED', 'PORTAL_DATA', req);
             return res.status(403).json({
-                error: 'Acceso denegado: El expediente consultado pertenece a otro profesional de la salud.'
+                error: 'Acceso denegado: El expediente consultado pertenece a otro profesional de la salud o carece de asignación válida.'
             });
         }
 
@@ -623,11 +740,9 @@ app.post('/api/v1/clinical/soap-synthesize', requireTherapistAuth, async (req, r
         }
 
         if (!apiKey) {
-            return res.json({
-                subjetivo: `El paciente expone vivencias y sintomatología vinculada a: ${notes.substring(0, 100)}...`,
-                objetivo: `Orientado en tiempo y espacio. Contacto visual adecuado, discurso coherente y lenguaje fluido.`,
-                analisis: `Evolución favorable con necesidad de afianzar técnicas de regulación emocional y reestructuración.`,
-                plan: `1. Mantener autoregistro intersesión.\n2. Ejercicios de respiración diafragmática.\n3. Próxima consulta en 7 días.`
+            return res.status(503).json({
+                error: 'Servicio de IA clínica (Gemini) no configurado en el servidor. Configure GEMINI_API_KEY en variables de entorno.',
+                source: 'unavailable'
             });
         }
 
@@ -654,6 +769,71 @@ app.post('/api/v1/clinical/soap-synthesize', requireTherapistAuth, async (req, r
         res.json(JSON.parse(text));
     } catch (err) {
         handleClinicalError(res, err, 'Error en síntesis SOAP por IA');
+    }
+});
+
+// Estado de disponibilidad del servicio de IA clínica (Gemini)
+app.get('/api/v1/clinical/ai-status', requireTherapistAuth, (req, res) => {
+    const isConfigured = Boolean(process.env.GEMINI_API_KEY && process.env.GEMINI_API_KEY.length > 10);
+    res.json({
+        available: isConfigured,
+        model: 'gemini-2.5-flash',
+        managedBy: 'server'
+    });
+});
+
+// Proxy seguro para consultas clínicas asistidas por IA (Hipótesis diagnósticas, psicoeducación y copiloto)
+app.post('/api/v1/clinical/ai-query', requireTherapistAuth, async (req, res) => {
+    try {
+        const { prompt, systemInstruction, responseMimeType } = req.body;
+        const apiKey = process.env.GEMINI_API_KEY || req.headers['x-gemini-key'];
+
+        if (!prompt) {
+            return res.status(400).json({ error: 'Falta el contenido de consulta' });
+        }
+
+        if (!apiKey) {
+            return res.status(503).json({
+                error: 'Servicio de IA clínica (Gemini) no configurado en el servidor. Configure GEMINI_API_KEY en variables de entorno.',
+                source: 'unavailable'
+            });
+        }
+
+        const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`;
+        const payload = {
+            contents: [{ role: 'user', parts: [{ text: prompt }] }],
+            generationConfig: {
+                temperature: 0.2,
+                topP: 0.85
+            }
+        };
+
+        if (responseMimeType) {
+            payload.generationConfig.responseMimeType = responseMimeType;
+        }
+
+        if (systemInstruction) {
+            payload.systemInstruction = {
+                parts: [{ text: systemInstruction }]
+            };
+        }
+
+        const geminiRes = await fetch(url, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload)
+        });
+
+        if (!geminiRes.ok) {
+            const err = await geminiRes.json().catch(() => ({}));
+            return res.status(geminiRes.status).json({ error: err.error?.message || 'Error en Gemini API' });
+        }
+
+        const data = await geminiRes.json();
+        const text = data.candidates?.[0]?.content?.parts?.[0]?.text;
+        res.json({ text });
+    } catch (err) {
+        handleClinicalError(res, err, 'Error en consulta de IA');
     }
 });
 
@@ -758,15 +938,18 @@ app.post('/api/v1/auth/register', async (req, res) => {
         const cleanEmail = email.trim().toLowerCase();
         const existing = await db.findTherapistByEmail(cleanEmail);
         if (existing) {
-            // Reconexión y auto-sanación segura de sesión si coincide el hash de contraseña o el ID del terapeuta
-            if (passwordHash && (existing.password_hash === passwordHash || (id && existing.id === id))) {
+            // Reconexión segura únicamente si coincide estrictamente el hash de la contraseña
+            if (passwordHash && existing.password_hash === passwordHash) {
                 const sessionToken = generateSessionToken(existing.id, existing.email);
                 await recordAuditLog(existing.id, null, 'REGISTER_THERAPIST_RECONNECT', 'AUTH', req);
+                const safeExisting = { ...existing };
+                delete safeExisting.password_hash;
+                delete safeExisting.passwordHash;
                 return res.json({
                     status: 'ok',
                     message: 'Sesión clínica reconectada con éxito.',
                     sessionToken,
-                    therapist: existing
+                    therapist: safeExisting
                 });
             }
             return res.status(409).json({ error: 'Ya existe una cuenta registrada con este correo.' });
@@ -786,11 +969,15 @@ app.post('/api/v1/auth/register', async (req, res) => {
         const sessionToken = generateSessionToken(therapist.id, therapist.email);
         await recordAuditLog(therapist.id, null, 'REGISTER_THERAPIST_SUCCESS', 'AUTH', req);
 
+        const safeTherapist = { ...therapist };
+        delete safeTherapist.password_hash;
+        delete safeTherapist.passwordHash;
+
         res.json({
             status: 'ok',
             message: 'Cuenta creada y sincronizada en la nube con éxito.',
             sessionToken,
-            therapist
+            therapist: safeTherapist
         });
     } catch (err) {
         handleClinicalError(res, err, 'Error registrando terapeuta');

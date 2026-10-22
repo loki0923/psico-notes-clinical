@@ -230,78 +230,60 @@
     </div>
     <nav class="sidebar-nav">
         <div class="nav-section">
-            <div class="nav-section-title">Consulta</div>
-            <a href="#" class="nav-item active" data-view="dashboard">
+            <div class="nav-section-title">Navegación Principal</div>
+            <a href="#" class="nav-item active" data-view="dashboard" title="Inicio / Panel General">
                 <i class="fas fa-home"></i>
-                <span>Mi Consulta</span>
+                <span>Inicio</span>
             </a>
-            <a href="#" class="nav-item" data-view="patients">
+            <a href="#" class="nav-item" data-view="patients" title="Expedientes Clínicos">
                 <i class="fas fa-users"></i>
                 <span>Pacientes</span>
                 <span class="nav-badge" id="patientCount">0</span>
             </a>
-            <a href="#" class="nav-item" data-view="appointments">
+            <a href="#" class="nav-item" data-view="appointments" title="Agenda y Citas">
                 <i class="fas fa-calendar-alt"></i>
                 <span>Agenda</span>
                 <span class="nav-badge" id="appointmentCount">0</span>
             </a>
-            <a href="#" class="nav-item" data-view="notes" title="Reportes de Atención por Sesión de Terapia">
-                <i class="fas fa-file-invoice"></i>
-                <span>Reportes de Atención</span>
+            <a href="#" class="nav-item" data-view="notes" title="Sesiones, Notas SOAP y Evolución">
+                <i class="fas fa-file-medical-alt"></i>
+                <span>Sesiones y Notas</span>
                 <span class="nav-badge" id="notesCount">0</span>
             </a>
-            <a href="#" class="nav-item" data-view="scales">
+            <a href="#" class="nav-item" data-view="scales" title="Evaluaciones Psicométricas">
                 <i class="fas fa-tasks"></i>
-                <span>Escalas y Tests</span>
+                <span>Evaluaciones</span>
             </a>
-        </div>
-        <div class="nav-section">
-            <div class="nav-section-title">Gestión</div>
-            <a href="#" class="nav-item" data-view="finance">
+            <a href="#" class="nav-item" data-view="stats" title="Informes y Analítica Clínica">
+                <i class="fas fa-chart-line"></i>
+                <span>Informes</span>
+            </a>
+            <a href="#" class="nav-item" data-view="finance" title="Finanzas y Facturación">
                 <i class="fas fa-wallet"></i>
                 <span>Finanzas</span>
             </a>
-            <a href="javascript:void(0)" class="nav-item" onclick="openRatesManagementModal()">
-                <i class="fas fa-tags"></i>
-                <span>Editar Tarifas</span>
-            </a>
-            <a href="javascript:void(0)" class="nav-item" onclick="openMonthlyGoalsModal()">
-                <i class="fas fa-bullseye"></i>
-                <span>Objetivos del Mes</span>
-            </a>
-            <a href="#" class="nav-item" data-view="billing">
-                <i class="fas fa-file-invoice"></i>
-                <span>Facturación</span>
+            <a href="javascript:void(0)" class="nav-item" onclick="openTherapistProfileModal()" title="Ajustes de Perfil y Configuración">
+                <i class="fas fa-cog"></i>
+                <span>Ajustes</span>
             </a>
         </div>
         <div class="nav-section">
             <div class="nav-section-title">Herramientas Clínicas</div>
-            <a href="#" class="nav-item" onclick="ClinicalHistorySystem.openInAppPreconsultaForm()">
-                <i class="fas fa-clipboard-list"></i>
-                <span>Llenar Pre-consulta</span>
+            <a href="#" class="nav-item" onclick="ClinicalReports.openReportGeneratorModal()" title="Generador Oficial de Epicrisis y Constancias">
+                <i class="fas fa-file-pdf"></i>
+                <span>Epicrisis Oficial</span>
             </a>
-            <a href="#" class="nav-item" onclick="PsychoEd.openWorksheetModal('tcc_5col')">
+            <a href="#" class="nav-item" onclick="ClinicalHistorySystem.openInAppPreconsultaForm()" title="Formulario de Pre-consulta">
+                <i class="fas fa-clipboard-list"></i>
+                <span>Pre-consulta Digital</span>
+            </a>
+            <a href="#" class="nav-item" onclick="PsychoEd.openWorksheetModal('tcc_5col')" title="Material Psicoeducativo y Hojas de Trabajo TCC">
                 <i class="fas fa-brain"></i>
                 <span>Psicoeducación TCC</span>
             </a>
-            <a href="#" class="nav-item" onclick="Vademecum.openVademecumModal()">
+            <a href="#" class="nav-item" onclick="Vademecum.openVademecumModal()" title="Guía Psicofarmacológica Rápida">
                 <i class="fas fa-pills"></i>
                 <span>Vademécum</span>
-            </a>
-            <a href="#" class="nav-item" onclick="ClinicalReports.openReportGeneratorModal()">
-                <i class="fas fa-file-pdf"></i>
-                <span>Informes Oficiales</span>
-            </a>
-        </div>
-        <div class="nav-section">
-            <div class="nav-section-title">Análisis</div>
-            <a href="#" class="nav-item" data-view="search">
-                <i class="fas fa-search"></i>
-                <span>Búsqueda</span>
-            </a>
-            <a href="#" class="nav-item" data-view="stats">
-                <i class="fas fa-chart-bar"></i>
-                <span>Métricas</span>
             </a>
         </div>
     </nav>

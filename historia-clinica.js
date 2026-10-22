@@ -455,6 +455,8 @@ const ClinicalHistorySystem = {
                 </div>
             </div>
 
+            ${isChild ? this.renderKidActivitiesCard(patient) : ''}
+
             <div class="accordion-history-container">
                 <!-- BLOQUE 1: IDENTIFICACIÓN & FILIACIÓN -->
                 <div class="hist-acc-item active" id="acc_sec_1">
@@ -753,6 +755,102 @@ const ClinicalHistorySystem = {
     toggleAccordion(id) {
         const el = document.getElementById(id);
         if (el) el.classList.toggle('active');
+    },
+
+    // -------------------------------------------------------------
+    // VISUALIZADOR DE ACTIVIDAD LÚDICA DEL PORTAL KIDS (PEDIÁTRICO)
+    // -------------------------------------------------------------
+    renderKidActivitiesCard(patient) {
+        if (!patient) return '';
+        let kidData = { avatar: null, stars: 0, activities: [] };
+        try {
+            const raw = localStorage.getItem(`psico_portal_kid_${patient.id}`);
+            if (raw) kidData = JSON.parse(raw);
+        } catch (e) {}
+
+        const activities = (patient.kidActivities && patient.kidActivities.length > 0)
+            ? patient.kidActivities
+            : (kidData.activities || []);
+
+        const avatar = (kidData.avatar && kidData.avatar.emoji) ? kidData.avatar : {
+            emoji: '🦊',
+            name: 'Zorrito Valiente',
+            aura: 'aura-gold',
+            accEmoji: '🦸'
+        };
+
+        const weatherAct = activities.find(a => a.activity_type === 'weather_body');
+        const drawings = activities.filter(a => a.activity_type === 'drawing');
+        const bubbleActs = activities.filter(a => a.activity_type === 'bubble_popped');
+        const calmActs = activities.filter(a => a.activity_type === 'calm_breathing');
+
+        return `
+            <div class="kid-therapist-card" style="background: linear-gradient(135deg, #f0f7ff 0%, #fdf4ff 100%); border: 2px solid #b8c1ec; border-radius: 16px; padding: 18px 20px; margin-bottom: 20px; box-shadow: 0 4px 14px rgba(0,0,0,0.04);">
+                <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 14px; flex-wrap: wrap; gap: 10px;">
+                    <div style="display: flex; align-items: center; gap: 12px;">
+                        <span style="font-size: 32px; background: #ffffff; border-radius: 50%; width: 50px; height: 50px; display: flex; align-items: center; justify-content: center; box-shadow: 0 2px 8px rgba(0,0,0,0.08); border: 2px solid #ffb703;">${avatar.emoji || '🦊'}</span>
+                        <div>
+                            <h4 style="margin: 0; font-size: 16px; font-weight: 800; color: #202923;">🌟 Actividad Lúdica del Paciente (Portal Kids)</h4>
+                            <small style="color: #69736d;">Compañero Avatar: <strong>${avatar.name || 'Zorrito Valiente'} ${avatar.accEmoji || '🦸'}</strong> · Estrellas ganadas: <strong>⭐ ${kidData.stars || 0}</strong></small>
+                        </div>
+                    </div>
+                    <span class="tag tag-success" style="font-size: 11px; font-weight: 700; padding: 4px 10px; border-radius: 12px;">
+                        <i class="fas fa-check-circle"></i> Sincronizado en Tiempo Real
+                    </span>
+                </div>
+
+                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 14px; margin-bottom: 12px;">
+                    <!-- CLIMA & ZONA SOMÁTICA -->
+                    <div style="background: #ffffff; border-radius: 12px; padding: 12px 14px; border: 1px solid #e2e8f0;">
+                        <div style="font-size: 11px; text-transform: uppercase; font-weight: 700; color: #64748b; margin-bottom: 4px;">🌤️ Clima Emocional & Cuerpo</div>
+                        ${weatherAct ? `
+                            <div style="font-size: 14px; font-weight: 700; color: #1e293b;">${weatherAct.data?.weatherLabel || weatherAct.data?.weather || 'Registrado'}</div>
+                            <div style="font-size: 12px; color: #475569; margin-top: 2px;">Zona: <strong>${weatherAct.data?.bodyZoneLabel || weatherAct.data?.bodyZone || 'Corporal'}</strong></div>
+                            <small style="color: #94a3b8; font-size: 10px;">${new Date(weatherAct.created_at || weatherAct.data?.recordedAt).toLocaleString('es-ES')}</small>
+                        ` : '<div style="font-size: 12px; color: #94a3b8; font-style: italic;">Sin registro de clima reciente</div>'}
+                    </div>
+
+                    <!-- PREOCUPACIONES LIBERADAS -->
+                    <div style="background: #ffffff; border-radius: 12px; padding: 12px 14px; border: 1px solid #e2e8f0;">
+                        <div style="font-size: 11px; text-transform: uppercase; font-weight: 700; color: #64748b; margin-bottom: 4px;">🫧 Preocupaciones Soltadas</div>
+                        <div style="font-size: 14px; font-weight: 700; color: #0284c7;">${bubbleActs.length} burbujas explotadas</div>
+                        ${bubbleActs.length > 0 ? `
+                            <div style="font-size: 12px; color: #475569; margin-top: 2px;">Última: "${bubbleActs[0].data?.worryText || 'Preocupación liberada'}"</div>
+                        ` : '<div style="font-size: 12px; color: #94a3b8; font-style: italic;">Sin burbujas aún</div>'}
+                    </div>
+
+                    <!-- RESPIRACIÓN Y CALMA -->
+                    <div style="background: #ffffff; border-radius: 12px; padding: 12px 14px; border: 1px solid #e2e8f0;">
+                        <div style="font-size: 11px; text-transform: uppercase; font-weight: 700; color: #64748b; margin-bottom: 4px;">🎈 Globo de la Calma</div>
+                        <div style="font-size: 14px; font-weight: 700; color: #c026d3;">${calmActs.length > 0 ? `${calmActs[0].data?.cyclesCompleted || calmActs.length} ciclos completados` : '0 ciclos'}</div>
+                        <div style="font-size: 12px; color: #475569; margin-top: 2px;">Técnica diafragmática 4s/6s</div>
+                    </div>
+                </div>
+
+                <!-- GALERÍA DE DIBUJOS DEL NIÑO -->
+                ${drawings.length > 0 ? `
+                    <div style="background: #ffffff; border-radius: 12px; padding: 12px 14px; border: 1px solid #e2e8f0;">
+                        <div style="font-size: 11px; text-transform: uppercase; font-weight: 700; color: #64748b; margin-bottom: 8px;">🎨 Galería de Dibujos del Consultante (${drawings.length})</div>
+                        <div style="display: flex; gap: 12px; overflow-x: auto; padding-bottom: 6px;">
+                            ${drawings.map((d, idx) => `
+                                <div style="flex-shrink: 0; text-align: center;">
+                                    <img src="${d.data?.imageDataUrl || ''}" alt="Dibujo ${idx+1}" style="width: 140px; height: 95px; object-fit: cover; border-radius: 8px; border: 1.5px solid #cbd5e1; cursor: pointer;" onclick="ClinicalHistorySystem.previewKidDrawing('${d.data?.imageDataUrl || ''}')" title="Clic para ampliar dibujo">
+                                    <div style="font-size: 10px; color: #64748b; margin-top: 2px;">${new Date(d.created_at || d.data?.sentAt).toLocaleDateString('es-ES')}</div>
+                                </div>
+                            `).join('')}
+                        </div>
+                    </div>
+                ` : ''}
+            </div>
+        `;
+    },
+
+    previewKidDrawing(dataUrl) {
+        if (!dataUrl) return;
+        const w = window.open('');
+        if (w) {
+            w.document.write('<html><head><title>Dibujo del Paciente - Portal Kids</title><style>body{margin:0;display:flex;align-items:center;justify-content:center;background:#1e293b;height:100vh;}img{max-width:90%;max-height:90%;border-radius:12px;box-shadow:0 10px 30px rgba(0,0,0,0.5);background:#fff;}</style></head><body><img src="' + dataUrl + '"></body></html>');
+        }
     },
 
     // -------------------------------------------------------------

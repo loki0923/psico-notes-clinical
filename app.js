@@ -725,7 +725,8 @@ async function saveDataLocallyOnly() {
         localStorage.setItem(userStorageKey('notes'), await encryptData(AppState.notes));
         localStorage.setItem(userStorageKey('plans'), await encryptData(AppState.treatmentPlans));
         localStorage.setItem('psico_darkMode', AppState.darkMode);
-        localStorage.setItem('psico_portal_notes_backup', JSON.stringify(AppState.notes));
+        // Remediación de seguridad PHI: no persistir notas en texto plano en localStorage
+        localStorage.removeItem('psico_portal_notes_backup');
         if (typeof updateSessionRemindersUI === 'function') updateSessionRemindersUI();
     } catch (e) {
         console.error('Error guardando local:', e);
@@ -987,11 +988,10 @@ async function handleSubmitNewPassword(e) {
             document.getElementById('loginEmail').value = email;
             document.getElementById('loginPassword').focus();
         } else {
-            errorEl.textContent = 'Error al restablecer contraseña: ' + err.message;
+            errorEl.textContent = 'No se encontró una cuenta local asociada a ese correo electrónico.';
             errorEl.classList.add('visible');
         }
     }
-}
 
 window.handleRequestResetCode = handleRequestResetCode;
 window.handleSubmitNewPassword = handleSubmitNewPassword;
@@ -5634,13 +5634,11 @@ function handleNoteSubmit(e) {
 
     // Control de inmutabilidad y firmas (CLI-005)
     if (existingNote && (existingNote.status === 'firmada' || existingNote.isSigned)) {
-        // Preservar la nota firmada original; no sobrescribir silenciosamente
-        note.status = 'firmada';
-        note.isSigned = true;
-        note.signedBy = existingNote.signedBy;
-        note.signedAt = existingNote.signedAt;
-        note.signedRegistry = existingNote.signedRegistry;
-        note.addendums = Array.isArray(existingNote.addendums) ? [...existingNote.addendums] : [];
+        // Preservar el contenido original de la nota firmada en su totalidad (inmutabilidad estricta)
+        note = {
+            ...existingNote,
+            addendums: Array.isArray(existingNote.addendums) ? [...existingNote.addendums] : []
+        };
 
         if (newAddendumText) {
             note.addendums.push({
@@ -5651,7 +5649,7 @@ function handleNoteSubmit(e) {
             });
             showToast('✍️ Adendum clínico agregado al expediente firmado', 'success');
         } else {
-            showToast('Documento firmado: registro inmutable preservado', 'info');
+            showToast('Documento firmado: registro inmutable preservado sin alteraciones', 'info');
         }
     } else {
         if (requestedStatus === 'firmada') {
@@ -6503,15 +6501,51 @@ document.addEventListener('keydown', (e) => {
 // ============================================
 let currentTelehealthRoomUrl = '';
 
-function openTelehealthModal(patientId = '', appointmentId = '') {
+async function openTelehealthModal(patientId = '', appointmentId = '') {
     const sel = document.getElementById('telehealthPatientSelect');
     if (sel && AppState.patients) {
         sel.innerHTML = '<option value="">-- Seleccionar paciente --</option>' + 
             AppState.patients.map(p => `<option value="${p.id}" ${p.id === patientId ? 'selected' : ''}>${p.name}</option>`).join('');
     }
 
-    const cleanRoom = (appointmentId || `${Date.now()}`).toString().replace(/[^a-zA-Z0-9]/g, '');
-    currentTelehealthRoomUrl = `https://meet.jit.si/psiconotes-clinical-${cleanRoom}#config.prejoinPageEnabled=false&config.startWithAudioMuted=false`;
+    let meetingBaseUrl = '';
+    const token = localStorage.getItem('psico_session_token');
+
+    // 1. Solicitar sala de alta entropía al backend si hay sesión activa
+    if (token && typeof window !== 'undefined' && window.location && window.location.protocol !== 'file:') {
+        try {
+            const res = await fetch('/api/v1/telehealth/session', {
+                method: 'POST',
+                headers: {
+                    'Authorization': `Bearer ${token}`,
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ patientId, appointmentId })
+            });
+            if (res.ok) {
+                const data = await res.json();
+                if (data.meetingUrl) {
+                    meetingBaseUrl = data.meetingUrl;
+                }
+            }
+        } catch (netErr) {
+            console.warn('Fallback a generación criptográfica local de teleconsulta:', netErr);
+        }
+    }
+
+    // 2. Fallback de alta entropía con Web Crypto si no hay red
+    if (!meetingBaseUrl) {
+        const entropyBytes = new Uint8Array(24);
+        if (typeof window !== 'undefined' && window.crypto && window.crypto.getRandomValues) {
+            window.crypto.getRandomValues(entropyBytes);
+        } else {
+            for (let i = 0; i < 24; i++) entropyBytes[i] = Math.floor(Math.random() * 256);
+        }
+        const safeNonce = Array.from(entropyBytes, b => b.toString(16).padStart(2, '0')).join('');
+        meetingBaseUrl = `https://meet.jit.si/psico-${safeNonce}`;
+    }
+
+    currentTelehealthRoomUrl = `${meetingBaseUrl}#config.prejoinPageEnabled=false&config.startWithAudioMuted=false`;
 
     const iframe = document.getElementById('telehealthIframe');
     if (iframe) {
@@ -6573,34 +6607,65 @@ function transferTelehealthNotesToSoap() {
 // MONITOREO DE ALERTAS DE CRISIS EN TIEMPO REAL
 // ============================================
 window._activeCrisisPatient = null;
+window._activeCrisisAlertId = null;
 
-function checkPortalCrisisAlerts() {
+async function checkPortalCrisisAlerts() {
     if (!AppState.patients || AppState.patients.length === 0) return;
 
     let alertPatient = null;
     let reasonText = '';
+    let serverAlertId = null;
 
-    for (const p of AppState.patients) {
+    // 1. Consultar endpoint backend en vivo si estamos autenticados en red
+    const token = localStorage.getItem('psico_session_token');
+    if (token && typeof window !== 'undefined' && window.location && window.location.protocol !== 'file:') {
         try {
-            const raw = localStorage.getItem(`psico_portal_data_${p.id}`);
-            if (raw) {
-                const data = JSON.parse(raw);
-                if (data.activeCrisisAlert) {
-                    alertPatient = p;
-                    reasonText = 'Activación de Botón SOS / Protocolo de Emergencia';
-                    break;
-                }
-                if (data.evaluations && Array.isArray(data.evaluations)) {
-                    const criticalEval = data.evaluations.find(e => e.alertRisk);
-                    if (criticalEval) {
-                        alertPatient = p;
-                        reasonText = criticalEval.riskReason || 'Indicadores de alto riesgo autolítico en evaluación';
-                        break;
+            const res = await fetch('/api/v1/portal/crisis-alerts', {
+                headers: { 'Authorization': `Bearer ${token}` }
+            });
+            if (res.ok) {
+                const data = await res.json();
+                const activeAlerts = (data && data.alerts) || [];
+                AppState.activeServerCrisisAlerts = activeAlerts;
+                if (activeAlerts.length > 0) {
+                    const firstAlert = activeAlerts[0];
+                    serverAlertId = firstAlert.id;
+                    const matchedPatient = AppState.patients.find(p => p.id === firstAlert.patient_id);
+                    if (matchedPatient) {
+                        alertPatient = matchedPatient;
+                        reasonText = firstAlert.reason || 'Activación de Botón SOS en Portal';
                     }
                 }
             }
-        } catch (e) {
-            console.error('Error verificando alerta de crisis:', e);
+        } catch (netErr) {
+            // Continuar con comprobación de respaldo local
+        }
+    }
+
+    // 2. Comprobación local de respaldo (fallback offline / local)
+    if (!alertPatient) {
+        for (const p of AppState.patients) {
+            try {
+                const raw = localStorage.getItem(`psico_portal_data_${p.id}`);
+                if (raw) {
+                    const data = JSON.parse(raw);
+                    if (data.activeCrisisAlert) {
+                        alertPatient = p;
+                        reasonText = 'Activación de Botón SOS / Protocolo de Emergencia';
+                        break;
+                    }
+                    if (data.evaluations && Array.isArray(data.evaluations)) {
+                        const criticalEval = data.evaluations.find(e => e.alertRisk);
+                        if (criticalEval) {
+                            alertPatient = p;
+                            reasonText = criticalEval.riskReason || 'Indicadores de alto riesgo autolítico en evaluación';
+                            break;
+                        }
+                    }
+                }
+            } catch (e) {
+                console.error('Error verificando alerta de crisis:', e);
+            }
         }
     }
 
@@ -6609,7 +6674,8 @@ function checkPortalCrisisAlerts() {
 
     if (alertPatient && banner && textEl) {
         window._activeCrisisPatient = alertPatient;
-        textEl.innerHTML = `<strong>🚨 ALERTA CLÍNICA:</strong> Paciente <strong>${alertPatient.name}</strong> ha registrado indicadores de crisis (${reasonText}).`;
+        window._activeCrisisAlertId = serverAlertId;
+        textEl.innerHTML = `<strong>🚨 ALERTA CLÍNICA SOS:</strong> Paciente <strong>${alertPatient.name}</strong> ha registrado indicadores de crisis (${reasonText}).`;
         banner.style.display = 'block';
     } else if (banner && !window._activeCrisisPatient) {
         banner.style.display = 'none';
@@ -6624,9 +6690,24 @@ function openActiveCrisisProtocol() {
     }
 }
 
-function dismissCrisisBanner() {
+async function dismissCrisisBanner() {
     const banner = document.getElementById('crisisLiveBanner');
     if (banner) banner.style.display = 'none';
+
+    // Si existe alerta en servidor, enviar ACK formal para registrar la atención profesional
+    const alertId = window._activeCrisisAlertId;
+    const token = localStorage.getItem('psico_session_token');
+    if (alertId && token && typeof window !== 'undefined' && window.location && window.location.protocol !== 'file:') {
+        try {
+            await fetch(`/api/v1/portal/crisis-alerts/ack/${alertId}`, {
+                method: 'POST',
+                headers: { 'Authorization': `Bearer ${token}` }
+            });
+        } catch (ackErr) {
+            console.warn('No se pudo enviar ACK al servidor:', ackErr);
+        }
+    }
+
     if (window._activeCrisisPatient) {
         try {
             const pId = window._activeCrisisPatient.id;
@@ -6638,6 +6719,7 @@ function dismissCrisisBanner() {
             }
         } catch (e) {}
         window._activeCrisisPatient = null;
+        window._activeCrisisAlertId = null;
     }
 }
 

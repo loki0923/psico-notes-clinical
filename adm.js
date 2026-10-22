@@ -2,6 +2,14 @@
  * PSICO NOTES CLINICAL - FACTURACIÓN Y CONFIGURACIÓN FISCAL (SENIAT)
  */
 
+function roundCurrency(val) {
+    return Math.round((Number(val || 0) + Number.EPSILON) * 100) / 100;
+}
+
+if (typeof window !== 'undefined' && !window.roundCurrency) {
+    window.roundCurrency = roundCurrency;
+}
+
 function getBillingStorageKey(key) {
     const uid = AppState.currentUser ? AppState.currentUser.id : 'anon';
     return `psico_billing_${key}_${uid}`;
@@ -305,12 +313,12 @@ function fillInvoiceClientData(patientId) {
 
 function calculateInvoiceTotals() {
     const config = getBillingConfig();
-    const amount = parseFloat(document.getElementById('invAmount')?.value || 0);
+    const amount = roundCurrency(document.getElementById('invAmount')?.value || 0);
     const method = document.getElementById('invPaymentMethod')?.value || '';
     const applyIGTF = config.applyIGTF && method.includes('USD');
     
-    const igtfAmount = applyIGTF ? amount * 0.03 : 0;
-    const total = amount + igtfAmount;
+    const igtfAmount = applyIGTF ? roundCurrency(amount * 0.03) : 0;
+    const total = roundCurrency(amount + igtfAmount);
 
     const box = document.getElementById('invoiceSummaryBox');
     if (box) {
@@ -336,11 +344,11 @@ function calculateInvoiceTotals() {
 function handleInvoiceSubmit(e) {
     e.preventDefault();
     const config = getBillingConfig();
-    const amount = parseFloat(document.getElementById('invAmount').value) || 0;
+    const amount = roundCurrency(document.getElementById('invAmount').value || 0);
     const method = document.getElementById('invPaymentMethod').value;
     const applyIGTF = config.applyIGTF && method.includes('USD');
-    const igtfAmount = applyIGTF ? amount * 0.03 : 0;
-    const totalUSD = amount + igtfAmount;
+    const igtfAmount = applyIGTF ? roundCurrency(amount * 0.03) : 0;
+    const totalUSD = roundCurrency(amount + igtfAmount);
 
     const invoiceNum = `${config.invoicePrefix}${config.nextNumber.toString().padStart(6, '0')}`;
 

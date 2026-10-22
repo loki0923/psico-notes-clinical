@@ -11,7 +11,9 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 const DATA_DIR = path.join(__dirname, 'data');
-const LOCAL_DB_PATH = path.join(DATA_DIR, 'psiconotes_relational.json');
+const LOCAL_DB_PATH = path.join(DATA_DIR, 'psiconotes_relacional.json');
+const LOCAL_DB_BACKUP_PATH = path.join(DATA_DIR, 'psiconotes_relacional.json.bak');
+const LOCAL_DB_TMP_PATH = path.join(DATA_DIR, 'psiconotes_relacional.json.tmp');
 
 // Asegurar directorio local de datos
 if (!fs.existsSync(DATA_DIR)) {
@@ -23,15 +25,40 @@ class DatabaseManager {
         this.isPostgresConnected = false;
         this.pgPool = null;
         this.localStore = this._loadLocalStore();
+        if (!this.localStore.kid_portal_activities) {
+            this.localStore.kid_portal_activities = [];
+        }
     }
 
     _loadLocalStore() {
         try {
             if (fs.existsSync(LOCAL_DB_PATH)) {
-                return JSON.parse(fs.readFileSync(LOCAL_DB_PATH, 'utf8'));
+                const raw = fs.readFileSync(LOCAL_DB_PATH, 'utf8');
+                return JSON.parse(raw);
             }
         } catch (e) {
-            console.warn('⚠️ Error al leer almacén local, iniciando nuevo:', e.message);
+            console.error('⚠️ Error al leer almacén local primario:', e.message);
+            // Intentar recuperar desde el respaldo atómico si existe
+            try {
+                if (fs.existsSync(LOCAL_DB_BACKUP_PATH)) {
+                    console.warn('🔄 Restaurando almacén local desde archivo de respaldo (.bak)...');
+                    const backupRaw = fs.readFileSync(LOCAL_DB_BACKUP_PATH, 'utf8');
+                    const parsedBackup = JSON.parse(backupRaw);
+                    fs.writeFileSync(LOCAL_DB_PATH, backupRaw, 'utf8');
+                    return parsedBackup;
+                }
+            } catch (backupErr) {
+                console.error('❌ Respaldo .bak también corrupto o inaccesible:', backupErr.message);
+            }
+
+            // Si el archivo existía pero falló el parseo, preservar una copia de emergencia para análisis forense
+            if (fs.existsSync(LOCAL_DB_PATH)) {
+                const corruptDump = path.join(DATA_DIR, `psiconotes_corrupt_${Date.now()}.json`);
+                try {
+                    fs.copyFileSync(LOCAL_DB_PATH, corruptDump);
+                    console.error(`🚨 Archivo corrupto preservado en: ${corruptDump}`);
+                } catch {}
+            }
         }
         return {
             therapists: [],
@@ -47,15 +74,31 @@ class DatabaseManager {
             password_resets: {},
             audit_logs: [],
             billing_configs: {},
-            billing_invoices: []
+            billing_invoices: [],
+            kid_portal_activities: []
         };
     }
 
     _persistLocalStore() {
         try {
-            fs.writeFileSync(LOCAL_DB_PATH, JSON.stringify(this.localStore, null, 2), 'utf8');
+            const dataStr = JSON.stringify(this.localStore, null, 2);
+            // 1. Escritura atómica primero en archivo temporal
+            fs.writeFileSync(LOCAL_DB_TMP_PATH, dataStr, 'utf8');
+
+            // 2. Crear copia de respaldo del archivo actual previo a la sustitución
+            if (fs.existsSync(LOCAL_DB_PATH)) {
+                try {
+                    fs.copyFileSync(LOCAL_DB_PATH, LOCAL_DB_BACKUP_PATH);
+                } catch {}
+            }
+
+            // 3. Renombrado atómico (garantiza integridad ante caídas de proceso)
+            fs.renameSync(LOCAL_DB_TMP_PATH, LOCAL_DB_PATH);
         } catch (e) {
-            console.error('❌ Error persistiendo almacén de datos:', e.message);
+            console.error('❌ Error persistiendo almacén de datos atómicamente:', e.message);
+            if (fs.existsSync(LOCAL_DB_TMP_PATH)) {
+                try { fs.unlinkSync(LOCAL_DB_TMP_PATH); } catch {}
+            }
         }
     }
 
@@ -151,7 +194,8 @@ class DatabaseManager {
                 cbtRecords: cbtRes.rows,
                 moodLogs: moodsRes.rows,
                 evaluations: evalsRes.rows,
-                hasActiveCrisisAlert: alertsRes.rows.length > 0
+                hasActiveCrisisAlert: alertsRes.rows.length > 0,
+                kidActivities: await this.getKidActivities(patientId)
             };
         }
 
@@ -164,7 +208,8 @@ class DatabaseManager {
             cbtRecords: this.localStore.cbt_records.filter(c => c.patient_id === patientId),
             moodLogs: this.localStore.mood_logs.filter(m => m.patient_id === patientId),
             evaluations: this.localStore.evaluations.filter(e => e.patient_id === patientId),
-            hasActiveCrisisAlert: this.localStore.crisis_alerts.some(a => a.patient_id === patientId && !a.acknowledged)
+            hasActiveCrisisAlert: this.localStore.crisis_alerts.some(a => a.patient_id === patientId && !a.acknowledged),
+            kidActivities: (this.localStore.kid_portal_activities || []).filter(k => k.patient_id === patientId)
         };
     }
 
@@ -300,6 +345,61 @@ class DatabaseManager {
         return alert;
     }
 
+    async saveKidActivity(patientId, { activityType, data }) {
+        if (!patientId || !activityType) throw new Error('patientId y activityType son requeridos');
+        const record = {
+            id: `kid_act_${Date.now()}_${Math.random().toString(36).substr(2, 6)}`,
+            patient_id: patientId,
+            activity_type: activityType,
+            data: data || {},
+            created_at: new Date().toISOString()
+        };
+
+        if (this.isPostgresConnected && this.pgPool) {
+            const res = await this.pgPool.query(
+                `INSERT INTO kid_portal_activities (id, patient_id, activity_type, data, created_at)
+                 VALUES ($1, $2, $3, $4, $5)
+                 RETURNING *`,
+                [record.id, record.patient_id, record.activity_type, JSON.stringify(record.data), record.created_at]
+            );
+            return {
+                ...res.rows[0],
+                data: typeof res.rows[0].data === 'string' ? JSON.parse(res.rows[0].data) : res.rows[0].data
+            };
+        }
+
+        if (!this.localStore.kid_portal_activities) {
+            this.localStore.kid_portal_activities = [];
+        }
+        this.localStore.kid_portal_activities.unshift(record);
+        this._persistLocalStore();
+        return record;
+    }
+
+    async getKidActivities(patientId) {
+        if (!patientId) return [];
+
+        if (this.isPostgresConnected && this.pgPool) {
+            const res = await this.pgPool.query(
+                `SELECT * FROM kid_portal_activities 
+                 WHERE patient_id = $1 
+                 ORDER BY created_at DESC LIMIT 50`,
+                [patientId]
+            );
+            return res.rows.map(r => ({
+                ...r,
+                data: typeof r.data === 'string' ? JSON.parse(r.data) : r.data
+            }));
+        }
+
+        if (!this.localStore.kid_portal_activities) {
+            this.localStore.kid_portal_activities = [];
+        }
+        return (this.localStore.kid_portal_activities || [])
+            .filter(a => a.patient_id === patientId)
+            .sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+    }
+
     // ============================================
     // SINCRONIZACIÓN GENERAL DEL EXPEDIENTE CLÍNICO
     // ============================================
@@ -377,9 +477,13 @@ class DatabaseManager {
         return synced;
     }
 
-    async syncPatientsBatch(patientsArray, tasksArray = []) {
+    async syncPatientsBatch(patientsArray, tasksArray = [], therapistId = null) {
         for (const p of patientsArray) {
-            await this.upsertPatient(p);
+            const data = { ...p };
+            if (therapistId && !data.therapist_id) {
+                data.therapist_id = therapistId;
+            }
+            await this.upsertPatient(data);
         }
         for (const t of tasksArray) {
             if (t.id && t.patient_id && t.title) {
@@ -520,7 +624,7 @@ class DatabaseManager {
                 const tasks = (payload.notes || [])
                     .flatMap(n => n.intersessionTasks || [])
                     .concat(payload.tasks || []);
-                await this.syncPatientsBatch(payload.patients, tasks);
+                await this.syncPatientsBatch(payload.patients, tasks, therapistId);
             } catch (err) {
                 console.warn('Advertencia en sync relacional batch:', err.message);
             }
@@ -674,7 +778,7 @@ class DatabaseManager {
             const res = await this.pgPool.query('SELECT * FROM patients WHERE therapist_id = $1 ORDER BY name ASC', [therapistId]);
             return res.rows;
         }
-        return this.localStore.patients.filter(p => !p.therapist_id || p.therapist_id === therapistId);
+        return this.localStore.patients.filter(p => Boolean(p.therapist_id) && p.therapist_id === therapistId);
     }
 
     async getPatientById(patientId) {
@@ -800,13 +904,13 @@ class DatabaseManager {
             issue_date: invoice.date || invoice.issue_date || new Date().toISOString().split('T')[0],
             patient_name: invoice.patientName || invoice.patient_name || invoice.clientName || 'Paciente',
             patient_rif: invoice.patientRif || invoice.patient_rif || invoice.clientRif || '',
-            subtotal: invoice.amountUSD ?? invoice.subtotal ?? 0,
-            iva_amount: invoice.ivaAmount ?? invoice.iva_amount ?? 0,
-            igtf_amount: invoice.igtfUSD ?? invoice.igtfAmount ?? invoice.igtf_amount ?? 0,
-            total_amount: invoice.totalUSD ?? invoice.total ?? invoice.total_amount ?? 0,
-            totalUSD: invoice.totalUSD ?? invoice.total ?? invoice.total_amount ?? 0,
-            amountUSD: invoice.amountUSD ?? invoice.subtotal ?? 0,
-            igtfUSD: invoice.igtfUSD ?? invoice.igtfAmount ?? invoice.igtf_amount ?? 0,
+            subtotal: Math.round(((Number(invoice.amountUSD ?? invoice.subtotal ?? 0)) + Number.EPSILON) * 100) / 100,
+            iva_amount: Math.round(((Number(invoice.ivaAmount ?? invoice.iva_amount ?? 0)) + Number.EPSILON) * 100) / 100,
+            igtf_amount: Math.round(((Number(invoice.igtfUSD ?? invoice.igtfAmount ?? invoice.igtf_amount ?? 0)) + Number.EPSILON) * 100) / 100,
+            total_amount: Math.round(((Number(invoice.totalUSD ?? invoice.total ?? invoice.total_amount ?? 0)) + Number.EPSILON) * 100) / 100,
+            totalUSD: Math.round(((Number(invoice.totalUSD ?? invoice.total ?? invoice.total_amount ?? 0)) + Number.EPSILON) * 100) / 100,
+            amountUSD: Math.round(((Number(invoice.amountUSD ?? invoice.subtotal ?? 0)) + Number.EPSILON) * 100) / 100,
+            igtfUSD: Math.round(((Number(invoice.igtfUSD ?? invoice.igtfAmount ?? invoice.igtf_amount ?? 0)) + Number.EPSILON) * 100) / 100,
             currency: invoice.currency || 'USD',
             status: invoice.status || 'emitida',
             created_at: invoice.created_at || new Date().toISOString()

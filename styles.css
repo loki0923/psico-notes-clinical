@@ -2,76 +2,95 @@
    PSICO NOTES CLINICAL - Apple & Google Design System (Human Interface & Material 3)
    ============================================ */
 
-/* Variables - Light Theme (Ultra-Clean Apple & Google Health Design System) */
+/* ============================================
+   SISTEMA DE DISEÑO CLÍNICO PREMIUM (Tokens Centralizados)
+   Personalidad: Profesional, Humana, Discreta, Serena, Confiable
+   ============================================ */
+
 :root {
-  --bg-primary: #f8fafc;
-  --bg-secondary: #f1f5f9;
-  --bg-tertiary: #e2e8f0;
-  --bg-hover: #e2e8f0;
-  --bg-sidebar: #ffffff;
-  --bg-card: #ffffff;
-  --bg-modal: #ffffff;
-  --bg-input: #ffffff;
-  --bg-code: #f1f5f9;
-  --text-primary: #0f172a;
-  --text-secondary: #475569;
-  --text-tertiary: #94a3b8;
-  --text-inverse: #ffffff;
-  --border-primary: rgba(15, 23, 42, 0.08);
-  --border-secondary: rgba(15, 23, 42, 0.14);
-  --border-hover: rgba(15, 23, 42, 0.24);
-  --accent-primary: #0d9488;
-  --accent-hover: #0f766e;
-  --accent-light: rgba(13, 148, 136, 0.09);
-  --accent-focus: rgba(13, 148, 136, 0.2);
-  --accent-danger: #ef4444;
-  --accent-success: #10b981;
-  --accent-warning: #f59e0b;
-  --shadow-sm: 0 1px 3px rgba(15, 23, 42, 0.05), 0 1px 2px rgba(15, 23, 42, 0.03);
-  --shadow-md: 0 4px 14px -2px rgba(15, 23, 42, 0.08), 0 2px 6px -1px rgba(15, 23, 42, 0.04);
-  --shadow-lg: 0 16px 36px -4px rgba(15, 23, 42, 0.12), 0 6px 14px -2px rgba(15, 23, 42, 0.05);
-  --shadow-xl: 0 24px 48px -10px rgba(15, 23, 42, 0.18);
+  /* Fondo general y superficies */
+  --bg-primary: #F7F8F6;
+  --bg-secondary: #EEF1ED;
+  --bg-tertiary: #E5E9E5;
+  --bg-hover: #E7F0EB;
+  --bg-sidebar: #FFFFFF;
+  --bg-card: #FFFFFF;
+  --bg-modal: #FFFFFF;
+  --bg-input: #FFFFFF;
+  --bg-code: #EEF1ED;
+
+  /* Textos de alta legibilidad y jerarquía (WCAG 2.2 AAA / AA) */
+  --text-primary: #202923;
+  --text-secondary: #69736D;
+  --text-tertiary: #8A958E;
+  --text-inverse: #FFFFFF;
+
+  /* Bordes y separadores discretos */
+  --border-primary: #E5E9E5;
+  --border-secondary: #D7DED8;
+  --border-hover: #285C50;
+
+  /* Verde petróleo clínico y acentos */
+  --accent-primary: #285C50;
+  --accent-hover: #1E463D;
+  --accent-light: #E7F0EB;
+  --accent-focus: rgba(40, 92, 80, 0.22);
+
+  /* Alertas clínicas de grado médico */
+  --accent-danger: #D32F2F;
+  --accent-success: #1E7E34;
+  --accent-warning: #B45309;
+
+  /* Sombras ultra-sutiles libres de estridencia */
+  --shadow-sm: 0 1px 3px rgba(32, 41, 35, 0.04), 0 1px 2px rgba(32, 41, 35, 0.02);
+  --shadow-md: 0 4px 14px -2px rgba(32, 41, 35, 0.06), 0 2px 6px -1px rgba(32, 41, 35, 0.03);
+  --shadow-lg: 0 16px 36px -4px rgba(32, 41, 35, 0.09), 0 6px 14px -2px rgba(32, 41, 35, 0.04);
+  --shadow-xl: 0 24px 48px -10px rgba(32, 41, 35, 0.14);
+
+  /* Radios y métricas ergonómicas */
   --radius-sm: 8px;
   --radius-md: 12px;
-  --radius-lg: 18px;
-  --radius-xl: 24px;
+  --radius-lg: 16px;
+  --radius-xl: 20px;
   --sidebar-width: 260px;
   --sidebar-collapsed: 64px;
   --topbar-height: 58px;
-  --font-sans: -apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text", "Inter", "Segoe UI", Roboto, sans-serif;
-  --font-serif: -apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text", "Inter", "Segoe UI", Roboto, sans-serif;
+
+  /* Tipografía sans-serif de precisión clínica */
+  --font-sans: "Inter", -apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text", "Segoe UI", Roboto, sans-serif;
+  --font-serif: "Inter", -apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text", "Segoe UI", Roboto, sans-serif;
   --transition-fast: 0.15s cubic-bezier(0.4, 0, 0.2, 1);
-  --transition-normal: 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+  --transition-normal: 0.22s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
-/* Dark Theme (Apple Space Gray & Obsidian Slate) */
+/* Modo oscuro sereno y equilibrado (Carbón clínico & Verde oliva profundo) */
 [data-theme="dark"] {
-  --bg-primary: #0b0f17;
-  --bg-secondary: #111827;
-  --bg-tertiary: #1f293d;
-  --bg-hover: #1f293d;
-  --bg-sidebar: #0e1524;
-  --bg-card: #131d2f;
-  --bg-modal: #131d2f;
-  --bg-input: #0f172a;
-  --bg-code: #1f293d;
-  --text-primary: #f8fafc;
-  --text-secondary: #94a3b8;
-  --text-tertiary: #64748b;
-  --text-inverse: #0b0f17;
-  --border-primary: rgba(255, 255, 255, 0.08);
-  --border-secondary: rgba(255, 255, 255, 0.14);
-  --border-hover: rgba(255, 255, 255, 0.24);
-  --accent-primary: #2dd4bf;
-  --accent-hover: #14b8a6;
-  --accent-light: rgba(45, 212, 191, 0.12);
-  --accent-focus: rgba(45, 212, 191, 0.24);
-  --accent-danger: #f87171;
-  --accent-success: #34d399;
-  --accent-warning: #fbbf24;
-  --shadow-sm: 0 2px 4px rgba(0, 0, 0, 0.35);
-  --shadow-md: 0 6px 18px rgba(0, 0, 0, 0.45);
-  --shadow-lg: 0 20px 48px rgba(0, 0, 0, 0.65);
+  --bg-primary: #121815;
+  --bg-secondary: #19221D;
+  --bg-tertiary: #232E28;
+  --bg-hover: #26332C;
+  --bg-sidebar: #161E1A;
+  --bg-card: #1A241F;
+  --bg-modal: #1A241F;
+  --bg-input: #151D18;
+  --bg-code: #232E28;
+  --text-primary: #F0F4F1;
+  --text-secondary: #A3B0A7;
+  --text-tertiary: #728076;
+  --text-inverse: #121815;
+  --border-primary: rgba(229, 233, 229, 0.12);
+  --border-secondary: rgba(229, 233, 229, 0.18);
+  --border-hover: #488B7B;
+  --accent-primary: #3E8473;
+  --accent-hover: #529E8C;
+  --accent-light: rgba(62, 132, 115, 0.18);
+  --accent-focus: rgba(62, 132, 115, 0.32);
+  --accent-danger: #EF5350;
+  --accent-success: #4CAF50;
+  --accent-warning: #FFA726;
+  --shadow-sm: 0 2px 4px rgba(0, 0, 0, 0.25);
+  --shadow-md: 0 6px 18px rgba(0, 0, 0, 0.35);
+  --shadow-lg: 0 20px 48px rgba(0, 0, 0, 0.50);
 }
 
 /* Reset */
@@ -274,23 +293,23 @@ body {
   cursor: pointer;
   transition: all var(--transition-fast);
   white-space: nowrap;
-  box-shadow: 0 1px 3px rgba(13, 148, 136, 0.2), 0 1px 2px rgba(13, 148, 136, 0.1);
+  box-shadow: 0 1px 3px rgba(40, 92, 80, 0.18), 0 1px 2px rgba(40, 92, 80, 0.10);
 }
 .btn-primary:hover {
   background: var(--accent-hover);
   transform: translateY(-0.5px);
-  box-shadow: 0 4px 12px rgba(13, 148, 136, 0.28);
+  box-shadow: 0 4px 12px rgba(40, 92, 80, 0.25);
 }
 .btn-primary:active {
   transform: scale(0.98);
 }
 [data-theme="dark"] .btn-primary {
-  color: #0b0f17;
+  color: #121815;
   font-weight: 700;
-  box-shadow: 0 2px 8px rgba(45, 212, 191, 0.25);
+  box-shadow: 0 2px 8px rgba(62, 132, 115, 0.28);
 }
 [data-theme="dark"] .btn-primary:hover {
-  box-shadow: 0 4px 14px rgba(45, 212, 191, 0.35);
+  box-shadow: 0 4px 14px rgba(62, 132, 115, 0.38);
 }
 
 .btn-secondary {
@@ -424,8 +443,8 @@ DASHBOARD v2.0 - ESTILO SOBRIO Y CLÍNICO
   border-color: var(--border-hover);
 }
 .summary-card.priority {
-  background: linear-gradient(135deg, rgba(239, 68, 68, 0.05) 0%, rgba(239, 68, 68, 0.01) 100%);
-  border-color: rgba(239, 68, 68, 0.22);
+  background: linear-gradient(135deg, rgba(211, 47, 47, 0.05) 0%, rgba(211, 47, 47, 0.01) 100%);
+  border-color: rgba(211, 47, 47, 0.22);
 }
 .summary-icon {
   font-size: 22px;

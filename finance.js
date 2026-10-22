@@ -2,6 +2,14 @@
  * PSICO NOTES CLINICAL - MÓDULO DE FINANZAS
  */
 
+function roundCurrency(val) {
+    return Math.round((Number(val || 0) + Number.EPSILON) * 100) / 100;
+}
+
+if (typeof window !== 'undefined') {
+    window.roundCurrency = roundCurrency;
+}
+
 function getFinanceStorageKey(key) {
     const uid = AppState.currentUser ? AppState.currentUser.id : 'anon';
     return `psico_finance_${key}_${uid}`;
@@ -131,12 +139,12 @@ function renderFinanceView() {
     let totalExpense = 0;
 
     txs.forEach(t => {
-        const val = parseFloat(t.amount) || 0;
-        if (t.type === 'income') totalIncome += val;
-        else totalExpense += val;
+        const val = roundCurrency(t.amount);
+        if (t.type === 'income') totalIncome = roundCurrency(totalIncome + val);
+        else totalExpense = roundCurrency(totalExpense + val);
     });
 
-    const netBalance = totalIncome - totalExpense;
+    const netBalance = roundCurrency(totalIncome - totalExpense);
 
     container.innerHTML = `
         <div class="page-header">
@@ -319,7 +327,7 @@ function renderGoalsTabHtml(txs, netBalance) {
     const currentMonthStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
 
     const currentMonthIncomesList = txs.filter(t => t.type === 'income' && (t.date || '').startsWith(currentMonthStr));
-    const currentMonthIncomeSum = currentMonthIncomesList.reduce((acc, t) => acc + (parseFloat(t.amount) || 0), 0);
+    const currentMonthIncomeSum = roundCurrency(currentMonthIncomesList.reduce((acc, t) => roundCurrency(acc + roundCurrency(t.amount)), 0));
     const currentMonthSessionsCount = currentMonthIncomesList.length;
 
     let completedGoals = 0;
@@ -329,7 +337,7 @@ function renderGoalsTabHtml(txs, netBalance) {
         let isSessionsUnit = g.category === 'sessions' || g.unit === 'sesiones';
 
         if (g.category === 'income') {
-            currentVal = g.period === 'monthly' ? currentMonthIncomeSum : txs.filter(t => t.type === 'income').reduce((a, b) => a + (parseFloat(b.amount) || 0), 0);
+            currentVal = g.period === 'monthly' ? currentMonthIncomeSum : roundCurrency(txs.filter(t => t.type === 'income').reduce((a, b) => roundCurrency(a + roundCurrency(b.amount)), 0));
         } else if (g.category === 'sessions') {
             currentVal = g.period === 'monthly' ? currentMonthSessionsCount : txs.filter(t => t.type === 'income').length;
         } else if (g.category === 'balance') {
@@ -920,12 +928,12 @@ function getPendingPatientDebts() {
                 totalDebt: 0
             };
         }
-        const appAmount = parseFloat(app.price || app.rateAmount || defaultRate.amount || 45);
+        const appAmount = roundCurrency(app.price || app.rateAmount || defaultRate.amount || 45);
         debtsByPatient[pId].appointments.push({
             ...app,
             amount: appAmount
         });
-        debtsByPatient[pId].totalDebt += appAmount;
+        debtsByPatient[pId].totalDebt = roundCurrency(debtsByPatient[pId].totalDebt + appAmount);
     });
 
     return Object.values(debtsByPatient);
@@ -933,7 +941,7 @@ function getPendingPatientDebts() {
 
 function renderDebtsTabHtml() {
     const debts = getPendingPatientDebts();
-    const totalPending = debts.reduce((sum, d) => sum + d.totalDebt, 0);
+    const totalPending = roundCurrency(debts.reduce((sum, d) => roundCurrency(sum + d.totalDebt), 0));
     const totalSessions = debts.reduce((sum, d) => sum + d.appointments.length, 0);
 
     return `
