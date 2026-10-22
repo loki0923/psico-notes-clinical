@@ -2983,5 +2983,122 @@ sequenceDiagram
 3. **Acceso Directo en Cabecera**: Se agregaron botones de acceso inmediato en la barra superior de transacciones (`Tarifas`, `Metas`, `Categorías`, `+ Ingreso`, `- Egreso`) para que el terapeuta pueda configurar precios y objetivos clínicos sin necesidad de explorar subpestañas secundarias.
 4. **Invalidación Forzada de Caché (v6.8.5)**: Se actualizó `CACHE_VERSION = 'psico-v6.8.5'` en `sw.js` y las cadenas de consulta en `index.html` (`?v=6.8.5`) asegurando que los clientes Web y PWA descarguen de inmediato el código corregido.
 
+---
+
+## 33. REPARACIÓN INTEGRAL: DESANIDAMIENTO DEL DOM, ACTIVACIÓN REACTIVA DE MODALES Y SINCRONIZACIÓN CLOUD (v6.8.6)
+
+### 33.1. Diagnóstico Forense y Causas Raíz ("Los botones no abren modales o no guardan")
+Tras la notificación del usuario en la que se reporta que en el módulo de Finanzas *"los botones (+ Ingreso, - Egreso, Metas, Tarifas, Categorías) no abren modales o no guardan"*, la inspección forense de arquitectura identificó las siguientes fallas críticas:
+
+1. **Anidamiento Accidental en el DOM de `index.html` (Causa Raíz Primaria)**:
+   - En la línea 1408 de `index.html`, dentro del formulario de `#noteModal`, la etiqueta `<div class="form-group">` del control `#noteConfidential` carecía de su respectivo cierre `</div>`.
+   - Este desbalance de etiquetas provocó que el cierre del contenedor principal `<div class="modal" id="noteModal">` (línea 1449) fuera absorbido prematuramente por contenedores internos, dejando el modal `#noteModal` abierto en el árbol DOM.
+   - En consecuencia, **todos los modales subsiguientes en el documento HTML** (`#scaleModal`, `#billingModal`, `#backupModal`, `#financeTransactionModal`, `#financeCategoriesModal`, `#financeGoalModal`, `#financeRateModal` y `#sessionReminderDrawer`) quedaron anidados como elementos hijos dentro de `#noteModal`.
+   - Dado que `#noteModal` posee la regla CSS `display: none` mientras no se esté redactando una nota de evolución, cualquier modal financiero al que se le aplicara la clase `.active` (`display: flex`) continuaba siendo **físicamente invisible e inaccesible** para el usuario por la herencia de visibilidad del nodo padre.
+
+2. **Colisión de Nombres en el Objeto Global (`deleteGoal`)**:
+   - `app.js` exponía `window.deleteGoal = deleteGoal(goalId, patientId)` para objetivos terapéuticos de pacientes.
+   - `finance.js` exponía `_financeTargetScope.deleteGoal = deleteGoal(goalId)` para metas contables de la consulta.
+   - Dependiendo del orden de invocación, ambos métodos se pisaban mutuamente en `window`, generando fallos silenciosos o excepciones de argumentos al intentar borrar metas.
+
+3. **Fragilidad de Ámbito en Utilidades Defensivas**:
+   - Funciones auxiliares como `toDateInputValue`, `generateId`, `formatDate`, `showToast` y `openModal` contaban con fallbacks asignados únicamente si `typeof window === 'undefined'`.
+   - Si en el navegador se producía alguna latencia o desacoplamiento léxico, las llamadas directas arriesgaban lanzar `ReferenceError`.
+
+4. **Omisión de Finanzas en la Sincronización Centralizada en la Nube (`CloudSyncManager`)**:
+   - `CloudSyncManager.pushToCloud` empaquetaba pacientes, citas, notas, planes y facturas SENIAT, pero **no incluía las colecciones financieras** (`transactions`, `rates`, `goals`, `categories`).
+   - `CloudSyncManager.pullFromCloud` tampoco restauraba finanzas al iniciar sesión en un nuevo dispositivo, haciendo que las transacciones y tarifas parecieran "no guardarse" entre recargas o sesiones multi-dispositivo.
+
+---
+
+### 33.2. Diagrama de Arquitectura de Capas y Desanidamiento (Mermaid)
+
+```mermaid
+flowchart TD
+    subgraph DOM_Structure["🏗️ Corrección del Árbol DOM (index.html)"]
+        Body["&lt;body&gt; (Root)"]
+        NoteModal["&lt;div id='noteModal' class='modal'&gt; (Cierre balanceado en L1449)"]
+        FinTxModal["&lt;div id='financeTransactionModal' class='modal'&gt; (Hijo directo del body)"]
+        FinCatModal["&lt;div id='financeCategoriesModal' class='modal'&gt; (Hijo directo del body)"]
+        FinGoalModal["&lt;div id='financeGoalModal' class='modal'&gt; (Hijo directo del body)"]
+        FinRateModal["&lt;div id='financeRateModal' class='modal'&gt; (Hijo directo del body)"]
+    end
+
+    subgraph Controller_Layer["🎛️ Capa de Controladores y Resolutores Seguros"]
+        BtnTx["Botón '+ Ingreso' / '- Egreso'"]
+        BtnGoal["Botón 'Metas' / 'Nueva Meta'"]
+        BtnRate["Botón 'Tarifas' / 'Añadir Tarifa'"]
+        BtnCat["Botón 'Categorías'"]
+        SafeBridge["Resolutor Defensivo (openModal, generateId, toDateInputValue)"]
+    end
+
+    subgraph Persistence_Layer["💾 Capa de Persistencia y Nube"]
+        LS["localStorage (psico_finance_*_therapistId)"]
+        SyncManager["CloudSyncManager (pushToCloud / pullFromCloud)"]
+        PG["Base de Datos PostgreSQL / Embedded Engine"]
+    end
+
+    Body --> NoteModal
+    Body --> FinTxModal
+    Body --> FinCatModal
+    Body --> FinGoalModal
+    Body --> FinRateModal
+
+    BtnTx -->|openTransactionModal| SafeBridge
+    BtnGoal -->|openGoalModal| SafeBridge
+    BtnRate -->|openRateModal| SafeBridge
+    BtnCat -->|openCategoriesModal| SafeBridge
+
+    SafeBridge -->|m.classList.add 'active'| FinTxModal & FinCatModal & FinGoalModal & FinRateModal
+    FinTxModal & FinCatModal & FinGoalModal & FinRateModal -->|Envío de Formularios| LS
+    LS --> SyncManager
+    SyncManager --> PG
+```
+
+---
+
+### 33.3. Diagrama de Secuencia de Flujos Críticos (Mermaid)
+
+```mermaid
+sequenceDiagram
+    autonumber
+    actor T as 👩‍⚕️ Psicóloga Clínica
+    participant UI as 📊 Vista Finanzas (#financeContent)
+    participant M as 🪟 Modales Financieros (#finance*Modal)
+    participant Core as ⚙️ Motor de Finanzas (finance.js)
+    participant App as 🧠 Core de Aplicación (app.js)
+    participant Cloud as ☁️ Sincronizador Nube (CloudSyncManager)
+
+    T->>UI: Clic en '+ Ingreso' o '- Egreso'
+    UI->>Core: openTransactionModal(type)
+    Core->>Core: Inyecta HTML con safeToDateInputValue()
+    Core->>App: openModal('financeTransactionModal')
+    Note over App,M: Desanidado de noteModal: m.classList.add('active')
+    App->>M: Muestra modal en primer plano (z-index: 2200)
+    M-->>T: Presenta formulario reactivo con concepto, monto y categoría
+    
+    T->>M: Ingresa $50.00 USD y hace clic en 'Guardar Transacción'
+    M->>Core: handleTransactionSubmit(event, 'income')
+    Core->>Core: safeGenerateId(), roundCurrency(amount)
+    Core->>Core: saveFinanceTransactions(txs)
+    Core->>App: closeModal('financeTransactionModal')
+    Core->>UI: renderFinanceView() (Actualiza KPIs y tabla)
+    Core->>Cloud: CloudSyncManager.schedulePush()
+    Cloud-->>Core: Sincronización confirmada
+    Core-->>T: showToast('Transacción registrada', 'success')
+```
+
+---
+
+### 33.4. Plan de Acción y Distribución de Tareas por Agente
+
+| Agente | Responsabilidad | Archivos Afectados | Entregables Específicos |
+| :--- | :--- | :--- | :--- |
+| **Agente 1 (Arquitecto/PM)** | Diagnóstico, modelado y artefacto | `arquitectura.md` | Diagnóstico de causa raíz, diagramas Mermaid y asignación técnica |
+| **Agente 3 (Frontend/Mobile)** | Corrección del DOM y controladores | `index.html`, `finance.js`, `app.js`, `sw.js` | 1. Inserción del `</div>` faltante en L1411 de `index.html` para desanidar los modales.<br>2. Creación de puente resolutor defensivo universal en `finance.js`.<br>3. Desacoplamiento de `deleteFinanceGoal` vs `deleteGoal`.<br>4. Incremento a versión `v6.8.6` en `sw.js` e `index.html`. |
+| **Agente 2 (Backend/Engine)** | Persistencia y sincronización cloud | `app.js`, `backup.js`, `server.js` | 1. Integración de `finance` en el payload de `CloudSyncManager.pushToCloud`.<br>2. Lógica de merge e hidratación en `CloudSyncManager.pullFromCloud`.<br>3. Inclusión de tarifas y metas en `backup.js`. |
+| **Agente 4 (QA & DevOps)** | Pruebas automatizadas y validación | `tests.js` | 1. Caso de prueba `TC-DOM-01`: Certificar que ningún modal del sistema esté anidado dentro de otro modal.<br>2. Caso de prueba `TC-FIN-07`: Apertura e interacción de los 5 modales financieros.<br>3. Ejecución de suite (100% aprobado). |
+
+
 
 

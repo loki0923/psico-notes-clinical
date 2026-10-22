@@ -62,19 +62,20 @@ const _localShowConfirmModal = (title, msg, onConfirm) => {
 };
 
 // -------------------------------------------------------------
-// RESOLUCIÓN SEGURA DE UTILIDADES GLOBALES (A PRUEBA DE RECURSIÓN)
-// En el navegador, openModal, closeModal, showToast, etc. ya existen en window (declaradas por app.js).
-// Proveer fallbacks defensivos ÚNICAMENTE en Node.js o entornos de test donde window no existe.
+// RESOLUCIÓN SEGURA DE UTILIDADES GLOBALES (SIN REDECLARACIONES CONST)
 // -------------------------------------------------------------
-if (typeof window === 'undefined') {
-    if (typeof globalThis.openModal !== 'function') globalThis.openModal = _localOpenModal;
-    if (typeof globalThis.closeModal !== 'function') globalThis.closeModal = _localCloseModal;
-    if (typeof globalThis.generateId !== 'function') globalThis.generateId = _localGenerateId;
-    if (typeof globalThis.formatDate !== 'function') globalThis.formatDate = _localFormatDate;
-    if (typeof globalThis.toDateInputValue !== 'function') globalThis.toDateInputValue = _localToDateInputValue;
-    if (typeof globalThis.showToast !== 'function') globalThis.showToast = _localShowToast;
-    if (typeof globalThis.showConfirmModal !== 'function') globalThis.showConfirmModal = _localShowConfirmModal;
-}
+// En el navegador, app.js declara function openModal, closeModal, etc. en el ámbito global.
+// Para evitar SyntaxError por re-declaración de identificadores léxicos, asignamos fallbacks
+// únicamente como propiedades de window / globalThis si aún no existen.
+const _financeUtilScope = (typeof window !== 'undefined') ? window : (typeof globalThis !== 'undefined' ? globalThis : {});
+
+if (typeof _financeUtilScope.openModal !== 'function') _financeUtilScope.openModal = _localOpenModal;
+if (typeof _financeUtilScope.closeModal !== 'function') _financeUtilScope.closeModal = _localCloseModal;
+if (typeof _financeUtilScope.generateId !== 'function') _financeUtilScope.generateId = _localGenerateId;
+if (typeof _financeUtilScope.formatDate !== 'function') _financeUtilScope.formatDate = _localFormatDate;
+if (typeof _financeUtilScope.toDateInputValue !== 'function') _financeUtilScope.toDateInputValue = _localToDateInputValue;
+if (typeof _financeUtilScope.showToast !== 'function') _financeUtilScope.showToast = _localShowToast;
+if (typeof _financeUtilScope.showConfirmModal !== 'function') _financeUtilScope.showConfirmModal = _localShowConfirmModal;
 
 
 const _memStorage = {};
@@ -143,6 +144,9 @@ function getFinanceTransactions() {
 function saveFinanceTransactions(txs) {
     try {
         _storageSet(getFinanceStorageKey('transactions'), JSON.stringify(Array.isArray(txs) ? txs : []));
+        if (typeof CloudSyncManager !== 'undefined' && typeof CloudSyncManager.schedulePush === 'function') {
+            CloudSyncManager.schedulePush();
+        }
     } catch (e) {
         console.error('Error guardando transacciones financieras:', e);
     }
@@ -176,6 +180,9 @@ function getFinanceCategories() {
 function saveFinanceCategories(cats) {
     try {
         _storageSet(getFinanceStorageKey('categories'), JSON.stringify(Array.isArray(cats) ? cats : DEFAULT_FINANCE_CATEGORIES));
+        if (typeof CloudSyncManager !== 'undefined' && typeof CloudSyncManager.schedulePush === 'function') {
+            CloudSyncManager.schedulePush();
+        }
     } catch (e) {
         console.error('Error guardando categorías financieras:', e);
     }
@@ -211,6 +218,9 @@ function getFinanceRates() {
 function saveFinanceRates(rates) {
     try {
         _storageSet(getFinanceStorageKey('rates'), JSON.stringify(Array.isArray(rates) ? rates : DEFAULT_FINANCE_RATES));
+        if (typeof CloudSyncManager !== 'undefined' && typeof CloudSyncManager.schedulePush === 'function') {
+            CloudSyncManager.schedulePush();
+        }
     } catch (e) {
         console.error('Error guardando tarifas de consulta:', e);
     }
@@ -244,6 +254,9 @@ function getFinanceGoals() {
 function saveFinanceGoals(goals) {
     try {
         _storageSet(getFinanceStorageKey('goals'), JSON.stringify(Array.isArray(goals) ? goals : DEFAULT_FINANCE_GOALS));
+        if (typeof CloudSyncManager !== 'undefined' && typeof CloudSyncManager.schedulePush === 'function') {
+            CloudSyncManager.schedulePush();
+        }
     } catch (e) {
         console.error('Error guardando metas financieras:', e);
     }
@@ -485,7 +498,7 @@ function renderTransactionsTabHtml(txs, totalIncome, totalExpense, netBalance) {
             <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;flex-wrap:wrap;gap:12px;">
                 <h2 class="section-title" style="margin:0;"><i class="fas fa-list"></i> Historial de Transacciones (${filteredTxs.length})</h2>
                 <div style="display:flex;gap:8px;align-items:center;">
-                    <input type="text" placeholder="Buscar concepto..." value="${_scope._financeSearchText || ''}" oninput="setFinanceSearchText(this.value)" style="padding:6px 12px;border:1px solid var(--border-primary);border-radius:var(--radius-sm);background:var(--bg-card);color:var(--text-primary);font-size:13px;">
+                    <input type="text" id="financeSearchInput" placeholder="Buscar concepto..." value="${_scope._financeSearchText || ''}" oninput="setFinanceSearchText(this.value)" style="padding:6px 12px;border:1px solid var(--border-primary);border-radius:var(--radius-sm);background:var(--bg-card);color:var(--text-primary);font-size:13px;">
                     <select onchange="setFinanceFilterType(this.value)" style="padding:6px 10px;border:1px solid var(--border-primary);border-radius:var(--radius-sm);background:var(--bg-card);color:var(--text-primary);font-size:13px;">
                         <option value="all" ${filterType === 'all' ? 'selected' : ''}>Todos</option>
                         <option value="income" ${filterType === 'income' ? 'selected' : ''}>Solo Ingresos 🟢</option>
@@ -529,13 +542,23 @@ function renderTransactionsTabHtml(txs, totalIncome, totalExpense, netBalance) {
 }
 
 function setFinanceFilterType(val) {
-    window._financeFilterType = val;
+    const _scope = (typeof window !== 'undefined') ? window : (typeof globalThis !== 'undefined' ? globalThis : {});
+    _scope._financeFilterType = val;
     renderFinanceView();
 }
 
 function setFinanceSearchText(val) {
-    window._financeSearchText = val;
+    const _scope = (typeof window !== 'undefined') ? window : (typeof globalThis !== 'undefined' ? globalThis : {});
+    _scope._financeSearchText = val;
     renderFinanceView();
+    if (typeof document !== 'undefined') {
+        const input = document.getElementById('financeSearchInput');
+        if (input) {
+            input.focus();
+            const len = input.value.length;
+            try { input.setSelectionRange(len, len); } catch {}
+        }
+    }
 }
 
 // -------------------------------------------------------------
@@ -636,7 +659,7 @@ function renderGoalsTabHtml(txs, netBalance) {
                                 </div>
                                 <div style="display:flex;gap:4px;">
                                     <button class="btn-icon" onclick="openGoalModal('${g.id}')" title="Editar Meta"><i class="fas fa-edit"></i></button>
-                                    <button class="btn-icon" style="color:#e16259;" onclick="deleteGoal('${g.id}')" title="Eliminar Meta"><i class="fas fa-trash"></i></button>
+                                    <button class="btn-icon" style="color:#e16259;" onclick="deleteFinanceGoal('${g.id}')" title="Eliminar Meta"><i class="fas fa-trash"></i></button>
                                 </div>
                             </div>
 
@@ -749,7 +772,7 @@ function handleGoalSubmit(e, goalId) {
     showToast('Meta financiera guardada', 'success');
 }
 
-function deleteGoal(goalId) {
+function deleteFinanceGoal(goalId) {
     showConfirmModal(
         'Eliminar Meta',
         '¿Desea eliminar esta meta financiera?',
@@ -761,6 +784,15 @@ function deleteGoal(goalId) {
             showToast('🗑️ Meta eliminada', 'info');
         }
     );
+}
+
+function deleteGoal(goalId, patientId) {
+    if (patientId || (typeof window !== 'undefined' && typeof window._originalTreatmentDeleteGoal === 'function')) {
+        if (typeof window !== 'undefined' && typeof window._originalTreatmentDeleteGoal === 'function') {
+            return window._originalTreatmentDeleteGoal(goalId, patientId);
+        }
+    }
+    return deleteFinanceGoal(goalId);
 }
 
 // -------------------------------------------------------------
@@ -1404,6 +1436,7 @@ if (_financeTargetScope) {
     _financeTargetScope.openGoalModal = openGoalModal;
     _financeTargetScope.handleGoalSubmit = handleGoalSubmit;
     _financeTargetScope.deleteGoal = deleteGoal;
+    _financeTargetScope.deleteFinanceGoal = deleteFinanceGoal;
     _financeTargetScope.openRateModal = openRateModal;
     _financeTargetScope.handleRateSubmit = handleRateSubmit;
     _financeTargetScope.setDefaultRate = setDefaultRate;
@@ -1447,6 +1480,7 @@ if (typeof module !== 'undefined' && module.exports) {
         openGoalModal,
         handleGoalSubmit,
         deleteGoal,
+        deleteFinanceGoal,
         openRateModal,
         handleRateSubmit,
         setDefaultRate,
