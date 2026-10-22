@@ -125,31 +125,64 @@ class DatabaseManager {
 
         if (dbUrl) {
             try {
-                // Auto-remediación preventiva de pg-types para entornos Linux / Render
-                try {
-                    const { createRequire } = await import('module');
-                    const req = createRequire(import.meta.url);
-                    const { ensurePgTypes } = req('./scripts/ensure-pg-types.cjs');
-                    if (ensurePgTypes) ensurePgTypes();
-                } catch {}
+                let pgAdapter = null;
 
-                let pg;
+                // Estrategia 1 (Cero dependencias, moderna y tolerante a entornos cloud/Render): Postgres.js
                 try {
-                    const { createRequire } = await import('module');
-                    const cjsRequire = createRequire(import.meta.url);
-                    pg = cjsRequire('pg');
-                } catch {
-                    const pgModule = await import('pg');
-                    pg = pgModule.default || pgModule;
+                    const { default: postgres } = await import('postgres');
+                    const isLocal = dbUrl.includes('localhost') || dbUrl.includes('127.0.0.1');
+                    const sql = postgres(dbUrl, {
+                        ssl: isLocal ? false : 'require',
+                        max: 10,
+                        idle_timeout: 30,
+                        connect_timeout: 10
+                    });
+
+                    pgAdapter = {
+                        async query(queryText, values = []) {
+                            const rows = await sql.unsafe(queryText, values);
+                            return { rows, rowCount: rows.length || (rows.count ?? 0) };
+                        },
+                        async connect() {
+                            return {
+                                query: async (queryText, values = []) => {
+                                    const rows = await sql.unsafe(queryText, values);
+                                    return { rows, rowCount: rows.length || (rows.count ?? 0) };
+                                },
+                                release: () => {}
+                            };
+                        }
+                    };
+                } catch (pgJsErr) {
+                    // Estrategia 2: Fallback a node-postgres (pg)
+                    try {
+                        const { createRequire } = await import('module');
+                        const req = createRequire(import.meta.url);
+                        const { ensurePgTypes } = req('./scripts/ensure-pg-types.cjs');
+                        if (ensurePgTypes) ensurePgTypes();
+                    } catch {}
+
+                    let pg;
+                    try {
+                        const { createRequire } = await import('module');
+                        const cjsRequire = createRequire(import.meta.url);
+                        pg = cjsRequire('pg');
+                    } catch {
+                        const pgModule = await import('pg');
+                        pg = pgModule.default || pgModule;
+                    }
+
+                    const poolConfig = {
+                        connectionString: dbUrl,
+                        ssl: dbUrl.includes('localhost') || dbUrl.includes('127.0.0.1') ? false : { rejectUnauthorized: false },
+                        max: 10,
+                        idleTimeoutMillis: 30000,
+                        connectionTimeoutMillis: 10000
+                    };
+                    pgAdapter = new pg.Pool(poolConfig);
                 }
-                const poolConfig = {
-                    connectionString: dbUrl,
-                    ssl: dbUrl.includes('localhost') || dbUrl.includes('127.0.0.1') ? false : { rejectUnauthorized: false },
-                    max: 10,
-                    idleTimeoutMillis: 30000,
-                    connectionTimeoutMillis: 10000
-                };
-                this.pgPool = new pg.Pool(poolConfig);
+
+                this.pgPool = pgAdapter;
 
                 // Probar conexión y asegurar liberación del cliente en bloque finally
                 const client = await this.pgPool.connect();
