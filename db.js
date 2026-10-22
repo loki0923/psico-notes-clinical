@@ -125,6 +125,14 @@ class DatabaseManager {
 
         if (dbUrl) {
             try {
+                // Auto-remediación preventiva de pg-types para entornos Linux / Render
+                try {
+                    const { createRequire } = await import('module');
+                    const req = createRequire(import.meta.url);
+                    const { ensurePgTypes } = req('./scripts/ensure-pg-types.cjs');
+                    if (ensurePgTypes) ensurePgTypes();
+                } catch {}
+
                 let pg;
                 try {
                     const { createRequire } = await import('module');
