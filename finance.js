@@ -61,64 +61,19 @@ const _localShowConfirmModal = (title, msg, onConfirm) => {
     }
 };
 
-// Resolución segura: invocar utilidades globales de app.js sin sobreescribir window ni causar colisiones léxicas con const
-var openModal = (id) => {
-    if (typeof window !== 'undefined' && typeof window.openModal === 'function') {
-        try { window.openModal(id); return; } catch {}
-    }
-    _localOpenModal(id);
-};
-
-var closeModal = (id) => {
-    if (typeof window !== 'undefined' && typeof window.closeModal === 'function') {
-        try { window.closeModal(id); return; } catch {}
-    }
-    _localCloseModal(id);
-};
-
-var generateId = () => {
-    if (typeof window !== 'undefined' && typeof window.generateId === 'function') {
-        try { return window.generateId(); } catch {}
-    }
-    return _localGenerateId();
-};
-
-var formatDate = (ds) => {
-    if (typeof window !== 'undefined' && typeof window.formatDate === 'function') {
-        try { return window.formatDate(ds); } catch {}
-    }
-    return _localFormatDate(ds);
-};
-
-var toDateInputValue = (date) => {
-    if (typeof window !== 'undefined' && typeof window.toDateInputValue === 'function') {
-        try { return window.toDateInputValue(date); } catch {}
-    }
-    return _localToDateInputValue(date);
-};
-
-var showToast = (msg, type = 'info') => {
-    if (typeof window !== 'undefined' && typeof window.showToast === 'function') {
-        try { window.showToast(msg, type); return; } catch {}
-    }
-    _localShowToast(msg, type);
-};
-
-var showConfirmModal = (title, msg, onConfirm) => {
-    if (typeof window !== 'undefined' && typeof window.showConfirmModal === 'function') {
-        try { window.showConfirmModal(title, msg, onConfirm); return; } catch {}
-    }
-    _localShowConfirmModal(title, msg, onConfirm);
-};
-
-if (typeof window !== 'undefined') {
-    if (typeof window.openModal !== 'function') window.openModal = _localOpenModal;
-    if (typeof window.closeModal !== 'function') window.closeModal = _localCloseModal;
-    if (typeof window.generateId !== 'function') window.generateId = _localGenerateId;
-    if (typeof window.formatDate !== 'function') window.formatDate = _localFormatDate;
-    if (typeof window.toDateInputValue !== 'function') window.toDateInputValue = _localToDateInputValue;
-    if (typeof window.showToast !== 'function') window.showToast = _localShowToast;
-    if (typeof window.showConfirmModal !== 'function') window.showConfirmModal = _localShowConfirmModal;
+// -------------------------------------------------------------
+// RESOLUCIÓN SEGURA DE UTILIDADES GLOBALES (A PRUEBA DE RECURSIÓN)
+// En el navegador, openModal, closeModal, showToast, etc. ya existen en window (declaradas por app.js).
+// Proveer fallbacks defensivos ÚNICAMENTE en Node.js o entornos de test donde window no existe.
+// -------------------------------------------------------------
+if (typeof window === 'undefined') {
+    if (typeof globalThis.openModal !== 'function') globalThis.openModal = _localOpenModal;
+    if (typeof globalThis.closeModal !== 'function') globalThis.closeModal = _localCloseModal;
+    if (typeof globalThis.generateId !== 'function') globalThis.generateId = _localGenerateId;
+    if (typeof globalThis.formatDate !== 'function') globalThis.formatDate = _localFormatDate;
+    if (typeof globalThis.toDateInputValue !== 'function') globalThis.toDateInputValue = _localToDateInputValue;
+    if (typeof globalThis.showToast !== 'function') globalThis.showToast = _localShowToast;
+    if (typeof globalThis.showConfirmModal !== 'function') globalThis.showConfirmModal = _localShowConfirmModal;
 }
 
 
@@ -391,9 +346,15 @@ function renderFinanceView() {
                     <h1 class="page-title">Finanzas de la Consulta</h1>
                     <p class="page-subtitle">Control de ingresos, egresos, tarifas por tiempo y metas de facturación</p>
                 </div>
-                <div style="display:flex;gap:8px;flex-wrap:wrap;">
+                <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;">
                     ${currentTab === 'transactions' ? `
-                        <button class="btn-secondary" onclick="openCategoriesModal()">
+                        <button class="btn-secondary" onclick="openRateModal()" title="Configurar tarifas por tiempo de sesión">
+                            <i class="fas fa-stopwatch"></i> Tarifas
+                        </button>
+                        <button class="btn-secondary" onclick="openGoalModal()" title="Definir u editar metas financieras">
+                            <i class="fas fa-bullseye"></i> Metas
+                        </button>
+                        <button class="btn-secondary" onclick="openCategoriesModal()" title="Gestionar categorías de gastos">
                             <i class="fas fa-tags"></i> Categorías
                         </button>
                         <button class="btn-primary" onclick="openTransactionModal('income')">
@@ -404,7 +365,7 @@ function renderFinanceView() {
                         </button>
                         ${(Array.isArray(txs) && txs.length > 0) ? `
                             <button class="btn-secondary" onclick="clearAllFinanceTransactions()" style="color:#e16259;border-color:rgba(225,98,89,0.3);" title="Vaciar todo el historial financiero">
-                                <i class="fas fa-trash-alt"></i> Vaciar Registro
+                                <i class="fas fa-trash-alt"></i> Vaciar
                             </button>
                         ` : ''}
                     ` : currentTab === 'debts' ? `

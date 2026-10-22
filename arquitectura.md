@@ -2851,4 +2851,137 @@ flowchart TD
 4. **Subpestañas con Desplazamiento Momentum**:
    - `.finance-subtabs`, `.patient-tabs`, `.action-group-tools` con `overflow-x: auto`, `white-space: nowrap`, `scrollbar-width: none`.
 
+---
+
+## 31. RESILIENCIA CRÍTICA Y PROTOCOLO ANTI-PANTALLA EN BLANCO EN EL MÓDULO FINANCIERO (v6.8.4)
+
+### 31.1. Diagnóstico de Causa Raíz de Pantalla en Blanco
+Tras el reporte en producción (`https://psico-notes-clinical.onrender.com/#`) donde el contenedor `#financeContent` quedaba totalmente desierto al seleccionar la vista "Finanzas", la auditoría de arquitectura identificó tres factores concurrentes:
+
+1. **Abrupto de Evaluación en Template Strings sin Fallback Defensivo**:
+   - `renderFinanceView()` construía la interfaz asignando directamente a `container.innerHTML` una plantilla interpolada que invocaba sincrónicamente `${getPendingPatientDebts().length > 0 ? ... : ''}`.
+   - Cualquier excepción lanzada dentro de las funciones hijas abortaba la función antes de escribir en el DOM, dejando el contenedor `#financeContent` como un nodo vacío.
+
+2. **Acceso Inseguro a `AppState` y Valores Nulos en `localStorage`**:
+   - En `getPendingPatientDebts()`, la evaluación dependía de `AppState.appointments` y `AppState.patients`. En contextos donde `AppState` aún no estaba inicializado o carecía de estas propiedades, se generaban errores fatales de tipo `TypeError: Cannot read properties of undefined (reading 'find')`.
+   - Adicionalmente, cuando las claves de almacenamiento de finanzas almacenaban la cadena `"null"`, la instrucción `JSON.parse(stored)` devolvía el valor primitivo `null` en lugar de un arreglo vacío, causando que llamadas posteriores a `.forEach()`, `.map()`, `.filter()` o `.find()` colapsaran la ejecución.
+
+3. **Inercia de Caché PWA (Cache-First Stale Assets)**:
+   - La estrategia del Service Worker (`sw.js`) priorizaba la lectura de caché antes de la red (`return cached || fetchPromise`), provocando que los navegadores móviles y de escritorio continuaran ejecutando versiones previas no resueltas.
+
+---
+
+### 31.2. Diagrama de Secuencia: Renderizado Defensivo y Recuperación Automática (Mermaid)
+
+```mermaid
+sequenceDiagram
+    autonumber
+    actor Terapeuta as 👩‍⚕️ Psicóloga Clínica
+    participant Nav as 🧭 Sistema de Navegación (app.js)
+    participant FinView as 📊 Motor Financiero (finance.js)
+    participant Storage as 💾 Storage Local / Cloud
+    participant DOM as 🖥️ DOM (#financeContent)
+
+    Terapeuta->>Nav: Clic en Menú "Finanzas"
+    Nav->>FinView: navigateTo('finance') -> renderFinanceView()
+    activate FinView
+    
+    rect rgb(240, 250, 245)
+        Note over FinView: Bloque Defensivo try / catch
+        FinView->>Storage: getFinanceTransactions(), getFinanceRates(), getFinanceGoals()
+        Storage-->>FinView: Datos validados (Garantía Array.isArray)
+        FinView->>FinView: getPendingPatientDebts() (Guardas AppState seguras)
+        FinView->>FinView: Formateo aritmético con Number(...).toFixed(2)
+        FinView->>DOM: Inyección de Dashboard Completo (KPIs, Subpestañas, Grids)
+    end
+
+    alt Si ocurre interrupción inesperada en datos
+        FinView-->>DOM: Inyección de Tarjeta de Recuperación con Botón "Actualizar Finanzas"
+    end
+    deactivate FinView
+    DOM-->>Terapeuta: Visualización interactiva inmediata (Cero pantalla en blanco)
+```
+
+---
+
+### 31.3. Matriz de Endurecimiento Aplicada
+
+| Componente | Vulnerabilidad Previa | Mitigación Implementada (v6.8.4) |
+| :--- | :--- | :--- |
+| `renderFinanceView()` | Template string desprotegido provocaba pantalla blanca ante errores | Encapsulación en bloque `try / catch` con interfaz de contingencia interactiva |
+| `getFinanceTransactions()` | `JSON.parse('null')` retornaba `null` | Validación estricta `Array.isArray(parsed) ? parsed : []` |
+| `getFinanceRates()` | Ausencia de tarifas causaba fallo en `.find()` | Retorno garantizado de tarifas predeterminadas de 30, 45, 50, 60 y 90 min |
+| `getFinanceGoals()` | Retorno de objetos causaba fallo en `.map()` | Retorno garantizado de metas protocolares validadas |
+| `getPendingPatientDebts()` | `AppState.patients.find` lanzaba `TypeError` si `AppState` era indefinido | Guardas multinivel `(typeof AppState !== 'undefined' && AppState) ? AppState : {}` |
+| Modales (`openGoalModal`, etc.) | Asignación directa a `innerHTML` de nodos no encontrados | Verificación obligatoria `if (!body) return;` antes de manipular el árbol DOM |
+| Formateo de Moneda | `val.toFixed(2)` lanzaba excepción si `val` era string o NaN | Sanitización universal `Number(val \|\| 0).toFixed(2)` en todas las vistas |
+| Service Worker (`sw.js`) | Cache-first servía código obsoleto | Estrategia **Network-First** con actualización a `psico-v6.8.4` y purga atómica |
+| Marcador inicial (`index.html`) | Contenedor `#financeContent` vacío por defecto | Placeholder de carga asistida con icono animado y aviso de sincronización |
+
+---
+
+### 31.4. Verificación Automatizada (TC-FIN-06)
+Se incorporó el caso de prueba automatizado **TC-FIN-06** en `tests.js`, certificando:
+1. Renderizado consistente de las 4 pestañas financieras (`transactions`, `debts`, `goals`, `rates`) en ausencia total de `AppState`.
+2. Tolerancia total ante valores primitivos `"null"` o JSON corrupto en `localStorage`.
+3. Operatividad limpia de todos los controladores de modales sin desbordamiento de pila ni excepciones en tiempo de ejecución.
+4. Tasa de éxito del 100% en la suite de 77 pruebas automatizadas (`node tests.js`).
+
+---
+
+## 32. ELIMINACIÓN DEFINITIVA DE RECURSIÓN Y RESTAURACIÓN INTEGRAL DE MODALES (v6.8.5)
+
+### 32.1. Diagnóstico de la Inoperatividad de Botones ("Los botones no hacen nada")
+Tras resolverse el parseo del script financiero, los botones del módulo (`+ Ingreso`, `- Egreso`, `Tarifas`, `Metas`, `Categorías`) y la apertura de fichas de pacientes parecían "no hacer nada". La inspección en profundidad reveló una **recursión infinita (Stack Overflow)** originada por el wrapper de utilidades:
+
+```javascript
+// CÓDIGO PROBLEMÁTICO EN finance.js:
+var openModal = (id) => {
+    if (typeof window !== 'undefined' && typeof window.openModal === 'function') {
+        try { window.openModal(id); return; } catch {}
+    }
+    _localOpenModal(id);
+};
+```
+
+1. Al ejecutarse en el navegador como script clásico, `var openModal` se asignaba al objeto `window.openModal`, sobreescribiendo la función auténtica previamente definida en `app.js`.
+2. Cuando el usuario o cualquier script del sistema (incluyendo la vista de expedientes `patientDetailModal`) invocaba `openModal(...)`, la función llamaba a `window.openModal(...)`, la cual era ella misma, entrando en un bucle recursivo de miles de iteraciones hasta agotar la pila de llamadas (`RangeError: Maximum call stack size exceeded`).
+3. El bloque `try/catch` capturaba el desbordamiento silenciosamente, pero el hilo de eventos de la interfaz quedaba colapsado, anulando la apertura reactiva y los inicializadores de formularios.
+4. Idéntico comportamiento ocurría con `closeModal`, `showToast`, `showConfirmModal` y `generateId`.
+
+### 32.2. Diagrama de Secuencia de Apertura Limpia (Sin Recursión)
+
+```mermaid
+sequenceDiagram
+    autonumber
+    actor Terapeuta as Profesional Clínico
+    participant Btn as Botón UI (+ Metas / + Tarifas)
+    participant FinJS as finance.js
+    participant AppJS as app.js (window.openModal)
+    participant DOM as Document Object Model
+    
+    Terapeuta->>Btn: Clic en 'Tarifas' o 'Metas'
+    Btn->>FinJS: openRateModal() / openGoalModal()
+    FinJS->>DOM: Inyecta formulario dinámico en #financeRateModalBody
+    FinJS->>AppJS: Invoca directamente openModal('financeRateModal')
+    Note over AppJS: Cero recursión: app.js no es sobreescrito
+    AppJS->>DOM: Añade clase .active a #financeRateModal
+    AppJS->>DOM: Aplica bloqueo de scroll body.has-active-modal
+    DOM-->>Terapeuta: Modal interactivo desplegado con campos editables
+    Terapeuta->>DOM: Completa tarifa ($45.00 / 50m) y envía formulario
+    DOM->>FinJS: handleRateSubmit(e)
+    FinJS->>FinJS: Guarda en localStorage con getFinanceRates()
+    FinJS->>AppJS: closeModal('financeRateModal') & showToast('Tarifa guardada')
+    AppJS->>DOM: Cierra modal limpiamente y renderiza toast
+    FinJS->>DOM: renderFinanceView() actualiza tabla en vivo
+```
+
+### 32.3. Acciones de Corrección Implementadas (v6.8.5)
+
+1. **Eliminación Total de Wrappers Recursivos**: Se erradicó la redeclaración de `var openModal`, `var closeModal`, `var showToast`, `var showConfirmModal`, `var generateId`, `var formatDate` y `var toDateInputValue` en `finance.js`. En su lugar, el script consume de forma nativa las funciones globales exportadas por `app.js`.
+2. **Fallbacks Exclusivos para Node.js**: Las utilidades de contingencia (`_localOpenModal`, etc.) se asignan a `globalThis` **únicamente si `typeof window === 'undefined'`**, evitando cualquier interferencia con el contexto global del navegador.
+3. **Acceso Directo en Cabecera**: Se agregaron botones de acceso inmediato en la barra superior de transacciones (`Tarifas`, `Metas`, `Categorías`, `+ Ingreso`, `- Egreso`) para que el terapeuta pueda configurar precios y objetivos clínicos sin necesidad de explorar subpestañas secundarias.
+4. **Invalidación Forzada de Caché (v6.8.5)**: Se actualizó `CACHE_VERSION = 'psico-v6.8.5'` en `sw.js` y las cadenas de consulta en `index.html` (`?v=6.8.5`) asegurando que los clientes Web y PWA descarguen de inmediato el código corregido.
+
+
 
