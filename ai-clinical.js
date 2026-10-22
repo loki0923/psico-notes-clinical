@@ -18,9 +18,16 @@ const ClinicalAI = {
     },
 
     purgeLegacyStorage() {
-        if (typeof localStorage === 'undefined') return;
-        // Eliminar clave en texto plano / base64 heredada de versiones previas
-        localStorage.removeItem('psico_gemini_api_key');
+        if (typeof localStorage !== 'undefined') {
+            localStorage.removeItem('psico_gemini_api_key');
+            localStorage.removeItem('gemini_api_key');
+            localStorage.removeItem('google_gemini_api_key');
+        }
+        if (typeof sessionStorage !== 'undefined') {
+            sessionStorage.removeItem('psico_gemini_api_key');
+            sessionStorage.removeItem('gemini_api_key');
+            sessionStorage.removeItem('google_gemini_api_key');
+        }
     },
 
     loadApiKey() {

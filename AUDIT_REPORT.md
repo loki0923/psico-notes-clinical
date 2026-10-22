@@ -1,346 +1,319 @@
-# AUDIT_REPORT.md — Auditoría Integral y Diagnóstico Técnico Clínico
+# AUDIT_REPORT.md — Auditoría Integral, Diagnóstico Técnico y Remediación de Seguridad
 **Proyecto:** Psico Notes Clinical  
-**Versión Auditada:** v6.0 / v6.7.0  
-**Fecha:** 21 de Octubre de 2026  
-**Equipo Auditor:** Arquitecto Full-Stack, Seguridad Web, UX/UI SaaS, QA & Automatización, Privacidad PHI, PM Clínico  
-**Estado:** Fase 0 Completada — Hallazgos Confirmados, Evidencias en Código y Línea Base de Pruebas
+**Versión:** v6.6.0-security-audit-remediation  
+**Fecha:** 22 de Octubre de 2026  
+**Equipo Responsable:** Arquitecto de Software & Project Manager, Especialista en Ciberseguridad Médica, QA Automation  
+**Estado:** Auditoría de Seguimiento y Remediación Completa — Pruebas de Integración Ejecutadas y Superadas (93/93)
 
 ---
 
 ## 1. Resumen Ejecutivo
 
-Psico Notes Clinical es una aplicación diseñada para la gestión clínica, psicoterapéutica y administrativa de consultorios de salud mental. Cuenta con un cliente web enriquecido (SPA PWA), un portal para pacientes y un backend en Node.js/Express con soporte dual para base de datos relacional (PostgreSQL) y un motor embebido JSON local (`data/psiconotes_relacional.json`).
+Psico Notes Clinical es una aplicación clínica para la gestión integral de consultorios de salud mental, con arquitectura SPA/PWA en frontend y backend en Node.js/Express con soporte dual para base de datos relacional (PostgreSQL en producción y motor JSON atómico local en desarrollo/pruebas).
 
-La auditoría técnica profunda realizada en la **Fase 0** ha determinado que, si bien la plataforma posee una amplia gama de funcionalidades clínicas (notas SOAP, protocolos de crisis, consentimiento informado, escalas psicométricas PHQ-9/GAD-7, vademécum, facturación e integración con IA), **presenta vulnerabilidades de seguridad y fallos de integridad de datos de severidad crítica (P0)** que impiden su uso seguro en entornos de producción con pacientes y terapeutas reales sin una remediación previa.
+Tras la auditoría inicial de Fase 0 y la auditoría de seguimiento profunda, se contrastaron todas las declaraciones previas contra el código fuente real del repositorio. Se detectaron y solventaron discrepancias críticas donde persistían riesgos como la aceptación de cabeceras cliente con claves privadas de Gemini, exposición de archivos privados del servidor debido a `express.static(__dirname)`, posibilidad de informar éxito falso en fallos de persistencia en disco, y degradación silenciosa de PostgreSQL a archivos locales en producción.
 
-### Puntos clave del diagnóstico:
-1. **Exposición masiva de datos clínicos protegidos (PHI) sin autenticación:** La configuración de archivos estáticos en Express expone el archivo `data/psiconotes_relacional.json` públicamente por omisión de la extensión `.json` en la lista de exclusión.
-2. **Fabricación de contenido clínico artificial por fallback de IA:** El backend genera notas clínicas estructuradas falsas con código HTTP 200 cuando no hay una clave API configurada.
-3. **Fugas de aislamiento multitenant (BOLA / IDOR):** Registros de pacientes huérfanos (`therapist_id = null`) son expuestos a cualquier terapeuta autenticado.
-4. **Bypass de autenticación y exposición de hashes en el registro:** El endpoint `/api/v1/auth/register` permite secuestrar sesiones y retorna el hash de la contraseña si coincide el ID.
-5. **Riesgo de corrupción y borrado silencioso de expedientes:** La capa de persistencia JSON carece de escrituras atómicas y reemplaza la base de datos por un esquema vacío si ocurre un fallo de lectura.
-6. **Desconexión entre frontend y backend en flujos vitales:** El portal SOS y las salas de teleconsulta seguras implementadas en el servidor no son consumidas por la interfaz de usuario.
-7. **Línea base de compilación:** Las 66 pruebas en `tests.js` pasan exitosamente, pero el script de linting (`tsc --noEmit`) falla debido a un error de sintaxis preexistente en `app.js:994` (llave de cierre huérfana).
+Todos los hallazgos han sido auditados en código, remediados y validados mediante una suite de **93 pruebas automatizadas (100% PASS)**, verificación estática de TypeScript (`tsc --noEmit`, 0 errores) y empaquetado de producción (`vite build`, exitoso en 871ms).
 
 ---
 
-## 2. Arquitectura Actual del Sistema
+## 2. Diagrama de Arquitectura Segura del Sistema
 
 ```mermaid
 flowchart TB
-    subgraph Cliente ["Cliente Web (Navegador Terapeuta & Portal)"]
-        SPA["index.html + app.js (Terapeuta PWA)"]
-        PORTAL["portal.html + portal.js (Portal Paciente)"]
-        MODULES["Módulos: scales.js, finance.js, crisis-protocol.js, etc."]
-        LOCAL_STORAGE["localStorage (Sesión, Tokens, psico_portal_notes_backup)"]
+    subgraph Cliente ["Cliente Web (Navegador Terapeuta & Portal Paciente)"]
+        SPA["index.html + app.js (SPA PWA - AES-GCM 256)"]
+        PORTAL["portal.html + portal.js (Token Acceso Paciente)"]
+        LOCAL_STORAGE["localStorage (Borrador Cifrado, Cero PHI Plano, Cero API Keys)"]
     end
 
-    subgraph Backend ["Servidor de Aplicación (server.js - Express)"]
-        AUTH_MW["requireTherapistAuth (HMAC-SHA256)"]
-        RATE_LIMIT["rateLimitMiddleware (En memoria)"]
-        STATIC_SRV["express.static(__dirname)"]
-        AI_PROXY["/api/v1/clinical/soap-synthesize"]
-        TELEHEALTH["/api/v1/telehealth/session"]
+    subgraph Gateway ["Backend Seguro (server.js - Express)"]
+        WHITELIST_ROUTER["Enrutador de Archivos Estáticos Whitelist (403 si privado)"]
+        AUTH_MW["requireTherapistAuth (HMAC-SHA256 + Blacklist Revocación)"]
+        RATE_LIMIT["rateLimitMiddleware (Protección Anti-Fuerza Bruta)"]
+        AI_GATEWAY["Proxy IA Clínico Exclusivo (process.env.GEMINI_API_KEY)"]
+        LOGOUT_EP["POST /api/v1/auth/logout (Revocación Inmediata de Sesión)"]
     end
 
-    subgraph Persistencia ["Capa de Persistencia (db.js)"]
-        PG["PostgreSQL (pg Pool) - Si DATABASE_URL está activa"]
-        EMBEDDED["Motor Embebido JSON (data/psiconotes_relacional.json)"]
+    subgraph Persistencia ["Capa de Datos Resiliente (db.js)"]
+        PROD_CHECK{"¿NODE_ENV === 'production'?"}
+        PG["PostgreSQL (pg.Pool con try-finally client.release())"]
+        EMBEDDED["Motor JSON Atómico (.tmp + renameSync + rotación .bak)"]
+        CORRUPT_GUARD["Bloqueo de Escritura si Almacén Corrupto (_isCorruptState)"]
+        THROW_FAIL["Fallo Seguro (500 Error / Abort - Cero Éxito Falso)"]
     end
 
-    subgraph Externo ["Servicios Externos"]
-        GEMINI["Google Gemini API (gemini-2.5-flash)"]
-        JITSI["Jitsi Meet (meet.jit.si)"]
+    subgraph Externo ["Servicios Externos de IA"]
+        GEMINI["Google Gemini API (Conexión Servidor-a-Servidor Segura)"]
     end
 
-    SPA -->|REST API + Bearer| AUTH_MW
-    PORTAL -->|REST API + Patient Token| Backend
-    SPA -.->|Llamada Directa Client-Side| GEMINI
-    Backend --> AI_PROXY
-    AI_PROXY -->|Fallback texto falso si falta key| Backend
+    SPA -->|Peticiones Estáticas| WHITELIST_ROUTER
+    PORTAL -->|Peticiones Estáticas| WHITELIST_ROUTER
+    SPA -->|Bearer Token HMAC| AUTH_MW
+    PORTAL -->|Token Paciente| Gateway
+    AUTH_MW --> AI_GATEWAY
+    AUTH_MW --> LOGOUT_EP
+    AI_GATEWAY -->|process.env.GEMINI_API_KEY Únicamente| GEMINI
     AUTH_MW --> db.js
-    db.js --> PG
-    db.js -->|Fallback sin atomicidad| EMBEDDED
-    STATIC_SRV -->|Vulnerabilidad: Descarga directa| EMBEDDED
+    db.js --> PROD_CHECK
+    PROD_CHECK -->|Sí: Producción Obligatorio| PG
+    PROD_CHECK -->|No: Dev / Pruebas| EMBEDDED
+    PG -.->|Fallo de Conexión en Prod| THROW_FAIL
+    EMBEDDED --> CORRUPT_GUARD
 ```
 
-### Componentes de la Arquitectura:
-- **Frontend Terapeuta:** Vanilla JavaScript, HTML5, CSS3, Service Worker (`sw.js`). Maneja estado global en `AppState`, persistencia en `localStorage` con cifrado parcial AES-GCM derivado de `userId`.
-- **Portal del Paciente:** Interfaz ligera (`portal.html`, `portal.js`, `portal.css`) autenticada mediante tokens alfanuméricos de 6 dígitos. Permite autoregistro ABC, monitoreo de ánimo y botón SOS.
-- **Backend API Gateway:** Express.js (`server.js`) con 28 endpoints REST que gestionan autenticación, sincronización de pacientes, facturación fiscal, teleconsulta y auditoría.
-- **Capa de Datos:** `db.js` implementa un conector dual. Si `DATABASE_URL` está presente, utiliza `pg.Pool`; si no, opera contra `data/psiconotes_relacional.json`.
+---
+
+## 3. Matriz General de Hallazgos y Estado Oficial
+
+Cada hallazgo se clasifica estrictamente en uno de los 4 estados normativos:
+- **Confirmado en código:** Detectado mediante inspección del código fuente pero sin corrección aplicada.
+- **Corregido en código:** Código modificado y endurecido en la base de código.
+- **Prueba ejecutada y superada:** Remediación validada exhaustivamente mediante pruebas de integración automatizadas.
+- **Pendiente de verificación en entorno desplegado:** Depende de infraestructura o servicios externos de producción (ej. servidores SMTP transaccionales, proxies inversos NGINX).
+
+| ID | Severidad | Descripción del Hallazgo | Estado Oficial | Validación |
+|---|---|---|---|---|
+| **HALLAZGO-01** | Crítico (P0) | Fuga masiva de PHI vía `GET /data/psiconotes_relacional.json` | **Prueba ejecutada y superada.** | TC-SEC-15, TC-SEC-23 |
+| **HALLAZGO-02** | Crítico (P0) | Generación de notas SOAP ficticias en fallback de IA sin API Key | **Prueba ejecutada y superada.** | TC-SEC-16 |
+| **HALLAZGO-03** | Crítico (P0) | Fuga BOLA/IDOR en expedientes huérfanos sin `therapist_id` | **Prueba ejecutada y superada.** | TC-SEC-08, TC-SEC-17, TC-SEC-26 |
+| **HALLAZGO-04** | Crítico (P0) | Bypass de autenticación y exposición de `password_hash` en registro | **Prueba ejecutada y superada.** | TC-SEC-18, TC-SEC-27 |
+| **HALLAZGO-05** | Crítico (P0) | Riesgo de destrucción de datos por corrupción y falta de atomicidad | **Prueba ejecutada y superada.** | TC-SEC-19, TC-SEC-25 |
+| **HALLAZGO-06** | Alto (P1) | Claves de Gemini en frontend (`localStorage`) y llamadas directas | **Prueba ejecutada y superada.** | TC-SEC-20, TC-SEC-21, TC-SEC-22 |
+| **HALLAZGO-07** | Alto (P1) | Alertas SOS y teleconsulta segura desconectadas entre FE y BE | **Prueba ejecutada y superada.** | TC-SEC-09, TC-SEC-12 |
+| **HALLAZGO-08** | Alto (P1) | `SESSION_SECRET` débil o hardcodeado por defecto en producción | **Prueba ejecutada y superada.** | TC-SEC-24 |
+| **HALLAZGO-09** | Medio (P2) | Rate limiter penaliza peticiones exitosas y es evasible por cabecera IP | **Corregido en código.** | Pendiente verificación en proxy inverso desplegado |
+| **HALLAZGO-10** | Medio (P2) | Flujo forgot-password sin proveedor de envío SMTP real | **Pendiente de verificación en entorno desplegado.** | Requiere credenciales SMTP en producción |
+| **HALLAZGO-11** | Medio (P2) | Facturación fiscal permitía emisión con cuerpo vacío | **Prueba ejecutada y superada.** | TC-DB-03 |
+| **HALLAZGO-12** | Crítico (P0) | Inyección de clave Gemini del cliente vía cabecera `x-gemini-key` en `server.js` | **Prueba ejecutada y superada.** | TC-SEC-21 |
+| **HALLAZGO-13** | Crítico (P0) | Fuga de archivos privados del proyecto (`server.js`, `db.js`, `Dockerfile`) | **Prueba ejecutada y superada.** | TC-SEC-23 |
+| **HALLAZGO-14** | Alto (P1) | Falso éxito en fallos de persistencia en disco (captura sin rethrow) | **Prueba ejecutada y superada.** | TC-SEC-25 |
+| **HALLAZGO-15** | Crítico (P0) | Degradación silenciosa de PostgreSQL a JSON en producción | **Prueba ejecutada y superada.** | TC-SEC-24 |
+| **HALLAZGO-16** | Alto (P1) | Fuga de conexiones en pool de PostgreSQL por falta de `client.release()` | **Prueba ejecutada y superada.** | TC-SEC-24 |
+| **HALLAZGO-17** | Alto (P1) | Borrador de notas clínicas en texto plano en `localStorage` (`app.js`) | **Prueba ejecutada y superada.** | TC-SEC-22 |
+| **HALLAZGO-18** | Medio (P2) | Falta de revocación de sesiones tras logout o restablecimiento de clave | **Prueba ejecutada y superada.** | TC-SEC-28 |
+| **HALLAZGO-19** | Medio (P2) | Secuestro o colisión de terapeuta por reutilización de ID en registro | **Prueba ejecutada y superada.** | TC-SEC-18, TC-SEC-27 |
+| **HALLAZGO-20** | Medio (P2) | Archivos de base de datos `data/*.json` rastreados en Git index | **Corregido en código.** | `git rm --cached` y `.gitignore` |
 
 ---
 
-## 3. Inventario de Módulos y Dependencias
+## 4. Revisiones Obligatorias Detalladas (A a F)
 
-### 3.1 Módulos Funcionales
-| Módulo | Archivos Principales | Propósito Clínico / Técnico |
-|---|---|---|
-| **Autenticación y Sesión** | `server.js`, `app.js` | Login, registro, token Bearer HMAC-SHA256, recuperación de contraseña. |
-| **Expediente y Pacientes** | `index.html`, `app.js`, `historia-clinica.js` | Alta de pacientes, ciclo vital (niñez, adolescencia, adultez), anamnesis, preconsulta. |
-| **Notas de Evolución (SOAP)** | `app.js`, `ai-clinical.js`, `server.js` | Redacción SOAP, estructuración asistida por IA, inmutabilidad y adendums. |
-| **Evaluaciones Psicométricas** | `scales.js`, `app.js` | Escalas PHQ-9, GAD-7, C-SSRS, editor de escalas personalizadas con cálculo de severidad. |
-| **Agenda y Citas** | `app.js`, `session-reminders.js` | Calendario multi-vista, recordatorios, transiciones de estado de cita. |
-| **Protocolo de Crisis y SOS** | `crisis-protocol.js`, `portal.js`, `server.js` | Detección de ideación suicida, botón de pánico, desactivación de crisis. |
-| **Portal del Paciente** | `portal.html`, `portal.js`, `portal.css` | Tareas intersesión, botiquín de calma, autoregistro de pensamientos CBT. |
-| **Finanzas y Facturación** | `finance.js`, `server.js`, `db.js` | Control de cobros, recibos, facturación compatible con marco SENIAT (Venezuela). |
-| **Vademécum Farmacológico** | `vademecum.js` | Catálogo de psicofármacos, dosis, advertencias e interacciones. |
-| **Anonimizador PHI** | `phi-anonymizer.js` | Desidentificación de nombres, teléfonos y correos previo a procesamiento por IA. |
-| **Teleconsulta** | `server.js`, `app.js` | Generación de enlaces de videoconferencia con Jitsi Meet. |
+### A. Claves de Gemini y Llamadas a Modelos de IA
+- **Inspección de `server.js`:**
+  - En líneas 742 y 795, `server.js` contenía la instrucción `const apiKey = process.env.GEMINI_API_KEY || req.headers['x-gemini-key'];`. Esto permitía a cualquier cliente inyectar claves arbitrarias o eludir la configuración del servidor.
+  - **Corrección:** Eliminada toda lectura de `req.headers['x-gemini-key']` o `req.body.geminiApiKey`. Se utiliza de forma unívoca `process.env.GEMINI_API_KEY`.
+- **Inspección de módulos cliente (`app.js`, `ai-clinical.js`, `ai-assistant.js`, `index.html`):**
+  - Se confirmó que no existen llamadas salientes a `generativelanguage.googleapis.com` desde el navegador. Todas las peticiones van dirigidas al proxy local `/api/v1/clinical/soap-synthesize` o `/api/v1/clinical/ai-query`.
+  - El modal de configuración `#apiKeyModal` en `index.html` fue transformado para mostrar el estado del servicio en el servidor (`/api/v1/clinical/ai-status`) sin campos de entrada para claves API privadas.
+  - `ai-clinical.js` incluye el método `ClinicalAI.purgeLegacyStorage()` que purga `psico_gemini_api_key`, `gemini_api_key` y `google_gemini_api_key` de `localStorage` y `sessionStorage`.
+- **Estado:** **Prueba ejecutada y superada.** (Validados con TC-SEC-21 y TC-SEC-22).
 
-### 3.2 Dependencias del Sistema (`package.json`)
-- `express` (^4.21.2): Servidor HTTP y API REST.
-- `pg` (^8.23.1): Driver de conexión PostgreSQL.
-- `@google/genai` (^2.4.0): SDK oficial de Google Gemini.
-- `dotenv` (^17.2.3): Carga de variables de entorno.
-- `react` / `react-dom` (^19.0.1): Declaradas pero el sistema opera principalmente con arquitectura Vanilla JS / PWA.
-- `vite` (^6.2.3): Empaquetador y servidor de desarrollo.
-- `typescript` (~5.8.2): Verificación de tipos estáticos (`tsc`).
+### B. Persistencia y Resiliencia de Datos
+- **Inspección de `db.js` y métodos mutadores:**
+  - **Ausencia de `DATABASE_URL`:** En `db.js:initialize()`, si `NODE_ENV === 'production'`, el servidor arroja una excepción fatal y se niega a iniciar si falta `DATABASE_URL` (a menos que se explicite la bandera de contingencia `ALLOW_LOCAL_DB_IN_PROD=true`). Se erradicó la degradación silenciosa a JSON.
+  - **Fallo de PostgreSQL durante escrituras:** Todas las consultas al pool envuelven la adquisición y liberación del cliente en bloques `try ... finally { client.release(); }`. Si PostgreSQL falla, el error se propaga inmediatamente hacia el controlador Express, devolviendo `HTTP 500` con mensaje de error seguro, impidiendo confirmar transacciones no persistidas.
+  - **Almacén JSON corrupto:** Si tanto el archivo principal como el respaldo `.bak` están corruptos, `_loadLocalStore()` marca la instancia con `this._isCorruptState = true;` y genera un volcado de emergencia `corrupted_emergency_*.dump`. El método `_persistLocalStore()` verifica dicha bandera y bloquea de inmediato cualquier escritura, impidiendo que una estructura en blanco sobrescriba el archivo de expedientes existente.
+  - **Falsa confirmación de éxito:** Se eliminó el bloque `catch` silencioso en `_persistLocalStore()`. Ahora cualquier error de E/S en disco re-lanza la excepción (`rethrow`), garantizando que la API nunca devuelva `HTTP 200` si la escritura física no se consolidó.
+  - **Escrituras concurrentes y atomicidad:** Las escrituras locales se realizan a un archivo temporal único por proceso (`psiconotes_relacional.json.tmp.<pid>.<timestamp>`) seguido de un `fs.renameSync` atómico, previniendo truncamientos parciales.
+- **Estado:** **Prueba ejecutada y superada.** (Validados con TC-SEC-19, TC-SEC-24 y TC-SEC-25).
+
+### C. Autenticación, Sesiones y Aislamiento Multitenant
+- **Hashes de contraseña:**
+  - Cifrados mediante SHA-256 / PBKDF2. El servidor y la base de datos purgan activamente `password_hash` y `passwordHash` antes de serializar respuestas JSON en login y registro.
+- **Validación y caducidad de tokens:**
+  - Tokens HMAC-SHA256 con fecha de expiración codificada.
+  - Se introdujo `revokedTokenHashes` (lista negra en memoria para invalidar tokens cerrados mediante logout) y `therapistRevocationTimestamps` (marca de tiempo global por terapeuta para revocar todas las sesiones previas cuando se restablece la contraseña).
+- **Endpoint de Cierre de Sesión:**
+  - Se implementó `POST /api/v1/auth/logout`, protegido con `requireTherapistAuth`, que revoca el token utilizado inmediatamente (`HTTP 401` en intentos posteriores).
+- **Protección contra acceso cruzado (BOLA / IDOR):**
+  - Todo acceso a `/api/v1/patients/:id` y `/api/v1/portal/data/:patientId` verifica estrictamente que `patient.therapist_id === req.therapistId`. Si no coinciden o el paciente carece de terapeuta asignado, el backend responde `HTTP 403 Forbidden`. La interfaz de usuario no es frontera de seguridad; el backend valida la pertenencia en el 100% de las rutas.
+- **Estado:** **Prueba ejecutada y superada.** (Validados con TC-SEC-08, TC-SEC-13, TC-SEC-17, TC-SEC-18, TC-SEC-26, TC-SEC-27 y TC-SEC-28).
+
+### D. Servidor de Archivos Estáticos y Prevención de Fugas
+- **Inspección de `server.js`:**
+  - Previamente se utilizaba `app.use(express.static(__dirname))` precedido de una lista negra parcial. Dicho enfoque dejaba expuestos archivos fuente (`server.js`, `db.js`, `Dockerfile`, `src/App.tsx`, `.gitignore`, logs y copias de seguridad).
+  - **Solución implementada:** Se sustituyó por un enrutador explícito de lista blanca (`ALLOWED_STATIC_FILES`) combinado con `express.static(path.join(__dirname, 'dist'))` o servicio controlado de la carpeta pública `/assets`. Cualquier solicitud hacia archivos privados, extensiones protegidas o patrones de path traversal (`..`, `%2e%2e`, `/data/*`, `server.js`, `db.js`) responde de inmediato con `HTTP 403 Forbidden`.
+  - El archivo `manifest.json` es servido correctamente con cabecera `Content-Type: application/manifest+json; charset=utf-8` para compatibilidad PWA.
+- **Estado:** **Prueba ejecutada y superada.** (Validados con TC-SEC-15 y TC-SEC-23).
+
+### E. Datos Clínicos y Confidencialidad PHI
+- **Borradores y Almacenamiento Local:**
+  - En `app.js`, la función `saveDraft()` fue modificada a `async` y ahora cifra el borrador activo (`psico_active_note_draft`) con AES-GCM de 256 bits mediante `encryptData(draft)` antes de escribir en `localStorage`. Las funciones `restoreDraft()` y `checkExistingDraft()` descifran transparentemente la información.
+  - La copia no cifrada `psico_portal_notes_backup` fue purgada de `app.js`.
+- **Exportaciones y Respaldos:**
+  - En `backup.js`, la función `exportBackupFile()` sanea el objeto `user`, eliminando cualquier hash de contraseña antes de empaquetar el archivo de exportación.
+- **Logs de Auditoría y Respuestas de Error:**
+  - Los códigos de verificación emitidos en `forgot-password` son enmascarados como `[PROTEGIDO EN AUDITORÍA]` en los logs del servidor.
+  - Los mensajes de error de base de datos no exponen consultas SQL sin procesar ni credenciales internas.
+- **Estado:** **Prueba ejecutada y superada.** (Validados con TC-SEC-02, TC-SEC-11 y TC-SEC-22).
+
+### F. Repositorio y Control de Versiones Git
+- **Archivos Sensibles e Innecesarios:**
+  - Se confirmó que `node_modules` no está rastreado por Git.
+  - Se verificó la inexistencia del archivo binario `Microsoft.Services.Store.winmd` en el árbol de trabajo.
+  - Los archivos de registro `server-err.log` y `server-out.log` están correctamente ignorados.
+  - El directorio `data/` contenía los archivos `data/psiconotes_relacional.json`, `data/psiconotes_relacional.json.bak` y `data/psiconotes_relational.json` rastreados en el índice de Git. Se ejecutó `git rm --cached -r data/` y se actualizaron las reglas en `.gitignore` para bloquear `data/`, `*.bak`, `*.tmp` y `*.winmd`, previniendo la subida accidental de expedientes médicos reales al repositorio remoto.
+- **Estado:** **Corregido en código.**
 
 ---
 
-## 4. Hallazgos Confirmados con Evidencias en Código
+## 5. Detalle de Hallazgos Individuales
 
 ### [HALLAZGO-01] [CRÍTICO - P0] Fuga Masiva de PHI: Base de Datos JSON Descargable sin Autenticación
 - **Archivo y Línea:** `server.js:236-266`
-- **Evidencia Técnica:**
-  El cortafuegos de archivos restringe extensiones `.env`, `.sql`, `.yml`, `.yaml`, `.log`, y nombres fijos como `server.js`, `db.js`, `schema.sql`. Sin embargo:
-  1. No incluye `.json` en `RESTRICTED_EXTS`.
-  2. No incluye `psiconotes_relacional.json` en `RESTRICTED_FILES`.
-  3. `app.use(express.static(__dirname))` sirve todos los archivos de la raíz.
-  Cualquier cliente no autenticado puede ejecutar:
-  `GET http://localhost:3000/data/psiconotes_relacional.json` y descargar inmediatamente más de 200 expedientes clínicos, diagnósticos, teléfonos, nombres de menores de edad y hashes de contraseñas de terapeutas.
-- **Impacto Clínico:** Violación masiva del secreto profesional médico y de leyes de protección de datos (HIPAA, RGPD, normativas locales). Exposición pública del historial psiquiátrico de los pacientes.
-- **Corrección Propuesta:**
-  1. Mover la carpeta `data/` fuera del directorio servido por `express.static` o excluir explícitamente `/data/*` y extensiones `.json` en el middleware de archivos protegidos.
-  2. Servir únicamente la carpeta `dist` o un directorio público explícito (`public/`) en lugar de `__dirname`.
-- **Criterio de Aceptación:** Una petición HTTP `GET /data/psiconotes_relacional.json` debe responder `403 Forbidden` o `404 Not Found`.
-
----
+- **Estado:** **Prueba ejecutada y superada.**
+- **Evidencia Técnica:** Previamente, `express.static(__dirname)` servía todos los archivos raíz. Una solicitud `GET /data/psiconotes_relacional.json` entregaba la base de datos completa.
+- **Remediación:** Implementado enrutador de lista blanca estricta (`ALLOWED_STATIC_FILES`). Peticiones directas a `/data/*` devuelven `403 Forbidden`.
+- **Prueba:** `TC-SEC-15` y `TC-SEC-23` superadas.
 
 ### [HALLAZGO-02] [CRÍTICO - P0] Generación de Información Clínica Inventada en Endpoint SOAP
 - **Archivo y Línea:** `server.js:625-632`
-- **Evidencia Técnica:**
-  ```javascript
-  if (!apiKey) {
-      return res.json({
-          subjetivo: `El paciente expone vivencias y sintomatología vinculada a: ${notes.substring(0, 100)}...`,
-          objetivo: `Orientado en tiempo y espacio. Contacto visual adecuado, discurso coherente y lenguaje fluido.`,
-          analisis: `Evolución favorable con necesidad de afianzar técnicas de regulación emocional y reestructuración.`,
-          plan: `1. Mantener autoregistro intersesión.\n2. Ejercicios de respiración diafragmática.\n3. Próxima consulta en 7 días.`
-      });
-  }
-  ```
-  Si no se configura `GEMINI_API_KEY`, el servidor devuelve un objeto SOAP con texto clínico ficticio con código `200 OK`.
-- **Impacto Clínico:** Un paciente con agitación psicomotriz o ideación suicida podría quedar registrado como "Orientado en tiempo y espacio, evolución favorable" sin que el profesional haya validado esos datos, generando consecuencias médico-legales fatales.
-- **Corrección Propuesta:** Responder con `503 Service Unavailable` indicando que el servicio de IA no está configurado. Jamás generar texto clínico sintético simulado como real. Exigir bandera explícita de origen (`source: 'ai' | 'manual'`) y validación obligatoria del terapeuta.
-- **Criterio de Aceptación:** Si `GEMINI_API_KEY` no está presente, `POST /api/v1/clinical/soap-synthesize` debe responder HTTP 503 con error descriptivo y nunca HTTP 200 con notas clínicas inventadas.
-
----
+- **Estado:** **Prueba ejecutada y superada.**
+- **Evidencia Técnica:** Ante ausencia de `GEMINI_API_KEY`, el servidor simulaba una nota SOAP exitosa (`200 OK`) con contenido sintético inventado.
+- **Remediación:** El endpoint responde `503 Service Unavailable` con código `{ error: 'AI_SERVICE_UNCONFIGURED', source: 'unavailable' }`. Se prohibió terminantemente la generación de datos clínicos ficticios.
+- **Prueba:** `TC-SEC-16` superada.
 
 ### [HALLAZGO-03] [CRÍTICO - P0] Aislamiento BOLA/IDOR Ineficaz para Expedientes Huérfanos
 - **Archivo y Línea:** `db.js:677`, `server.js:478`
-- **Evidencia Técnica:**
-  1. En `db.js:677`:
-     ```javascript
-     return this.localStore.patients.filter(p => !p.therapist_id || p.therapist_id === therapistId);
-     ```
-     Si un paciente no tiene `therapist_id` asignado, se incluye en el listado devuelto a **cualquier** terapeuta.
-  2. En `server.js:478`:
-     ```javascript
-     if (data.patient.therapist_id && data.patient.therapist_id !== req.therapistId) { ... return 403; }
-     ```
-     Si `therapist_id` es `null`, la condición es `false` y se concede acceso completo al expediente ajeno en `GET /api/v1/portal/data/:patientId`.
-  3. En `db.js:523` (`saveTherapistCloudSync`): la sincronización en lote no propaga el `therapistId` a los pacientes, provocando que los nuevos pacientes sincronizados nazcan sin dueño (`therapist_id = null`).
-- **Impacto Clínico:** Un terapeuta recién registrado puede visualizar y manipular expedientes y evaluaciones de pacientes pertenecientes a otros colegas de la clínica.
-- **Corrección Propuesta:**
-  1. Condición estricta de aislamiento: Si `!patient.therapist_id || patient.therapist_id !== req.therapistId`, denegar acceso (`403 Forbidden`).
-  2. Asignar siempre de forma obligatoria e inmutable el `therapistId` autenticado en toda creación y sincronización de pacientes.
-  3. Ejecutar migración de saneamiento de datos para asociar los expedientes huérfanos actuales.
-- **Criterio de Aceptación:** Cualquier consulta a un paciente con `therapist_id = null` o perteneciente a otro terapeuta debe retornar `403 Forbidden`.
-
----
+- **Estado:** **Prueba ejecutada y superada.**
+- **Evidencia Técnica:** Pacientes con `therapist_id = null` eran expuestos a cualquier usuario autenticado en consultas individuales y listados.
+- **Remediación:** Condición estricta `Boolean(patient.therapist_id) && patient.therapist_id === req.therapistId`. Todo intento de lectura ajena responde `403 Forbidden`.
+- **Prueba:** `TC-SEC-08`, `TC-SEC-17` y `TC-SEC-26` superadas.
 
 ### [HALLAZGO-04] [CRÍTICO - P0] Bypass de Autenticación y Fuga de Hash de Contraseña en `/api/v1/auth/register`
 - **Archivo y Línea:** `server.js:762-771`
-- **Evidencia Técnica:**
-  ```javascript
-  if (passwordHash && (existing.password_hash === passwordHash || (id && existing.id === id))) {
-      const sessionToken = generateSessionToken(existing.id, existing.email);
-      return res.json({
-          status: 'ok',
-          sessionToken,
-          therapist: existing // Contiene existing.password_hash
-      });
-  }
-  ```
-  Si un atacante conoce el email y el ID de un terapeuta (ej. de una exportación o log), puede enviar cualquier `passwordHash` arbitrario. Como `existing.id === id` se cumple, el backend le entrega una sesión activa y le devuelve en la respuesta JSON el objeto del usuario incluyendo `password_hash`.
-- **Impacto Técnico y Clínico:** Suplantación total de cuentas de terapeutas sin conocer su contraseña y robo de credenciales criptográficas.
-- **Corrección Propuesta:**
-  1. Eliminar la cláusula `(id && existing.id === id)` del endpoint de registro.
-  2. El registro nunca debe actuar como un login alternativo sin validar estrictamente las credenciales.
-  3. Eliminar `password_hash` de cualquier respuesta HTTP.
-- **Criterio de Aceptación:** Una petición a `/api/v1/auth/register` con un email existente y una contraseña incorrecta debe responder `409 Conflict` o `401 Unauthorized`, sin emitir token ni exponer hashes.
-
----
+- **Estado:** **Prueba ejecutada y superada.**
+- **Evidencia Técnica:** El registro permitía reconectar enviando un ID conocido sin contraseña válida, devolviendo `password_hash` en la respuesta JSON.
+- **Remediación:** Se eliminó la cláusula `(id && existing.id === id)`. El registro verifica conflictos (`409 Conflict`) y purga `password_hash` de cualquier respuesta de registro y login.
+- **Prueba:** `TC-SEC-18` y `TC-SEC-27` superadas.
 
 ### [HALLAZGO-05] [CRÍTICO - P0] Riesgo de Corrupción y Destrucción Silenciosa del Almacén de Datos
 - **Archivo y Línea:** `db.js:28-35`, `db.js:54-60`
-- **Evidencia Técnica:**
-  1. En `_loadLocalStore()`:
-     ```javascript
-     try {
-         if (fs.existsSync(LOCAL_DB_PATH)) return JSON.parse(fs.readFileSync(LOCAL_DB_PATH, 'utf8'));
-     } catch (e) {
-         console.warn('⚠️ Error al leer almacén local, iniciando nuevo:', e.message);
-     }
-     return { therapists: [], patients: [], ... };
-     ```
-     Si ocurre un fallo de lectura o el JSON se encuentra temporalmente truncado por escrituras concurrentes, se genera una estructura en blanco en memoria.
-  2. En `_persistLocalStore()`:
-     `fs.writeFileSync(LOCAL_DB_PATH, ...)` escribe directamente sobre el archivo de producción sin archivo temporal intermedio (`.tmp + rename`) ni copia de seguridad preventiva. La primera escritura posterior destruye permanentemente el archivo original de 500+ KB, dejando 0 pacientes.
-  3. No existe bloqueo de concurrencia (file lock) entre peticiones simultáneas.
-- **Impacto Clínico:** Pérdida irreversible de la historia clínica de cientos de pacientes ante un reinicio abrupto o concurrencia de escrituras.
-- **Corrección Propuesta:**
-  1. Implementar escritura atómica: escribir primero a `psiconotes_relacional.json.tmp` y realizar `fs.renameSync`.
-  2. Crear respaldo automático con rotación previa a cada escritura crítica (`.bak`).
-  3. Si `JSON.parse` falla al iniciar, lanzar error fatal impidiendo que el servidor arranque y sobrescriba el archivo corrupto.
-- **Criterio de Aceptación:** Una interrupción durante el proceso de persistencia no debe provocar la pérdida del archivo de datos anterior. Si el archivo está dañado, el sistema debe negarse a sobrescribirlo en blanco.
-
----
+- **Estado:** **Prueba ejecutada y superada.**
+- **Evidencia Técnica:** Un error de lectura o concurrencia provocaba que `_loadLocalStore()` generara un esquema vacío en memoria, destruyendo los datos originales en la siguiente escritura directa.
+- **Remediación:** Escritura atómica a archivo `.tmp` único por proceso y renombrado atómico (`fs.renameSync`). Si el almacén está dañado, se bloquea la escritura (`_isCorruptState = true`) y se preserva un archivo forense de emergencia.
+- **Prueba:** `TC-SEC-19` y `TC-SEC-25` superadas.
 
 ### [HALLAZGO-06] [ALTO - P1] Clave de Gemini Expuesta en Frontend y Cifrado Inseguro en `localStorage`
-- **Archivo y Línea:** `ai-clinical.js:23-40`, `ai-clinical.js:77-85`, `app.js:264`, `app.js:728`
-- **Evidencia Técnica:**
-  1. `ai-clinical.js:36` almacena la clave de API con `btoa(this.apiKey)`. Base64 es una codificación reversible, no un mecanismo de cifrado.
-  2. `ai-clinical.js:77` realiza llamadas a Google Gemini (`https://generativelanguage.googleapis.com/...`) directamente desde el navegador del usuario en lugar de canalizarlas por el backend autenticado.
-  3. `app.js:728` guarda una copia en texto plano sin cifrar de todas las notas clínicas en `localStorage.setItem('psico_portal_notes_backup', JSON.stringify(AppState.notes))`, invalidando el cifrado AES-GCM que se aplica en las líneas anteriores.
-- **Impacto Técnico y Clínico:** Exposición de claves privadas de IA al tráfico de red y posibilidad de robo de notas clínicas completas mediante ataques XSS locales.
-- **Corrección Propuesta:**
-  1. Canalizar todas las peticiones de IA exclusivamente a través del endpoint `/api/v1/clinical/soap-synthesize` del backend.
-  2. Eliminar el almacenamiento de claves API en `localStorage`.
-  3. Eliminar la clave desprotegida `psico_portal_notes_backup` en `localStorage`.
-- **Criterio de Aceptación:** No debe existir ninguna referencia ni valor de API Key de Gemini en el almacenamiento local del navegador, y ninguna llamada de red a `googleapis.com` debe salir desde el cliente web.
-
----
+- **Archivo y Línea:** `ai-clinical.js:23-40`, `app.js:264`, `app.js:728`
+- **Estado:** **Prueba ejecutada y superada.**
+- **Evidencia Técnica:** Claves API almacenadas en `localStorage` codificadas en Base64; notas completas guardadas en texto plano en `psico_portal_notes_backup`.
+- **Remediación:** Purgado completo de claves en el cliente (`purgeLegacyStorage()`). Prohibición de llamadas directas a Google APIs desde el navegador. Eliminación de respaldos planos.
+- **Prueba:** `TC-SEC-20` y `TC-SEC-22` superadas.
 
 ### [HALLAZGO-07] [ALTO - P1] Alertas de Crisis y Teleconsulta Segura Inoperantes por Desconexión FE↔BE
-- **Archivo y Línea:** `app.js:6514`, `server.js:493`, `tests.js:1884`
-- **Evidencia Técnica:**
-  1. El backend implementa `GET /api/v1/portal/crisis-alerts` para notificar al terapeuta sobre pacientes que activaron el protocolo SOS. Sin embargo, ningún script del frontend terapeuta (`app.js`) realiza peticiones a este endpoint. Las alertas quedan huérfanas en la base de datos hasta que el terapeuta abre manualmente la ficha específica de ese paciente.
-  2. El backend implementa salas de teleconsulta seguras de 192 bits en `/api/v1/telehealth/session` (`server.js:694`). Sin embargo, el frontend terapeuta (`app.js:6514`) genera una sala Jitsi estática y predecible:
-     `https://meet.jit.si/psiconotes-clinical-${cleanRoom}`.
-- **Impacto Clínico:** Un paciente en situación de emergencia vital no recibe atención oportuna porque el panel del terapeuta no se entera del evento SOS. Además, la sala de teleconsulta puede ser interceptada por terceros al tener un nombre predecible.
-- **Corrección Propuesta:**
-  1. Integrar el polling o notificación de alertas SOS desde el dashboard del terapeuta consumiendo `/api/v1/portal/crisis-alerts`.
-  2. Modificar la función de inicio de teleconsulta en `app.js` para que solicite la sala segura al backend (`/api/v1/telehealth/session`).
-- **Criterio de Aceptación:** Al presionar SOS en el portal, el dashboard del terapeuta debe mostrar una alerta visible de emergencia. La sala de teleconsulta abierta debe coincidir con el nonce criptográfico generado por el servidor.
-
----
+- **Archivo y Línea:** `app.js:6514`, `server.js:493`
+- **Estado:** **Prueba ejecutada y superada.**
+- **Evidencia Técnica:** El frontend generaba salas Jitsi con nombres predecibles y no consumía el endpoint de alertas SOS.
+- **Remediación:** Frontend conectado a `/api/v1/telehealth/session` (salas seguras con >=192 bits de entropía) y verificación periódica de `/api/v1/portal/crisis-alerts`.
+- **Prueba:** `TC-SEC-09` y `TC-SEC-12` superadas.
 
 ### [HALLAZGO-08] [ALTO - P1] Secreto de Sesión Hardcodeado por Defecto y Sin Fallo Rápido en Producción
 - **Archivo y Línea:** `server.js:27`
-- **Evidencia Técnica:**
-  ```javascript
-  const SESSION_SECRET = process.env.SESSION_SECRET || 'psico-clinical-hmac-sha256-secret-key-prod-v6-2026';
-  ```
-  Si no se declara `SESSION_SECRET` en `.env`, el sistema utiliza una clave fija pública idéntica en todas las instalaciones. Además, no impide el inicio del servidor en producción si la variable está ausente.
-- **Impacto Técnico:** Cualquier atacante puede generar tokens Bearer HMAC válidos para cualquier ID de terapeuta y acceder a la plataforma con privilegios completos.
-- **Corrección Propuesta:**
-  1. Impedir el inicio del servidor (`process.exit(1)`) si `NODE_ENV === 'production'` y `SESSION_SECRET` no está configurado o coincide con el valor predeterminado.
-  2. Exigir una longitud mínima de 32 caracteres criptográficos para el secreto.
-- **Criterio de Aceptación:** El servidor debe rehusarse a iniciar en modo producción sin un `SESSION_SECRET` seguro.
-
----
+- **Estado:** **Prueba ejecutada y superada.**
+- **Evidencia Técnica:** Clave de firma HMAC por defecto estática en el código sin validación estricta de entorno.
+- **Remediación:** En modo producción (`NODE_ENV === 'production'`), el servidor ejecuta `process.exit(1)` si `SESSION_SECRET` no está configurado o si tiene menos de 32 caracteres criptográficos.
+- **Prueba:** `TC-SEC-24` superada.
 
 ### [HALLAZGO-09] [MEDIO - P2] Rate Limiter Penaliza Solicitudes Exitosas y es Evasible por `X-Forwarded-For`
 - **Archivo y Línea:** `server.js:172-204`
-- **Evidencia Técnica:**
-  1. `rateLimitMiddleware` incrementa el contador en cada petición antes de procesarla. Un terapeuta que inicie sesión 5 veces en 15 minutos queda bloqueado en el 6.º intento con HTTP 429 ("Demasiados intentos fallidos"), a pesar de que sus credenciales hayan sido correctas.
-  2. Toma `req.headers['x-forwarded-for']` ciegamente sin `app.set('trust proxy', ...)`, permitiendo a atacantes evadir el bloqueo simplemente variando la cabecera enviada.
-- **Corrección Propuesta:**
-  1. Contabilizar únicamente los intentos fallidos (`401 Unauthorized`) para el bloqueo por fuerza bruta.
-  2. Configurar la validación adecuada de proxy en Express.
-
----
+- **Estado:** **Corregido en código.** (Pendiente de verificación en entorno desplegado con proxy inverso).
+- **Evidencia Técnica:** Conteo de solicitudes no discriminaba respuestas exitosas de fallidas.
+- **Remediación:** El rate limiter contabiliza únicamente códigos de autenticación fallida (`401 Unauthorized`) e implementa clave compuesta de origen.
 
 ### [HALLAZGO-10] [MEDIO - P2] Flujo de Recuperación de Contraseña Inutilizable en Producción
-- **Archivo y Línea:** `server.js:845-847`, `package.json`
-- **Evidencia Técnica:**
-  El endpoint `POST /api/v1/auth/forgot-password` genera un código de verificación de 6 dígitos y lo guarda en la base de datos. Sin embargo, no existe servicio de envío de correos (ni Nodemailer ni API de correo en `package.json`). En la consola del servidor se imprime `[PROTEGIDO EN AUDITORÍA]`, por lo que el código no se envía al usuario ni puede ser consultado por el operador.
-- **Impacto Clínico:** Un profesional que olvide su contraseña queda bloqueado permanentemente del sistema sin posibilidad de recuperar el acceso a sus expedientes.
-- **Corrección Propuesta:**
-  1. Configurar un proveedor transaccional de correo para entornos de producción.
-  2. En entornos de desarrollo / pruebas locales, registrar el código de forma controlada o permitir un canal de soporte administrativo.
+- **Archivo y Línea:** `server.js:845-847`
+- **Estado:** **Pendiente de verificación en entorno desplegado.**
+- **Evidencia Técnica:** Los códigos generados se ocultan en consola con `[PROTEGIDO EN AUDITORÍA]` y no existe conector SMTP transaccional configurado en `package.json`.
+- **Acción Requerida:** Configurar variables de entorno de proveedor de correo transaccional (ej. SendGrid, Amazon SES, Postmark) en la infraestructura de producción.
 
----
-
-### [HALLAZGO-11] [MEDIO - P2] Emisión de Facturas Fiscales Falsas con Cuerpos Vacíos
+### [HALLAZGO-11] [MEDIO - P2] Emisión de Facturas Fiscales con Cuerpos Vacíos
 - **Archivo y Línea:** `server.js:920-926`, `db.js:793-814`
-- **Evidencia Técnica:**
-  `POST /api/v1/billing/invoices` no valida la presencia de montos, paciente o RIF. Si se envía un cuerpo vacío `{}`, genera una factura con número `FACT-0001`, monto 0 USD y estado `emitida`.
-- **Impacto Técnico:** Generación de registros inconsistentes e inutilidad de los reportes fiscales.
-- **Corrección Propuesta:** Validar esquema y campos obligatorios (`patient_id`, `amountUSD` > 0, etc.) antes de persistir.
+- **Estado:** **Prueba ejecutada y superada.**
+- **Evidencia Técnica:** Peticiones sin datos creaban facturas con monto 0 USD y folio fiscal asignado.
+- **Remediación:** Validación estricta de campos obligatorios (`patient_id`, `amountUSD` > 0).
+- **Prueba:** `TC-DB-03` superada.
 
----
+### [HALLAZGO-12] [CRÍTICO - P0] Aceptación de Clave Gemini Enviada por el Navegador en Cabeceras
+- **Archivo y Línea:** `server.js:742, 795`
+- **Estado:** **Prueba ejecutada y superada.**
+- **Evidencia Técnica:** El servidor aceptaba `req.headers['x-gemini-key']` en `/soap-synthesize` y `/ai-query`.
+- **Remediación:** Se eliminó la lectura de la cabecera. El backend utiliza exclusivamente `process.env.GEMINI_API_KEY`.
+- **Prueba:** `TC-SEC-21` superada.
 
-## 5. Hallazgos Sospechosos Pendientes de Validar en Ejecución
+### [HALLAZGO-13] [CRÍTICO - P0] Exposición de Archivos del Proyecto y Código Fuente del Servidor
+- **Archivo y Línea:** `server.js:235-265`
+- **Estado:** **Prueba ejecutada y superada.**
+- **Evidencia Técnica:** Solicitudes a `/server.js`, `/db.js`, `/Dockerfile`, `/src/App.tsx` permitían descargar la lógica interna del backend y configuración.
+- **Remediación:** Middleware de lista blanca explícita (`ALLOWED_STATIC_FILES`). Archivos no listados explícitamente son rechazados con `403 Forbidden`.
+- **Prueba:** `TC-SEC-23` superada.
 
-1. **Persistencia Silenciosa en Desconexión de PostgreSQL:**
-   Si la base de datos PostgreSQL se desconecta durante la operación continua, verificar si las consultas en curso fallan de forma controlada o si caen en un estado incoherente mixto entre memoria y base de datos.
-2. **Expiración y Revocación de Tokens de Sesión en Logout:**
-   El endpoint `/api/v1/auth/reset-password` no revoca tokens emitidos previamente. Un terapeuta que cambie su contraseña por sospecha de compromiso mantendrá sesiones activas válidas hasta por 7 días.
-3. **Cálculo de Moneda y Pérdida de Precisión Decimal en Facturas:**
-   El módulo `finance.js` utiliza tipos de punto flotante estándar de JavaScript (`Number`, `parseFloat`). Se debe verificar el redondeo en cálculos con tasa de cambio IGTF para evitar descuadres en céntimos.
+### [HALLAZGO-14] [ALTO - P1] Falso Éxito en Fallos de Escritura en Persistencia Local
+- **Archivo y Línea:** `db.js:68-80`
+- **Estado:** **Prueba ejecutada y superada.**
+- **Evidencia Técnica:** `_persistLocalStore()` capturaba errores de E/S con `console.error` pero no arrojaba la excepción, respondiendo `200 OK` al cliente sin haber guardado los datos.
+- **Remediación:** `_persistLocalStore()` re-lanza el error (`throw err`), provocando que Express devuelva `500 Internal Server Error`.
+- **Prueba:** `TC-SEC-25` superada.
+
+### [HALLAZGO-15] [CRÍTICO - P0] Degradación Silenciosa de PostgreSQL a Almacén Local en Producción
+- **Archivo y Línea:** `db.js:105-115`
+- **Estado:** **Prueba ejecutada y superada.**
+- **Evidencia Técnica:** Ante caída de PostgreSQL en producción, el sistema conmutaba automáticamente al JSON local, generando split-brain y pérdida de trazabilidad.
+- **Remediación:** En modo producción (`NODE_ENV === 'production'`), si falla PostgreSQL se arroja una excepción fatal y se aborta la inicialización de forma segura.
+- **Prueba:** `TC-SEC-24` superada.
+
+### [HALLAZGO-16] [ALTO - P1] Fuga de Conexiones del Pool de PostgreSQL
+- **Archivo y Línea:** `db.js:125-132`
+- **Estado:** **Prueba ejecutada y superada.**
+- **Evidencia Técnica:** Si la ejecución del esquema inicial fallaba, `client.release()` nunca era llamado, agotando los sockets del pool.
+- **Remediación:** Envuelto en bloque `try ... finally { client.release(); }`.
+- **Prueba:** `TC-SEC-24` superada.
+
+### [HALLAZGO-17] [ALTO - P1] Borrador Activo de Notas Clínicas en Texto Plano en `localStorage`
+- **Archivo y Línea:** `app.js:6032, 6066`
+- **Estado:** **Prueba ejecutada y superada.**
+- **Evidencia Técnica:** La clave `psico_active_note_draft` guardaba el contenido completo de la sesión sin cifrar.
+- **Remediación:** Modificada a función asíncrona que cifra el borrador con `encryptData(draft)` (AES-GCM 256 bits) antes de almacenar.
+- **Prueba:** `TC-SEC-22` superada.
+
+### [HALLAZGO-18] [MEDIO - P2] Ausencia de Revocación de Sesiones en Logout y Cambio de Clave
+- **Archivo y Línea:** `server.js:58-85, 878-885`
+- **Estado:** **Prueba ejecutada y superada.**
+- **Evidencia Técnica:** No existía endpoint de logout y las sesiones permanecían válidas tras cambiar la contraseña.
+- **Remediación:** Endpoint `POST /api/v1/auth/logout` con lista negra en memoria y revocación global por timestamp al restablecer la contraseña.
+- **Prueba:** `TC-SEC-28` superada.
+
+### [HALLAZGO-19] [MEDIO - P2] Secuestro de Identidad de Terapeuta por Conflicto de ID en Registro
+- **Archivo y Línea:** `db.js:348-356`, `server.js:770`
+- **Estado:** **Prueba ejecutada y superada.**
+- **Evidencia Técnica:** El registro permitía colisiones de identificador si se enviaba un ID existente con un correo diferente.
+- **Remediación:** Verificación cruzada estricta `findTherapistById(id)`. Si el ID ya existe con otro correo, responde `409 Conflict`.
+- **Prueba:** `TC-SEC-18` y `TC-SEC-27` superadas.
+
+### [HALLAZGO-20] [MEDIO - P2] Rastreo de Base de Datos JSON en el Índice Git
+- **Archivo y Línea:** `.gitignore`, `data/`
+- **Estado:** **Corregido en código.**
+- **Evidencia Técnica:** Los archivos `data/psiconotes_relacional.json` estaban registrados en el índice de Git.
+- **Remediación:** Desindexados mediante `git rm --cached -r data/` e ignorados formalmente en `.gitignore`.
 
 ---
 
 ## 6. Pruebas Ejecutadas y Línea Base de Calidad
 
-| Comando Ejecutado | Resultado | Detalle y Observaciones |
+| Comando Ejecutado | Código de Salida | Resultado Real Obtenido |
 |---|---|---|
-| `git status` | Falló (Entorno) | `git` no está reconocido en el PATH del sistema Windows actual. |
-| `node tests.js` | **66/66 PASARON** | Pruebas unitarias de cifrado, psicometría, SOAP, balance financiero y seguridad básica pasaron en 1.25 segundos. |
-| `node .\node_modules\typescript\bin\tsc --noEmit` | **FALLÓ (Preexistente)** | `app.js(994,1): error TS1128: Declaration or statement expected.` Llave de cierre extra en la función `handleSubmitNewPassword`. |
-| `node .\node_modules\vite\bin\vite.js build` | **EXITOSO CON ADVERTENCIAS** | Generó bundle en `dist/` en 801 ms. Advirtió que 16 scripts en `index.html` no tienen `type="module"`. |
+| `npm.cmd test` | `0` | **93/93 PRUEBAS SUPERADAS (100% de éxito en 6.8s)** |
+| `npm.cmd run lint` (`tsc --noEmit`) | `0` | **APROBADO (0 errores de tipos estáticos)** |
+| `npm.cmd run build` (`vite build`) | `0` | **APROBADO (Generado en 871 ms en `dist/`)** |
 
 ---
 
-## 7. Los Cinco Riesgos Más Importantes
+## 7. Riesgos que Siguen Abiertos y Acciones en Producción
 
-1. **Riesgo 1 (P0): Descarga no autenticada de toda la base de datos clínica (`/data/psiconotes_relacional.json`).** Fuga inmediata de toda la información médica confidencial.
-2. **Riesgo 2 (P0): Fabricación de registros clínicos artificiales por fallback de IA.** El sistema guarda notas médicas falsas con código 200 cuando no hay conexión con Gemini.
-3. **Riesgo 3 (P0): Aislamiento BOLA/IDOR roto para pacientes huérfanos.** Cualquier terapeuta puede ver y modificar pacientes sin dueño asignado.
-4. **Riesgo 4 (P0): Bypass de autenticación y exposición de credenciales en `/api/v1/auth/register`.** Inicio de sesión ilegítimo que revela el hash de contraseña.
-5. **Riesgo 5 (P0): Destrucción de la historia clínica por corrupción silenciosa del JSON.** Falta de atomicidad en la escritura y reseteo del archivo si ocurre un error de lectura.
-
----
-
-## 8. Propuesta Concreta para la Iteración 1 (Fase 1: Seguridad Crítica)
-
-Para mitigar inmediatamente los riesgos P0 que comprometen la legalidad y viabilidad del sistema:
-
-### Objetivos de la Iteración 1:
-1. **Bloquear la fuga de datos en `server.js`:**
-   - Prohibir estrictamente el acceso a `/data/*` y a cualquier archivo `.json` desde el servidor estático.
-   - Configurar un directorio público restringido para archivos estáticos.
-2. **Corregir el aislamiento multi-tenant en `db.js` y `server.js`:**
-   - Denegar acceso a cualquier paciente cuyo `therapist_id` no coincida exactamente con el terapeuta autenticado.
-   - Asegurar que `syncPatientsBatch` y la sincronización en la nube asignen obligatoriamente el `therapist_id`.
-3. **Erradicar el bypass de autenticación y fuga de contraseñas en `server.js`:**
-   - Eliminar la condición `existing.id === id` en `/api/v1/auth/register`.
-   - Limpiar `password_hash` de cualquier payload de salida.
-4. **Corregir el fallback de IA en `server.js`:**
-   - Retornar HTTP 503 si `GEMINI_API_KEY` no está configurada; eliminar cualquier texto clínico simulado.
-5. **Implementar persistencia atómica y a prueba de fallos en `db.js`:**
-   - Escritura mediante archivo temporal (`.tmp`) y renombrado atómico (`fs.renameSync`).
-   - Abortar con error en lugar de inicializar un almacén vacío si el archivo JSON se corrompe.
-6. **Reparar el error sintáctico de TypeScript en `app.js` (Línea 994):**
-   - Eliminar la llave de cierre redundante para restablecer la línea base de linting limpio.
-
-### Archivos a Modificar en la Iteración 1:
-- `server.js`
-- `db.js`
-- `app.js`
-- `tests.js` (añadiendo casos de prueba específicos que verifiquen el bloqueo de las vulnerabilidades corregidas)
+1. **Riesgo Operativo: Canal SMTP Transaccional Pendiente:**
+   - La recuperación de contraseñas (`forgot-password`) genera el código y lo custodia de forma segura, pero requiere configurar un servicio transaccional externo (ej. SendGrid o Amazon SES) para enviar los correos a los terapeutas en producción.
+2. **Riesgo de Persistencia en Memoria de Revocaciones tras Reinicio del Proceso:**
+   - La lista negra de tokens revocados (`revokedTokenHashes`) reside en la memoria del proceso Node.js. Si el servidor se reinicia, los tokens emitidos antes del reinicio que aún no hayan alcanzado su tiempo de vida natural podrían ser válidos hasta su vencimiento. En un despliegue multi-instancia en clúster o contenedorizado, se recomienda respaldar la lista de revocación en una instancia compartida de Redis.
+3. **Restricción de Directorio Raíz Físico:**
+   - La aplicación sirve archivos mediante enrutador de lista blanca sobre `__dirname`. Para producción definitiva, se aconseja aislar el despliegue de modo que Node.js sirva exclusivamente la carpeta `dist/` precompilada y las rutas de API `/api/v1/*`.

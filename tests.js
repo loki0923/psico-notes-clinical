@@ -59,6 +59,10 @@ const ClinicalTestSuite = {
 
         htmlReport += '</div></div>';
 
+        console.log(`\n======================================================`);
+        console.log(`RESULTADO DE LA SUITE: ${passed}/${total} PRUEBAS SUPERADAS (${allPassed ? '100% ÉXITO' : 'FALLOS DETECTADOS'})`);
+        console.log(`======================================================\n`);
+
         if (typeof testServerInstance !== 'undefined' && testServerInstance) {
             testServerInstance.close();
             testServerInstance = null;
@@ -3666,6 +3670,438 @@ ClinicalTestSuite.add('TC-KID-04', 'Portal Pacientes Kid: Reflejo inmediato de a
     const indexHtml = fs.readFileSync(path.resolve('index.html'), 'utf8');
     if (!indexHtml.includes('id="kidDrawingPreviewModal"')) {
         throw new Error('index.html debe contener el modal kidDrawingPreviewModal');
+    }
+});
+
+// 77. TC-SEC-21: Rechazo de claves Gemini enviadas por el cliente en encabezados o cuerpo
+ClinicalTestSuite.add('TC-SEC-21', 'Rechazo de claves Gemini enviadas por el cliente en encabezados o cuerpo', async () => {
+    const baseUrl = await ensureTestServer();
+    const { generateSessionToken } = await import('./server.js');
+    const token = generateSessionToken('therapist_gemini_test_' + Date.now(), 'gemini_test@clinica.com');
+
+    const savedKey = process.env.GEMINI_API_KEY;
+    delete process.env.GEMINI_API_KEY;
+
+    try {
+        // Enviar petición con x-gemini-key inyectada por cliente
+        const clientKey = 'AIzaSy_fake_injected_client_key_12345';
+        const res = await fetch(`${baseUrl}/api/v1/clinical/soap-synthesize`, {
+            method: 'POST',
+            headers: {
+                'Authorization': `Bearer ${token}`,
+                'Content-Type': 'application/json',
+                'x-gemini-key': clientKey
+            },
+            body: JSON.stringify({ notes: 'Paciente refiere sintomatología ansiosa moderada.' })
+        });
+
+        // Debe ser 503 porque el servidor NO acepta la clave enviada por el cliente
+        if (res.status !== 503) {
+            throw new Error(`FALLO DE SEGURIDAD: El servidor aceptó la clave Gemini enviada por el cliente (status: ${res.status}, esperado: 503)`);
+        }
+
+        const data = await res.json();
+        if (data.source !== 'unavailable') {
+            throw new Error('El servidor debe rechazar la clave de cliente e indicar source: unavailable');
+        }
+
+        // Probar también en ai-query
+        const resAi = await fetch(`${baseUrl}/api/v1/clinical/ai-query`, {
+            method: 'POST',
+            headers: {
+                'Authorization': `Bearer ${token}`,
+                'Content-Type': 'application/json',
+                'x-gemini-key': clientKey
+            },
+            body: JSON.stringify({ prompt: 'Explicar reestructuración cognitiva' })
+        });
+
+        if (resAi.status !== 503) {
+            throw new Error(`FALLO DE SEGURIDAD: ai-query aceptó clave de cliente x-gemini-key (status: ${resAi.status}, esperado: 503)`);
+        }
+    } finally {
+        if (savedKey) process.env.GEMINI_API_KEY = savedKey;
+    }
+});
+
+// 78. TC-SEC-22: Ausencia de claves en el bundle frontend y código cliente
+ClinicalTestSuite.add('TC-SEC-22', 'Ausencia de claves API privadas en código fuente frontend y almacenamiento', async () => {
+    const fs = await import('fs');
+    const path = await import('path');
+
+    const clientFiles = [
+        'index.html',
+        'portal.html',
+        'app.js',
+        'portal.js',
+        'ai-clinical.js',
+        'dist/index.html',
+        'dist/portal.html'
+    ];
+
+    const googleKeyPattern = /AIza[0-9A-Za-z-_]{35}/;
+
+    for (const relPath of clientFiles) {
+        const fullPath = path.resolve(relPath);
+        if (fs.existsSync(fullPath)) {
+            const content = fs.readFileSync(fullPath, 'utf8');
+            if (googleKeyPattern.test(content)) {
+                throw new Error(`FUGA DE CLAVE: Se detectó patrón de API Key en archivo público frontend: ${relPath}`);
+            }
+        }
+    }
+
+    // Comprobar que ai-clinical.js purga claves de almacenamiento
+    const aiCode = fs.readFileSync(path.resolve('ai-clinical.js'), 'utf8');
+    if (!aiCode.includes('purgeLegacyStorage') || !aiCode.includes('localStorage.removeItem')) {
+        throw new Error('ai-clinical.js debe incluir rutinas activas de purga de claves en localStorage');
+    }
+});
+
+// 79. TC-SEC-23: Acceso no autenticado a archivos privados estrictamente denegado (HTTP 403)
+ClinicalTestSuite.add('TC-SEC-23', 'Acceso no autenticado a archivos privados estrictamente denegado con HTTP 403', async () => {
+    const baseUrl = await ensureTestServer();
+
+    const privateFiles = [
+        '/server.js',
+        '/db.js',
+        '/package.json',
+        '/Dockerfile',
+        '/docker-compose.yml',
+        '/tsconfig.json',
+        '/src/App.tsx',
+        '/node_modules/express/index.js',
+        '/data/psiconotes_relacional.json',
+        '/revision/01-pm-inventario.md',
+        '/..%2fpackage.json'
+    ];
+
+    for (const fileUrl of privateFiles) {
+        const res = await fetch(`${baseUrl}${fileUrl}`);
+        if (res.status !== 403) {
+            throw new Error(`FALLO DE ACCESO: Archivo privado ${fileUrl} respondió status ${res.status} (esperado: 403)`);
+        }
+    }
+
+    // Verificar que los recursos públicos legítimos sigan respondiendo HTTP 200
+    const publicChecks = [
+        { path: '/', expectedStatus: 200 },
+        { path: '/index.html', expectedStatus: 200 },
+        { path: '/portal.html', expectedStatus: 200 },
+        { path: '/styles.css', expectedStatus: 200 },
+        { path: '/portal.css', expectedStatus: 200 },
+        { path: '/manifest.json', expectedStatus: 200, checkType: 'application/manifest+json' },
+        { path: '/app.js', expectedStatus: 200 },
+        { path: '/portal.js', expectedStatus: 200 }
+    ];
+
+    for (const check of publicChecks) {
+        const res = await fetch(`${baseUrl}${check.path}`);
+        if (res.status !== check.expectedStatus) {
+            throw new Error(`FALLO DE DISPONIBILIDAD: Recurso público legítimo ${check.path} respondió con status ${res.status} (esperado: ${check.expectedStatus})`);
+        }
+        if (check.checkType) {
+            const ct = res.headers.get('content-type') || '';
+            if (!ct.includes(check.checkType)) {
+                throw new Error(`Content-Type inesperado para ${check.path}: ${ct} (esperado: ${check.checkType})`);
+            }
+        }
+    }
+});
+
+// 80. TC-SEC-24: Fallo de PostgreSQL en producción sin fallback inseguro
+ClinicalTestSuite.add('TC-SEC-24', 'Fallo de PostgreSQL en producción sin fallback inseguro', async () => {
+    const { db } = await import('./db.js');
+    const oldEnv = process.env.NODE_ENV;
+    const oldDbUrl = process.env.DATABASE_URL;
+
+    try {
+        process.env.NODE_ENV = 'production';
+        delete process.env.DATABASE_URL;
+        delete process.env.ALLOW_LOCAL_DB_IN_PROD;
+
+        // 1. En producción sin DATABASE_URL debe rechazar el arranque
+        let threwMissing = false;
+        try {
+            await db.initialize();
+        } catch (e) {
+            threwMissing = true;
+            if (!e.message.includes('FALLO CRÍTICO DE ARQUITECTURA')) {
+                throw new Error(`Mensaje inesperado al fallar: ${e.message}`);
+            }
+        }
+        if (!threwMissing) {
+            throw new Error('FALLO CRÍTICO: db.initialize() no falló en producción ante ausencia de DATABASE_URL');
+        }
+
+        // 2. En producción con URL de postgres inalcanzable debe fallar sin degradar a JSON
+        process.env.DATABASE_URL = 'postgres://invalid_user:invalid_pass@127.0.0.1:54329/invalid_db';
+        let threwConn = false;
+        try {
+            await db.initialize();
+        } catch (e) {
+            threwConn = true;
+            if (!e.message.includes('FALLO CRÍTICO DE CONEXIÓN POSTGRESQL')) {
+                throw new Error(`Mensaje inesperado ante fallo de conexión: ${e.message}`);
+            }
+        }
+        if (!threwConn) {
+            throw new Error('FALLO CRÍTICO: db.initialize() no lanzó error ante fallo de conexión en producción');
+        }
+    } finally {
+        process.env.NODE_ENV = oldEnv;
+        if (oldDbUrl) process.env.DATABASE_URL = oldDbUrl;
+        else delete process.env.DATABASE_URL;
+    }
+});
+
+// 81. TC-SEC-25: Fallo de persistencia sin confirmación falsa de éxito
+ClinicalTestSuite.add('TC-SEC-25', 'Fallo de persistencia sin confirmación falsa de éxito', async () => {
+    const { db } = await import('./db.js');
+
+    // Simular estado corrupto no recuperado en DatabaseManager
+    const wasCorrupt = db._isCorruptState;
+    db._isCorruptState = true;
+
+    try {
+        let threw = false;
+        try {
+            await db.upsertPatient({
+                id: 'pat_fail_test_' + Date.now(),
+                name: 'Paciente Prueba Fallo',
+                therapist_id: 'dr_tester'
+            });
+        } catch (e) {
+            threw = true;
+            if (!e.message.includes('PERSISTENCIA BLOQUEADA')) {
+                throw new Error(`Mensaje inesperado: ${e.message}`);
+            }
+        }
+
+        if (!threw) {
+            throw new Error('FALLO DE INTEGRIDAD: upsertPatient retornó éxito a pesar de que el almacenamiento estaba corrupto');
+        }
+    } finally {
+        db._isCorruptState = wasCorrupt;
+    }
+});
+
+// 82. TC-SEC-26: Rechazo estricto de acceso cruzado a pacientes de otro terapeuta (BOLA/IDOR)
+ClinicalTestSuite.add('TC-SEC-26', 'Rechazo de acceso a pacientes de otro terapeuta en todas las operaciones', async () => {
+    const baseUrl = await ensureTestServer();
+    const { generateSessionToken } = await import('./server.js');
+    const { db } = await import('./db.js');
+
+    const therapistA = 'therapist_alpha_' + Date.now();
+    const therapistB = 'therapist_beta_' + Date.now();
+
+    const tokenB = generateSessionToken(therapistB, 'beta@clinica.com');
+
+    // Paciente perteneciente a Terapeuta A
+    const patientA = {
+        id: 'pat_alpha_exclusive_' + Date.now(),
+        name: 'Paciente Exclusivo de Alpha',
+        therapist_id: therapistA,
+        portal_enabled: true
+    };
+    await db.upsertPatient(patientA);
+
+    // 1. Terapeuta B intenta leer datos de Patient A
+    const resRead = await fetch(`${baseUrl}/api/v1/portal/data/${patientA.id}`, {
+        headers: { 'Authorization': `Bearer ${tokenB}` }
+    });
+    if (resRead.status !== 403) {
+        throw new Error(`FALLO BOLA: Terapeuta B pudo consultar paciente ajeno (status: ${resRead.status}, esperado: 403)`);
+    }
+
+    // 2. Terapeuta B intenta consultar actividades lúdicas del menor de Terapeuta A
+    const resKid = await fetch(`${baseUrl}/api/v1/patients/${patientA.id}/kid-activity`, {
+        headers: { 'Authorization': `Bearer ${tokenB}` }
+    });
+    if (resKid.status !== 403) {
+        throw new Error(`FALLO BOLA PEDIÁTRICO: Terapeuta B accedió a actividades infantiles de paciente ajeno (status: ${resKid.status}, esperado: 403)`);
+    }
+
+    // 3. Terapeuta B intenta enviar sincronización con suplantación de X-Therapist-Id
+    const resSpoof = await fetch(`${baseUrl}/api/v1/clinical/sync`, {
+        method: 'POST',
+        headers: {
+            'Authorization': `Bearer ${tokenB}`,
+            'Content-Type': 'application/json',
+            'X-Therapist-Id': therapistA
+        },
+        body: JSON.stringify({ patients: [] })
+    });
+    if (resSpoof.status !== 403) {
+        throw new Error(`FALLO SPOOFING: Petición con X-Therapist-Id contradictorio respondió status ${resSpoof.status} (esperado: 403)`);
+    }
+});
+
+// 83. TC-SEC-27: Registro y login sin exposición de password_hash ni passwordHash
+ClinicalTestSuite.add('TC-SEC-27', 'Registro y login sin exposición de password_hash en respuestas JSON', async () => {
+    const baseUrl = await ensureTestServer();
+
+    const email = `dr_hash_test_${Date.now()}@clinica.com`;
+    const passwordHash = 'sha256_super_secret_hash_value_987654';
+
+    // 1. Registro
+    const regRes = await fetch(`${baseUrl}/api/v1/auth/register`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+            name: 'Dr. Verificación Hash',
+            email,
+            passwordHash,
+            specialty: 'Psiquiatría'
+        })
+    });
+    const regData = await regRes.json();
+    if (regRes.status !== 200) {
+        throw new Error(`Error en registro: ${regRes.status}`);
+    }
+    if (regData.therapist.password_hash || regData.therapist.passwordHash) {
+        throw new Error('FUGA DE HASH EN REGISTER: El objeto therapist incluye campos de contraseña');
+    }
+
+    const therapistId = regData.therapist.id;
+
+    // 2. Intento de usurpación de ID en registro con otro correo
+    const hijackRes = await fetch(`${baseUrl}/api/v1/auth/register`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+            id: therapistId,
+            email: `attacker_${Date.now()}@clinica.com`,
+            passwordHash: 'attacker_fake_hash'
+        })
+    });
+    if (hijackRes.status !== 409) {
+        throw new Error(`FALLO DE REGISTRO: Atacante pudo reutilizar el ID de un terapeuta existente (status: ${hijackRes.status}, esperado: 409)`);
+    }
+
+    // 3. Login
+    const loginRes = await fetch(`${baseUrl}/api/v1/auth/login`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, passwordHash })
+    });
+    const loginData = await loginRes.json();
+    if (loginRes.status !== 200) {
+        throw new Error(`Error en login: ${loginRes.status}`);
+    }
+    if (loginData.therapist.password_hash || loginData.therapist.passwordHash) {
+        throw new Error('FUGA DE HASH EN LOGIN: La respuesta de login devolvió el hash de la contraseña');
+    }
+});
+
+// 84. TC-SEC-28: Recuperación de contraseña, expiración de códigos y revocación de sesiones
+ClinicalTestSuite.add('TC-SEC-28', 'Recuperación de contraseña, expiración de códigos y revocación de sesiones', async () => {
+    const baseUrl = await ensureTestServer();
+    const { db } = await import('./db.js');
+    const { generateSessionToken } = await import('./server.js');
+
+    const email = `dr_reset_test_${Date.now()}@clinica.com`;
+    const initialHash = 'initial_password_hash_111';
+    const newHash = 'new_password_hash_222';
+
+    // 1. Registrar terapeuta
+    const therapist = await db.registerTherapist({
+        name: 'Dr. Reset Tester',
+        email,
+        passwordHash: initialHash,
+        specialty: 'Psicología'
+    });
+
+    const sessionTokenOld = generateSessionToken(therapist.id, therapist.email);
+
+    // Verificar que el token viejo funciona inicialmente
+    const preCheck = await fetch(`${baseUrl}/api/v1/clinical/ai-status`, {
+        headers: { 'Authorization': `Bearer ${sessionTokenOld}` }
+    });
+    if (preCheck.status !== 200) {
+        throw new Error('El token de sesión inicial debe ser válido (status 200)');
+    }
+
+    // 2. Solicitar restablecimiento (forgot-password)
+    const forgotRes = await fetch(`${baseUrl}/api/v1/auth/forgot-password`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email })
+    });
+    const forgotData = await forgotRes.json();
+    if (forgotRes.status !== 200) {
+        throw new Error(`Fallo en forgot-password: status ${forgotRes.status}`);
+    }
+    if (forgotData.code || forgotData.resetCode) {
+        throw new Error('FUGA DE CREDENCIALES: El endpoint forgot-password devolvió el código en la respuesta HTTP');
+    }
+
+    // Obtener el código generado legítimamente desde la base de datos
+    const resetRecord = (db.localStore && db.localStore.password_resets) ? db.localStore.password_resets[email] : null;
+    if (!resetRecord || !resetRecord.code) {
+        throw new Error('No se encontró el registro de recuperación en la base de datos');
+    }
+
+    // 3. Probar código expirado
+    const expiredRecord = { ...resetRecord, expiresAt: new Date(Date.now() - 60000).toISOString() };
+    if (db.localStore && db.localStore.password_resets) {
+        db.localStore.password_resets[email] = expiredRecord;
+    }
+
+    const expRes = await fetch(`${baseUrl}/api/v1/auth/reset-password`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, code: resetRecord.code, newPasswordHash: newHash })
+    });
+    if (expRes.status !== 400) {
+        throw new Error(`FALLO: Código expirado no fue rechazado con HTTP 400 (status: ${expRes.status})`);
+    }
+
+    // 4. Probar restablecimiento exitoso con código vigente
+    const validReset = await db.createPasswordReset(email);
+    // Esperar un instante para que el timestamp de revocación sea posterior a la creación del token viejo
+    await new Promise(r => setTimeout(r, 20));
+
+    const successRes = await fetch(`${baseUrl}/api/v1/auth/reset-password`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, code: validReset.code, newPasswordHash: newHash })
+    });
+    if (successRes.status !== 200) {
+        throw new Error(`FALLO: Restablecimiento con código válido respondió status ${successRes.status}`);
+    }
+
+    // 5. Verificar que el token de sesión emitido previamente fue REVOCADO
+    const postCheck = await fetch(`${baseUrl}/api/v1/clinical/ai-status`, {
+        headers: { 'Authorization': `Bearer ${sessionTokenOld}` }
+    });
+    if (postCheck.status !== 401) {
+        throw new Error(`FALLO DE REVOCACIÓN: La sesión previa siguió activa tras el restablecimiento de contraseña (status: ${postCheck.status}, esperado: 401)`);
+    }
+
+    // 6. Probar login con nueva contraseña y logout explícito
+    const loginRes = await fetch(`${baseUrl}/api/v1/auth/login`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, passwordHash: newHash })
+    });
+    const loginData = await loginRes.json();
+    const newSessionToken = loginData.sessionToken;
+
+    const logoutRes = await fetch(`${baseUrl}/api/v1/auth/logout`, {
+        method: 'POST',
+        headers: { 'Authorization': `Bearer ${newSessionToken}` }
+    });
+    if (logoutRes.status !== 200) {
+        throw new Error(`Error en logout: status ${logoutRes.status}`);
+    }
+
+    // Token cerrado debe ser denegado con 401
+    const afterLogoutCheck = await fetch(`${baseUrl}/api/v1/clinical/ai-status`, {
+        headers: { 'Authorization': `Bearer ${newSessionToken}` }
+    });
+    if (afterLogoutCheck.status !== 401) {
+        throw new Error(`FALLO DE LOGOUT: La sesión cerrada siguió activa tras logout (status: ${afterLogoutCheck.status}, esperado: 401)`);
     }
 });
 

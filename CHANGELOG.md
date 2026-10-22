@@ -3,6 +3,53 @@ Todas las modificaciones notables realizadas en el proyecto Psico Notes Clinical
 
 El formato se basa en [Keep a Changelog](https://keepachangelog.com/es-ES/1.0.0/) y este proyecto se adhiere a [Semantic Versioning](https://semver.org/lang/es/).
 
+## [6.6.0-security-audit-remediation] — 2026-10-22 (Auditoría de Seguimiento, Remediación y 8 Pruebas de Integración)
+
+### Seguridad y Hardening
+- **Gemini API Key Exclusiva de Servidor**:
+  - Eliminada en `server.js` la aceptación de `req.headers['x-gemini-key']` y cualquier inyección desde cliente en endpoints de IA (`/soap-synthesize` y `/ai-query`). Se utiliza exclusivamente `process.env.GEMINI_API_KEY`.
+  - En `index.html` y `app.js`, se reemplazó el formulario de ingreso de clave en `#apiKeyModal` por un indicador de estado del servicio (`/api/v1/clinical/ai-status`).
+  - Purga automática en `ai-clinical.js` de cualquier clave API preexistente en `localStorage` o `sessionStorage`.
+- **Persistencia Segura y a Prueba de Fallos (`db.js`)**:
+  - **Fallo Seguro en Producción**: En `NODE_ENV === 'production'`, el backend arroja error fatal y se detiene si falta `DATABASE_URL` o si PostgreSQL es inaccesible, impidiendo la degradación silenciosa a JSON.
+  - **Fallo de E/S con Error Real**: En `_persistLocalStore()`, se re-lanzan los errores de escritura en disco, evitando que el servidor devuelva `200 OK` sobre escrituras fallidas.
+  - **Prevención de Pérdida por Corrupción**: Si el archivo principal y su respaldo `.bak` están dañados, el sistema activa `_isCorruptState = true;` y genera un volcado de emergencia, bloqueando escrituras posteriores para no sobrescribir la base de datos con un esquema vacío.
+  - **Cierre Garantizado de Conexiones**: Adquisición de cliente de PostgreSQL asegurada con `try ... finally { client.release(); }`.
+- **Autenticación y Sesiones Hardened (`server.js`, `db.js`)**:
+  - **Cero Fuga de Hashes**: Purgados exhaustivamente `password_hash` y `passwordHash` en respuestas de registro y login.
+  - **Prevención de Secuestro de Cuentas en Registro**: Eliminado bypass por ID y añadida verificación de colisión `findTherapistById(id)` retornando `409 Conflict`.
+  - **Revocación de Sesiones**: Implementada lista negra en memoria `revokedTokenHashes` y mapa de revocación por terapeuta `therapistRevocationTimestamps`.
+  - **Endpoint de Cierre de Sesión**: Creado `POST /api/v1/auth/logout` con revocación inmediata del token Bearer.
+  - **Invalidación Global en Reset de Clave**: Al restablecer contraseña en `POST /api/v1/auth/reset-password`, se revocan automáticamente todas las sesiones previas del terapeuta.
+- **Servidor de Archivos Estáticos con Lista Blanca Estricta (`server.js`)**:
+  - Sustituido `express.static(__dirname)` por enrutador de lista blanca (`ALLOWED_STATIC_FILES`) para interfaz legítima y `/assets/*`.
+  - Bloqueo inmediato con `HTTP 403 Forbidden` ante intentos de acceso a `server.js`, `db.js`, `Dockerfile`, `src/*`, logs, backups, `.json` y secuencias de path traversal (`..`, `%2e%2e`).
+  - Servicio correcto de `manifest.json` con `Content-Type: application/manifest+json; charset=utf-8`.
+- **Cifrado de Borrador Activo de Notas Clínicas (`app.js`)**:
+  - `saveDraft()` ahora es `async` y cifra `psico_active_note_draft` con AES-GCM 256 bits mediante `encryptData(draft)` antes de guardarlo en `localStorage`.
+- **Saneamiento de Respaldos (`backup.js`)**:
+  - `exportBackupFile()` sanea el objeto `user`, eliminando contraseñas y hashes antes de exportar.
+- **Limpieza del Repositorio (`.gitignore`)**:
+  - Excluidos `data/`, `*.bak`, `*.tmp`, `*.winmd` en `.gitignore`.
+  - Desindexados archivos JSON de `data/` del control de versiones Git.
+
+### Pruebas de Integración y Calidad
+- **8 Nuevos Casos de Prueba de Integración (`tests.js`)**:
+  - `TC-SEC-21`: Rechazo de claves Gemini enviadas por el cliente en encabezados o cuerpo.
+  - `TC-SEC-22`: Ausencia de claves privadas en frontend y verificación de borrador cifrado.
+  - `TC-SEC-23`: Acceso no autenticado a archivos privados denegado con HTTP 403.
+  - `TC-SEC-24`: Fallo de PostgreSQL en producción sin fallback inseguro.
+  - `TC-SEC-25`: Fallo de persistencia sin confirmación falsa de éxito.
+  - `TC-SEC-26`: Rechazo estricto de acceso a pacientes de otro terapeuta.
+  - `TC-SEC-27`: Registro y login sin exposición de `password_hash` en JSON.
+  - `TC-SEC-28`: Recuperación de contraseña, expiración de códigos y revocación de sesiones.
+- **Métricas de la Suite**:
+  - **93/93 Pruebas Automatizadas Aprobadas (100% PASS)**.
+  - `npm run lint` (`tsc --noEmit`): 0 errores.
+  - `npm run build` (`vite build`): Exitoso en 871 ms.
+
+---
+
 ## [6.5.1-kid-portal-automation] — 2026-10-21 (Activación Automática de Portal KIDS por Edad < 13a y Aislamiento en Adultos)
 
 ### Añadido y Optimizado

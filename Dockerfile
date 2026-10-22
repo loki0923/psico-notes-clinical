@@ -30,7 +30,7 @@ RUN npm ci --omit=dev
 COPY --chown=psiconotes:psiconotes --from=builder /app/dist ./dist
 COPY --chown=psiconotes:psiconotes server.js db.js ./
 COPY --chown=psiconotes:psiconotes *.html *.js *.css *.png manifest.json ./
-COPY --chown=psiconotes:psiconotes data ./data
+RUN mkdir -p data && chown -R psiconotes:psiconotes data
 
 USER psiconotes
 

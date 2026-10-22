@@ -58,13 +58,35 @@ export function generateSessionToken(therapistId, email = '', customExpiryMs = T
     return `${payloadB64}.${signature}`;
 }
 
+// Almacenes en memoria para revocación activa de sesiones
+const revokedTokenHashes = new Set();
+const therapistRevocationTimestamps = new Map();
+
 /**
- * Verifica la firma y la vigencia temporal de un token de sesión.
+ * Revoca un token de sesión específico (ej. cierre de sesión explícito).
+ */
+export function revokeSessionToken(token) {
+    if (!token || typeof token !== 'string') return;
+    const hash = crypto.createHash('sha256').update(token.trim()).digest('hex');
+    revokedTokenHashes.add(hash);
+}
+
+/**
+ * Invalida todas las sesiones de un terapeuta emitidas previamente (ej. cambio o recuperación de contraseña).
+ */
+export function revokeAllTherapistSessions(therapistId) {
+    if (!therapistId) return;
+    therapistRevocationTimestamps.set(therapistId, Date.now());
+}
+
+/**
+ * Verifica la firma, la vigencia temporal y el estado de revocación de un token de sesión.
  * Utiliza comparación en tiempo constante (timingSafeEqual) para mitigar ataques de temporización.
  */
 export function verifySessionToken(token) {
     if (!token || typeof token !== 'string') return null;
-    const parts = token.split('.');
+    const cleanToken = token.trim();
+    const parts = cleanToken.split('.');
     if (parts.length !== 2) return null;
     const [payloadB64, signature] = parts;
     const expectedSig = crypto.createHmac('sha256', SESSION_SECRET).update(payloadB64).digest('base64url');
@@ -75,10 +97,21 @@ export function verifySessionToken(token) {
         return null;
     }
 
+    // Comprobar si el token individual fue revocado explícitamente
+    const tokenHash = crypto.createHash('sha256').update(cleanToken).digest('hex');
+    if (revokedTokenHashes.has(tokenHash)) {
+        return null;
+    }
+
     try {
         const payload = JSON.parse(Buffer.from(payloadB64, 'base64url').toString('utf8'));
         if (Date.now() > payload.exp) {
             return null; // Token expirado
+        }
+        // Comprobar si todas las sesiones del terapeuta fueron invalidadas tras emitirse el token
+        const revocationTime = therapistRevocationTimestamps.get(payload.therapistId);
+        if (revocationTime && payload.iat < revocationTime) {
+            return null; // Sesión invalidada globalmente
         }
         return payload;
     } catch {
@@ -246,51 +279,106 @@ app.use((req, res, next) => {
     next();
 });
 
-// Cortafuegos de Archivos Sensibles y Datos Clínicos (Prevención P0 de Exposición de PHI)
-const RESTRICTED_FILES = new Set([
-    'server.js', 'db.js', 'schema.sql', 'docker-compose.yml',
-    'package.json', 'package-lock.json', 'tests.js', 'plan_pruebas.md',
-    'psiconotes_relacional.json'
+// ============================================
+// SERVICIO DE ARCHIVOS ESTÁTICOS PÚBLICOS EXPLÍCITOS (SEC-003 / OWASP A01)
+// ============================================
+// Lista blanca explícita de archivos legítimos del cliente web.
+// Cualquier otro archivo interno (server.js, db.js, configs, src, node_modules, data, etc.) es estrictamente denegado con HTTP 403.
+const ALLOWED_STATIC_FILES = new Set([
+    'index.html',
+    'portal.html',
+    'styles.css',
+    'portal.css',
+    'manifest.json',
+    'icon-192.png',
+    'icon-512.png',
+    'favicon.ico',
+    'app.js',
+    'portal.js',
+    'ai-clinical.js',
+    'phi-anonymizer.js',
+    'voice-dictation.js',
+    'psychoed.js',
+    'reports.js',
+    'vademecum.js',
+    'scales.js',
+    'finance.js',
+    'adm.js',
+    'session-reminders.js',
+    'backup.js',
+    'crisis-protocol.js',
+    'consentimiento.js',
+    'historia-clinica.js',
+    'sw.js'
 ]);
-const RESTRICTED_EXTS = ['.env', '.sql', '.yml', '.yaml', '.log', '.json', '.bak', '.tmp', '.md'];
 
+// Middleware de cortafuegos y despacho exclusivo de lista blanca
 app.use((req, res, next) => {
-    const rawPath = (req.path || '').toLowerCase();
-    // Los endpoints de la API REST se manejan con sus respectivos middlewares de autenticación y lógica clínica
-    if (rawPath.startsWith('/api/')) {
+    // 1. Las rutas de API REST se procesan por sus respectivos controladores
+    if (req.path.startsWith('/api/')) {
         return next();
     }
 
-    const normalized = path.normalize(rawPath).replace(/\\/g, '/');
-    const parsedPath = path.basename(normalized);
-
-    if (
-        normalized.startsWith('/data') ||
-        normalized.includes('/data/') ||
-        normalized.startsWith('/revision') ||
-        normalized.includes('/revision/') ||
-        RESTRICTED_FILES.has(parsedPath) ||
-        RESTRICTED_EXTS.some(ext => parsedPath.endsWith(ext)) ||
-        parsedPath.startsWith('.')
-    ) {
-        return res.status(403).json({ error: 'Acceso no autorizado: Archivo o recurso protegido por políticas de seguridad clínica.' });
+    // 2. Normalización estricta contra traversal (%2e%2e, backslashes, codificaciones dobles)
+    let decodedPath = '';
+    try {
+        decodedPath = decodeURIComponent(req.path);
+    } catch {
+        return res.status(400).json({ error: 'Ruta con codificación no válida.' });
     }
-    next();
+
+    const normalized = path.normalize(decodedPath).replace(/\\/g, '/');
+
+    // 3. Documentos principales de entrada
+    if (normalized === '/' || normalized === '/index.html') {
+        res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
+        return res.sendFile(path.join(__dirname, 'index.html'));
+    }
+    if (normalized === '/portal' || normalized === '/portal.html') {
+        res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
+        return res.sendFile(path.join(__dirname, 'portal.html'));
+    }
+
+    // 4. Directorio público de assets gráficos y fuentes
+    if (normalized.startsWith('/assets/')) {
+        const safeRel = path.relative('/assets', normalized);
+        if (safeRel.startsWith('..') || path.isAbsolute(safeRel)) {
+            return res.status(403).json({ error: 'Acceso no autorizado: Archivo o recurso protegido por políticas de seguridad clínica.' });
+        }
+        const fullAssetPath = path.join(__dirname, 'assets', safeRel);
+        if (fs.existsSync(fullAssetPath) && !fs.statSync(fullAssetPath).isDirectory()) {
+            res.setHeader('Cache-Control', 'public, max-age=3600');
+            return res.sendFile(fullAssetPath);
+        }
+        return res.status(404).json({ error: 'Recurso de assets no encontrado.' });
+    }
+
+    // 5. Archivos individuales en raíz expresamente autorizados por la lista blanca
+    const cleanBasename = path.basename(normalized);
+    const segments = normalized.split('/').filter(Boolean);
+
+    if (segments.length === 1 && ALLOWED_STATIC_FILES.has(cleanBasename)) {
+        const fullFilePath = path.join(__dirname, cleanBasename);
+        if (fs.existsSync(fullFilePath)) {
+            if (cleanBasename.endsWith('.html') || cleanBasename.endsWith('.js') || cleanBasename.endsWith('.css')) {
+                res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
+            } else if (cleanBasename === 'manifest.json') {
+                res.setHeader('Content-Type', 'application/manifest+json; charset=utf-8');
+                res.setHeader('Cache-Control', 'public, max-age=3600');
+            } else {
+                res.setHeader('Cache-Control', 'public, max-age=3600');
+            }
+            return res.sendFile(fullFilePath);
+        }
+    }
+
+    // 6. Cualquier otra ruta o archivo fuera de la lista blanca es bloqueado por seguridad
+    return res.status(403).json({
+        error: 'Acceso no autorizado: Archivo o recurso protegido por políticas de seguridad clínica.'
+    });
 });
 
 app.use(express.json({ limit: '10mb' }));
-app.use(express.static(__dirname, {
-    dotfiles: 'ignore',
-    setHeaders: (res, filePath) => {
-        if (filePath.endsWith('.html') || filePath.endsWith('.js') || filePath.endsWith('.css')) {
-            res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
-            res.setHeader('Pragma', 'no-cache');
-            res.setHeader('Expires', '0');
-        } else {
-            res.setHeader('Cache-Control', 'public, max-age=3600');
-        }
-    }
-}));
 
 // Inicializar capa de base de datos
 await db.initialize();
@@ -739,7 +827,8 @@ app.get('/api/v1/patients', requireTherapistAuth, async (req, res) => {
 app.post('/api/v1/clinical/soap-synthesize', requireTherapistAuth, async (req, res) => {
     try {
         const { notes, patientInfo } = req.body;
-        const apiKey = process.env.GEMINI_API_KEY || req.headers['x-gemini-key'];
+        // La clave de API se obtiene EXCLUSIVAMENTE del entorno del servidor por políticas de seguridad clínica (HIPAA/OWASP)
+        const apiKey = process.env.GEMINI_API_KEY;
 
         if (!notes) {
             return res.status(400).json({ error: 'Faltan los apuntes de la sesión' });
@@ -792,7 +881,8 @@ app.get('/api/v1/clinical/ai-status', requireTherapistAuth, (req, res) => {
 app.post('/api/v1/clinical/ai-query', requireTherapistAuth, async (req, res) => {
     try {
         const { prompt, systemInstruction, responseMimeType } = req.body;
-        const apiKey = process.env.GEMINI_API_KEY || req.headers['x-gemini-key'];
+        // La clave de API se obtiene EXCLUSIVAMENTE del entorno del servidor por políticas de seguridad clínica (HIPAA/OWASP)
+        const apiKey = process.env.GEMINI_API_KEY;
 
         if (!prompt) {
             return res.status(400).json({ error: 'Falta el contenido de consulta' });
@@ -986,6 +1076,9 @@ app.post('/api/v1/auth/register', async (req, res) => {
             therapist: safeTherapist
         });
     } catch (err) {
+        if (err.statusCode === 409 || (err.message && err.message.includes('Conflicto'))) {
+            return res.status(409).json({ error: err.message });
+        }
         handleClinicalError(res, err, 'Error registrando terapeuta');
     }
 });
@@ -1008,16 +1101,44 @@ app.post('/api/v1/auth/login', rateLimitMiddleware('therapist_login', 5, 15 * 60
         const syncData = await db.getTherapistCloudSync(therapist.id);
         await recordAuditLog(therapist.id, null, 'LOGIN_SUCCESS', 'AUTH', req);
 
+        const safeTherapist = { ...therapist };
+        delete safeTherapist.password_hash;
+        delete safeTherapist.passwordHash;
+
         res.json({
             status: 'ok',
             authenticated: true,
             sessionToken,
-            therapist,
+            therapist: safeTherapist,
             cloudData: syncData ? syncData.payload : null,
             lastSynced: syncData ? syncData.updatedAt : null
         });
     } catch (err) {
         handleClinicalError(res, err, 'Error en login de terapeuta');
+    }
+});
+
+// Cierre de sesión y revocación inmediata de token de sesión (OWASP Session Management)
+app.post('/api/v1/auth/logout', requireTherapistAuth, async (req, res) => {
+    try {
+        const authHeader = req.headers['authorization'];
+        let token = null;
+        if (authHeader && authHeader.startsWith('Bearer ')) {
+            token = authHeader.substring(7).trim();
+        } else if (req.query?.sessionToken) {
+            token = req.query.sessionToken;
+        } else if (req.headers['x-session-token']) {
+            token = req.headers['x-session-token'];
+        }
+
+        if (token) {
+            revokeSessionToken(token);
+        }
+
+        await recordAuditLog(req.therapistId, null, 'LOGOUT_SUCCESS', 'AUTH', req);
+        res.json({ status: 'ok', message: 'Sesión revocada exitosamente.' });
+    } catch (err) {
+        handleClinicalError(res, err, 'Error en cierre de sesión');
     }
 });
 
@@ -1053,7 +1174,7 @@ app.post('/api/v1/auth/forgot-password', rateLimitMiddleware('forgot_password', 
     }
 });
 
-// Restablecimiento de contraseña con código verificado
+// Restablecimiento de contraseña con código verificado e invalidación inmediata de sesiones previas
 app.post('/api/v1/auth/reset-password', rateLimitMiddleware('reset_password', 5, 15 * 60 * 1000), async (req, res) => {
     try {
         const { email, code, newPasswordHash } = req.body;
@@ -1063,7 +1184,14 @@ app.post('/api/v1/auth/reset-password', rateLimitMiddleware('reset_password', 5,
 
         const cleanEmail = email.trim().toLowerCase();
         await db.verifyAndResetPassword(cleanEmail, code, newPasswordHash);
-        await recordAuditLog(null, null, 'PASSWORD_RESET_SUCCESS', 'AUTH', req);
+
+        // Revocar inmediatamente todas las sesiones existentes del terapeuta para mitigar secuestro de sesión
+        const therapist = await db.findTherapistByEmail(cleanEmail);
+        if (therapist && therapist.id) {
+            revokeAllTherapistSessions(therapist.id);
+        }
+
+        await recordAuditLog(therapist?.id || null, null, 'PASSWORD_RESET_SUCCESS', 'AUTH', req);
         res.json({
             status: 'ok',
             message: 'Contraseña actualizada exitosamente en la base de datos.'

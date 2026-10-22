@@ -6029,7 +6029,7 @@ const NoteDraftManager = {
         }
     },
 
-    saveDraft() {
+    async saveDraft() {
         const modal = document.getElementById('noteModal');
         if (!modal || !modal.classList.contains('active')) return;
 
@@ -6063,21 +6063,28 @@ const NoteDraftManager = {
         };
 
         try {
-            localStorage.setItem('psico_active_note_draft', JSON.stringify(draft));
+            const encryptedDraft = await encryptData(draft);
+            localStorage.setItem('psico_active_note_draft', encryptedDraft);
             const indicator = document.getElementById('noteAutosaveIndicator');
             if (indicator) {
                 const timeStr = new Date().toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
-                indicator.innerHTML = `<i class="fas fa-check-circle" style="color:var(--accent-primary);"></i> Borrador guardado localmente a las ${timeStr}`;
+                indicator.innerHTML = `<i class="fas fa-check-circle" style="color:var(--accent-primary);"></i> Borrador cifrado guardado a las ${timeStr}`;
             }
         } catch (e) {}
     },
 
-    checkExistingDraft() {
+    async checkExistingDraft() {
         try {
             const raw = localStorage.getItem('psico_active_note_draft');
             const banner = document.getElementById('noteDraftRecoveryBanner');
             if (!raw || !banner) return;
-            const draft = JSON.parse(raw);
+            let draft = null;
+            try {
+                draft = await decryptData(raw);
+            } catch {
+                draft = JSON.parse(raw);
+            }
+            if (!draft || typeof draft !== 'object') return;
             const isFresh = (Date.now() - draft.timestamp) < (24 * 60 * 60 * 1000);
             const currentNoteId = document.getElementById('noteId')?.value;
             if (isFresh && (!currentNoteId || currentNoteId === draft.noteId)) {
@@ -6088,11 +6095,17 @@ const NoteDraftManager = {
         } catch (e) {}
     },
 
-    restoreDraft() {
+    async restoreDraft() {
         try {
             const raw = localStorage.getItem('psico_active_note_draft');
             if (!raw) return;
-            const draft = JSON.parse(raw);
+            let draft = null;
+            try {
+                draft = await decryptData(raw);
+            } catch {
+                draft = JSON.parse(raw);
+            }
+            if (!draft || typeof draft !== 'object') return;
             if (draft.patientId) document.getElementById('notePatient').value = draft.patientId;
             if (draft.date) document.getElementById('noteDate').value = draft.date;
             if (draft.title) document.getElementById('noteTitle').value = draft.title;
@@ -6570,19 +6583,26 @@ function applyAiSoapEncoded(encoded) {
     }
 }
 
-function openApiKeyConfigModal() {
-    const input = document.getElementById('geminiApiKeyInput');
-    if (input) input.value = ClinicalAI.apiKey || '';
+async function openApiKeyConfigModal() {
     openModal('apiKeyModal');
+    const indicator = document.getElementById('geminiServerStatusIndicator');
+    if (!indicator) return;
+    indicator.innerHTML = '<i class="fas fa-circle-notch fa-spin"></i> Consultando estado del servicio en el servidor...';
+    try {
+        const status = await ClinicalAI.checkStatus();
+        if (status && status.available) {
+            indicator.innerHTML = '<span style="color:#10b981;font-weight:600;"><i class="fas fa-check-circle"></i> Conectado y Activo en Servidor</span> &nbsp;<small style="color:var(--text-secondary);">(' + (status.model || 'gemini-2.5-flash') + ')</small>';
+        } else {
+            indicator.innerHTML = '<span style="color:#ef4444;font-weight:600;"><i class="fas fa-exclamation-triangle"></i> No configurado en servidor</span> &nbsp;<small style="color:var(--text-secondary);">(Configure GEMINI_API_KEY en el entorno del servidor)</small>';
+        }
+    } catch {
+        indicator.innerHTML = '<span style="color:#f59e0b;"><i class="fas fa-info-circle"></i> No se pudo consultar el servidor en este momento.</span>';
+    }
 }
 
 function saveGeminiKeyFromModal() {
-    const input = document.getElementById('geminiApiKeyInput');
-    if (input) {
-        ClinicalAI.saveApiKey(input.value);
-        showToast('Clave Gemini API guardada con éxito', 'success');
-        closeModal('apiKeyModal');
-    }
+    ClinicalAI.purgeLegacyStorage();
+    closeModal('apiKeyModal');
 }
 
 function formatMarkdownResponse(text) {
