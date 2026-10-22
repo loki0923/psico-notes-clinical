@@ -1,4 +1,4 @@
-const CACHE_VERSION = 'psico-v6.7.3';
+const CACHE_VERSION = 'psico-v6.8.4';
 const PRECACHE_ASSETS = [
   './',
   './index.html',
@@ -44,7 +44,7 @@ self.addEventListener('activate', (e) => {
   self.clients.claim();
 });
 
-// Fetch: estrategia stale-while-revalidate con exclusión de endpoints dinámicos de API
+// Fetch: estrategia Network-First con fallback a Caché para reflejar de inmediato actualizaciones
 self.addEventListener('fetch', (e) => {
   if (e.request.method !== 'GET') return;
   
@@ -61,16 +61,12 @@ self.addEventListener('fetch', (e) => {
   }
 
   e.respondWith(
-    caches.match(e.request).then((cached) => {
-      const fetchPromise = fetch(e.request).then((response) => {
-        if (response && response.ok && response.type === 'basic') {
-          const clone = response.clone();
-          caches.open(CACHE_VERSION).then((cache) => cache.put(e.request, clone));
-        }
-        return response;
-      }).catch(() => cached);
-      
-      return cached || fetchPromise;
-    })
+    fetch(e.request).then((response) => {
+      if (response && response.ok && response.type === 'basic') {
+        const clone = response.clone();
+        caches.open(CACHE_VERSION).then((cache) => cache.put(e.request, clone));
+      }
+      return response;
+    }).catch(() => caches.match(e.request))
   );
 });

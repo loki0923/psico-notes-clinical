@@ -1467,7 +1467,15 @@ function navigateTo(view) {
     if (view === 'appointments') { renderCalendar(); renderAppointments(); }
     if (view === 'notes') renderNotes();
     if (view === 'scales' && typeof renderScalesView === 'function') renderScalesView();
-    if (view === 'finance' && typeof renderFinanceView === 'function') renderFinanceView();
+    if (view === 'finance') {
+        if (typeof renderFinanceView === 'function') {
+            try {
+                renderFinanceView();
+            } catch (err) {
+                console.error('[App] Error al invocar renderFinanceView:', err);
+            }
+        }
+    }
     if (view === 'billing' && typeof openInvoicesList === 'function') openInvoicesList();
     if (view === 'stats') updateStats();
 }

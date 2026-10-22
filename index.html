@@ -21,7 +21,7 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Playfair+Display:wght@500;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <link rel="stylesheet" href="styles.css?v=6.7.3">
+    <link rel="stylesheet" href="styles.css?v=6.8.4">
 </head>
 <body>
 
@@ -612,7 +612,13 @@
 
         <!-- FINANCE -->
         <div class="view" id="financeView">
-            <div id="financeContent"></div>
+            <div id="financeContent">
+                <div style="display:flex;flex-direction:column;align-items:center;justify-content:center;padding:48px 24px;text-align:center;color:var(--text-tertiary);">
+                    <i class="fas fa-wallet" style="font-size:36px;color:var(--accent-primary);margin-bottom:16px;"></i>
+                    <h3 style="font-size:16px;color:var(--text-primary);margin-bottom:6px;">Cargando Finanzas...</h3>
+                    <p style="font-size:13px;color:var(--text-secondary);margin:0;">Sincronizando transacciones, tarifas y metas clínicas</p>
+                </div>
+            </div>
         </div>
 
         <!-- BILLING -->
@@ -1990,18 +1996,18 @@
 <script src="psychoed.js"></script>
 <script src="reports.js"></script>
 <script src="vademecum.js"></script>
-<script src="app.js?v=6.7.3"></script>
-<script src="scales.js?v=6.7.3"></script>
-<script src="finance.js?v=6.7.3"></script>
-<script src="adm.js?v=6.7.3"></script>
-<script src="session-reminders.js?v=6.7.3"></script>
-<script src="backup.js?v=6.7.3"></script>
-<script src="crisis-protocol.js?v=6.7.3"></script>
-<script src="consentimiento.js?v=6.7.3"></script>
-<script src="historia-clinica.js?v=6.7.3"></script>
+<script src="app.js?v=6.8.4"></script>
+<script src="scales.js?v=6.8.4"></script>
+<script src="finance.js?v=6.8.4"></script>
+<script src="adm.js?v=6.8.4"></script>
+<script src="session-reminders.js?v=6.8.4"></script>
+<script src="backup.js?v=6.8.4"></script>
+<script src="crisis-protocol.js?v=6.8.4"></script>
+<script src="consentimiento.js?v=6.8.4"></script>
+<script src="historia-clinica.js?v=6.8.4"></script>
 <script>
 if ('serviceWorker' in navigator && (window.location.protocol === 'http:' || window.location.protocol === 'https:')) {
-    navigator.serviceWorker.register('/sw.js?v=6.7.3')
+    navigator.serviceWorker.register('/sw.js?v=6.8.4')
         .then(() => console.log('✅ ServiceWorker registrado'))
         .catch(err => console.log('SW Error:', err));
 }

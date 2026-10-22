@@ -177,18 +177,31 @@ function getFinanceTransactions() {
         if (!stored && key !== 'psico_finance_transactions_anon') {
             stored = _storageGet('psico_finance_transactions_anon');
         }
-        if (stored) return JSON.parse(stored);
+        if (stored) {
+            const parsed = JSON.parse(stored);
+            if (Array.isArray(parsed)) return parsed;
+        }
     } catch { return []; }
     return [];
 }
 
 function saveFinanceTransactions(txs) {
     try {
-        _storageSet(getFinanceStorageKey('transactions'), JSON.stringify(txs));
+        _storageSet(getFinanceStorageKey('transactions'), JSON.stringify(Array.isArray(txs) ? txs : []));
     } catch (e) {
         console.error('Error guardando transacciones financieras:', e);
     }
 }
+
+const DEFAULT_FINANCE_CATEGORIES = [
+    'Alquiler Consultorio',
+    'Supervisión Clínica',
+    'Materiales y Test',
+    'Formación y Cursos',
+    'Servicios Públicos',
+    'Plataformas Online',
+    'Otros Egresos'
+];
 
 function getFinanceCategories() {
     try {
@@ -197,14 +210,17 @@ function getFinanceCategories() {
         if (!stored && key !== 'psico_finance_categories_anon') {
             stored = _storageGet('psico_finance_categories_anon');
         }
-        if (stored) return JSON.parse(stored);
+        if (stored) {
+            const parsed = JSON.parse(stored);
+            if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+        }
     } catch {}
-    return ['Alquiler Consultorio', 'Supervisión Clínica', 'Materiales y Test', 'Formación y Cursos', 'Servicios Públicos', 'Plataformas Online', 'Otros Egresos'];
+    return [...DEFAULT_FINANCE_CATEGORIES];
 }
 
 function saveFinanceCategories(cats) {
     try {
-        _storageSet(getFinanceStorageKey('categories'), JSON.stringify(cats));
+        _storageSet(getFinanceStorageKey('categories'), JSON.stringify(Array.isArray(cats) ? cats : DEFAULT_FINANCE_CATEGORIES));
     } catch (e) {
         console.error('Error guardando categorías financieras:', e);
     }
@@ -213,6 +229,14 @@ function saveFinanceCategories(cats) {
 // -------------------------------------------------------------
 // TARIFAS POR TIEMPO Y SESIÓN
 // -------------------------------------------------------------
+
+const DEFAULT_FINANCE_RATES = [
+    { id: 'rate_30', durationMinutes: 30, title: 'Consulta Corta / Seguimiento', amount: 30.00, currency: 'USD', description: 'Sesión de 30 minutos de revisión o seguimiento breve', isDefault: false },
+    { id: 'rate_45', durationMinutes: 45, title: 'Consulta Estándar Breve', amount: 40.00, currency: 'USD', description: 'Sesión individual de 45 minutos', isDefault: false },
+    { id: 'rate_50', durationMinutes: 50, title: 'Consulta Psicoterapéutica Individual', amount: 45.00, currency: 'USD', description: 'Sesión psicoterapéutica estándar de 50 minutos', isDefault: true },
+    { id: 'rate_60', durationMinutes: 60, title: 'Consulta Completa / Pareja', amount: 55.00, currency: 'USD', description: 'Sesión de 60 minutos individual o de pareja', isDefault: false },
+    { id: 'rate_90', durationMinutes: 90, title: 'Evaluación Inicial / Familia', amount: 80.00, currency: 'USD', description: 'Sesión extendida de 90 minutos para entrevistas profundas', isDefault: false }
+];
 
 function getFinanceRates() {
     try {
@@ -226,18 +250,12 @@ function getFinanceRates() {
             if (Array.isArray(parsed) && parsed.length > 0) return parsed;
         }
     } catch {}
-    return [
-        { id: 'rate_30', durationMinutes: 30, title: 'Consulta Corta / Seguimiento', amount: 30.00, currency: 'USD', description: 'Sesión de 30 minutos de revisión o seguimiento breve', isDefault: false },
-        { id: 'rate_45', durationMinutes: 45, title: 'Consulta Estándar Breve', amount: 40.00, currency: 'USD', description: 'Sesión individual de 45 minutos', isDefault: false },
-        { id: 'rate_50', durationMinutes: 50, title: 'Consulta Psicoterapéutica Individual', amount: 45.00, currency: 'USD', description: 'Sesión psicoterapéutica estándar de 50 minutos', isDefault: true },
-        { id: 'rate_60', durationMinutes: 60, title: 'Consulta Completa / Pareja', amount: 55.00, currency: 'USD', description: 'Sesión de 60 minutos individual o de pareja', isDefault: false },
-        { id: 'rate_90', durationMinutes: 90, title: 'Evaluación Inicial / Familia', amount: 80.00, currency: 'USD', description: 'Sesión extendida de 90 minutos para entrevistas profundas', isDefault: false }
-    ];
+    return JSON.parse(JSON.stringify(DEFAULT_FINANCE_RATES));
 }
 
 function saveFinanceRates(rates) {
     try {
-        _storageSet(getFinanceStorageKey('rates'), JSON.stringify(rates));
+        _storageSet(getFinanceStorageKey('rates'), JSON.stringify(Array.isArray(rates) ? rates : DEFAULT_FINANCE_RATES));
     } catch (e) {
         console.error('Error guardando tarifas de consulta:', e);
     }
@@ -246,6 +264,12 @@ function saveFinanceRates(rates) {
 // -------------------------------------------------------------
 // METAS FINANCIERAS
 // -------------------------------------------------------------
+
+const DEFAULT_FINANCE_GOALS = [
+    { id: 'goal_monthly_income', title: 'Meta de Ingresos Mensuales', targetAmount: 2000.00, period: 'monthly', category: 'income', description: 'Honorarios brutos del mes en curso' },
+    { id: 'goal_sessions_month', title: 'Meta de Sesiones Atendidas', targetAmount: 40, unit: 'sesiones', period: 'monthly', category: 'sessions', description: 'Consultas atendidas y cobradas en el mes' },
+    { id: 'goal_savings_fund', title: 'Fondo de Reserva del Consultorio', targetAmount: 1000.00, period: 'total', category: 'balance', description: 'Ahorro acumulado o fondo operativo de emergencia' }
+];
 
 function getFinanceGoals() {
     try {
@@ -259,16 +283,12 @@ function getFinanceGoals() {
             if (Array.isArray(parsed) && parsed.length > 0) return parsed;
         }
     } catch {}
-    return [
-        { id: 'goal_monthly_income', title: 'Meta de Ingresos Mensuales', targetAmount: 2000.00, period: 'monthly', category: 'income', description: 'Honorarios brutos del mes en curso' },
-        { id: 'goal_sessions_month', title: 'Meta de Sesiones Atendidas', targetAmount: 40, unit: 'sesiones', period: 'monthly', category: 'sessions', description: 'Consultas atendidas y cobradas en el mes' },
-        { id: 'goal_savings_fund', title: 'Fondo de Reserva del Consultorio', targetAmount: 1000.00, period: 'total', category: 'balance', description: 'Ahorro acumulado o fondo operativo de emergencia' }
-    ];
+    return JSON.parse(JSON.stringify(DEFAULT_FINANCE_GOALS));
 }
 
 function saveFinanceGoals(goals) {
     try {
-        _storageSet(getFinanceStorageKey('goals'), JSON.stringify(goals));
+        _storageSet(getFinanceStorageKey('goals'), JSON.stringify(Array.isArray(goals) ? goals : DEFAULT_FINANCE_GOALS));
     } catch (e) {
         console.error('Error guardando metas financieras:', e);
     }
@@ -330,87 +350,114 @@ function renderFinanceView() {
     const container = document.getElementById('financeContent');
     if (!container) return;
 
-    const _scope = (typeof window !== 'undefined') ? window : (typeof globalThis !== 'undefined' ? globalThis : {});
-    if (!_scope._financeActiveTab) {
-        _scope._financeActiveTab = 'transactions';
-    }
-    const currentTab = _scope._financeActiveTab;
+    try {
+        const _scope = (typeof window !== 'undefined') ? window : (typeof globalThis !== 'undefined' ? globalThis : {});
+        if (!_scope._financeActiveTab) {
+            _scope._financeActiveTab = 'transactions';
+        }
+        const currentTab = _scope._financeActiveTab;
 
-    const txs = getFinanceTransactions();
-    const categories = getFinanceCategories();
+        const txs = getFinanceTransactions() || [];
+        const categories = getFinanceCategories() || [];
 
-    let totalIncome = 0;
-    let totalExpense = 0;
+        let totalIncome = 0;
+        let totalExpense = 0;
 
-    txs.forEach(t => {
-        const val = roundCurrency(t.amount);
-        if (t.type === 'income') totalIncome = roundCurrency(totalIncome + val);
-        else totalExpense = roundCurrency(totalExpense + val);
-    });
+        (Array.isArray(txs) ? txs : []).forEach(t => {
+            if (!t) return;
+            const val = roundCurrency(t.amount);
+            if (t.type === 'income') totalIncome = roundCurrency(totalIncome + val);
+            else totalExpense = roundCurrency(totalExpense + val);
+        });
 
-    const netBalance = roundCurrency(totalIncome - totalExpense);
+        const netBalance = roundCurrency(totalIncome - totalExpense);
+        const pendingDebts = getPendingPatientDebts();
+        const pendingCount = Array.isArray(pendingDebts) ? pendingDebts.length : 0;
 
-    container.innerHTML = `
-        <div class="page-header">
-            <div class="page-header-left">
-                <h1 class="page-title">Finanzas de la Consulta</h1>
-                <p class="page-subtitle">Control de ingresos, egresos, tarifas por tiempo y metas de facturación</p>
-            </div>
-            <div style="display:flex;gap:8px;flex-wrap:wrap;">
-                ${currentTab === 'transactions' ? `
-                    <button class="btn-secondary" onclick="openCategoriesModal()">
-                        <i class="fas fa-tags"></i> Categorías
-                    </button>
-                    <button class="btn-primary" onclick="openTransactionModal('income')">
-                        <i class="fas fa-plus"></i> Ingreso
-                    </button>
-                    <button class="btn-secondary" onclick="openTransactionModal('expense')" style="background:#e16259;color:white;border:none;">
-                        <i class="fas fa-minus"></i> Egreso
-                    </button>
-                    ${txs.length > 0 ? `
-                        <button class="btn-secondary" onclick="clearAllFinanceTransactions()" style="color:#e16259;border-color:rgba(225,98,89,0.3);" title="Vaciar todo el historial financiero">
-                            <i class="fas fa-trash-alt"></i> Vaciar Registro
+        let tabHtml = '';
+        if (currentTab === 'transactions') {
+            tabHtml = renderTransactionsTabHtml(txs, totalIncome, totalExpense, netBalance);
+        } else if (currentTab === 'debts') {
+            tabHtml = renderDebtsTabHtml();
+        } else if (currentTab === 'goals') {
+            tabHtml = renderGoalsTabHtml(txs, netBalance);
+        } else {
+            tabHtml = renderRatesTabHtml();
+        }
+
+        container.innerHTML = `
+            <div class="page-header">
+                <div class="page-header-left">
+                    <h1 class="page-title">Finanzas de la Consulta</h1>
+                    <p class="page-subtitle">Control de ingresos, egresos, tarifas por tiempo y metas de facturación</p>
+                </div>
+                <div style="display:flex;gap:8px;flex-wrap:wrap;">
+                    ${currentTab === 'transactions' ? `
+                        <button class="btn-secondary" onclick="openCategoriesModal()">
+                            <i class="fas fa-tags"></i> Categorías
                         </button>
-                    ` : ''}
-                ` : currentTab === 'debts' ? `
-                    <button class="btn-primary" onclick="settleAllPatientDebtsGlobal()" style="background:#4dab87;border-none;">
-                        <i class="fas fa-check-double"></i> Saldar Todas las Deudas
-                    </button>
-                ` : currentTab === 'goals' ? `
-                    <button class="btn-primary" onclick="openGoalModal()">
-                        <i class="fas fa-bullseye"></i> Nueva Meta Financiera
-                    </button>
-                ` : `
-                    <button class="btn-primary" onclick="openRateModal()">
-                        <i class="fas fa-plus"></i> Añadir Tarifa por Tiempo
-                    </button>
-                `}
+                        <button class="btn-primary" onclick="openTransactionModal('income')">
+                            <i class="fas fa-plus"></i> Ingreso
+                        </button>
+                        <button class="btn-secondary" onclick="openTransactionModal('expense')" style="background:#e16259;color:white;border:none;">
+                            <i class="fas fa-minus"></i> Egreso
+                        </button>
+                        ${(Array.isArray(txs) && txs.length > 0) ? `
+                            <button class="btn-secondary" onclick="clearAllFinanceTransactions()" style="color:#e16259;border-color:rgba(225,98,89,0.3);" title="Vaciar todo el historial financiero">
+                                <i class="fas fa-trash-alt"></i> Vaciar Registro
+                            </button>
+                        ` : ''}
+                    ` : currentTab === 'debts' ? `
+                        <button class="btn-primary" onclick="settleAllPatientDebtsGlobal()" style="background:#4dab87;border:none;">
+                            <i class="fas fa-check-double"></i> Saldar Todas las Deudas
+                        </button>
+                    ` : currentTab === 'goals' ? `
+                        <button class="btn-primary" onclick="openGoalModal()">
+                            <i class="fas fa-bullseye"></i> Nueva Meta Financiera
+                        </button>
+                    ` : `
+                        <button class="btn-primary" onclick="openRateModal()">
+                            <i class="fas fa-plus"></i> Añadir Tarifa por Tiempo
+                        </button>
+                    `}
+                </div>
             </div>
-        </div>
 
-        <div class="finance-subtabs">
-            <button class="finance-tab-btn ${currentTab === 'transactions' ? 'active' : ''}" onclick="switchFinanceTab('transactions')">
-                <i class="fas fa-receipt"></i> Transacciones y Registro
-            </button>
-            <button class="finance-tab-btn ${currentTab === 'debts' ? 'active' : ''}" onclick="switchFinanceTab('debts')">
-                <i class="fas fa-hand-holding-usd"></i> Cuentas por Cobrar
-                ${getPendingPatientDebts().length > 0 ? `<span class="nav-badge" style="background:#e16259;color:white;margin-left:6px;">${getPendingPatientDebts().length}</span>` : ''}
-            </button>
-            <button class="finance-tab-btn ${currentTab === 'goals' ? 'active' : ''}" onclick="switchFinanceTab('goals')">
-                <i class="fas fa-bullseye"></i> Metas Financieras
-            </button>
-            <button class="finance-tab-btn ${currentTab === 'rates' ? 'active' : ''}" onclick="switchFinanceTab('rates')">
-                <i class="fas fa-stopwatch"></i> Tarifas por Tiempo de Consulta
-            </button>
-        </div>
+            <div class="finance-subtabs">
+                <button class="finance-tab-btn ${currentTab === 'transactions' ? 'active' : ''}" onclick="switchFinanceTab('transactions')">
+                    <i class="fas fa-receipt"></i> Transacciones y Registro
+                </button>
+                <button class="finance-tab-btn ${currentTab === 'debts' ? 'active' : ''}" onclick="switchFinanceTab('debts')">
+                    <i class="fas fa-hand-holding-usd"></i> Cuentas por Cobrar
+                    ${pendingCount > 0 ? `<span class="nav-badge" style="background:#e16259;color:white;margin-left:6px;">${pendingCount}</span>` : ''}
+                </button>
+                <button class="finance-tab-btn ${currentTab === 'goals' ? 'active' : ''}" onclick="switchFinanceTab('goals')">
+                    <i class="fas fa-bullseye"></i> Metas Financieras
+                </button>
+                <button class="finance-tab-btn ${currentTab === 'rates' ? 'active' : ''}" onclick="switchFinanceTab('rates')">
+                    <i class="fas fa-stopwatch"></i> Tarifas por Tiempo de Consulta
+                </button>
+            </div>
 
-        <div id="financeTabContent">
-            ${currentTab === 'transactions' ? renderTransactionsTabHtml(txs, totalIncome, totalExpense, netBalance) :
-              currentTab === 'debts' ? renderDebtsTabHtml() :
-              currentTab === 'goals' ? renderGoalsTabHtml(txs, netBalance) :
-              renderRatesTabHtml()}
-        </div>
-    `;
+            <div id="financeTabContent">
+                ${tabHtml}
+            </div>
+        `;
+    } catch (err) {
+        console.error('[Finance] Error al renderizar vista de finanzas:', err);
+        container.innerHTML = `
+            <div class="empty-state" style="padding:48px 20px;text-align:center;">
+                <div class="empty-icon">📊</div>
+                <h3 style="margin-bottom:8px;color:var(--text-primary);">Módulo de Finanzas</h3>
+                <p style="color:var(--text-secondary);max-width:500px;margin:0 auto 16px auto;">
+                    Se ha recuperado el estado operativo del módulo contable.
+                </p>
+                <button class="btn-primary" onclick="switchFinanceTab('transactions')">
+                    <i class="fas fa-sync-alt"></i> Actualizar Finanzas
+                </button>
+            </div>
+        `;
+    }
 }
 
 function switchFinanceTab(tab) {
@@ -424,10 +471,13 @@ function switchFinanceTab(tab) {
 // -------------------------------------------------------------
 
 function renderTransactionsTabHtml(txs, totalIncome, totalExpense, netBalance) {
-    const filterType = window._financeFilterType || 'all';
-    const searchText = (window._financeSearchText || '').toLowerCase();
+    const _scope = (typeof window !== 'undefined') ? window : (typeof globalThis !== 'undefined' ? globalThis : {});
+    const filterType = _scope._financeFilterType || 'all';
+    const searchText = (_scope._financeSearchText || '').toLowerCase();
+    const safeTxs = Array.isArray(txs) ? txs : [];
 
-    let filteredTxs = txs.filter(t => {
+    let filteredTxs = safeTxs.filter(t => {
+        if (!t) return false;
         if (filterType === 'income' && t.type !== 'income') return false;
         if (filterType === 'expense' && t.type !== 'expense') return false;
         if (searchText) {
@@ -438,13 +488,17 @@ function renderTransactionsTabHtml(txs, totalIncome, totalExpense, netBalance) {
         return true;
     });
 
+    const displayIncome = Number(totalIncome || 0).toFixed(2);
+    const displayExpense = Number(totalExpense || 0).toFixed(2);
+    const displayNet = Number(netBalance || 0).toFixed(2);
+
     return `
         <div class="summary-cards">
             <div class="summary-card">
                 <div class="summary-icon">💵</div>
                 <div class="summary-info">
                     <h3>Ingresos Totales</h3>
-                    <div class="summary-value" style="color:#4dab87;">$${totalIncome.toFixed(2)}</div>
+                    <div class="summary-value" style="color:#4dab87;">$${displayIncome}</div>
                     <div class="summary-label">Sesiones y honorarios</div>
                 </div>
             </div>
@@ -452,7 +506,7 @@ function renderTransactionsTabHtml(txs, totalIncome, totalExpense, netBalance) {
                 <div class="summary-icon">💸</div>
                 <div class="summary-info">
                     <h3>Egresos Totales</h3>
-                    <div class="summary-value" style="color:#e16259;">$${totalExpense.toFixed(2)}</div>
+                    <div class="summary-value" style="color:#e16259;">$${displayExpense}</div>
                     <div class="summary-label">Gastos operativos</div>
                 </div>
             </div>
@@ -460,7 +514,7 @@ function renderTransactionsTabHtml(txs, totalIncome, totalExpense, netBalance) {
                 <div class="summary-icon">⚖️</div>
                 <div class="summary-info">
                     <h3>Balance Neto</h3>
-                    <div class="summary-value" style="color:${netBalance >= 0 ? 'var(--text-primary)' : '#e16259'};">$${netBalance.toFixed(2)}</div>
+                    <div class="summary-value" style="color:${(netBalance || 0) >= 0 ? 'var(--text-primary)' : '#e16259'};">$${displayNet}</div>
                     <div class="summary-label">Rentabilidad de la consulta</div>
                 </div>
             </div>
@@ -470,7 +524,7 @@ function renderTransactionsTabHtml(txs, totalIncome, totalExpense, netBalance) {
             <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;flex-wrap:wrap;gap:12px;">
                 <h2 class="section-title" style="margin:0;"><i class="fas fa-list"></i> Historial de Transacciones (${filteredTxs.length})</h2>
                 <div style="display:flex;gap:8px;align-items:center;">
-                    <input type="text" placeholder="Buscar concepto..." value="${window._financeSearchText || ''}" oninput="setFinanceSearchText(this.value)" style="padding:6px 12px;border:1px solid var(--border-primary);border-radius:var(--radius-sm);background:var(--bg-card);color:var(--text-primary);font-size:13px;">
+                    <input type="text" placeholder="Buscar concepto..." value="${_scope._financeSearchText || ''}" oninput="setFinanceSearchText(this.value)" style="padding:6px 12px;border:1px solid var(--border-primary);border-radius:var(--radius-sm);background:var(--bg-card);color:var(--text-primary);font-size:13px;">
                     <select onchange="setFinanceFilterType(this.value)" style="padding:6px 10px;border:1px solid var(--border-primary);border-radius:var(--radius-sm);background:var(--bg-card);color:var(--text-primary);font-size:13px;">
                         <option value="all" ${filterType === 'all' ? 'selected' : ''}>Todos</option>
                         <option value="income" ${filterType === 'income' ? 'selected' : ''}>Solo Ingresos 🟢</option>
@@ -482,11 +536,13 @@ function renderTransactionsTabHtml(txs, totalIncome, totalExpense, netBalance) {
             ${filteredTxs.length === 0 ? `
                 <div class="empty-state">
                     <div class="empty-icon">📊</div>
-                    <p>${txs.length === 0 ? 'No hay transacciones financieras registradas' : 'No se encontraron transacciones con el filtro actual'}</p>
+                    <p>${safeTxs.length === 0 ? 'No hay transacciones financieras registradas' : 'No se encontraron transacciones con el filtro actual'}</p>
                 </div>
             ` : `
                 <div style="display:flex;flex-direction:column;gap:8px;">
-                    ${filteredTxs.sort((a,b) => new Date(b.date) - new Date(a.date)).map(t => `
+                    ${filteredTxs.slice().sort((a,b) => new Date(b.date || 0) - new Date(a.date || 0)).map(t => {
+                        const amt = Number(t.amount || 0).toFixed(2);
+                        return `
                         <div style="padding:12px 16px;background:var(--bg-secondary);border-radius:var(--radius-md);display:flex;justify-content:space-between;align-items:center;gap:12px;">
                             <div style="display:flex;align-items:center;gap:12px;min-width:0;flex:1;">
                                 <div style="font-size:20px;flex-shrink:0;">${t.type === 'income' ? '🟢' : '🔴'}</div>
@@ -497,13 +553,14 @@ function renderTransactionsTabHtml(txs, totalIncome, totalExpense, netBalance) {
                             </div>
                             <div style="display:flex;align-items:center;gap:12px;flex-shrink:0;">
                                 <div style="font-size:16px;font-weight:700;color:${t.type === 'income' ? '#4dab87' : '#e16259'};">
-                                    ${t.type === 'income' ? '+' : '-'}$${parseFloat(t.amount).toFixed(2)}
+                                    ${t.type === 'income' ? '+' : '-'}$${amt}
                                 </div>
                                 <button class="btn-icon" onclick="openEditTransactionModal('${t.id}')" title="Editar Transacción"><i class="fas fa-edit"></i></button>
                                 <button class="btn-icon" style="color:#e16259;" onclick="deleteTransaction('${t.id}')" title="Eliminar Transacción"><i class="fas fa-trash"></i></button>
                             </div>
                         </div>
-                    `).join('')}
+                    `;
+                    }).join('')}
                 </div>
             `}
         </div>
@@ -626,7 +683,7 @@ function renderGoalsTabHtml(txs, netBalance) {
                                 <div style="display:flex;justify-content:space-between;align-items:baseline;font-size:13px;">
                                     <span style="color:var(--text-secondary);">Progreso:</span>
                                     <span style="font-weight:700;color:${g.pct >= 100 ? '#27ae60' : 'var(--text-primary)'}; font-size:15px;">
-                                        ${g.isSessionsUnit ? `${Math.round(g.currentVal)} de ${g.targetAmount} sesiones` : `$${g.currentVal.toFixed(2)} de $${parseFloat(g.targetAmount).toFixed(2)}`}
+                                        ${g.isSessionsUnit ? `${Math.round(g.currentVal)} de ${g.targetAmount} sesiones` : `$${Number(g.currentVal || 0).toFixed(2)} de $${Number(g.targetAmount || 0).toFixed(2)}`}
                                     </span>
                                 </div>
 
@@ -636,7 +693,7 @@ function renderGoalsTabHtml(txs, netBalance) {
 
                                 <div style="display:flex;justify-content:space-between;align-items:center;font-size:12px;color:var(--text-tertiary);">
                                     <span>${g.pct}% Alcanzado</span>
-                                    <span>${g.pct >= 100 ? '🎉 ¡Meta Cumplida!' : g.isSessionsUnit ? `Faltan ${Math.max(0, Math.round(g.targetAmount - g.currentVal))} sesiones` : `Faltan $${Math.max(0, g.targetAmount - g.currentVal).toFixed(2)}`}</span>
+                                    <span>${g.pct >= 100 ? '🎉 ¡Meta Cumplida!' : g.isSessionsUnit ? `Faltan ${Math.max(0, Math.round(Number(g.targetAmount || 0) - Number(g.currentVal || 0)))} sesiones` : `Faltan $${Number(Math.max(0, Number(g.targetAmount || 0) - Number(g.currentVal || 0))).toFixed(2)}`}</span>
                                 </div>
                             </div>
                         </div>
@@ -652,7 +709,9 @@ function openGoalModal(goalId = null) {
     const g = goalId ? goals.find(item => String(item.id) === String(goalId)) : null;
 
     const body = document.getElementById('financeGoalModalBody');
-    document.getElementById('financeGoalModalTitle').textContent = g ? 'Editar Meta Financiera' : 'Nueva Meta Financiera';
+    if (!body) return;
+    const titleEl = document.getElementById('financeGoalModalTitle');
+    if (titleEl) titleEl.textContent = g ? 'Editar Meta Financiera' : 'Nueva Meta Financiera';
 
     body.innerHTML = `
         <form onsubmit="handleGoalSubmit(event, '${g ? g.id : ''}')" class="modal-form">
@@ -773,7 +832,7 @@ function renderRatesTabHtml() {
                 </div>
             ` : `
                 <div style="display:grid;grid-template-columns:repeat(auto-fit, minmax(min(100%, 280px), 1fr));gap:16px;">
-                    ${rates.sort((a,b) => a.durationMinutes - b.durationMinutes).map(r => `
+                    ${(Array.isArray(rates) ? rates : []).slice().sort((a,b) => (Number(a.durationMinutes) || 0) - (Number(b.durationMinutes) || 0)).map(r => `
                         <div class="finance-rate-card ${r.isDefault ? 'default-rate' : ''}">
                             <div>
                                 <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
@@ -786,9 +845,9 @@ function renderRatesTabHtml() {
                                         </span>
                                     ` : ''}
                                 </div>
-                                <h3 style="margin:0 0 4px 0;font-size:16px;font-weight:700;color:var(--text-primary);">${r.title}</h3>
+                                <h3 style="margin:0 0 4px 0;font-size:16px;font-weight:700;color:var(--text-primary);">${r.title || 'Tarifa de Consulta'}</h3>
                                 <div style="font-size:22px;font-weight:800;color:var(--accent-primary);margin:6px 0;">
-                                    $${parseFloat(r.amount).toFixed(2)} <span style="font-size:12px;font-weight:500;color:var(--text-tertiary);">${r.currency || 'USD'}</span>
+                                    $${Number(r.amount || 0).toFixed(2)} <span style="font-size:12px;font-weight:500;color:var(--text-tertiary);">${r.currency || 'USD'}</span>
                                 </div>
                                 ${r.description ? `<p style="margin:4px 0 0 0;font-size:12px;color:var(--text-secondary);line-height:1.4;">${r.description}</p>` : ''}
                             </div>
@@ -819,7 +878,9 @@ function openRateModal(rateId = null) {
     const r = rateId ? rates.find(item => String(item.id) === String(rateId)) : null;
 
     const body = document.getElementById('financeRateModalBody');
-    document.getElementById('financeRateModalTitle').textContent = r ? 'Editar Tarifa por Tiempo' : 'Nueva Tarifa por Tiempo';
+    if (!body) return;
+    const titleEl = document.getElementById('financeRateModalTitle');
+    if (titleEl) titleEl.textContent = r ? 'Editar Tarifa por Tiempo' : 'Nueva Tarifa por Tiempo';
 
     body.innerHTML = `
         <form onsubmit="handleRateSubmit(event, '${r ? r.id : ''}')" class="modal-form">
@@ -924,7 +985,9 @@ function deleteRate(rateId) {
 function openTransactionModal(type = 'income') {
     const categories = getFinanceCategories();
     const body = document.getElementById('financeTransactionModalBody');
-    document.getElementById('financeTransactionModalTitle').textContent = type === 'income' ? 'Registrar Ingreso' : 'Registrar Egreso';
+    if (!body) return;
+    const titleEl = document.getElementById('financeTransactionModalTitle');
+    if (titleEl) titleEl.textContent = type === 'income' ? 'Registrar Ingreso' : 'Registrar Egreso';
     
     body.innerHTML = `
         <form onsubmit="handleTransactionSubmit(event, '${type}')" class="modal-form">
@@ -1064,6 +1127,7 @@ function clearAllFinanceTransactions() {
 function openCategoriesModal() {
     const cats = getFinanceCategories();
     const body = document.getElementById('financeCategoriesModalBody');
+    if (!body) return;
     body.innerHTML = `
         <div style="display:flex;gap:8px;margin-bottom:16px;">
             <input type="text" id="newCatInput" placeholder="Nueva categoría..." style="flex:1;padding:8px;border:1px solid var(--border-primary);border-radius:var(--radius-sm);background:var(--bg-input);color:var(--text-primary);">
@@ -1104,50 +1168,61 @@ function removeFinanceCategory(idx) {
 // -------------------------------------------------------------
 
 function getPendingPatientDebts() {
-    const apps = AppState.appointments || [];
-    const txs = getFinanceTransactions();
-    const rates = getFinanceRates();
-    const defaultRate = rates.find(r => r.isDefault) || rates[0] || { amount: 45 };
+    try {
+        const state = (typeof AppState !== 'undefined' && AppState) ? AppState : {};
+        const apps = Array.isArray(state.appointments) ? state.appointments : [];
+        const patients = Array.isArray(state.patients) ? state.patients : [];
+        const txs = getFinanceTransactions();
+        const rates = getFinanceRates();
+        const defaultRate = (Array.isArray(rates) && (rates.find(r => r && r.isDefault) || rates[0])) || { amount: 45 };
 
-    const unpaidApps = apps.filter(app => {
-        if (app.status === 'cancelada') return false;
-        if (app.paymentStatus === 'pagado') return false;
-        const hasTx = txs.some(t => String(t.appointmentId) === String(app.id));
-        if (hasTx) return false;
-        
-        const appDate = new Date(app.date + 'T' + (app.time || '00:00'));
-        return app.status === 'completada' || app.paymentStatus === 'pendiente' || appDate <= new Date();
-    });
-
-    const debtsByPatient = {};
-    unpaidApps.forEach(app => {
-        const pId = app.patientId;
-        if (!debtsByPatient[pId]) {
-            const patient = AppState.patients.find(p => String(p.id) === String(pId));
-            debtsByPatient[pId] = {
-                patientId: pId,
-                patientName: patient ? patient.name : 'Paciente Sin Nombre',
-                patientPhone: patient ? patient.phone : '',
-                patientEmail: patient ? patient.email : '',
-                appointments: [],
-                totalDebt: 0
-            };
-        }
-        const appAmount = roundCurrency(app.price || app.rateAmount || defaultRate.amount || 45);
-        debtsByPatient[pId].appointments.push({
-            ...app,
-            amount: appAmount
+        const unpaidApps = apps.filter(app => {
+            if (!app) return false;
+            if (app.status === 'cancelada') return false;
+            if (app.paymentStatus === 'pagado') return false;
+            const hasTx = Array.isArray(txs) && txs.some(t => t && String(t.appointmentId) === String(app.id));
+            if (hasTx) return false;
+            
+            const dateStr = app.date || '';
+            const timeStr = app.time || '00:00';
+            const appDate = dateStr ? new Date(dateStr + 'T' + timeStr) : new Date(0);
+            return app.status === 'completada' || app.paymentStatus === 'pendiente' || appDate <= new Date();
         });
-        debtsByPatient[pId].totalDebt = roundCurrency(debtsByPatient[pId].totalDebt + appAmount);
-    });
 
-    return Object.values(debtsByPatient);
+        const debtsByPatient = {};
+        unpaidApps.forEach(app => {
+            const pId = app.patientId;
+            if (!pId) return;
+            if (!debtsByPatient[pId]) {
+                const patient = patients.find(p => p && String(p.id) === String(pId));
+                debtsByPatient[pId] = {
+                    patientId: pId,
+                    patientName: patient ? (patient.name || 'Paciente Sin Nombre') : 'Paciente Sin Nombre',
+                    patientPhone: patient ? (patient.phone || '') : '',
+                    patientEmail: patient ? (patient.email || '') : '',
+                    appointments: [],
+                    totalDebt: 0
+                };
+            }
+            const appAmount = roundCurrency(app.price || app.rateAmount || (defaultRate && defaultRate.amount) || 45);
+            debtsByPatient[pId].appointments.push({
+                ...app,
+                amount: appAmount
+            });
+            debtsByPatient[pId].totalDebt = roundCurrency(debtsByPatient[pId].totalDebt + appAmount);
+        });
+
+        return Object.values(debtsByPatient);
+    } catch (e) {
+        console.warn('[Finance] Error calculando deudas de pacientes:', e);
+        return [];
+    }
 }
 
 function renderDebtsTabHtml() {
-    const debts = getPendingPatientDebts();
-    const totalPending = roundCurrency(debts.reduce((sum, d) => roundCurrency(sum + d.totalDebt), 0));
-    const totalSessions = debts.reduce((sum, d) => sum + d.appointments.length, 0);
+    const debts = getPendingPatientDebts() || [];
+    const totalPending = roundCurrency(debts.reduce((sum, d) => roundCurrency(sum + Number(d.totalDebt || 0)), 0));
+    const totalSessions = debts.reduce((sum, d) => sum + (Array.isArray(d.appointments) ? d.appointments.length : 0), 0);
 
     return `
         <div class="summary-cards">
@@ -1155,7 +1230,7 @@ function renderDebtsTabHtml() {
                 <div class="summary-icon">🔴</div>
                 <div class="summary-info">
                     <h3>Total Deudas Pendientes</h3>
-                    <div class="summary-value" style="color:#e16259;">$${totalPending.toFixed(2)}</div>
+                    <div class="summary-value" style="color:#e16259;">$${Number(totalPending || 0).toFixed(2)}</div>
                     <div class="summary-label">Cuentas por cobrar acumuladas</div>
                 </div>
             </div>
@@ -1198,12 +1273,12 @@ function renderDebtsTabHtml() {
                                         ${d.patientPhone ? `<span style="font-size:12px;font-weight:500;color:var(--text-tertiary);">📞 ${d.patientPhone}</span>` : ''}
                                     </h3>
                                     <p style="margin:4px 0 0 0;font-size:12px;color:var(--text-secondary);">
-                                        ${d.appointments.length} sesión(es) impagada(s)
+                                        ${(d.appointments || []).length} sesión(es) impagada(s)
                                     </p>
                                 </div>
                                 <div style="text-align:right;">
                                     <div style="font-size:20px;font-weight:800;color:#e16259;">
-                                        $${d.totalDebt.toFixed(2)} USD
+                                        $${Number(d.totalDebt || 0).toFixed(2)} USD
                                     </div>
                                     <div style="font-size:11px;font-weight:600;color:var(--text-tertiary);">Pendiente de pago</div>
                                 </div>
@@ -1211,11 +1286,11 @@ function renderDebtsTabHtml() {
 
                             <!-- DETALLE DE SESIONES PENDIENTES -->
                             <div style="background:var(--bg-secondary);padding:10px 14px;border-radius:var(--radius-sm);display:flex;flex-direction:column;gap:6px;">
-                                ${d.appointments.map(a => `
+                                ${(d.appointments || []).map(a => `
                                     <div style="display:flex;justify-content:space-between;align-items:center;font-size:13px;">
                                         <span>🗓️ <strong>${formatDate(a.date)}</strong> (${a.time || 'Sesión'}) · ${a.type || 'Individual'}</span>
                                         <div style="display:flex;align-items:center;gap:8px;">
-                                            <strong style="color:var(--text-primary);">$${a.amount.toFixed(2)}</strong>
+                                            <strong style="color:var(--text-primary);">$${Number(a.amount || 0).toFixed(2)}</strong>
                                             <button class="btn-secondary btn-sm" onclick="settlePatientDebt('${d.patientId}', '${a.id}')" title="Marcar esta sesión como pagada">
                                                 💵 Saldar Cita
                                             </button>
@@ -1233,7 +1308,7 @@ function renderDebtsTabHtml() {
                                     <i class="fab fa-whatsapp"></i> Recordatorio WhatsApp
                                 </button>
                                 <button class="btn-primary btn-sm" onclick="settlePatientDebt('${d.patientId}')" style="background:#4dab87;border:none;">
-                                    <i class="fas fa-check-circle"></i> Saldar Todo ($${d.totalDebt.toFixed(2)})
+                                    <i class="fas fa-check-circle"></i> Saldar Todo ($${Number(d.totalDebt || 0).toFixed(2)})
                                 </button>
                             </div>
                         </div>
@@ -1280,18 +1355,20 @@ function copyPaymentReminderText(patientId) {
 }
 
 function settlePatientDebt(patientId, appointmentId = null) {
-    const apps = AppState.appointments || [];
-    const txs = getFinanceTransactions();
+    const state = (typeof AppState !== 'undefined' && AppState) ? AppState : {};
+    const apps = Array.isArray(state.appointments) ? state.appointments : [];
+    const patients = Array.isArray(state.patients) ? state.patients : [];
+    const txs = getFinanceTransactions() || [];
     const rates = getFinanceRates();
-    const defaultRate = rates.find(r => r.isDefault) || rates[0] || { amount: 45 };
+    const defaultRate = (Array.isArray(rates) && (rates.find(r => r && r.isDefault) || rates[0])) || { amount: 45 };
 
-    const patient = AppState.patients.find(p => String(p.id) === String(patientId));
+    const patient = patients.find(p => p && String(p.id) === String(patientId));
 
     let appsToSettle = [];
     if (appointmentId) {
-        appsToSettle = apps.filter(a => String(a.id) === String(appointmentId));
+        appsToSettle = apps.filter(a => a && String(a.id) === String(appointmentId));
     } else {
-        appsToSettle = apps.filter(a => String(a.patientId) === String(patientId) && a.paymentStatus !== 'pagado');
+        appsToSettle = apps.filter(a => a && String(a.patientId) === String(patientId) && a.paymentStatus !== 'pagado');
     }
 
     if (appsToSettle.length === 0) return;
@@ -1299,13 +1376,13 @@ function settlePatientDebt(patientId, appointmentId = null) {
     let totalSettled = 0;
     appsToSettle.forEach(app => {
         app.paymentStatus = 'pagado';
-        const amt = parseFloat(app.price || app.rateAmount || defaultRate.amount || 45);
+        const amt = parseFloat(app.price || app.rateAmount || (defaultRate && defaultRate.amount) || 45);
         totalSettled += amt;
 
         txs.push({
             id: generateId(),
             type: 'income',
-            concept: `Honorarios Sesión ${formatDate(app.date)} - ${patient ? patient.name : 'Paciente'}`,
+            concept: `Honorarios Sesión ${formatDate(app.date)} - ${patient ? (patient.name || 'Paciente') : 'Paciente'}`,
             amount: amt,
             currency: 'USD',
             category: 'Consulta Clínica',
@@ -1317,12 +1394,12 @@ function settlePatientDebt(patientId, appointmentId = null) {
     });
 
     saveFinanceTransactions(txs);
-    saveData();
-    showToast(`✅ Pago saldado: $${totalSettled.toFixed(2)} USD (${patient ? patient.name : 'Paciente'})`, 'success');
+    if (typeof saveData === 'function') saveData();
+    showToast(`✅ Pago saldado: $${Number(totalSettled || 0).toFixed(2)} USD (${patient ? (patient.name || 'Paciente') : 'Paciente'})`, 'success');
 
-    if (AppState.currentView === 'finance') renderFinanceView();
-    if (AppState.currentView === 'patients') renderPatients();
-    updateDashboard();
+    if (state.currentView === 'finance') renderFinanceView();
+    if (state.currentView === 'patients' && typeof renderPatients === 'function') renderPatients();
+    if (typeof updateDashboard === 'function') updateDashboard();
 }
 
 function settleAllPatientDebtsGlobal() {

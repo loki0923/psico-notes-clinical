@@ -455,6 +455,72 @@ ClinicalTestSuite.add('TC-FIN-05', 'Disponibilidad y Exposición Global de Contr
     }
 });
 
+// 7e-2. TC-FIN-06: Resiliencia y Renderizado Defensivo del Módulo Financiero (Cero Pantalla en Blanco)
+ClinicalTestSuite.add('TC-FIN-06', 'Resiliencia y Renderizado Defensivo del Módulo Financiero (Cero Pantalla en Blanco)', async () => {
+    const fs = await import('fs');
+    const path = await import('path');
+
+    const domMock = {
+        elements: {},
+        getElementById(id) {
+            if (!this.elements[id]) {
+                this.elements[id] = { id, innerHTML: '', classList: { add: ()=>{}, remove: ()=>{} }, style: {}, value: '', textContent: '' };
+            }
+            return this.elements[id];
+        },
+        querySelector: () => null,
+        querySelectorAll: () => [],
+        body: { classList: { add: ()=>{}, remove: ()=>{} }, style: {} }
+    };
+
+    const prevDoc = global.document;
+    const prevWin = global.window;
+    const prevStorage = global.localStorage;
+    const prevAppState = global.AppState;
+
+    try {
+        global.document = domMock;
+        global.window = global;
+        const memoryStorage = {};
+        global.localStorage = {
+            getItem(k) { return Object.prototype.hasOwnProperty.call(memoryStorage, k) ? memoryStorage[k] : null; },
+            setItem(k, v) { memoryStorage[k] = String(v); },
+            removeItem(k) { delete memoryStorage[k]; }
+        };
+
+        const financeCode = fs.readFileSync(path.resolve('./finance.js'), 'utf8');
+        eval(financeCode);
+
+        // 1. Caso extremo: AppState completamente ausente y storage con 'null'
+        delete global.AppState;
+        global.localStorage.setItem('psico_finance_transactions_anon', 'null');
+        global.localStorage.setItem('psico_finance_rates_anon', 'null');
+        global.localStorage.setItem('psico_finance_goals_anon', 'null');
+        global.localStorage.setItem('psico_finance_categories_anon', 'null');
+
+        for (const tab of ['transactions', 'debts', 'goals', 'rates']) {
+            global._financeActiveTab = tab;
+            global.renderFinanceView();
+            const rendered = domMock.elements['financeContent']?.innerHTML || '';
+            if (rendered.length < 50) {
+                throw new Error(`renderFinanceView generó contenido en blanco para la pestaña ${tab} con AppState ausente.`);
+            }
+        }
+
+        // 2. Modales se abren sin fallos
+        global.openGoalModal();
+        global.openRateModal();
+        global.openTransactionModal('income');
+        global.openCategoriesModal();
+
+    } finally {
+        global.document = prevDoc;
+        global.window = prevWin;
+        global.localStorage = prevStorage;
+        if (prevAppState) global.AppState = prevAppState;
+    }
+});
+
 // 7f. TC-BTN-01: Resolución Integral de Todos los Botones onclick y onsubmit del Sistema
 ClinicalTestSuite.add('TC-BTN-01', 'Resolución Integral de Todos los Botones onclick y onsubmit del Sistema', async () => {
     const fs = await import('fs');
