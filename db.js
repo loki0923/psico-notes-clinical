@@ -125,7 +125,15 @@ class DatabaseManager {
 
         if (dbUrl) {
             try {
-                const { default: pg } = await import('pg');
+                let pg;
+                try {
+                    const { createRequire } = await import('module');
+                    const cjsRequire = createRequire(import.meta.url);
+                    pg = cjsRequire('pg');
+                } catch {
+                    const pgModule = await import('pg');
+                    pg = pgModule.default || pgModule;
+                }
                 const poolConfig = {
                     connectionString: dbUrl,
                     ssl: dbUrl.includes('localhost') || dbUrl.includes('127.0.0.1') ? false : { rejectUnauthorized: false },
