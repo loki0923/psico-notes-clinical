@@ -162,6 +162,144 @@ Responde ÚNICAMENTE con el objeto JSON válido.`;
     },
 
     /**
+     * Síntesis de sesión multiformato con adaptación estilística (v7.0 HeyFreud-Benchmark).
+     * Soporta SOAP, DAP, BIRP, GIRP, NARRATIVE y TREATMENT_PLAN con audio o texto.
+     */
+    async synthesizeSessionNote(sessionInput, options = {}) {
+        const rawText = typeof sessionInput === 'string' ? sessionInput : (sessionInput?.transcript || sessionInput?.notes || '');
+        const audioBase64 = typeof sessionInput === 'object' ? sessionInput?.audioBase64 : null;
+        const mimeType = typeof sessionInput === 'object' ? (sessionInput?.mimeType || 'audio/webm') : 'audio/webm';
+        const format = (options.format || 'SOAP').toUpperCase().trim();
+        const patientInfo = options.patientInfo || {};
+        const styleConfig = options.styleConfig || this.getLocalStyleProfile();
+        const fewShotExamples = options.fewShotExamples || [];
+
+        if (!rawText.trim() && !audioBase64) {
+            throw new Error('Los apuntes o transcripción de la sesión no pueden estar vacíos.');
+        }
+
+        // 1. Desidentificación PHI antes de salir del dispositivo
+        let anonymizedText = rawText;
+        let mapping = {};
+        if (rawText && typeof PhiAnonymizer !== 'undefined') {
+            const anonResult = PhiAnonymizer.anonymize(rawText, patientInfo);
+            anonymizedText = anonResult.anonymizedText;
+            mapping = anonResult.mapping;
+        }
+
+        const token = typeof localStorage !== 'undefined' ? localStorage.getItem('psico_session_token') : null;
+
+        // Entorno headless de pruebas unitarias sin backend activo
+        if (typeof window === 'undefined' && !token) {
+            const simulated = await this.simulateMultiformatSynthesis(anonymizedText || 'Sesión clínica de psicoterapia', format);
+            const content = (typeof PhiAnonymizer !== 'undefined') ? PhiAnonymizer.deanonymize(simulated, mapping) : simulated;
+            return {
+                format,
+                content,
+                metadata: { model: 'simulated-headless', format, timestamp: new Date().toISOString() }
+            };
+        }
+
+        const res = await fetch('/api/v1/clinical/session-synthesize', {
+            method: 'POST',
+            headers: {
+                'Authorization': `Bearer ${token || ''}`,
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                notes: anonymizedText,
+                transcript: anonymizedText,
+                audioBase64,
+                mimeType,
+                format,
+                patientInfo,
+                styleConfig,
+                fewShotExamples
+            })
+        });
+
+        if (res.status === 503) {
+            throw new Error('Servicio de IA clínica (Gemini) no configurado en el servidor. Configure GEMINI_API_KEY en variables de entorno.');
+        }
+
+        if (!res.ok) {
+            const errData = await res.json().catch(() => ({}));
+            throw new Error(errData.error || `Error generando síntesis ${format} (${res.status})`);
+        }
+
+        const result = await res.json();
+        const content = result.content || result;
+
+        // 2. Restauración de referencias originales PHI
+        const deanonymized = (typeof PhiAnonymizer !== 'undefined') ? PhiAnonymizer.deanonymize(content, mapping) : content;
+
+        return {
+            format,
+            content: deanonymized,
+            metadata: result.metadata || {}
+        };
+    },
+
+    getLocalStyleProfile() {
+        if (typeof localStorage === 'undefined') {
+            return { theoreticalFramework: 'TCC', tone: 'clínico-profesional', conciseness: 'medium', defaultFormat: 'SOAP' };
+        }
+        try {
+            const saved = localStorage.getItem('psico_therapist_style_profile');
+            return saved ? JSON.parse(saved) : { theoreticalFramework: 'TCC', tone: 'clínico-profesional', conciseness: 'medium', defaultFormat: 'SOAP' };
+        } catch {
+            return { theoreticalFramework: 'TCC', tone: 'clínico-profesional', conciseness: 'medium', defaultFormat: 'SOAP' };
+        }
+    },
+
+    setLocalStyleProfile(profile) {
+        if (typeof localStorage !== 'undefined') {
+            try {
+                localStorage.setItem('psico_therapist_style_profile', JSON.stringify(profile));
+            } catch {}
+        }
+    },
+
+    async fetchStyleProfile() {
+        const token = typeof localStorage !== 'undefined' ? localStorage.getItem('psico_session_token') : null;
+        if (!token) return this.getLocalStyleProfile();
+        try {
+            const res = await fetch('/api/v1/clinical/style-profile', {
+                headers: { 'Authorization': `Bearer ${token}` }
+            });
+            if (res.ok) {
+                const data = await res.json();
+                if (data.profile) {
+                    this.setLocalStyleProfile(data.profile);
+                    return data.profile;
+                }
+            }
+        } catch {}
+        return this.getLocalStyleProfile();
+    },
+
+    async updateStyleProfile(profile) {
+        this.setLocalStyleProfile(profile);
+        const token = typeof localStorage !== 'undefined' ? localStorage.getItem('psico_session_token') : null;
+        if (!token) return profile;
+        try {
+            const res = await fetch('/api/v1/clinical/style-profile', {
+                method: 'PUT',
+                headers: {
+                    'Authorization': `Bearer ${token}`,
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify(profile)
+            });
+            if (res.ok) {
+                const data = await res.json();
+                return data.profile || profile;
+            }
+        } catch {}
+        return profile;
+    },
+
+    /**
      * Genera hipótesis diagnósticas DSM-5-TR y CIE-11 integrando historial y psicometría
      */
     async generateDiagnosticHypotheses(patient, notesList = [], scaleResults = []) {
@@ -276,6 +414,68 @@ ${err.message || 'El servicio de IA no está disponible en este momento.'}
                     analisis: `Sintomatología compatible con trastorno de adaptación o cuadro ansioso reactivo. Buena alianza terapéutica e introspección favorable para intervenciones cognitivo-conductuales.`,
                     plan: `1. Psicoeducación sobre el ciclo del pensamiento y la emoción.\n2. Asignación de autoregistro cognitivo intersesión.\n3. Monitoreo en la próxima sesión programada.`
                 });
+            }, 300);
+        });
+    },
+
+    simulateMultiformatSynthesis(text, format = 'SOAP') {
+        return new Promise(resolve => {
+            setTimeout(() => {
+                const sampleText = text.length > 80 ? text.substring(0, 80) + '...' : text;
+                const fmt = String(format || 'SOAP').toUpperCase().trim();
+                let content = {};
+                switch (fmt) {
+                    case 'DAP':
+                        content = {
+                            data: `El paciente comparte: "${sampleText}". Muestra afecto modulado y tono coherente. Se describen disparadores de malestar en ámbito relacional y laboral.`,
+                            assessment: 'Respuesta adaptativa ante sobrecarga situacional. Alianza de trabajo consolidada y receptividad favorable a la formulación del caso.',
+                            plan: 'Continuar entrenamiento en regulación atencional, asignación de registro conductual y cita de seguimiento acordada.'
+                        };
+                        break;
+                    case 'BIRP':
+                        content = {
+                            behavior: `El consultante manifiesta: "${sampleText}". Se observan conductas de inquietud motora y quejas de fatiga cognitiva.`,
+                            intervention: 'Modelado y psicoeducación en reestructuración cognitiva; entrenamiento en respiración diafragmática y formulación funcional de la conducta.',
+                            response: 'El paciente participa activamente, identifica distorsiones de catastrofismo y expresa disminución de la tensión subjetiva.',
+                            plan: 'Registro de pensamientos automáticos intersesión y revisión en el próximo encuentro.'
+                        };
+                        break;
+                    case 'GIRP':
+                        content = {
+                            goals: 'Disminuir la evitación experiencial y mejorar la asertividad comunicativa ante conflictos interpersonales.',
+                            intervention: 'Clarificación de valores con matriz ACT, ensayo conductual guiado y reencuadre cognitivo.',
+                            response: 'Receptividad alta. El paciente asume compromiso para implementar el plan de acción acordado.',
+                            plan: 'Aplicar la técnica de pausa consciente durante la semana y evaluar avances en 7 días.'
+                        };
+                        break;
+                    case 'NARRATIVE':
+                        content = {
+                            resumenSesion: `Sesión orientada a la exploración de vivencias recientes: "${sampleText}".`,
+                            temasAbordados: 'Vínculos afectivos, regulación de límites personales y expectativas laborales.',
+                            intervenciones: 'Escucha activa empática, devolución reflexiva y confrontación gentil de discrepancias.',
+                            acuerdos: 'Mantener espacio de autocuidado diario y traer registro de situaciones desafiantes.'
+                        };
+                        break;
+                    case 'TREATMENT_PLAN':
+                        content = {
+                            problemasIdentificados: 'Sintomatología ansiosa reactiva, dificultades de conciliación del sueño y rumiación.',
+                            objetivosCortoPlazo: 'Adquisición de habilidades de defusión cognitiva e higiene del sueño en 4 semanas.',
+                            objetivosLargoPlazo: 'Consolidación de un estilo de afrontamiento resiliente y remisión sintomática en 12 semanas.',
+                            modalidadTerapeutica: 'Terapia Cognitivo-Conductual y contextual (TCC / ACT) con frecuencia semanal.',
+                            criteriosAlta: 'Puntuación GAD-7 < 5 de forma sostenida y cumplimiento autónomo de metas vitales.'
+                        };
+                        break;
+                    case 'SOAP':
+                    default:
+                        content = {
+                            subjetivo: `El paciente refiere: "${sampleText}". Verbaliza malestar emocional y solicita apoyo psicoterapéutico.`,
+                            objetivo: 'Paciente lúcido, colaborador, afecto en sintonía con el contenido de la sesión.',
+                            analisis: 'Evolución clínica favorable con recursos resilientes preservados.',
+                            plan: 'Planificación de metas semanales y asignación de tareas intersesión.'
+                        };
+                        break;
+                }
+                resolve(content);
             }, 300);
         });
     },

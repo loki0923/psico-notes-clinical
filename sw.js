@@ -1,4 +1,4 @@
-const CACHE_VERSION = 'psico-v6.8.7';
+const CACHE_VERSION = 'psico-v7.0.0';
 const PRECACHE_ASSETS = [
   './',
   './index.html',
@@ -7,6 +7,7 @@ const PRECACHE_ASSETS = [
   './historia-clinica.js',
   './scales.js',
   './voice-dictation.js',
+  './session-recorder.js',
   './phi-anonymizer.js',
   './session-reminders.js',
   './ai-clinical.js',

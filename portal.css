@@ -1519,34 +1519,63 @@ MODAL DE ANCLAJE GROUNDING 5-4-3-2-1
     z-index: 9999;
 }
 
+/* ==========================================================================
+   PORTAL PACIENTES KID — SISTEMA VISUAL "PREMIUM PLAYFUL" (MUNDO EMOCIONAL MÁGICO)
+   ========================================================================== */
+
+:root {
+    --kid-bg-main: #F5F7FC;
+    --kid-lavender: #EDE5FF;
+    --kid-turquoise: #DDF5EE;
+    --kid-sky: #E1F0FF;
+    --kid-coral: #FF8E8E;
+    --kid-yellow: #FFE68A;
+    --kid-text-primary: #25243A;
+    --kid-text-secondary: #6C7085;
+    --kid-card-radius: 26px;
+    --kid-pill-radius: 50px;
+}
+
 /* Modificaciones generales cuando el Modo Kids está activo */
 body.kid-mode-active {
-    background: linear-gradient(180deg, #e0f2fe 0%, #f0fdf4 40%, #fef3c7 100%) !important;
-    font-family: 'Fredoka', 'Quicksand', sans-serif !important;
+    background-color: var(--kid-bg-main) !important;
+    background-image: 
+        radial-gradient(at 0% 0%, rgba(225, 240, 255, 0.7) 0px, transparent 50%),
+        radial-gradient(at 100% 0%, rgba(237, 229, 255, 0.7) 0px, transparent 50%),
+        radial-gradient(at 50% 100%, rgba(221, 245, 238, 0.6) 0px, transparent 50%) !important;
+    background-attachment: fixed !important;
+    font-family: 'Fredoka', 'Quicksand', system-ui, sans-serif !important;
+    color: var(--kid-text-primary) !important;
 }
+
 body.kid-mode-active .portal-header {
-    background: rgba(255, 255, 255, 0.92);
-    backdrop-filter: blur(10px);
-    border-bottom: 3px solid #fde047;
-    box-shadow: 0 4px 20px rgba(253, 224, 71, 0.25);
+    background: rgba(255, 255, 255, 0.94);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    border-bottom: 2.5px solid var(--kid-yellow);
+    box-shadow: 0 4px 18px rgba(37, 36, 58, 0.04);
 }
+
 body.kid-mode-active .portal-content {
-    max-width: 720px;
+    max-width: 1040px;
+    margin: 0 auto;
+    padding: 22px 18px 110px 18px;
+    box-sizing: border-box;
 }
 
 /* Botón de Sonido en Header */
 .btn-kid-sound {
     background: #ffffff;
-    border: 2px solid #e2e8f0;
+    border: 2px solid #E2E8F0;
     border-radius: 50%;
-    width: 38px;
-    height: 38px;
-    font-size: 16px;
+    width: 40px;
+    height: 40px;
+    font-size: 17px;
     display: inline-flex;
     align-items: center;
     justify-content: center;
     cursor: pointer;
-    box-shadow: 0 3px 0 #cbd5e1;
+    box-shadow: 0 3px 0 #CBD5E1;
     transition: all 0.15s ease;
 }
 .btn-kid-sound:hover {
@@ -1554,7 +1583,7 @@ body.kid-mode-active .portal-content {
 }
 .btn-kid-sound:active {
     transform: translateY(2px);
-    box-shadow: 0 1px 0 #cbd5e1;
+    box-shadow: 0 1px 0 #CBD5E1;
 }
 .btn-kid-sound.muted {
     opacity: 0.6;
@@ -1562,7 +1591,7 @@ body.kid-mode-active .portal-content {
     background: #fef2f2;
 }
 
-/* Toggle Kid Mode & Contador de Estrellas */
+/* Toggle Kid Mode (Estrictamente oculto por regla de seguridad clínica TC-KID-03) */
 .btn-kid-toggle {
     background: linear-gradient(135deg, #ff70a6, #ff9770);
     color: #ffffff;
@@ -1579,60 +1608,69 @@ body.kid-mode-active .portal-content {
     box-shadow: 0 4px 0 #e05780;
     transition: all 0.15s ease;
 }
-.btn-kid-toggle:hover {
-    transform: translateY(-2px);
-    box-shadow: 0 6px 0 #e05780;
-}
-.btn-kid-toggle:active {
-    transform: translateY(3px);
-    box-shadow: 0 1px 0 #e05780;
-}
-.btn-kid-toggle.active {
-    background: linear-gradient(135deg, #06d6a0, #118ab2);
-    box-shadow: 0 4px 0 #059669;
-}
 
+/* Contadores de Recompensas: Estrellas ⭐ y Monedas 🪙 */
 .kid-stars-counter {
-    background: #fffbeb;
-    border: 2.5px solid #fbbf24;
-    color: #b45309;
+    background: #fffdf2;
+    border: 2px solid #fbbf24;
+    color: #92400e;
     font-family: 'Fredoka', sans-serif;
     font-weight: 800;
-    font-size: 15px;
+    font-size: 14px;
     padding: 6px 14px;
-    border-radius: 50px;
+    border-radius: var(--kid-pill-radius);
     display: inline-flex;
     align-items: center;
     gap: 6px;
     box-shadow: 0 3px 0 #f59e0b;
-    animation: starPulseKid 2s infinite ease-in-out;
-}
-@keyframes starPulseKid {
-    0%, 100% { transform: scale(1); }
-    50% { transform: scale(1.08) rotate(2deg); }
+    animation: starPulseKid 2.2s infinite ease-in-out;
 }
 
-/* Tarjeta Hero Isla Mágica */
+.kid-coins-counter {
+    background: #fffdf5;
+    border: 2px solid #fcd34d;
+    color: #b45309;
+    font-family: 'Fredoka', sans-serif;
+    font-weight: 800;
+    font-size: 14px;
+    padding: 6px 14px;
+    border-radius: var(--kid-pill-radius);
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    box-shadow: 0 3px 0 #f59e0b;
+}
+
+@keyframes starPulseKid {
+    0%, 100% { transform: scale(1); }
+    50% { transform: scale(1.06) rotate(1.5deg); }
+}
+
+/* ==========================================================================
+   VISTA 1: MI ESPACIO MÁGICO — HERO BANNER Y MUNDO VISUAL
+   ========================================================================== */
 .kid-hero-island {
     position: relative;
-    background: linear-gradient(135deg, #dbeafe 0%, #fae8ff 50%, #fef3c7 100%);
-    border: 3px solid #bfdbfe;
-    border-radius: 28px;
-    padding: 24px 22px;
+    background: linear-gradient(135deg, var(--kid-lavender) 0%, var(--kid-sky) 55%, var(--kid-turquoise) 100%);
+    border: 2.5px solid rgba(255, 255, 255, 0.85);
+    border-radius: var(--kid-card-radius);
+    padding: 26px 28px;
     margin-bottom: 24px;
     overflow: hidden;
-    box-shadow: 0 8px 24px rgba(191, 219, 254, 0.4);
+    box-shadow: 0 10px 28px rgba(108, 112, 133, 0.08);
 }
+
 .kid-floating-cloud {
     position: absolute;
     font-size: 32px;
-    opacity: 0.7;
+    opacity: 0.6;
     animation: floatCloud 8s infinite ease-in-out alternate;
     pointer-events: none;
+    user-select: none;
 }
-.cloud-1 { top: 12px; right: 24px; font-size: 36px; animation-duration: 9s; }
-.cloud-2 { bottom: 10px; left: 18px; font-size: 28px; animation-duration: 11s; }
-.cloud-3 { top: 18px; left: 45%; font-size: 20px; animation-duration: 6s; }
+.cloud-1 { top: 12px; right: 28px; font-size: 38px; animation-duration: 9s; }
+.cloud-2 { bottom: 10px; left: 24px; font-size: 30px; animation-duration: 11s; }
+.cloud-3 { top: 18px; left: 48%; font-size: 22px; animation-duration: 7s; }
 
 @keyframes floatCloud {
     0% { transform: translateY(0) translateX(0); }
@@ -1642,61 +1680,62 @@ body.kid-mode-active .portal-content {
 .kid-hero-content {
     display: flex;
     align-items: center;
-    gap: 20px;
+    gap: 22px;
     position: relative;
     z-index: 2;
 }
+
 .kid-hero-avatar-pedestal {
     position: relative;
-    width: 84px;
-    height: 84px;
+    width: 90px;
+    height: 90px;
     background: #ffffff;
     border-radius: 50%;
     display: flex;
     align-items: center;
     justify-content: center;
-    box-shadow: 0 6px 0 #cbd5e1, 0 10px 20px rgba(0, 0, 0, 0.08);
+    box-shadow: 0 6px 0 #CBD5E1, 0 12px 24px rgba(37, 36, 58, 0.1);
     cursor: pointer;
     flex-shrink: 0;
-    border: 3.5px solid #ffbe0b;
+    border: 3.5px solid var(--kid-yellow);
     transition: transform 0.2s cubic-bezier(0.34, 1.56, 0.64, 1);
 }
 .kid-hero-avatar-pedestal:hover {
-    transform: scale(1.1) rotate(6deg);
+    transform: scale(1.08) rotate(4deg);
 }
 .kid-avatar-pedestal-char {
-    font-size: 44px;
+    font-size: 48px;
     line-height: 1;
-    animation: avatarHop 3s infinite ease-in-out;
+    animation: avatarHop 3.5s infinite ease-in-out;
 }
 @keyframes avatarHop {
     0%, 100% { transform: translateY(0); }
-    50% { transform: translateY(-6px); }
+    50% { transform: translateY(-5px); }
 }
 .kid-avatar-pedestal-acc {
     position: absolute;
-    bottom: -2px;
-    right: -2px;
-    font-size: 24px;
+    bottom: -4px;
+    right: -4px;
+    font-size: 26px;
     background: #ffffff;
     border-radius: 50%;
-    padding: 2px;
-    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.15);
+    padding: 3px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.12);
 }
 .kid-avatar-tap-hint {
     position: absolute;
     bottom: -10px;
     left: 50%;
     transform: translateX(-50%);
-    background: #ff5722;
+    background: var(--kid-coral);
     color: #ffffff;
     font-family: 'Fredoka', sans-serif;
-    font-size: 10px;
+    font-size: 11px;
     font-weight: 700;
-    padding: 2px 8px;
+    padding: 2px 9px;
     border-radius: 12px;
     white-space: nowrap;
-    box-shadow: 0 2px 6px rgba(255, 87, 34, 0.35);
+    box-shadow: 0 2px 6px rgba(255, 142, 142, 0.4);
 }
 
 .kid-hero-speech {
@@ -1704,22 +1743,23 @@ body.kid-mode-active .portal-content {
 }
 .kid-greeting-tag {
     display: inline-block;
-    background: #fef08a;
-    color: #854d0e;
+    background: #ffffff;
+    color: #5b21b6;
     font-family: 'Fredoka', sans-serif;
     font-weight: 700;
     font-size: 12px;
-    padding: 3px 10px;
-    border-radius: 12px;
+    padding: 4px 12px;
+    border-radius: 14px;
     margin-bottom: 6px;
+    box-shadow: 0 2px 6px rgba(108, 112, 133, 0.08);
 }
 .kid-main-title {
     font-family: 'Fredoka', sans-serif;
-    font-size: 24px;
+    font-size: 26px;
     font-weight: 800;
-    color: #1e293b;
+    color: var(--kid-text-primary);
     margin: 0 0 6px 0;
-    line-height: 1.2;
+    line-height: 1.25;
 }
 .kid-gradient-name {
     background: linear-gradient(135deg, #7c3aed, #ec4899);
@@ -1728,24 +1768,168 @@ body.kid-mode-active .portal-content {
 }
 .kid-main-desc {
     font-family: 'Fredoka', sans-serif;
-    font-size: 14px;
-    color: #475569;
+    font-size: 15px;
+    color: var(--kid-text-secondary);
     margin: 0;
-    line-height: 1.4;
+    line-height: 1.45;
+}
+.kid-weather-chip-summary {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    background: #ffffff;
+    padding: 4px 12px;
+    border-radius: 20px;
+    margin-top: 8px;
+    font-size: 12px;
+    font-weight: 700;
+    color: var(--kid-text-secondary);
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.05);
+}
+.chip-dot {
+    color: #10b981;
 }
 
-/* Tarjetas Generales Kid */
+/* ==========================================================================
+   SECCIÓN BENTO: RINCONES MÁGICOS DE ACTIVIDADES DE MI ESPACIO
+   ========================================================================== */
+.kid-bento-section {
+    margin-bottom: 28px;
+}
+.kid-bento-header {
+    margin-bottom: 16px;
+}
+.kid-bento-title {
+    font-family: 'Fredoka', sans-serif;
+    font-size: 20px;
+    font-weight: 800;
+    color: var(--kid-text-primary);
+    margin: 0 0 4px 0;
+}
+.kid-bento-subtitle {
+    font-family: 'Fredoka', sans-serif;
+    font-size: 14px;
+    color: var(--kid-text-secondary);
+    margin: 0;
+}
+
+.kid-bento-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+    gap: 16px;
+}
+
+.kid-bento-card {
+    position: relative;
+    border-radius: var(--kid-card-radius);
+    padding: 22px 20px;
+    cursor: pointer;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    font-family: 'Fredoka', sans-serif;
+    overflow: hidden;
+    background: #ffffff;
+    border: 2px solid #E2E8F0;
+    box-shadow: 0 6px 0 #CBD5E1, 0 10px 24px rgba(37, 36, 58, 0.04);
+    transition: all 0.22s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+.kid-bento-card:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 10px 0 #CBD5E1, 0 16px 32px rgba(37, 36, 58, 0.08);
+}
+.kid-bento-card:active {
+    transform: translateY(3px);
+    box-shadow: 0 2px 0 #CBD5E1;
+}
+
+.bento-card-avatar {
+    background: linear-gradient(180deg, #ffffff 0%, var(--kid-lavender) 100%);
+    border-color: #d8b4fe;
+}
+.bento-card-bubbles {
+    background: linear-gradient(180deg, #ffffff 0%, var(--kid-sky) 100%);
+    border-color: #93c5fd;
+}
+.bento-card-drawing {
+    background: linear-gradient(180deg, #ffffff 0%, var(--kid-yellow) 100%);
+    border-color: #fde047;
+}
+.bento-card-calm {
+    background: linear-gradient(180deg, #ffffff 0%, var(--kid-turquoise) 100%);
+    border-color: #6ee7b7;
+}
+
+.bento-badge {
+    position: absolute;
+    top: 14px;
+    right: 14px;
+    background: rgba(255, 255, 255, 0.95);
+    color: var(--kid-text-secondary);
+    font-size: 11px;
+    font-weight: 800;
+    padding: 3px 10px;
+    border-radius: 12px;
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.06);
+}
+
+.bento-icon-wrapper {
+    margin-bottom: 12px;
+}
+.bento-icon-emoji {
+    font-size: 42px;
+    display: inline-block;
+    filter: drop-shadow(0 4px 8px rgba(0, 0, 0, 0.08));
+}
+
+.bento-text-group {
+    margin-bottom: 16px;
+}
+.bento-heading {
+    font-size: 18px;
+    font-weight: 800;
+    color: var(--kid-text-primary);
+    margin: 0 0 6px 0;
+}
+.bento-desc {
+    font-size: 13px;
+    color: var(--kid-text-secondary);
+    line-height: 1.4;
+    margin: 0;
+}
+
+.bento-footer {
+    display: flex;
+    align-items: center;
+}
+.bento-action-pill {
+    background: #ffffff;
+    color: var(--kid-text-primary);
+    font-size: 12px;
+    font-weight: 800;
+    padding: 6px 14px;
+    border-radius: 20px;
+    box-shadow: 0 3px 0 rgba(0, 0, 0, 0.08);
+    transition: transform 0.15s ease;
+}
+.kid-bento-card:hover .bento-action-pill {
+    transform: scale(1.05);
+}
+
+/* ==========================================================================
+   TARJETAS GENERALES DEL PORTAL KIDS
+   ========================================================================== */
 .kid-card {
     background: #ffffff;
-    border-radius: 28px;
-    border: 3px solid #e2e8f0;
-    padding: 24px 22px;
-    margin-bottom: 26px;
-    box-shadow: 0 6px 0 #cbd5e1, 0 12px 28px rgba(0, 0, 0, 0.05);
+    border-radius: var(--kid-card-radius);
+    border: 2px solid #E2E8F0;
+    padding: 26px 24px;
+    margin-bottom: 28px;
+    box-shadow: 0 6px 0 #CBD5E1, 0 12px 28px rgba(37, 36, 58, 0.05);
 }
+
 .kid-card-rainbow {
     border-color: #fed7aa;
-    background: linear-gradient(180deg, #ffffff 0%, #fffdfa 100%);
 }
 .kid-card-magic {
     border-color: #e9d5ff;
@@ -1763,40 +1947,43 @@ body.kid-mode-active .portal-content {
 .kid-card-topbar {
     display: flex;
     align-items: flex-start;
-    gap: 14px;
-    margin-bottom: 20px;
+    gap: 16px;
+    margin-bottom: 22px;
 }
 .kid-card-badge-icon {
     font-size: 38px;
     line-height: 1;
-    filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.1));
+    filter: drop-shadow(0 2px 6px rgba(0, 0, 0, 0.1));
 }
 .kid-card-heading {
     font-family: 'Fredoka', sans-serif;
-    font-size: 20px;
+    font-size: 21px;
     font-weight: 800;
-    color: #1e293b;
+    color: var(--kid-text-primary);
     margin: 0 0 4px 0;
 }
 .kid-card-subheading {
     font-family: 'Fredoka', sans-serif;
     font-size: 14px;
-    color: #64748b;
+    color: var(--kid-text-secondary);
     margin: 0;
-    line-height: 1.4;
+    line-height: 1.45;
 }
 
-/* Climas Emocionales Animados */
+/* ==========================================================================
+   CLIMA DE TU CORAZÓN: 6 EMOCIONES EXPRESIVAS
+   ========================================================================== */
 .kid-weather-cards-grid {
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
+    grid-template-columns: repeat(auto-fit, minmax(135px, 1fr));
     gap: 14px;
-    margin-bottom: 26px;
+    margin-bottom: 22px;
 }
+
 .kid-weather-card-v2 {
-    background: #f8fafc;
-    border: 2.5px solid #e2e8f0;
-    border-radius: 22px;
+    background: #F8FAFC;
+    border: 2px solid #E2E8F0;
+    border-radius: 20px;
     padding: 16px 10px;
     display: flex;
     flex-direction: column;
@@ -1804,18 +1991,18 @@ body.kid-mode-active .portal-content {
     text-align: center;
     gap: 6px;
     cursor: pointer;
-    box-shadow: 0 4px 0 #cbd5e1;
+    box-shadow: 0 4px 0 #CBD5E1;
     transition: all 0.2s cubic-bezier(0.34, 1.56, 0.64, 1);
     font-family: 'Fredoka', sans-serif;
 }
 .kid-weather-card-v2:hover {
     transform: translateY(-4px);
-    box-shadow: 0 8px 0 #cbd5e1;
+    box-shadow: 0 8px 0 #CBD5E1;
     background: #ffffff;
 }
 .kid-weather-card-v2:active {
     transform: translateY(3px);
-    box-shadow: 0 1px 0 #cbd5e1;
+    box-shadow: 0 1px 0 #CBD5E1;
 }
 .kid-weather-card-v2.selected {
     background: #ecfdf5;
@@ -1823,6 +2010,7 @@ body.kid-mode-active .portal-content {
     box-shadow: 0 5px 0 #059669;
     transform: scale(1.04) translateY(-2px);
 }
+
 .weather-icon-bubble {
     width: 60px;
     height: 60px;
@@ -1831,7 +2019,7 @@ body.kid-mode-active .portal-content {
     align-items: center;
     justify-content: center;
     margin-bottom: 4px;
-    box-shadow: inset 0 2px 4px rgba(255, 255, 255, 0.8), 0 4px 10px rgba(0, 0, 0, 0.06);
+    box-shadow: inset 0 2px 4px rgba(255, 255, 255, 0.9), 0 4px 10px rgba(0, 0, 0, 0.05);
 }
 .sunny-bubble { background: radial-gradient(circle, #fef08a 0%, #fde047 100%); }
 .cloudy-bubble { background: radial-gradient(circle, #e0f2fe 0%, #bae6fd 100%); }
@@ -1845,7 +2033,7 @@ body.kid-mode-active .portal-content {
     line-height: 1;
     display: inline-block;
 }
-.sun-spin { animation: sunSpin 12s infinite linear; }
+.sun-spin { animation: sunSpin 14s infinite linear; }
 .cloud-float { animation: cloudFloat 3s infinite ease-in-out alternate; }
 .rainbow-glow { animation: rainbowGlow 2.5s infinite ease-in-out; }
 .rain-drip { animation: rainDrip 1.5s infinite ease-in-out; }
@@ -1865,7 +2053,7 @@ body.kid-mode-active .portal-content {
 }
 @keyframes boltFlash {
     0%, 100% { transform: scale(1); filter: brightness(1); }
-    40%, 60% { transform: scale(1.18); filter: brightness(1.5); }
+    40%, 60% { transform: scale(1.18); filter: brightness(1.4); }
 }
 @keyframes tornadoTwirl {
     0% { transform: rotate(0deg) scale(1); }
@@ -1875,12 +2063,12 @@ body.kid-mode-active .portal-content {
 
 .weather-title-v2 {
     font-size: 15px;
-    font-weight: 700;
-    color: #1e293b;
+    font-weight: 800;
+    color: var(--kid-text-primary);
 }
 .weather-badge-tag {
     font-size: 10px;
-    font-weight: 700;
+    font-weight: 800;
     padding: 2px 8px;
     border-radius: 10px;
     text-transform: uppercase;
@@ -1895,315 +2083,328 @@ body.kid-mode-active .portal-content {
 
 .weather-desc-v2 {
     font-size: 11px;
-    color: #64748b;
-    line-height: 1.2;
+    color: var(--kid-text-secondary);
+    line-height: 1.25;
 }
 
-/* Silueta Somática Corporal Interactiva */
+/* Pregunta y Reflexión Opcional */
+.kid-optional-reflection-box {
+    background: #F8FAFC;
+    border: 2px solid #E2E8F0;
+    border-radius: 20px;
+    padding: 18px 20px;
+    margin-bottom: 22px;
+}
+.reflection-header {
+    display: flex;
+    align-items: flex-start;
+    gap: 12px;
+    margin-bottom: 12px;
+}
+.reflection-icon { font-size: 26px; }
+.reflection-header strong {
+    display: block;
+    font-size: 14px;
+    color: var(--kid-text-primary);
+}
+.reflection-header small {
+    display: block;
+    font-size: 12px;
+    color: var(--kid-text-secondary);
+}
+.kid-thought-chips-row {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+    margin-bottom: 12px;
+}
+.thought-chip-btn {
+    background: #ffffff;
+    border: 1.5px solid #CBD5E1;
+    color: var(--kid-text-secondary);
+    font-family: 'Fredoka', sans-serif;
+    font-size: 12px;
+    font-weight: 700;
+    padding: 5px 12px;
+    border-radius: 16px;
+    cursor: pointer;
+    transition: all 0.15s ease;
+}
+.thought-chip-btn:hover {
+    border-color: #8b5cf6;
+    color: #7c3aed;
+    background: var(--kid-lavender);
+}
+.kid-reflection-textarea {
+    width: 100%;
+    box-sizing: border-box;
+    border: 2px solid #E2E8F0;
+    border-radius: 14px;
+    padding: 10px 14px;
+    font-family: 'Fredoka', sans-serif;
+    font-size: 14px;
+    color: var(--kid-text-primary);
+    background: #ffffff;
+    resize: none;
+    outline: none;
+}
+.kid-reflection-textarea:focus {
+    border-color: #8b5cf6;
+}
+
+/* ==========================================================================
+   MAPA MÁGICO DEL CUERPO (SILUETA Y SENSORES)
+   ========================================================================== */
 .kid-body-somatic-stage {
-    background: #fdfdfd;
-    border: 3px dashed #cbd5e1;
+    background: #FDFDFD;
+    border: 2.5px dashed #CBD5E1;
     border-radius: 24px;
-    padding: 20px;
+    padding: 22px;
     margin-top: 14px;
 }
 .kid-badge-pill {
     display: inline-block;
-    background: #ede9fe;
+    background: var(--kid-lavender);
     color: #6b21a8;
     font-family: 'Fredoka', sans-serif;
-    font-weight: 700;
+    font-weight: 800;
     font-size: 12px;
-    padding: 4px 12px;
+    padding: 4px 14px;
     border-radius: 20px;
     margin-bottom: 8px;
 }
 .kid-somatic-header h4 {
     font-family: 'Fredoka', sans-serif;
-    font-size: 17px;
+    font-size: 18px;
     font-weight: 800;
-    color: #1e293b;
+    color: var(--kid-text-primary);
     margin: 0 0 4px 0;
 }
 .kid-somatic-header p {
     font-family: 'Fredoka', sans-serif;
     font-size: 13px;
-    color: #64748b;
-    margin: 0 0 16px 0;
+    color: var(--kid-text-secondary);
+    margin: 0 0 18px 0;
 }
 
 .kid-somatic-interactive-layout {
     display: flex;
     align-items: center;
     justify-content: center;
-    gap: 24px;
+    gap: 28px;
     flex-wrap: wrap;
 }
+
 .kid-body-figure-box {
     position: relative;
-    width: 200px;
-    background: radial-gradient(circle, #f8fafc 0%, #edf2f7 100%);
+    width: 210px;
+    background: radial-gradient(circle, #ffffff 0%, #F1F5F9 100%);
     border-radius: 24px;
-    border: 2px solid #e2e8f0;
+    border: 2px solid #E2E8F0;
     padding: 14px 10px;
     display: flex;
     flex-direction: column;
     align-items: center;
-    box-shadow: inset 0 2px 6px rgba(0, 0, 0, 0.04);
+    box-shadow: 0 4px 14px rgba(0, 0, 0, 0.04);
 }
+
 .kid-speech-bubble {
     background: #ffffff;
-    border: 2px solid #8b5cf6;
+    border: 2px solid #CBD5E1;
     border-radius: 16px;
     padding: 8px 12px;
     font-family: 'Fredoka', sans-serif;
     font-size: 12px;
-    font-weight: 700;
-    color: #5b21b6;
+    color: var(--kid-text-primary);
     text-align: center;
     margin-bottom: 10px;
-    box-shadow: 0 4px 12px rgba(139, 92, 246, 0.2);
-    min-height: 42px;
+    box-shadow: 0 3px 0 #E2E8F0;
+    min-height: 38px;
     display: flex;
     align-items: center;
     justify-content: center;
-    transition: all 0.25s ease;
-}
-.kid-figure-svg {
-    width: 170px;
-    height: 250px;
-    display: block;
-    overflow: visible;
+    width: 90%;
 }
 
-/* Hotspots Pulsantes de la Silueta */
+.kid-figure-svg {
+    width: 190px;
+    height: 280px;
+}
+
 .somatic-hotspot-group {
     cursor: pointer;
-    transition: transform 0.2s;
+    transition: transform 0.2s cubic-bezier(0.34, 1.56, 0.64, 1);
 }
 .somatic-hotspot-group:hover {
     transform: scale(1.15);
 }
 .hotspot-pulse {
-    opacity: 0.5;
-    animation: hotspotWave 2s infinite ease-out;
+    fill: none;
+    stroke-width: 3.5;
+    animation: hotspotPulseAnim 1.8s infinite ease-in-out;
 }
-@keyframes hotspotWave {
-    0% { transform: scale(0.85); opacity: 0.8; }
-    100% { transform: scale(1.6); opacity: 0; }
-}
-.pulse-head { fill: #c084fc; transform-origin: 100px 35px; }
-.pulse-throat { fill: #38bdf8; transform-origin: 100px 85px; }
-.pulse-chest { fill: #fb7185; transform-origin: 100px 125px; }
-.pulse-belly { fill: #fbbf24; transform-origin: 100px 165px; }
-.pulse-hands { fill: #4ade80; transform-origin: center; }
+.pulse-head { stroke: #9333EA; }
+.pulse-throat { stroke: #0284C7; }
+.pulse-chest { stroke: #E11D48; }
+.pulse-belly { stroke: #D97706; }
+.pulse-hands { stroke: #16A34A; }
+.pulse-feet { stroke: #059669; }
 
-.somatic-hotspot-group.selected .hotspot-core {
-    stroke: #ffffff;
-    stroke-width: 3px;
-    filter: drop-shadow(0 0 10px currentColor);
+@keyframes hotspotPulseAnim {
+    0% { transform: scale(0.9); opacity: 0.9; }
+    50% { transform: scale(1.35); opacity: 0.2; }
+    100% { transform: scale(0.9); opacity: 0.9; }
 }
 
-/* Botones de Zonas Somáticas Puffy */
 .kid-zones-buttons-panel {
     display: flex;
     flex-direction: column;
-    gap: 10px;
+    gap: 12px;
+    max-width: 360px;
     flex: 1;
-    min-width: 220px;
 }
+
+.zone-pills-list {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
 .kid-zone-pill {
     background: #ffffff;
-    border: 2.5px solid #e2e8f0;
-    border-radius: 20px;
-    padding: 10px 14px;
+    border: 2px solid #E2E8F0;
+    border-radius: 18px;
+    padding: 8px 14px;
     display: flex;
     align-items: center;
     gap: 12px;
     cursor: pointer;
-    text-align: left;
-    box-shadow: 0 4px 0 #cbd5e1;
-    transition: all 0.15s ease;
     font-family: 'Fredoka', sans-serif;
+    box-shadow: 0 3px 0 #CBD5E1;
+    transition: all 0.15s ease;
+    text-align: left;
 }
 .kid-zone-pill:hover {
-    transform: translateY(-2px);
-    box-shadow: 0 6px 0 #cbd5e1;
-}
-.kid-zone-pill:active {
-    transform: translateY(3px);
-    box-shadow: 0 1px 0 #cbd5e1;
+    transform: translateX(4px);
+    background: #F8FAFC;
 }
 .kid-zone-pill.selected {
     border-color: #8b5cf6;
-    background: #f5f3ff;
+    background: var(--kid-lavender);
     box-shadow: 0 4px 0 #7c3aed;
-    transform: scale(1.02);
+    transform: translateX(6px);
 }
-.pill-icon {
-    font-size: 24px;
-    flex-shrink: 0;
-}
+.pill-icon { font-size: 22px; flex-shrink: 0; }
 .kid-zone-pill strong {
+    font-size: 13px;
+    color: var(--kid-text-primary);
     display: block;
-    font-size: 14px;
-    color: #1e293b;
 }
 .kid-zone-pill small {
-    display: block;
     font-size: 11px;
-    color: #64748b;
+    color: var(--kid-text-secondary);
+    display: block;
 }
 
-/* Botones Puffy 3D Gigantes */
+.kid-sensation-type-wrapper {
+    background: #F8FAFC;
+    border: 2px solid #E2E8F0;
+    border-radius: 18px;
+    padding: 12px 14px;
+    margin-top: 4px;
+}
+.sensation-label {
+    font-size: 12px;
+    font-weight: 800;
+    color: var(--kid-text-secondary);
+    display: block;
+    margin-bottom: 8px;
+}
+.kid-sensation-pills-row {
+    display: flex;
+    gap: 6px;
+    flex-wrap: wrap;
+}
+.sensation-pill-btn {
+    background: #ffffff;
+    border: 1.5px solid #CBD5E1;
+    border-radius: 14px;
+    padding: 4px 10px;
+    font-family: 'Fredoka', sans-serif;
+    font-size: 11px;
+    font-weight: 700;
+    color: var(--kid-text-secondary);
+    cursor: pointer;
+    transition: all 0.15s ease;
+}
+.sensation-pill-btn:hover {
+    border-color: #8b5cf6;
+    color: #7c3aed;
+}
+.sensation-pill-btn.selected, .sensation-pill-btn.active {
+    background: #0284c7;
+    color: #ffffff;
+    border-color: #0284c7;
+    box-shadow: 0 2px 0 #0369a1;
+}
+
+/* Botones Puffy de Acción */
 .kid-action-center {
     display: flex;
     justify-content: center;
-    margin-top: 18px;
+    margin-top: 24px;
 }
+
 .btn-kid-puffy {
+    background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+    color: #ffffff;
     border: none;
-    border-radius: 50px;
-    padding: 14px 28px;
+    border-radius: var(--kid-pill-radius);
+    padding: 12px 28px;
     font-family: 'Fredoka', sans-serif;
     font-size: 16px;
     font-weight: 800;
     cursor: pointer;
     display: inline-flex;
     align-items: center;
-    gap: 10px;
-    transition: all 0.15s cubic-bezier(0.34, 1.56, 0.64, 1);
-    user-select: none;
+    gap: 12px;
+    box-shadow: 0 6px 0 #047857, 0 12px 24px rgba(16, 185, 129, 0.3);
+    transition: all 0.18s cubic-bezier(0.34, 1.56, 0.64, 1);
 }
-.btn-kid-send-weather {
-    background: linear-gradient(135deg, #10b981 0%, #059669 100%);
-    color: #ffffff;
-    box-shadow: 0 6px 0 #047857, 0 10px 20px rgba(16, 185, 129, 0.35);
+.btn-kid-puffy:hover {
+    transform: translateY(-3px) scale(1.02);
+    box-shadow: 0 9px 0 #047857, 0 16px 28px rgba(16, 185, 129, 0.4);
 }
-.btn-kid-send-weather:hover {
-    transform: translateY(-3px);
-    box-shadow: 0 9px 0 #047857, 0 14px 25px rgba(16, 185, 129, 0.45);
-}
-.btn-kid-send-weather:active {
+.btn-kid-puffy:active {
     transform: translateY(4px);
     box-shadow: 0 2px 0 #047857;
 }
 
 .btn-puffy-icon { font-size: 22px; }
-.btn-puffy-text { letter-spacing: 0.3px; }
 .btn-puffy-star-tag {
-    background: #fef08a;
-    color: #854d0e;
+    background: #ffffff;
+    color: #b45309;
     font-size: 12px;
     font-weight: 800;
-    padding: 3px 8px;
+    padding: 2px 8px;
     border-radius: 12px;
     box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
 }
 
-/* Sección de Islas de Juegos */
-.kid-section-divider {
-    text-align: center;
-    margin: 26px 0 18px 0;
-}
-.kid-section-divider span {
-    background: #ffffff;
-    border: 2px solid #e2e8f0;
-    font-family: 'Fredoka', sans-serif;
-    font-size: 14px;
-    font-weight: 800;
-    color: #475569;
-    padding: 6px 18px;
-    border-radius: 20px;
-    box-shadow: 0 3px 0 #cbd5e1;
-}
-
-.kid-game-islands-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
-    gap: 16px;
-}
-.kid-game-island {
-    position: relative;
-    border-radius: 26px;
-    padding: 22px 18px;
-    cursor: pointer;
-    box-shadow: 0 6px 0 rgba(0, 0, 0, 0.1), 0 10px 24px rgba(0, 0, 0, 0.06);
-    transition: all 0.25s cubic-bezier(0.34, 1.56, 0.64, 1);
-    display: flex;
-    flex-direction: column;
-    justify-content: space-between;
-    font-family: 'Fredoka', sans-serif;
-    overflow: hidden;
-}
-.kid-game-island:hover {
-    transform: translateY(-6px) scale(1.02);
-}
-.island-bubbles {
-    background: linear-gradient(135deg, #e0f2fe 0%, #bae6fd 100%);
-    border: 3px solid #7dd3fc;
-}
-.island-drawing {
-    background: linear-gradient(135deg, #fff7ed 0%, #fed7aa 100%);
-    border: 3px solid #fdba74;
-}
-.island-calm {
-    background: linear-gradient(135deg, #fdf2f8 0%, #fbcfe8 100%);
-    border: 3px solid #f9a8d4;
-}
-
-.island-floating-badge {
-    position: absolute;
-    top: 10px;
-    right: 12px;
-    background: #ffffff;
-    color: #1e293b;
-    font-size: 10px;
-    font-weight: 800;
-    padding: 2px 8px;
-    border-radius: 12px;
-    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.1);
-}
-.island-icon-animated {
-    font-size: 44px;
-    margin-bottom: 8px;
-    animation: avatarHop 2.5s infinite ease-in-out;
-}
-.island-info h4 {
-    margin: 0 0 6px 0;
-    font-size: 17px;
-    font-weight: 800;
-    color: #1e293b;
-}
-.island-info p {
-    margin: 0 0 14px 0;
-    font-size: 12px;
-    color: #475569;
-    line-height: 1.35;
-}
-.island-play-btn {
-    align-self: flex-start;
-    background: #ffffff;
-    color: #1e293b;
-    font-size: 12px;
-    font-weight: 800;
-    padding: 6px 14px;
-    border-radius: 20px;
-    box-shadow: 0 3px 0 rgba(0, 0, 0, 0.12);
-}
-
-/* Creador de Avatar — Pedestal 3D */
+/* ==========================================================================
+   VISTA 2: CREADOR DE AVATAR (PEDESTAL 3D Y PERSONALIZACIÓN)
+   ========================================================================== */
 .kid-avatar-stage-3d {
     position: relative;
     display: flex;
     flex-direction: column;
     align-items: center;
     justify-content: center;
-    padding: 30px 20px;
-    background: radial-gradient(circle, #f5f3ff 0%, #e0e7ff 100%);
+    padding: 34px 20px;
+    background: radial-gradient(circle, var(--kid-lavender) 0%, var(--kid-sky) 100%);
     border-radius: 26px;
     margin-bottom: 24px;
-    border: 2px solid #c7d2fe;
+    border: 2px solid #C7D2FE;
     overflow: hidden;
 }
 .kid-pedestal-stars-bg {
@@ -2212,9 +2413,10 @@ body.kid-mode-active .portal-content {
     display: flex;
     justify-content: space-around;
     align-items: center;
-    font-size: 24px;
-    opacity: 0.4;
+    font-size: 26px;
+    opacity: 0.35;
     animation: floatCloud 7s infinite ease-in-out alternate;
+    pointer-events: none;
 }
 .kid-stage-aura-ring {
     width: 140px;
@@ -2232,11 +2434,12 @@ body.kid-mode-active .portal-content {
     0%, 100% { transform: scale(1); }
     50% { transform: scale(1.06); }
 }
-.aura-gold { background: radial-gradient(circle, #fef08a 20%, #f59e0b 100%); box-shadow: 0 0 40px rgba(245, 158, 11, 0.6); }
-.aura-purple { background: radial-gradient(circle, #f3e8ff 20%, #9333ea 100%); box-shadow: 0 0 40px rgba(147, 51, 234, 0.6); }
-.aura-teal { background: radial-gradient(circle, #ccfbf1 20%, #0d9488 100%); box-shadow: 0 0 40px rgba(13, 148, 136, 0.6); }
-.aura-pink { background: radial-gradient(circle, #ffe4e6 20%, #e11d48 100%); box-shadow: 0 0 40px rgba(225, 29, 72, 0.6); }
-.aura-mint { background: radial-gradient(circle, #dcfce7 20%, #16a34a 100%); box-shadow: 0 0 40px rgba(22, 163, 74, 0.6); }
+.aura-gold { background: radial-gradient(circle, #fef08a 20%, #f59e0b 100%); box-shadow: 0 0 40px rgba(245, 158, 11, 0.5); }
+.aura-purple { background: radial-gradient(circle, #f3e8ff 20%, #9333ea 100%); box-shadow: 0 0 40px rgba(147, 51, 234, 0.5); }
+.aura-teal { background: radial-gradient(circle, #ccfbf1 20%, #0d9488 100%); box-shadow: 0 0 40px rgba(13, 148, 136, 0.5); }
+.aura-pink { background: radial-gradient(circle, #ffe4e6 20%, #e11d48 100%); box-shadow: 0 0 40px rgba(225, 29, 72, 0.5); }
+.aura-mint { background: radial-gradient(circle, #dcfce7 20%, #16a34a 100%); box-shadow: 0 0 40px rgba(22, 163, 74, 0.5); }
+.aura-rainbow { background: conic-gradient(#ff0000, #ff7f00, #ffff00, #00ff00, #0000ff, #8b00ff, #ff0000); box-shadow: 0 0 45px rgba(236, 72, 153, 0.6); }
 
 .kid-stage-inner-glow {
     position: relative;
@@ -2245,7 +2448,7 @@ body.kid-mode-active .portal-content {
     justify-content: center;
 }
 .kid-stage-emoji-big {
-    font-size: 68px;
+    font-size: 70px;
     line-height: 1;
     display: inline-block;
     filter: drop-shadow(0 4px 8px rgba(0, 0, 0, 0.15));
@@ -2256,8 +2459,8 @@ body.kid-mode-active .portal-content {
 }
 @keyframes avatarBounceHop {
     0% { transform: scale(1) translateY(0); }
-    40% { transform: scale(1.25) translateY(-20px) rotate(8deg); }
-    70% { transform: scale(0.9) translateY(4px); }
+    40% { transform: scale(1.22) translateY(-18px) rotate(6deg); }
+    70% { transform: scale(0.92) translateY(4px); }
     100% { transform: scale(1) translateY(0); }
 }
 
@@ -2269,20 +2472,33 @@ body.kid-mode-active .portal-content {
     background: #ffffff;
     border-radius: 50%;
     padding: 3px;
-    box-shadow: 0 3px 8px rgba(0, 0, 0, 0.2);
-    border: 2px solid #fde047;
+    box-shadow: 0 3px 8px rgba(0, 0, 0, 0.18);
+    border: 2px solid var(--kid-yellow);
 }
 
 .kid-avatar-title-box {
-    margin-top: 14px;
+    margin-top: 16px;
     text-align: center;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 8px;
 }
-.kid-avatar-hero-name {
+.avatar-name-input-wrapper {
+    position: relative;
+}
+.kid-avatar-name-input {
     font-family: 'Fredoka', sans-serif;
     font-size: 20px;
     font-weight: 800;
-    color: #1e293b;
-    margin: 0 0 8px 0;
+    color: var(--kid-text-primary);
+    text-align: center;
+    border: 2px dashed #8b5cf6;
+    border-radius: 16px;
+    padding: 6px 16px;
+    background: #ffffff;
+    outline: none;
+    max-width: 280px;
 }
 .btn-kid-random-name {
     background: #ffffff;
@@ -2291,7 +2507,7 @@ body.kid-mode-active .portal-content {
     font-family: 'Fredoka', sans-serif;
     font-size: 13px;
     font-weight: 800;
-    padding: 6px 14px;
+    padding: 6px 16px;
     border-radius: 20px;
     cursor: pointer;
     box-shadow: 0 3px 0 #8b5cf6;
@@ -2301,12 +2517,7 @@ body.kid-mode-active .portal-content {
     transform: translateY(-2px);
     box-shadow: 0 5px 0 #8b5cf6;
 }
-.btn-kid-random-name:active {
-    transform: translateY(2px);
-    box-shadow: 0 1px 0 #8b5cf6;
-}
 
-/* Opciones de Avatar Puffy */
 .kid-step-container {
     margin-bottom: 22px;
 }
@@ -2317,7 +2528,7 @@ body.kid-mode-active .portal-content {
     font-family: 'Fredoka', sans-serif;
     font-size: 15px;
     font-weight: 800;
-    color: #1e293b;
+    color: var(--kid-text-primary);
     margin-bottom: 12px;
 }
 .step-circle {
@@ -2340,7 +2551,7 @@ body.kid-mode-active .portal-content {
 }
 .avatar-puffy-btn, .acc-puffy-btn {
     background: #ffffff;
-    border: 2.5px solid #e2e8f0;
+    border: 2px solid #E2E8F0;
     border-radius: 20px;
     padding: 8px 14px;
     display: inline-flex;
@@ -2349,18 +2560,14 @@ body.kid-mode-active .portal-content {
     font-family: 'Fredoka', sans-serif;
     font-size: 13px;
     font-weight: 700;
-    color: #1e293b;
+    color: var(--kid-text-primary);
     cursor: pointer;
-    box-shadow: 0 4px 0 #cbd5e1;
+    box-shadow: 0 4px 0 #CBD5E1;
     transition: all 0.15s ease;
 }
 .avatar-puffy-btn:hover, .acc-puffy-btn:hover {
     transform: translateY(-2px);
-    box-shadow: 0 6px 0 #cbd5e1;
-}
-.avatar-puffy-btn:active, .acc-puffy-btn:active {
-    transform: translateY(3px);
-    box-shadow: 0 1px 0 #cbd5e1;
+    box-shadow: 0 6px 0 #CBD5E1;
 }
 .avatar-puffy-btn.active, .acc-puffy-btn.active {
     background: #7c3aed;
@@ -2369,13 +2576,12 @@ body.kid-mode-active .portal-content {
     box-shadow: 0 4px 0 #5b21b6;
     transform: scale(1.04);
 }
-.puffy-emoji, .acc-puffy-emoji {
-    font-size: 22px;
-}
+.puffy-emoji, .acc-puffy-emoji { font-size: 22px; }
 
 .kid-auras-sparkle-row {
     display: flex;
-    gap: 14px;
+    gap: 12px;
+    flex-wrap: wrap;
 }
 .aura-sparkle-btn {
     width: 44px;
@@ -2390,30 +2596,21 @@ body.kid-mode-active .portal-content {
     font-size: 16px;
     transition: transform 0.2s cubic-bezier(0.34, 1.56, 0.64, 1);
 }
-.aura-sparkle-btn:hover {
-    transform: scale(1.2);
-}
+.aura-sparkle-btn:hover { transform: scale(1.18); }
 .aura-sparkle-btn.active {
-    outline: 3.5px solid #1e293b;
+    outline: 3.5px solid var(--kid-text-primary);
     outline-offset: 3px;
     transform: scale(1.15);
 }
 
 .btn-kid-save-avatar {
     background: linear-gradient(135deg, #8b5cf6 0%, #6d28d9 100%);
-    color: #ffffff;
     box-shadow: 0 6px 0 #4c1d95, 0 10px 20px rgba(139, 92, 246, 0.35);
 }
-.btn-kid-save-avatar:hover {
-    transform: translateY(-3px);
-    box-shadow: 0 9px 0 #4c1d95, 0 14px 25px rgba(139, 92, 246, 0.45);
-}
-.btn-kid-save-avatar:active {
-    transform: translateY(4px);
-    box-shadow: 0 2px 0 #4c1d95;
-}
 
-/* Cazador de Burbujas 3D y Cielo Mágico */
+/* ==========================================================================
+   VISTA 3: CAZADOR DE PREOCUPACIONES (BURBUJAS FLOTANTES Y POPPING)
+   ========================================================================== */
 .kid-bubbles-dashboard {
     display: flex;
     justify-content: space-between;
@@ -2424,7 +2621,7 @@ body.kid-mode-active .portal-content {
 }
 .kid-chest-counter {
     background: #f0fdf4;
-    border: 2.5px solid #86efac;
+    border: 2px solid #86efac;
     border-radius: 20px;
     padding: 8px 16px;
     display: flex;
@@ -2453,20 +2650,18 @@ body.kid-mode-active .portal-content {
     color: #ffffff;
     box-shadow: 0 4px 0 #0369a1;
 }
-.btn-kid-add-bubble:hover {
-    transform: translateY(-2px);
-    box-shadow: 0 6px 0 #0369a1;
-}
-.btn-kid-add-bubble:active {
-    transform: translateY(3px);
-    box-shadow: 0 1px 0 #0369a1;
+.btn-kid-skip-bubble {
+    background: #ffffff;
+    color: var(--kid-text-secondary);
+    border: 2px solid #CBD5E1;
+    box-shadow: 0 3px 0 #CBD5E1;
 }
 
 .kid-bubbles-playfield-v2 {
-    min-height: 320px;
-    background: radial-gradient(ellipse at bottom, #bae6fd 0%, #e0f2fe 50%, #f0fdf4 100%);
+    min-height: 330px;
+    background: radial-gradient(ellipse at bottom, var(--kid-sky) 0%, #ffffff 75%);
     border-radius: 26px;
-    border: 3px dashed #60a5fa;
+    border: 2.5px dashed #60a5fa;
     padding: 24px;
     position: relative;
     overflow: hidden;
@@ -2474,12 +2669,12 @@ body.kid-mode-active .portal-content {
     flex-wrap: wrap;
     align-content: center;
     justify-content: center;
-    gap: 16px;
-    box-shadow: inset 0 2px 8px rgba(0, 0, 0, 0.05);
+    gap: 14px;
+    box-shadow: inset 0 2px 8px rgba(0, 0, 0, 0.04);
 }
 
 .kid-bubble-v2 {
-    background: radial-gradient(circle at 35% 30%, rgba(255, 255, 255, 0.95), rgba(186, 230, 253, 0.7) 60%, rgba(147, 197, 253, 0.9) 100%);
+    background: radial-gradient(circle at 35% 30%, rgba(255, 255, 255, 0.95), rgba(186, 230, 253, 0.7) 60%, rgba(147, 197, 253, 0.85) 100%);
     border: 2.5px solid rgba(255, 255, 255, 0.9);
     border-radius: 50px;
     padding: 14px 20px;
@@ -2488,7 +2683,7 @@ body.kid-mode-active .portal-content {
     font-weight: 700;
     color: #0369a1;
     cursor: pointer;
-    box-shadow: 0 8px 20px rgba(56, 189, 248, 0.35), inset 0 3px 8px rgba(255, 255, 255, 0.9);
+    box-shadow: 0 8px 20px rgba(56, 189, 248, 0.3), inset 0 3px 8px rgba(255, 255, 255, 0.9);
     display: inline-flex;
     align-items: center;
     gap: 8px;
@@ -2497,9 +2692,8 @@ body.kid-mode-active .portal-content {
     transition: transform 0.15s ease, opacity 0.25s ease;
 }
 .kid-bubble-v2:hover {
-    transform: scale(1.12) translateY(-4px);
-    background: radial-gradient(circle at 35% 30%, #ffffff, rgba(147, 197, 253, 0.9) 80%);
-    box-shadow: 0 12px 24px rgba(56, 189, 248, 0.5), inset 0 3px 8px #ffffff;
+    transform: scale(1.1) translateY(-4px);
+    box-shadow: 0 12px 24px rgba(56, 189, 248, 0.45);
 }
 .kid-bubble-v2.popping {
     transform: scale(1.5);
@@ -2507,14 +2701,14 @@ body.kid-mode-active .portal-content {
 }
 @keyframes floatBubbleRandom {
     0%, 100% { transform: translateY(0) rotate(0deg); }
-    50% { transform: translateY(-10px) rotate(2deg); }
+    50% { transform: translateY(-10px) rotate(1.5deg); }
 }
 
 .kid-bubbles-encouragement {
     margin-top: 16px;
     background: #ffffff;
     border-radius: 18px;
-    padding: 12px 16px;
+    padding: 12px 18px;
     border: 2px solid #e0f2fe;
     display: flex;
     align-items: center;
@@ -2528,16 +2722,18 @@ body.kid-mode-active .portal-content {
     color: #0369a1;
 }
 
-/* Lienzo Mágico — Estuche de Colores */
+/* ==========================================================================
+   VISTA 4: EL LIENZO MÁGICO (HTML5 CANVAS, DESHACER Y PINCEL ARCOÍRIS)
+   ========================================================================== */
 .kid-paintbox-toolbar {
-    background: #fdfdfd;
-    border: 2.5px solid #fbcfe8;
+    background: #FDFDFD;
+    border: 2px solid #fbcfe8;
     border-radius: 22px;
-    padding: 14px;
+    padding: 16px;
     margin-bottom: 16px;
     display: flex;
     flex-direction: column;
-    gap: 12px;
+    gap: 14px;
     font-family: 'Fredoka', sans-serif;
 }
 .paintbox-group {
@@ -2549,8 +2745,8 @@ body.kid-mode-active .portal-content {
 .paintbox-label {
     font-size: 13px;
     font-weight: 800;
-    color: #475569;
-    min-width: 75px;
+    color: var(--kid-text-secondary);
+    min-width: 70px;
 }
 .paintbox-colors-row {
     display: flex;
@@ -2562,20 +2758,18 @@ body.kid-mode-active .portal-content {
     height: 32px;
     border-radius: 50%;
     border: 3px solid #ffffff;
-    box-shadow: 0 3px 0 rgba(0, 0, 0, 0.2);
+    box-shadow: 0 3px 0 rgba(0, 0, 0, 0.18);
     cursor: pointer;
     transition: transform 0.15s ease;
 }
-.crayon-btn:hover {
-    transform: scale(1.2);
-}
+.crayon-btn:hover { transform: scale(1.2); }
 .crayon-btn.active {
-    outline: 3px solid #1e293b;
+    outline: 3px solid var(--kid-text-primary);
     outline-offset: 2px;
     transform: scale(1.15);
 }
 .crayon-rainbow {
-    background: linear-gradient(135deg, #ff0000, #ff7f00, #ffff00, #00ff00, #0000ff, #8b00ff) !important;
+    background: conic-gradient(#ff0000, #ff7f00, #ffff00, #00ff00, #0000ff, #8b00ff, #ff0000) !important;
     font-size: 14px;
     display: flex;
     align-items: center;
@@ -2596,107 +2790,169 @@ body.kid-mode-active .portal-content {
 }
 .size-pill-btn, .stamp-pill-btn {
     background: #ffffff;
-    border: 2px solid #cbd5e1;
+    border: 2px solid #CBD5E1;
     border-radius: 14px;
-    padding: 6px 12px;
+    padding: 5px 12px;
     font-family: 'Fredoka', sans-serif;
     font-size: 12px;
     font-weight: 700;
-    color: #334155;
     cursor: pointer;
-    box-shadow: 0 3px 0 #cbd5e1;
+    box-shadow: 0 2px 0 #CBD5E1;
     transition: all 0.15s ease;
-}
-.stamp-pill-btn {
-    font-size: 16px;
-    padding: 4px 8px;
 }
 .size-pill-btn.active, .stamp-pill-btn.active {
     background: #ec4899;
     color: #ffffff;
     border-color: #ec4899;
-    box-shadow: 0 3px 0 #be185d;
+    box-shadow: 0 2px 0 #be185d;
 }
-.btn-kid-clear-canvas {
-    background: #fee2e2;
-    border: 2px solid #fca5a5;
-    color: #b91c1c;
-    border-radius: 14px;
+
+.btn-kid-paint-action {
+    background: #ffffff;
+    border: 2px solid #8b5cf6;
+    color: #7c3aed;
+    border-radius: 16px;
     padding: 6px 14px;
     font-family: 'Fredoka', sans-serif;
     font-size: 12px;
     font-weight: 800;
     cursor: pointer;
-    box-shadow: 0 3px 0 #fca5a5;
+    box-shadow: 0 3px 0 #8b5cf6;
+}
+.btn-kid-clear-canvas {
+    background: #fef2f2;
+    border: 2px solid #f87171;
+    color: #dc2626;
+    border-radius: 16px;
+    padding: 6px 14px;
+    font-family: 'Fredoka', sans-serif;
+    font-size: 12px;
+    font-weight: 800;
+    cursor: pointer;
+    box-shadow: 0 3px 0 #f87171;
 }
 
 .kid-easel-frame {
     background: #ffffff;
-    border: 4px solid #fbcfe8;
-    border-radius: 22px;
+    border: 3.5px solid #CBD5E1;
+    border-radius: 20px;
     overflow: hidden;
-    box-shadow: inset 0 2px 6px rgba(0, 0, 0, 0.05), 0 8px 0 #f472b6;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.06);
     display: flex;
     justify-content: center;
-    touch-action: none;
 }
 #kidDrawingCanvas {
-    background: #ffffff;
     display: block;
-    max-width: 100%;
+    width: 100%;
+    max-width: 680px;
     height: auto;
+    aspect-ratio: 680 / 420;
     cursor: crosshair;
+    touch-action: none;
+}
+
+.kid-drawing-explanation-box {
+    margin-top: 14px;
+    background: #F8FAFC;
+    border: 2px solid #E2E8F0;
+    border-radius: 16px;
+    padding: 12px 16px;
+    font-family: 'Fredoka', sans-serif;
+}
+.kid-drawing-explanation-box label {
+    display: block;
+    font-size: 13px;
+    color: var(--kid-text-secondary);
+    margin-bottom: 6px;
+}
+.kid-drawing-story-input {
+    width: 100%;
+    box-sizing: border-box;
+    border: 1.5px solid #CBD5E1;
+    border-radius: 12px;
+    padding: 8px 12px;
+    font-family: 'Fredoka', sans-serif;
+    font-size: 13px;
+    outline: none;
+    background: #ffffff;
 }
 
 .btn-kid-send-drawing {
     background: linear-gradient(135deg, #ec4899 0%, #db2777 100%);
-    color: #ffffff;
     box-shadow: 0 6px 0 #9d174d, 0 10px 20px rgba(236, 72, 153, 0.35);
 }
-.btn-kid-send-drawing:hover {
-    transform: translateY(-3px);
-    box-shadow: 0 9px 0 #9d174d, 0 14px 25px rgba(236, 72, 153, 0.45);
+
+/* ==========================================================================
+   VISTA 5: EL JARDÍN DE LA CALMA (RESPIRACIÓN: GLOBO, FLOR, TORTUGA)
+   ========================================================================== */
+.kid-calm-techniques-row {
+    display: flex;
+    gap: 10px;
+    justify-content: center;
+    margin-bottom: 20px;
+    flex-wrap: wrap;
 }
-.btn-kid-send-drawing:active {
-    transform: translateY(4px);
-    box-shadow: 0 2px 0 #9d174d;
+.calm-tech-tab {
+    background: #ffffff;
+    border: 2px solid #E2E8F0;
+    border-radius: 20px;
+    padding: 8px 18px;
+    font-family: 'Fredoka', sans-serif;
+    font-size: 14px;
+    font-weight: 800;
+    color: var(--kid-text-secondary);
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    box-shadow: 0 3px 0 #CBD5E1;
+    transition: all 0.15s ease;
+}
+.calm-tech-tab:hover {
+    transform: translateY(-2px);
+}
+.calm-tech-tab.active {
+    background: #8b5cf6;
+    color: #ffffff;
+    border-color: #8b5cf6;
+    box-shadow: 0 4px 0 #6d28d9;
+    transform: scale(1.05);
 }
 
-/* El Globo de la Calma — Personaje Animado */
 .kid-balloon-sky-stage {
-    position: relative;
+    min-height: 290px;
+    background: radial-gradient(circle, var(--kid-lavender) 0%, var(--kid-sky) 100%);
+    border-radius: 26px;
+    border: 2px solid #C7D2FE;
     display: flex;
     flex-direction: column;
     align-items: center;
     justify-content: center;
-    min-height: 290px;
-    padding: 28px;
-    background: radial-gradient(circle, #fdf4ff 0%, #ede9fe 100%);
-    border-radius: 26px;
-    border: 2.5px solid #ddd6fe;
+    position: relative;
+    padding: 24px;
     overflow: hidden;
-    box-shadow: inset 0 2px 8px rgba(0, 0, 0, 0.03);
 }
 .sky-cloud {
     position: absolute;
     font-size: 32px;
-    opacity: 0.5;
-    animation: floatCloud 8s infinite ease-in-out alternate;
+    opacity: 0.4;
+    animation: floatCloud 6s infinite ease-in-out alternate;
 }
-.cloud-left { top: 20px; left: 20px; }
-.cloud-right { bottom: 20px; right: 20px; animation-duration: 10s; }
+.cloud-left { top: 20px; left: 30px; }
+.cloud-right { bottom: 30px; right: 30px; animation-duration: 8s; }
 
+/* Personaje Globo */
 .kid-balloon-character {
-    width: 120px;
-    height: 145px;
-    background: radial-gradient(circle at 35% 30%, #f472b6, #e11d48);
+    width: 110px;
+    height: 130px;
+    background: radial-gradient(circle at 35% 30%, #f43f5e 0%, #be123c 100%);
     border-radius: 50% 50% 50% 50% / 40% 40% 60% 60%;
+    position: relative;
     display: flex;
     flex-direction: column;
     align-items: center;
     justify-content: center;
-    position: relative;
-    box-shadow: 0 12px 30px rgba(225, 29, 72, 0.35);
+    box-shadow: 0 10px 25px rgba(244, 63, 94, 0.4);
     transition: transform 0.5s ease;
     user-select: none;
 }
@@ -2736,20 +2992,76 @@ body.kid-mode-active .portal-content {
     bottom: -28px;
     width: 2px;
     height: 20px;
-    background: #cbd5e1;
+    background: #CBD5E1;
 }
 
-.kid-balloon-character.inhale {
-    transform: scale(1.75) translateY(-10px);
+/* Personaje Flor Mágica */
+.kid-flower-character {
+    position: relative;
+    width: 130px;
+    height: 130px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: transform 0.5s ease;
+}
+.flower-petals-ring {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 70px;
+    animation: sunSpin 24s infinite linear;
+}
+.flower-center-core {
+    position: relative;
+    z-index: 2;
+    width: 60px;
+    height: 60px;
+    background: var(--kid-yellow);
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
+}
+.flower-face { font-size: 32px; }
+
+/* Personaje Tortuga */
+.kid-turtle-character {
+    position: relative;
+    width: 140px;
+    height: 110px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: transform 0.5s ease;
+}
+.turtle-shell {
+    width: 120px;
+    height: 90px;
+    background: #15803d;
+    border-radius: 60px 60px 20px 20px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: 0 8px 20px rgba(21, 128, 61, 0.35);
+}
+.turtle-head { font-size: 52px; }
+
+/* Fases de Respiración */
+.kid-calm-character.inhale {
+    transform: scale(1.65) translateY(-8px);
     transition: transform 4s cubic-bezier(0.4, 0, 0.2, 1);
 }
-.kid-balloon-character.exhale {
-    transform: scale(0.95) translateY(6px);
-    transition: transform 6s cubic-bezier(0.4, 0, 0.2, 1);
+.kid-calm-character.exhale {
+    transform: scale(0.92) translateY(6px);
+    transition: transform 5s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 .kid-breathing-guide-box {
-    margin-top: 36px;
+    margin-top: 32px;
     text-align: center;
     font-family: 'Fredoka', sans-serif;
 }
@@ -2765,48 +3077,121 @@ body.kid-mode-active .portal-content {
     color: #7e22ce;
     background: #ffffff;
     display: inline-block;
-    padding: 3px 12px;
-    border-radius: 12px;
+    padding: 3px 14px;
+    border-radius: 14px;
     box-shadow: 0 2px 6px rgba(0, 0, 0, 0.08);
 }
 
+.kid-calm-controls-panel {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: 12px;
+    margin-top: 20px;
+    flex-wrap: wrap;
+}
 .btn-kid-balloon-action {
     background: linear-gradient(135deg, #7c3aed 0%, #6d28d9 100%);
     color: #ffffff;
     box-shadow: 0 6px 0 #4c1d95, 0 10px 20px rgba(124, 58, 237, 0.35);
 }
-.btn-kid-balloon-action:hover {
-    transform: translateY(-3px);
-    box-shadow: 0 9px 0 #4c1d95, 0 14px 25px rgba(124, 58, 237, 0.45);
-}
-.btn-kid-balloon-action:active {
-    transform: translateY(4px);
-    box-shadow: 0 2px 0 #4c1d95;
+.btn-kid-stop-action {
+    background: #ffffff;
+    border: 2px solid #CBD5E1;
+    color: var(--kid-text-secondary);
+    box-shadow: 0 4px 0 #CBD5E1;
 }
 
 .kid-calm-trophy-counter {
     text-align: center;
-    margin-top: 16px;
+    margin-top: 18px;
     font-family: 'Fredoka', sans-serif;
 }
 .kid-calm-trophy-counter span {
     display: block;
     font-size: 14px;
     font-weight: 800;
-    color: #334155;
+    color: var(--kid-text-primary);
 }
 .kid-calm-trophy-counter small {
     display: block;
     font-size: 12px;
-    color: #64748b;
-    margin-top: 2px;
+    color: var(--kid-text-secondary);
+    margin-top: 3px;
 }
 
-/* Doble Navegación Inferior Kids — Estilo Consola de Videojuego */
+/* ==========================================================================
+   MODALES DEL PORTAL KIDS (SOS INFANTIL Y BURBUJA PERSONALIZADA)
+   ========================================================================== */
+.kid-modal-content {
+    font-family: 'Fredoka', sans-serif;
+    background: #ffffff;
+}
+.kid-sos-intro-bubble {
+    background: var(--kid-lavender);
+    border-radius: 18px;
+    padding: 12px 16px;
+    font-size: 13px;
+    color: #5b21b6;
+    margin-bottom: 14px;
+    line-height: 1.45;
+}
+.kid-sos-choices-grid {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+.kid-sos-card {
+    background: #F8FAFC;
+    border: 2px solid #E2E8F0;
+    border-radius: 18px;
+    padding: 12px 16px;
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    cursor: pointer;
+    box-shadow: 0 3px 0 #CBD5E1;
+    transition: all 0.15s ease;
+}
+.kid-sos-card:hover {
+    transform: translateY(-2px);
+    background: #ffffff;
+}
+.sos-card-icon { font-size: 28px; flex-shrink: 0; }
+.kid-sos-card strong {
+    font-size: 14px;
+    color: var(--kid-text-primary);
+    display: block;
+}
+.kid-sos-card p {
+    font-size: 12px;
+    color: var(--kid-text-secondary);
+    margin: 2px 0 0 0;
+    line-height: 1.35;
+}
+.sos-card-alert {
+    border-color: #fecaca;
+    background: #fff5f5;
+}
+
+.kid-bubble-input-field {
+    width: 100%;
+    box-sizing: border-box;
+    border: 2px solid #93c5fd;
+    border-radius: 16px;
+    padding: 10px 14px;
+    font-family: 'Fredoka', sans-serif;
+    font-size: 14px;
+    outline: none;
+}
+
+/* ==========================================================================
+   NAVEGACIÓN INFERIOR NIÑOS: ESTILO CONSOLA MÁGICA
+   ========================================================================== */
 .kid-bottom-console {
     background: #ffffff;
-    border-top: 3.5px solid #fde047;
-    box-shadow: 0 -6px 20px rgba(0, 0, 0, 0.08);
+    border-top: 2.5px solid var(--kid-yellow);
+    box-shadow: 0 -6px 20px rgba(37, 36, 58, 0.08);
     padding: 8px 12px;
     display: flex;
     justify-content: space-around;
@@ -2823,6 +3208,8 @@ body.kid-mode-active .portal-content {
     align-items: center;
     gap: 4px;
     font-family: 'Fredoka', sans-serif;
+    min-width: 52px;
+    min-height: 52px;
     transition: transform 0.15s cubic-bezier(0.34, 1.56, 0.64, 1);
 }
 .console-btn-icon-wrapper {
@@ -2857,14 +3244,83 @@ body.kid-mode-active .portal-content {
 .console-label {
     font-size: 11px;
     font-weight: 700;
-    color: #475569;
+    color: var(--kid-text-secondary);
 }
 .kid-console-btn.active .console-label {
-    color: #1e293b;
+    color: var(--kid-text-primary);
     font-weight: 800;
 }
 
+/* ==========================================================================
+   MEDIA QUERIES RESPONSIVE Y ACCESIBILIDAD
+   ========================================================================== */
+@media (min-width: 1024px) {
+    body.kid-mode-active .portal-content {
+        max-width: 1040px;
+    }
+    .kid-bento-grid {
+        grid-template-columns: repeat(4, 1fr);
+    }
+}
 
+@media (max-width: 768px) {
+    .kid-hero-content {
+        flex-direction: column;
+        text-align: center;
+    }
+    .kid-bento-grid {
+        grid-template-columns: repeat(2, 1fr);
+    }
+    .kid-somatic-interactive-layout {
+        flex-direction: column;
+    }
+    .kid-zones-buttons-panel {
+        max-width: 100%;
+        width: 100%;
+    }
+    .kid-weather-cards-grid {
+        grid-template-columns: repeat(3, 1fr);
+    }
+}
 
+@media (max-width: 480px) {
+    .kid-bento-grid {
+        grid-template-columns: 1fr;
+    }
+    .kid-weather-cards-grid {
+        grid-template-columns: repeat(2, 1fr);
+    }
+    .kid-main-title {
+        font-size: 22px;
+    }
+    .kid-hero-island {
+        padding: 20px 16px;
+    }
+    .kid-card {
+        padding: 20px 16px;
+    }
+    .console-label {
+        font-size: 10px;
+    }
+}
 
-
+@media (prefers-reduced-motion: reduce) {
+    .kid-floating-cloud,
+    .sun-spin,
+    .cloud-float,
+    .rainbow-glow,
+    .rain-drip,
+    .bolt-flash,
+    .tornado-twirl,
+    .starPulseKid,
+    .pulseAuraKid,
+    .avatarBounceHop,
+    .floatBubbleRandom,
+    .hotspot-pulse {
+        animation: none !important;
+    }
+    .kid-calm-character.inhale,
+    .kid-calm-character.exhale {
+        transition-duration: 0.1s !important;
+    }
+}

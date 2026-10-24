@@ -3099,6 +3099,599 @@ sequenceDiagram
 | **Agente 2 (Backend/Engine)** | Persistencia y sincronización cloud | `app.js`, `backup.js`, `server.js` | 1. Integración de `finance` en el payload de `CloudSyncManager.pushToCloud`.<br>2. Lógica de merge e hidratación en `CloudSyncManager.pullFromCloud`.<br>3. Inclusión de tarifas y metas en `backup.js`. |
 | **Agente 4 (QA & DevOps)** | Pruebas automatizadas y validación | `tests.js` | 1. Caso de prueba `TC-DOM-01`: Certificar que ningún modal del sistema esté anidado dentro de otro modal.<br>2. Caso de prueba `TC-FIN-07`: Apertura e interacción de los 5 modales financieros.<br>3. Ejecución de suite (100% aprobado). |
 
+---
+
+## 34. SUITE DE PRODUCTIVIDAD Y COPILOTO CLÍNICO HEYFREUD-BENCHMARK (v7.0)
+
+### 34.1. Fundamentación Estratégica y Objetivos de la Versión 7.0
+
+A partir del análisis comparativo exhaustivo con **HeyFreud** (`app.heyfreud.com`), se constató que la principal fortaleza de la competencia radica en su capacidad de **ambient listening**: permitir al terapeuta encender la grabación al inicio de la sesión de 45-50 minutos y obtener una nota estructurada completa sin teclear durante la consulta.
+
+La versión 7.0 de **Psico Notes Clinical** incorpora esta capacidad estelar, superando a HeyFreud al integrarla dentro de una arquitectura con **Cifrado Zero-Knowledge**, **Destrucción Efímera de Audio (Zero-Retention)**, **Anonimización Estricta PHI** y sincronización nativa con el **Portal del Paciente** y la **Historia Clínica por Ciclo Vital**.
+
+```mermaid
+flowchart TB
+    subgraph CapturaAudio["🎙️ Módulo de Captura Ambiental (SessionRecorder)"]
+        Microphone["Micrófono Consultorio / Auriculares"]
+        MediaRec["MediaRecorder Web API (audio/webm; codecs=opus)"]
+        AudioBuffer["Chunked Audio Stream en Memoria (RAM)"]
+        SessionTimer["Cronómetro Flotante con Pausa y Reanudación"]
+    end
+
+    subgraph PipelineProcesamiento["⚙️ Pipeline Seguro de Anonimización y Procesamiento"]
+        PHI["Capa de Desidentificación PHI (phi-anonymizer.js)"]
+        StyleEngine["Motor de Perfil Estilístico y Few-Shot Learning"]
+        BackendProxy["Proxy Seguro Express (/api/v1/clinical/session-synthesize)"]
+        GeminiFlash["Google Gemini 2.5 Flash (Multimodal Audio & Text)"]
+    end
+
+    subgraph FormatosNotas["📋 Motor Clínico Multiformato"]
+        SOAP["SOAP (Subjetivo, Objetivo, Análisis, Plan)"]
+        DAP["DAP (Data, Assessment, Plan)"]
+        BIRP["BIRP (Behavior, Intervention, Response, Plan)"]
+        GIRP["GIRP (Goals, Intervention, Response, Plan)"]
+        Narrative["Narrativa Clínica Libre Estructurada"]
+        TreatmentPlan["Plan de Tratamiento y Metas Intersesión"]
+    end
+
+    subgraph PersistenciaSegura["🔐 Almacén Clínico y Destrucción Criptográfica"]
+        ReviewModal["Borrador Clínico Editable con Diff y Aprobación Humana"]
+        CryptoEngine["Cifrado Simétrico AES-GCM 256 bits"]
+        DB[(PostgreSQL / Snapshot Cloud)]
+        AudioDestruction["🗑️ Purga y Sobrescritura Inmediata del Blob de Audio"]
+    end
+
+    Microphone --> MediaRec
+    MediaRec --> AudioBuffer
+    AudioBuffer --> SessionTimer
+    
+    SessionTimer -->|"Finalizar Sesión"| PHI
+    PHI --> BackendProxy
+    StyleEngine --> BackendProxy
+    BackendProxy --> GeminiFlash
+    
+    GeminiFlash --> FormatosNotas
+    FormatosNotas --> ReviewModal
+    
+    ReviewModal -->|"Aprobación y Firma del Terapeuta"| CryptoEngine
+    CryptoEngine --> DB
+    ReviewModal -.->|"Garantía de Privacidad Ética"| AudioDestruction
+```
+
+---
+
+### 34.2. Especificación Técnica de los Componentes Nucleares
+
+#### 1. Módulo `SessionRecorder` (`voice-dictation.js` / nuevo `session-recorder.js`)
+- **Captura Dual**:
+  - `MediaRecorder API` con formato `audio/webm;codecs=opus` (tasa de muestreo de 16 kHz mono optimizada para voz).
+  - Troceado en segmentos de 30 segundos (`recorder.start(30000)`) para evitar colapso de memoria RAM durante sesiones de más de 45 minutos.
+- **Controles de Interfaz Ergonométricos**:
+  - Píldora de estado flotante en la barra superior del expediente: `🔴 Grabar Sesión`, `⏸️ Pausar`, `⏹️ Finalizar y Generar Nota`.
+  - Cronómetro activo `[MM:SS]` con indicación de nivel de audio mediante medidor VU animado (Web Audio API `AnalyserNode`).
+- **Política Zero-Retention de Grabación**:
+  - El audio se procesa en memoria volátil.
+  - Una vez recibida la transcripción y generada la nota clínica, el buffer de audio se sobrescribe (`audioChunks = null`) y se libera el stream del micrófono (`stream.getTracks().forEach(t => t.stop())`).
+
+#### 2. Motor Multiformato de Notas (`ClinicalAI.synthesizeNoteByFormat`)
+El sistema soporta ahora 6 plantillas estandarizadas seleccionables por el terapeuta:
+
+| Formato | Claves de Estructura | Caso de Aplicación Clínica |
+|---|---|---|
+| **SOAP** | `subjetivo`, `objetivo`, `analisis`, `plan` | Estándar médico hospitalario universal |
+| **DAP** | `data`, `assessment`, `plan` | Psicoterapia ambulatoria y consultas de seguimiento ágiles |
+| **BIRP** | `behavior`, `intervention`, `response`, `plan` | Terapias conductuales, TCC, adicciones y control de impulsos |
+| **GIRP** | `goals`, `intervention`, `response`, `plan` | Terapia focalizada en metas y objetivos medibles |
+| **Narrativo** | `resumenSesion`, `temasAbordados`, `intervenciones`, `acuerdos` | Enfoques psicodinámicos, humanistas o existenciales |
+| **Treatment Plan** | `problemasIdentificados`, `objetivosCortoPlazo`, `objetivosLargoPlazo`, `modalidadTerapeutica`, `criteriosAlta` | Hojas de encuadre inicial y planificación de objetivos |
+
+#### 3. Aprendizaje Estilístico del Terapeuta (`TherapistStyleLearning`)
+- El sistema almacena en el perfil del terapeuta (`therapist_style_profile`):
+  - **Tono**: Formal/académico, clínico-descriptivo o humanista-cálido.
+  - **Extensión media**: Sintética (1-2 párrafos por sección) o Detallada/Exhaustiva.
+  - **Marco teórico preferente**: TCC, ACT, DBT, Sistémica, Psicoanálisis, EMDR.
+  - **Glosario y frases tipo habituales**: Conjunto de términos técnicos preferidos por el profesional.
+- **Inyección Few-Shot Dinámica**: Al enviar el prompt al backend proxy, se extraen las últimas 2 notas aprobadas del terapeuta (previamente anonimizadas) para actuar como ejemplos directos de redacción, asegurando que el borrador imite el estilo natural del usuario.
+
+---
+
+### 34.3. Diagrama de Secuencia del Flujo de Sesión Completa
+
+```mermaid
+sequenceDiagram
+    autonumber
+    actor T as 👩‍⚕️ Terapeuta
+    participant UI as 🖥️ Expediente del Paciente (app.js)
+    participant Rec as 🎙️ SessionRecorder (MediaRecorder)
+    participant Anon as 🛡️ PHI Anonymizer
+    participant Srv as 🛡️ Server Proxy (/api/v1/clinical/session-synthesize)
+    participant AI as 🤖 Gemini 2.5 Flash
+    participant DB as 💾 Almacén Cifrado (PostgreSQL)
+
+    T->>UI: Clic en "🔴 Grabar Sesión Completa"
+    UI->>Rec: startSessionRecording(patientId)
+    Rec-->>UI: Muestra barra flotante activa [00:00] con VU-meter
+    Note over T,Rec: Transcurre la sesión terapéutica (45 minutos)...
+    T->>UI: Clic en "⏹️ Finalizar Sesión"
+    UI->>Rec: stopSessionRecording()
+    Rec-->>UI: Blob de Audio consolidado (audio/webm)
+    
+    UI->>Anon: anonimizeAudioMetadata(patientContext)
+    UI->>Srv: POST /api/v1/clinical/session-synthesize { format: "SOAP", styleProfile, audio/text }
+    Srv->>AI: generateContent({ audioBlob, prompt, fewShotExamples, schema })
+    AI-->>Srv: JSON estructurado según formato seleccionado
+    Srv-->>UI: Retorna borrador de nota clínica desidentificada
+    UI->>Anon: deanonymizeNote(rawDraft)
+    
+    UI-->>T: Despliega modal de revisión interactiva con pestañas de edición
+    T->>UI: Modifica detalles clínicos y pulsa "Aprobar y Firmar Nota"
+    UI->>DB: Guarda nota oficial con firma y cifrado AES-GCM
+    UI->>Rec: purgeAudioBuffer()
+    Note over Rec: 🗑️ Audio destruido de memoria de forma irreversible
+    UI-->>T: Toast: "Nota oficial generada y guardada con éxito"
+```
+
+---
+
+### 34.4. Contratos de Endpoints REST Nuevos
+
+#### 1. `POST /api/v1/clinical/session-synthesize`
+- **Autenticación**: `requireTherapistAuth` (Bearer Token)
+- **Body (`application/json` o `multipart/form-data`)**:
+  ```json
+  {
+    "format": "SOAP",
+    "transcript": "Texto dictado o transcrito de la sesión...",
+    "audioBase64": "opcional si se envía audio directo",
+    "mimeType": "audio/webm",
+    "patientInfo": { "diagnosis": "TOC", "stage": "intervencion" },
+    "styleConfig": {
+      "theoreticalFramework": "TCC",
+      "conciseness": "medium",
+      "tone": "clinical"
+    }
+  }
+  ```
+- **Respuesta Exitosa (HTTP 200)**:
+  ```json
+  {
+    "format": "SOAP",
+    "content": {
+      "subjetivo": "...",
+      "objetivo": "...",
+      "analisis": "...",
+      "plan": "..."
+    },
+    "metadata": {
+      "model": "gemini-2.5-flash",
+      "tokensUsed": 450,
+      "styleApplied": true
+    }
+  }
+  ```
+
+#### 2. `GET /api/v1/clinical/style-profile` y `PUT /api/v1/clinical/style-profile`
+- Permite persistir y recuperar la configuración de estilo del terapeuta para garantizar consistencia en todas las síntesis automáticas.
+
+---
+
+### 34.5. Plan de Ejecución y Reparto de Estafeta Multi-Agente
+
+| Agente | Rol | Tareas Prioritarias |
+|---|---|---|
+| **Agente 1 (Arquitecto/PM)** | Liderazgo y Diseño | Arquitectura documentada en `arquitectura.md`, diseño de contratos y supervisión del ciclo de desarrollo. |
+| **Agente 2 (Backend)** | Engine & Proxy | 1. Implementación del endpoint `/api/v1/clinical/session-synthesize` en `server.js`.<br>2. Soporte para prompts multiformato (SOAP, DAP, BIRP, GIRP, Narrative).<br>3. Inyección de few-shot style learning y guardas de seguridad contra retención de audio. |
+| **Agente 3 (Frontend/Mobile)** | UI/UX & Ergonomía | 1. Creación del componente `SessionRecorder` con barra flotante, timer y medidor VU.<br>2. Selector de formato de nota en modal de notas y Copiloto IA.<br>3. Panel de configuración de estilo del terapeuta en Ajustes.<br>4. Wizard de onboarding guiado para la primera sesión. |
+| **Agente 4 (QA & DevOps)** | Calidad y Pruebas | 1. Creación de casos de prueba automatizados en `tests.js` (`TC-REC-01` para SessionRecorder, `TC-FMT-01` para multiformato y `TC-STY-01` para adaptación estilística).<br>2. Verificación estática con `tsc --noEmit`.<br>3. Validación de no-retención de audio y 100% PASS de la suite. |
+
+---
+
+## 35. Módulo Organizador de Sesiones de Terapia y Mapa de Ruta Longitudinal (Therapy Journey Roadmap)
+
+### 35.1. Visión y Justificación Clínica
+
+En la práctica psicoterapéutica (TCC, humanista, sistémica o psicodinámica), el tratamiento no es una simple lista aislada de notas de texto; es un **proceso estructurado en etapas**:
+1. *Fase Inicial:* Evaluación diagnóstica, motivo de consulta, psicoeducación y encuadre.
+2. *Fase Intermedia:* Reestructuración cognitiva, experimentos conductuales, regulación emocional y adquisición de habilidades.
+3. *Fase Avanzada y Cierre:* Consolidación de logros, autonomía, prevención de recaídas y alta terapéutica.
+
+El terapeuta requiere visualizar y planificar este recorrido de un vistazo directamente en la pestaña **"Expediente Clínico"** (`tab-resumen`) de la ficha del paciente. Este módulo introduce una interfaz en **mapa de ruta serpenteante (Zigzag / Serpentine Journey Roadmap)** que conecta cronológicamente cada sesión (tanto pasadas y completadas con notas clínicas como futuras planificadas o pendientes) con sus focos terapéuticos, objetivos y estado.
+
+```
+       [ 4: Sesión 8 ] ─────── [ 5: Sesión 9 ] ─────── [ 6: Sesión 10 ]
+             ▲
+             │ (Ascenso longitudinal)
+       [ 3: Sesión 5 ] ◄────── [ 2: Sesión 2 ] ◄────── [ 1: Eval Inicial ]
+```
+
+---
+
+### 35.2. Especificación Visual y de Interacción (Pixel-Perfect)
+
+Con base en el diseño de referencia validado:
+
+1. **Encabezado del Módulo**:
+   - Título tipográfico: `Sesiones de Terapia` (font-size: `22px`, font-weight: `700`, color primario `--text-primary`).
+   - Botón de Acción Primaria: `+ Agregar Sesión` (`.btn-primary`, fondo índigo/púrpura `#5046e5` o `#474375`, bordes redondeados `border-radius: 10px`, icono `fas fa-plus`, efecto elevación `hover: translateY(-1px)`).
+
+2. **Estructura del Layout Serpenteante (Zigzag Roadmap)**:
+   - Se organiza en filas de 3 tarjetas en sentido serpenteante:
+     - **Fila Inferior (Base temporal 1..3)**: Ordenada de derecha a izquierda (Sesión 1 a la derecha, Sesión 2 al centro, Sesión 3 a la izquierda) o de izquierda a derecha con inversión de flujo según configuración de lectura terapéutica. En el modelo estándar:
+       - Nodo 1 (Evaluación Inicial) -> Nodo 2 (Psicoeducación) -> Nodo 3 (Reestructuración cognitiva).
+     - **Conector Vertical de Ascenso**: Línea continua entre el Nodo 3 y el Nodo 4 que simboliza la transición de etapa clínica.
+     - **Fila Superior (Consolidación 4..6)**: Ordenada de izquierda a derecha:
+       - Nodo 4 (Fortalecimiento de habilidades) -> Nodo 5 (Revisión de progreso) -> Nodo 6 (Prevención de recaídas).
+   - **Rieles y Pines de Guía (Timeline Track & Nodes)**:
+     - Línea horizontal delgada (`height: 2px`, color `--border-secondary` / `#e2e8f0` en light, `#334155` en dark).
+     - Nodos circulares púrpuras (`width: 14px`, `height: 14px`, `background: #5b5091` / `#6366f1`, bordes redondeados `50%`, centrados bajo cada tarjeta).
+
+3. **Anatomía de la Tarjeta de Sesión (`.therapy-session-card`)**:
+   - Contenedor con `background: var(--bg-card, #ffffff)`, borde suave `1px solid var(--border-secondary, #e2e8f0)`, `border-radius: 16px`, sombra suave `box-shadow: 0 4px 12px rgba(0,0,0,0.04)`.
+   - **Cabecera**:
+     - *Insignia circular de número de sesión:* fondo lila suave (`#f1f0fb`), texto violeta (`#4b4570`), fuente semibold (`width: 28px`, `height: 28px`, centrado flexible).
+     - *Título de sesión:* e.g. `Sesión 8 - Fortaleciendo la auto...`, tipografía destacada con truncamiento elíptico en textos largos y tooltip con el nombre completo.
+     - *Acceso rápido (Chevron `>`):* Flecha de navegación a la derecha que abre el detalle de la sesión o la nota clínica completa.
+   - **Metadatos de Fecha**:
+     - Icono de calendario (`far fa-calendar-alt`), texto legible de fecha (e.g. `9 oct 2026`).
+   - **Caja de Foco Clínico / Resumen (Accordion / Expandible)**:
+     - Fondo suave grisáceo/azulado (`#f8fafc` en claro, `#1e293b` en oscuro), bordes redondeados (`border-radius: 10px`), padding `10px 12px`.
+     - Icono de destello ✨ (`fas fa-wand-magic-sparkles` o `fas fa-sparkles`).
+     - Texto conciso del foco terapéutico o hallazgo de la sesión.
+     - Botón / Chevron de despliegue (`fa-chevron-down`) para alternar entre vista resumida (2 líneas con `-webkit-line-clamp`) y texto completo.
+   - **Píldora de Estado (Status Pill)**:
+     - Badge redondeado con borde e icono:
+       - `Pendiente`: Icono `far fa-clock`, fondo amarillo/ámbar sutil, texto y borde `#d97706` / `#f59e0b`.
+       - `Completada`: Icono `fas fa-check-circle`, fondo verde esmeralda sutil, texto y borde `#059669`.
+       - `En curso / Agendada`: Icono `far fa-calendar-check`, fondo azul/índigo sutil, texto y borde `#4f46e5`.
+       - `Cancelada / Reprogramada`: Icono `fas fa-ban`, fondo carmín sutil, texto `#ef4444`.
+
+4. **Acciones Interactivas y Ergonomía**:
+   - **Click en la Tarjeta / Chevron**: Si la sesión ya tiene nota clínica (`clinical_notes`), abre la nota en modo lectura/edición. Si está pendiente, permite abrir el formulario de reporte de atención para registrar la evolución de dicha sesión.
+   - **Cambio Rápido de Estado**: Al hacer clic en la píldora de estado, menú flotante para alternar entre *Pendiente* y *Completada*.
+   - **Botón `+ Agregar Sesión`**: Despliega el modal interactivo `#sessionRoadmapModal` para definir número de sesión, título, fecha tentativa, objetivos/técnicas planificadas y estado.
+   - **Reorganización de Sesiones**: Posibilidad de ordenar cronológicamente o ajustar el orden de intervención arrastrando o usando controles de reordenamiento.
+
+---
+
+### 35.3. Modelo de Datos y Esquema de Persistencia
+
+Para evitar duplicidad o desincronización con las notas ya existentes, se implementa una arquitectura híbrida:
+- Si el paciente tiene notas clínicas registradas (`clinical_notes`), el sistema las mapea automáticamente como sesiones **Completadas**.
+- Si el terapeuta planifica sesiones futuras, estas se almacenan en la tabla/colección `therapy_roadmap_sessions`.
+- Al redactar la nota clínica de una sesión planificada, se enlaza bidireccionalmente mediante `clinical_note_id`.
+
+#### Esquema SQL (PostgreSQL / SQLite):
+```sql
+CREATE TABLE IF NOT EXISTS therapy_roadmap_sessions (
+    id VARCHAR(64) PRIMARY KEY,
+    patient_id VARCHAR(64) NOT NULL REFERENCES patients(id) ON DELETE CASCADE,
+    session_number INTEGER NOT NULL,
+    title VARCHAR(255) NOT NULL,
+    session_date DATE NOT NULL,
+    focus_summary TEXT DEFAULT '',
+    status VARCHAR(30) DEFAULT 'pendiente' CHECK (status IN ('pendiente', 'completada', 'agendada', 'reprogramada', 'cancelada')),
+    clinical_note_id VARCHAR(64) REFERENCES clinical_notes(id) ON DELETE SET NULL,
+    appointment_id VARCHAR(64) REFERENCES appointments(id) ON DELETE SET NULL,
+    display_order INTEGER NOT NULL DEFAULT 0,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE INDEX IF NOT EXISTS idx_roadmap_patient ON therapy_roadmap_sessions(patient_id);
+CREATE INDEX IF NOT EXISTS idx_roadmap_order ON therapy_roadmap_sessions(patient_id, display_order ASC);
+```
+
+#### Modelo Reactivo en `AppState` (Frontend / Offline-First):
+```typescript
+interface TherapyRoadmapSession {
+  id: string;
+  patientId: string;
+  sessionNumber: number;
+  title: string;
+  date: string; // YYYY-MM-DD
+  focusSummary: string; // Resumen o foco terapéutico
+  status: 'pendiente' | 'completada' | 'agendada' | 'reprogramada' | 'cancelada';
+  clinicalNoteId?: string;
+  appointmentId?: string;
+  displayOrder: number;
+  createdAt: string;
+  updatedAt: string;
+}
+```
+
+---
+
+### 35.4. Contratos de la API REST
+
+#### 1. `GET /api/v1/patients/:patientId/therapy-sessions`
+- **Descripción:** Obtiene la lista ordenada de sesiones del mapa de ruta para el paciente indicado.
+- **Autenticación:** Bearer Token de terapeuta (`requireTherapistAuth`).
+- **Respuesta Exitosa (HTTP 200)**:
+  ```json
+  {
+    "patientId": "p-101",
+    "sessions": [
+      {
+        "id": "trs-001",
+        "sessionNumber": 1,
+        "title": "Evaluación Inicial",
+        "date": "2026-07-31",
+        "focusSummary": "Evaluación inicial revela ansiedad y estrés laboral crecientes tras cambios de puesto.",
+        "status": "completada",
+        "clinicalNoteId": "note-123",
+        "displayOrder": 1
+      },
+      {
+        "id": "trs-002",
+        "sessionNumber": 2,
+        "title": "Sesión 2 - Psicoeducación",
+        "date": "2026-08-14",
+        "focusSummary": "Se introdujo psicoeducación sobre la respuesta al estrés y el triángulo cognitivo.",
+        "status": "completada",
+        "clinicalNoteId": "note-124",
+        "displayOrder": 2
+      },
+      {
+        "id": "trs-003",
+        "sessionNumber": 5,
+        "title": "Sesión 5 - Reestructuración Cognitiva",
+        "date": "2026-09-11",
+        "focusSummary": "Se aplicó reestructuración cognitiva para desafiar pensamiento todo o nada.",
+        "status": "pendiente",
+        "clinicalNoteId": null,
+        "displayOrder": 3
+      }
+    ]
+  }
+  ```
+
+#### 2. `POST /api/v1/patients/:patientId/therapy-sessions`
+- **Descripción:** Crea una nueva sesión planificada en el mapa de ruta.
+- **Body**:
+  ```json
+  {
+    "sessionNumber": 6,
+    "title": "Sesión 10 - Prevención de Recaídas",
+    "date": "2026-10-30",
+    "focusSummary": "Estrategias de mantenimiento y plan de acción ante contingencias futuras.",
+    "status": "pendiente"
+  }
+  ```
+- **Respuesta (HTTP 201)**: Objeto de sesión creado.
+
+#### 3. `PUT /api/v1/patients/:patientId/therapy-sessions/:sessionId`
+- **Descripción:** Actualiza fecha, título, foco clínico o estado de una sesión.
+
+#### 4. `POST /api/v1/patients/:patientId/therapy-sessions/reorder`
+- **Descripción:** Actualiza en lote el orden de las sesiones.
+- **Body**: `{ "orderedIds": ["trs-001", "trs-002", "trs-003", "trs-004"] }`
+
+---
+
+### 35.5. Diagramas del Sistema (Mermaid)
+
+#### Diagrama 1: Arquitectura de Componentes y Capas
+
+```mermaid
+flowchart TD
+    subgraph UI_Expediente["🖥️ Pestaña 'Expediente Clínico' (tab-resumen)"]
+        Hero["Encabezado del Paciente & KPIs"]
+        RoadmapModule["🎯 Componente: Sesiones de Terapia (Roadmap Serpentine)"]
+        HeaderRoadmap["Encabezado + Botón '+ Agregar Sesión'"]
+        CardsGrid["Grid Serpenteante (Fila 1, Conector Vertical, Fila 2)"]
+        TrackLines["Rieles y Pines de Guía (Dots & Lines)"]
+        CardItem["Tarjeta de Sesión: Nº, Título, Fecha, Foco Clínico ✨, Badge Estado"]
+        ModalNewSession["Modal: Planificar / Agregar Sesión"]
+    end
+
+    subgraph Core_Frontend["⚡ Capa de Lógica y Estado Reactivo (app.js)"]
+        StateSessions["AppState.therapyRoadmaps / AppState.notes"]
+        SyncRoadmap["Auto-merge: Notas Clínicas Existentes + Sesiones Planificadas"]
+        EvtRouter["Ruteador de Acciones: Evolucionar a Nota / Expandir Resumen / Cambiar Estado"]
+    end
+
+    subgraph Backend_API["🛡️ Backend Seguro (server.js / Express)"]
+        AuthGuard["requireTherapistAuth (JWT / RBAC)"]
+        RoadmapController["Controlador /api/v1/patients/:id/therapy-sessions"]
+        SyncService["Servicio de Sincronización y Persistencia Cifrada"]
+    end
+
+    subgraph Database_Layer["💾 Almacenamiento Relacional"]
+        TableRoadmap[("Tabla therapy_roadmap_sessions")]
+        TableNotes[("Tabla clinical_notes")]
+    end
+
+    Hero --> RoadmapModule
+    RoadmapModule --> HeaderRoadmap
+    RoadmapModule --> CardsGrid
+    CardsGrid --> TrackLines
+    CardsGrid --> CardItem
+    HeaderRoadmap -->|Click '+ Agregar Sesión'| ModalNewSession
+
+    CardItem -->|Interacción| EvtRouter
+    ModalNewSession -->|Guardar| StateSessions
+    EvtRouter --> StateSessions
+    StateSessions <--> SyncRoadmap
+    SyncRoadmap <--> TableNotes
+
+    StateSessions -->|Sync HTTP/REST| Backend_API
+    Backend_API --> AuthGuard
+    AuthGuard --> RoadmapController
+    RoadmapController --> TableRoadmap
+```
+
+#### Diagrama 2: Secuencia de Flujos Críticos (Planificación y Evolución)
+
+```mermaid
+sequenceDiagram
+    autonumber
+    actor T as Terapeuta
+    participant EXP as Vista Expediente (tab-resumen)
+    participant ROAD as Componente Roadmap
+    participant MOD as Modal Nueva Sesión
+    participant ST as AppState & Cache
+    participant API as Backend REST (/api/v1)
+    participant NOTE as Editor Reporte Atención (SOAP/FPV)
+
+    Note over T,EXP: Apertura del Expediente Clínico del Paciente
+    T->>EXP: switchPatientTab('resumen')
+    EXP->>ROAD: renderTherapySessionsRoadmap(patientId)
+    ROAD->>ST: Obtiene notas y sesiones planificadas
+    ST-->>ROAD: Colección combinada (1..N)
+    ROAD-->>EXP: Dibuja Grid Serpenteante con tarjetas, pistas y conectores
+
+    Note over T,MOD: Caso 1: Planificar una Nueva Sesión
+    T->>ROAD: Click en '+ Agregar Sesión'
+    ROAD->>MOD: openAddRoadmapSessionModal(patientId)
+    MOD-->>T: Muestra modal con fecha, número sugerido y foco terapéutico
+    T->>MOD: Ingresa: "Sesión 10 - Prevención de Recaídas", fecha y objetivos
+    T->>MOD: Click en "Guardar Sesión en Ruta"
+    MOD->>ST: Guarda nueva sesión con estatus 'pendiente'
+    MOD->>API: POST /api/v1/patients/:id/therapy-sessions
+    API-->>MOD: HTTP 201 Created
+    MOD-->>ROAD: Actualiza y re-renderiza el mapa serpenteante
+
+    Note over T,NOTE: Caso 2: Evolucionar Sesión Pendiente a Reporte Clínico
+    T->>ROAD: Click en chevron '>' de la Sesión Pendiente
+    ROAD->>NOTE: openReporteAtencionFromRoadmapSession(sessionId)
+    NOTE-->>T: Precarga número de sesión, fecha y objetivos en el formulario clínico
+    T->>NOTE: Diligencia evolución SOAP y pulsa "Firmar Reporte"
+    NOTE->>ST: Guarda nota clínica oficial
+    NOTE->>ROAD: Actualiza estado de la sesión a 'completada'
+    ROAD-->>T: El mapa refleja la sesión en verde 'Completada' con enlace a nota firmada
+```
+
+---
+
+### 35.6. Plan de Ejecución y Reparto de Estafeta Multi-Agente
+
+| Agente | Rol | Entregables y Responsabilidades Específicas |
+|---|---|---|
+| **Agente 1 (Arquitecto/PM)** | Liderazgo y Arquitectura | 1. Formalización técnica en `arquitectura.md`.<br>2. Definición del modelo de datos, contratos REST y diagramas Mermaid.<br>3. Coordinación de estafeta para Agentes 2, 3 y 4. |
+| **Agente 2 (Backend)** | Endpoints & Persistencia | 1. Creación de la tabla `therapy_roadmap_sessions` en `schema.sql` y persistencia JSON/SQLite.<br>2. Endpoints CRUD en `server.js` (`GET`, `POST`, `PUT`, `DELETE`, `/reorder`).<br>3. Vinculación relacional con `clinical_notes` y control de acceso multitenant estricto. |
+| **Agente 3 (Frontend/Mobile)** | UI/UX & Interacción | 1. Implementación de `renderTherapySessionsRoadmap(patientId)` en `app.js` dentro de `renderTabResumen`.<br>2. Estilos CSS en `styles.css`: layout serpenteante de 3 columnas, rieles horizontales y conector vertical, tarjetas con destellos ✨ expandibles y chips de estado.<br>3. Modal interactivo `#addRoadmapSessionModal` para `+ Agregar Sesión`.<br>4. Integración fluida para abrir/evolucionar reportes de sesión al hacer click en el chevron `>`. |
+| **Agente 4 (QA & DevOps)** | Pruebas y Fiabilidad | 1. Casos de prueba automatizados en `tests.js` (`TC-ROA-01` para renderizado del mapa y auto-merge, `TC-ROA-02` para CRUD y transición a reporte).<br>2. Verificación de no-regresión de toda la suite (100/100 PASS).<br>3. Comprobación de responsividad en móviles y compatibilidad con modo oscuro. |
+
+---
+
+### 35.7. Refinamiento Estético UI/UX — Agente 3 (Frontend & Design System)
+
+Tras la revisión del diseño del modal de planificación de sesión y las pestañas del expediente clínico, se perfeccionó la interfaz implementando:
+1. **Modal de Sesión con Navegación Segmentada (Pestañas Internas)**:
+   - **Pestaña 1 (Encuadre & Fecha)**: Número de sesión, título interactivo con chips de sugerencias rápidas ("Evaluación Inicial", "Psicoeducación", "Reestructuración", "Prevención Recaídas"), selector de fecha y estado clínico.
+   - **Pestaña 2 (Foco & Objetivos ✨)**: Resumen terapéutico expandible con chips de plantillas clínicas cognitivo-conductuales (Distorsiones, Regulación somática, Experimento conductual).
+   - **Pestaña 3 (Reporte Clínico SOAP)**: Tarjeta puente integrada con llamada a la acción para evolucionar la sesión directamente a reporte formal con membrete y firma.
+   - **Header y Footer Clínicos**: Icono de ruta (`fa-route`), subtítulo descriptivo, botón de cierre circular con rotación suave, botón de eliminar estilizado y botón de confirmación en paleta `#504677`.
+2. **Pestañas Superiores del Expediente Clínico (`.patient-tabs`)**:
+   - Evolución a cápsulas flotantes sticky estilo Apple/Material 3 con elevación sutil, transición suave de 200ms y estados activos perfectamente armonizados con la paleta púrpura institucional `#504677`.
+   - Soporte total para temas Claro y Oscuro (`[data-theme="dark"]`).
+
+---
+
+## 36. REDISEÑO INTEGRAL DEL SISTEMA VISUAL: SOFT-CLAY & MODERN GLASS (PALETA OCÉANO / ÁMBAR)
+
+### 36.1. Visión y Dirección Artística
+A solicitud de la dirección de producto, se adopta una estética contemporánea de alto impacto inspirada en las interfaces de referencia (*FundFlow*, *Nom*, *CoachPro*):
+1. **Estilo Soft-Clay & Frosted Glass**: Superficies táctiles con curvaturas amplias (`border-radius: 16px - 24px`), sombras multinivel difuminadas sin estridencias, micro-bordes luminosos (`rgba(255,255,255,0.7)` / `rgba(66, 158, 189, 0.15)`) y fondos con gradientes ambientales tenues.
+2. **Paleta Cromática Oficial Institucional**:
+   - `P-01 | #9FE7F5` — **Celeste Glacial / Ice Sky**: Fondos de chips, tags activos, resplandores suaves e iluminación de contraste.
+   - `P-02 | #429EBD` — **Azul Océano / Cerúleo Clínico**: Botones de acción secundaria, enlaces, barras de progreso y gradientes interactivos.
+   - `P-03 | #053F5C` — **Azul Petróleo / Deep Navy**: Textos primarios de alta legibilidad (WCAG AAA), navegación principal, botones primarios sólidos y estructura jerárquica.
+   - `P-04 | #F7AD19` — **Ámbar Solar / Dorado Cálido**: Acento enérgico para alertas, foco clínico (destellos ✨), hitos completados y llamadas a la acción clave.
+
+```mermaid
+graph TD
+    subgraph Tokens ["Tokens de Identidad Visual Oficial"]
+        T1["#9FE7F5<br/>Celeste Glacial (Glow/Pills)"]
+        T2["#429EBD<br/>Azul Océano (Acción/Interactivo)"]
+        T3["#053F5C<br/>Deep Navy (Estructura/Primario)"]
+        T4["#F7AD19<br/>Ámbar Solar (Destellos/Foco)"]
+    end
+
+    subgraph Componentes ["Componentes Frontend (Agente 3)"]
+        C1["Sidebar Ergonómica<br/>(Cápsulas & Iconos)"]
+        C2["Tarjetas Soft-Clay<br/>(Bordes suaves & Elevación)"]
+        C3["Pestañas Flotantes<br/>(Píldoras Segmentadas)"]
+        C4["Roadmap de Terapia<br/>(Nodos luminosos & Conectores)"]
+        C5["Modales & Diálogos<br/>(Backdrop Blur & Tabs Internas)"]
+    end
+
+    T3 --> C1
+    T2 --> C2
+    T1 --> C3
+    T4 --> C4
+    T2 --> C5
+```
+
+### 36.2. Mapeo de Variables CSS (`:root` y `[data-theme="dark"]`)
+
+| Variable CSS | Valor Claro | Valor Oscuro | Propósito Clínico |
+|---|---|---|---|
+| `--accent-primary` | `#053F5C` | `#429EBD` | Color de marca primario y énfasis principal |
+| `--accent-secondary` | `#429EBD` | `#9FE7F5` | Color secundario interactivo y enlaces |
+| `--accent-highlight` | `#9FE7F5` | `rgba(159, 231, 245, 0.2)` | Fondos sutiles de selección y pills |
+| `--accent-warning` | `#F7AD19` | `#F7AD19` | Foco terapéutico, destellos ✨ y alertas |
+| `--bg-primary` | `#F4F8FA` | `#031722` | Fondo de la aplicación con degradado atmosférico |
+| `--bg-card` | `#FFFFFF` | `#072635` | Superficie de tarjetas con efecto cristalino suave |
+| `--border-primary` | `rgba(66, 158, 189, 0.16)` | `rgba(159, 231, 245, 0.12)` | Delimitadores de alta definición |
+| `--shadow-clay` | `0 10px 25px -4px rgba(5,63,92,0.06)` | `0 12px 30px -4px rgba(0,0,0,0.4)` | Elevación ergonómica tipo claymorphism |
+
+### 36.3. Asignación de Tareas y Supervisión (Agente 1)
+- **Agente 3 (Frontend)**: Proceder con la refactorización sistemática en `styles.css`:
+  1. Actualización de tokens en `:root` y `[data-theme="dark"]`.
+  2. Implementación de tarjetas Soft-Clay (`--shadow-clay`, esquinas redondeadas de `18px`, bordes traslúcidos).
+  3. Reestilización de botones, barras de navegación lateral/superior y píldoras de estado con los nuevos gradientes.
+- **Agente 4 (QA/DevOps)**: Ejecutar `node tests.js` y `tsc --noEmit` para garantizar no-regresión (100% PASS) y contrastes accesibles WCAG AA.
+
+---
+
+## 37. ARQUITECTURA DEL PORTAL PACIENTES KID: ESPACIO LÚDICO ORIGINAL RESTAURADO
+
+### 37.1. Visión y Especificación de Diseño: Portal Kids — Mi Mundo Emocional
+El **Portal Pacientes Kid (<13 años)** ha sido elevado a su especificación **PREMIUM PLAYFUL — MUNDO EMOCIONAL MÁGICO**:
+1. **Consola Mágica Portátil (`#kidNav`)**:
+   - Barra de navegación ergonómica touch-first (mínimo 52px): 🏰 **Mi Espacio** (`kid-home`), 🦊 **Mi Avatar** (`kid-avatar`), 🫧 **Burbujas** (`kid-bubbles`), 🎨 **Dibujar** (`kid-drawing`) y 🎈 **Calma** (`kid-calm`).
+2. **El Clima de mi Corazón & Mapa Somático**:
+   - 6 tarjetas climáticas expresivas: Soleado ☀️, Sol con Nubes 🌤️, Arcoíris 🌈, Lluvia 🌧️, Tormenta ⚡ y Remolino 🌪️.
+   - Pregunta reflexiva empática condicional y chips de pensamientos rápidos sin forzar escritura.
+   - Muñequito SVG con 6 zonas corporales (cabeza, garganta, pecho, panza, manos, pies) y selector de sensaciones somáticas (mariposas, calorcito, frío, nudo, tambor, paz).
+3. **Islas y Actividades Terapéuticas**:
+   - **Cazador de Preocupaciones**: Burbujas flotantes animadas con sonido POP de Web Audio API, botón para dejar flotar sin penalización y modal para crear burbujas personalizadas.
+   - **El Lienzo Mágico**: Lienzo táctil con `touch-action: none`, paleta de 10 tonos orgánicos, pincel arcoíris continuo, sellos mágicos, borrador, campo de relato e implementación de **Deshacer (Undo)**.
+   - **Jardín de la Calma (Trilogía Respiratoria)**: Selector de 3 técnicas (El Globo de la Calma 4-6, La Flor Mágica 4-4-4, La Tortuga Serena 5-5) con controles de pausa, reanudación y finalización voluntaria.
+   - **Asistencia Infantil Reasegurante (SOS)**: Ventana de contención emocional que orienta al niño a buscar un adulto de confianza o notificar a su terapeuta sin generar alarma.
+
+```mermaid
+graph TD
+    subgraph PortalKid ["Portal Pacientes Kid — Mi Mundo Emocional"]
+        NAV["Consola Táctil Inferior<br/>(Mi Espacio, Avatar, Burbujas, Dibujar, Calma)"]
+        CLIMA["El Clima de mi Corazón<br/>(6 Emociones + Reflexión Empática)"]
+        CUERPO["Mapa Somático del Cuerpo<br/>(SVG Interactivo + 6 Sensaciones)"]
+        BURBUJAS["Cazador de Preocupaciones<br/>(Burbujas Flotantes + POP + Salto)"]
+        LIENZO["El Lienzo Mágico<br/>(Pincel Arcoíris + Sellos + Deshacer)"]
+        CALMA["Jardín de la Calma<br/>(Globo, Flor Mágica, Tortuga)"]
+        AVATAR["Compañero Avatar 3D<br/>(9 Arquetipos, 6 Auras, 7 Accesorios)"]
+        SOS["Botón de Apoyo Seguro SOS<br/>(Contención Cálida sin Pánico)"]
+    end
+
+    NAV --> CLIMA
+    CLIMA --> CUERPO
+    CUERPO -->|Registra +1 ⭐ +5 🪙| API["API /api/v1/portal/kid/activity"]
+    BURBUJAS --> API
+    LIENZO --> API
+    CALMA --> API
+    AVATAR --> API
+    SOS -->|Alerta Protegida| CRISIS["API /api/v1/portal/crisis"]
+    API -->|Reflejo inmediato| EXP["Expediente Clínico del Terapeuta<br/>(Bento Pediátrico en app.js)"]
+```
+
+### 37.2. Contratos y Validación
+- **Economía de Recompensas Ética**: Asignación de ⭐ Estrellas y 🪙 Monedas asociada a la participación y exploración libre, nunca premiando emociones alegres sobre emociones difíciles.
+- **Compatibilidad Test Suite**: Cobertura al 100% en `TC-KID-01`, `TC-KID-02`, `TC-KID-03` y `TC-KID-04`.
+- **Privacidad y Aislamiento**: `#btnKidModeToggle` estrictamente oculto en adultos (`display: none !important;`).
+- **Estado de Pruebas**: 100/100 superadas exitosamente (100% éxito) y compilación Vite limpia.
+
+
 
 
 

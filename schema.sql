@@ -252,3 +252,29 @@ CREATE INDEX IF NOT EXISTS idx_kid_act_patient ON kid_portal_activities(patient_
 CREATE INDEX IF NOT EXISTS idx_kid_act_type ON kid_portal_activities(activity_type);
 CREATE INDEX IF NOT EXISTS idx_kid_act_created ON kid_portal_activities(created_at DESC);
 
+-- 16. Perfiles de Estilo y Preferencias de Redacción Clínica (HeyFreud Benchmark)
+CREATE TABLE IF NOT EXISTS therapist_style_profiles (
+    therapist_id VARCHAR(64) PRIMARY KEY REFERENCES therapists(id) ON DELETE CASCADE,
+    profile JSONB NOT NULL DEFAULT '{}',
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+);
+
+-- 17. Sesiones de Terapia y Mapa de Ruta Longitudinal (Roadmap)
+CREATE TABLE IF NOT EXISTS therapy_roadmap_sessions (
+    id VARCHAR(64) PRIMARY KEY,
+    patient_id VARCHAR(64) NOT NULL REFERENCES patients(id) ON DELETE CASCADE,
+    session_number INTEGER NOT NULL,
+    title VARCHAR(255) NOT NULL,
+    session_date DATE NOT NULL,
+    focus_summary TEXT DEFAULT '',
+    status VARCHAR(30) DEFAULT 'pendiente' CHECK (status IN ('pendiente', 'completada', 'agendada', 'reprogramada', 'cancelada')),
+    clinical_note_id VARCHAR(64) REFERENCES clinical_notes(id) ON DELETE SET NULL,
+    appointment_id VARCHAR(64) REFERENCES appointments(id) ON DELETE SET NULL,
+    display_order INTEGER NOT NULL DEFAULT 0,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE INDEX IF NOT EXISTS idx_roadmap_patient ON therapy_roadmap_sessions(patient_id);
+CREATE INDEX IF NOT EXISTS idx_roadmap_order ON therapy_roadmap_sessions(patient_id, display_order ASC);
+

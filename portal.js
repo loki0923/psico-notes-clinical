@@ -15,6 +15,7 @@ const PortalState = {
     // --- PORTAL PACIENTES KID (PSICO KIDS SPACE) ---
     isKidMode: false,
     kidStars: 0,
+    kidCoins: 50,
     kidAvatar: {
         character: 'fox',
         emoji: '🦊',
@@ -25,8 +26,10 @@ const PortalState = {
     },
     kidWeather: null,
     kidBodyZone: null,
+    kidSensation: null,
     kidBubblesPopped: 0,
     kidCalmCycles: 0,
+    kidCalmTechnique: 'balloon',
     kidActivities: []
 };
 
@@ -526,6 +529,7 @@ function loadPatientDataLocally() {
             PortalState.cbtRecords = data.cbtRecords || [];
             PortalState.activeCrisisAlert = Boolean(data.activeCrisisAlert);
             PortalState.kidStars = typeof data.kidStars === 'number' ? data.kidStars : 0;
+            PortalState.kidCoins = typeof data.kidCoins === 'number' ? data.kidCoins : 50;
             PortalState.kidAvatar = data.kidAvatar || PortalState.kidAvatar;
             PortalState.kidActivities = data.kidActivities || [];
         } else {
@@ -535,6 +539,7 @@ function loadPatientDataLocally() {
             PortalState.cbtRecords = [];
             PortalState.activeCrisisAlert = false;
             PortalState.kidStars = 0;
+            PortalState.kidCoins = 50;
             PortalState.kidActivities = [];
         }
 
@@ -559,6 +564,7 @@ function savePatientData() {
             cbtRecords: PortalState.cbtRecords,
             activeCrisisAlert: PortalState.activeCrisisAlert,
             kidStars: PortalState.kidStars,
+            kidCoins: PortalState.kidCoins,
             kidAvatar: PortalState.kidAvatar,
             kidActivities: PortalState.kidActivities,
             lastUpdate: new Date().toISOString()
@@ -573,6 +579,7 @@ function savePatientData() {
             localStorage.setItem(`psico_portal_kid_${PortalState.patientId}`, JSON.stringify({
                 avatar: PortalState.kidAvatar,
                 stars: PortalState.kidStars,
+                coins: PortalState.kidCoins,
                 activities: PortalState.kidActivities
             }));
         }
@@ -1033,6 +1040,10 @@ function submitTest(testType, questionCount) {
 }
 
 function triggerPortalEmergencyHelp(reason) {
+    if (PortalState.isKidMode) {
+        triggerKidSosHelp(reason);
+        return;
+    }
     const modal = document.getElementById('crisisHelpModal');
     if (modal) {
         modal.style.display = 'flex';
@@ -1960,8 +1971,10 @@ function initKidModeState() {
     KidConfetti.init();
 
     const starsEl = document.getElementById('kidStarsCount');
-    const badgeEl = document.getElementById('kidStarsBadge');
     if (starsEl) starsEl.textContent = PortalState.kidStars || 0;
+
+    const coinsEl = document.getElementById('kidCoinsCount');
+    if (coinsEl) coinsEl.textContent = PortalState.kidCoins || 50;
     
     // Configurar avatar en home y header
     updateKidAvatarDisplays();
@@ -1971,6 +1984,14 @@ function initKidModeState() {
     if (greetingNameEl) {
         greetingNameEl.textContent = (PortalState.patientName || 'Explorador').split(' ')[0];
     }
+
+    const greetingMsgEl = document.getElementById('kidGreetingMsg');
+    if (greetingMsgEl) {
+        greetingMsgEl.textContent = 'Hoy podemos descubrir cosas maravillosas sobre tu mundo interior y divertirnos explorando.';
+    }
+
+    // Actualizar progreso de Bento cards
+    updateKidBentoProgress();
 
     // Activar modo correspondiente de forma determinista
     toggleKidMode(Boolean(PortalState.isKidMode));
@@ -1985,7 +2006,8 @@ function toggleKidMode(forceValue) {
 
     const toggleBtn = document.getElementById('btnKidModeToggle');
     const soundBtn = document.getElementById('btnKidSoundToggle');
-    const badgeEl = document.getElementById('kidStarsBadge');
+    const starsBadge = document.getElementById('kidStarsBadge');
+    const coinsBadge = document.getElementById('kidCoinsBadge');
     const stdNav = document.getElementById('standardNav');
     const kidNav = document.getElementById('kidNav');
 
@@ -2000,7 +2022,8 @@ function toggleKidMode(forceValue) {
     if (PortalState.isKidMode) {
         document.body.classList.add('kid-mode-active');
         if (soundBtn) soundBtn.style.display = 'inline-flex';
-        if (badgeEl) badgeEl.style.display = 'inline-flex';
+        if (starsBadge) starsBadge.style.display = 'inline-flex';
+        if (coinsBadge) coinsBadge.style.display = 'inline-flex';
         if (stdNav) stdNav.style.display = 'none';
         if (kidNav) kidNav.style.display = 'flex';
         switchKidView('kid-home');
@@ -2009,7 +2032,8 @@ function toggleKidMode(forceValue) {
     } else {
         document.body.classList.remove('kid-mode-active');
         if (soundBtn) soundBtn.style.display = 'none';
-        if (badgeEl) badgeEl.style.display = 'none';
+        if (starsBadge) starsBadge.style.display = 'none';
+        if (coinsBadge) coinsBadge.style.display = 'none';
         if (stdNav) stdNav.style.display = 'flex';
         if (kidNav) kidNav.style.display = 'none';
         switchView('home');
@@ -2043,6 +2067,8 @@ function switchKidView(viewKey) {
     // Inicializaciones bajo demanda
     if (viewKey === 'kid-bubbles') initKidBubbles();
     if (viewKey === 'kid-drawing') initKidDrawingCanvas();
+    if (viewKey === 'kid-avatar') updateKidAvatarDisplays();
+    if (viewKey === 'kid-home') updateKidBentoProgress();
 }
 
 function updateKidAvatarDisplays() {
@@ -2065,6 +2091,12 @@ function updateKidAvatarDisplays() {
     if (stageAcc) stageAcc.textContent = avatar.accEmoji || '🦸';
     if (stageName) stageName.textContent = avatar.name || 'Zorrito Valiente';
 
+    // Campo de texto de nombre editable si existe
+    const customNameInput = document.getElementById('kidAvatarCustomName');
+    if (customNameInput && !customNameInput.value) {
+        customNameInput.value = avatar.name || '';
+    }
+
     // Header avatar
     const headerAvatar = document.getElementById('headerAvatar');
     if (headerAvatar && PortalState.isKidMode) {
@@ -2072,15 +2104,100 @@ function updateKidAvatarDisplays() {
     }
 }
 
+function updateKidBentoProgress() {
+    const pWeather = document.getElementById('bentoProgressWeather');
+    if (pWeather) {
+        if (PortalState.kidWeather) {
+            pWeather.textContent = '¡Completado hoy! ✨';
+            pWeather.classList.add('completed');
+        } else {
+            pWeather.textContent = 'Explorar hoy';
+            pWeather.classList.remove('completed');
+        }
+    }
+
+    const pAvatar = document.getElementById('bentoProgressAvatar');
+    if (pAvatar) {
+        pAvatar.textContent = (PortalState.kidAvatar && PortalState.kidAvatar.name) ? 'Personalizado 🌟' : 'Personalizar';
+        pAvatar.classList.add('completed');
+    }
+
+    const pBubbles = document.getElementById('bentoProgressBubbles');
+    if (pBubbles) {
+        const count = PortalState.kidBubblesPopped || 0;
+        pBubbles.textContent = count > 0 ? `${count} soltadas 🫧` : 'Por jugar';
+        if (count > 0) pBubbles.classList.add('completed');
+    }
+
+    const pDrawing = document.getElementById('bentoProgressDrawing');
+    if (pDrawing) {
+        const drawingsCount = (PortalState.kidActivities || []).filter(a => a.activity_type === 'drawing').length;
+        pDrawing.textContent = drawingsCount > 0 ? `${drawingsCount} creados 🎨` : 'Lienzo listo';
+        if (drawingsCount > 0) pDrawing.classList.add('completed');
+    }
+
+    const pCalm = document.getElementById('bentoProgressCalm');
+    if (pCalm) {
+        const cycles = PortalState.kidCalmCycles || 0;
+        pCalm.textContent = cycles > 0 ? `${cycles} respiraciones 🍃` : 'Sin empezar';
+        if (cycles > 0) pCalm.classList.add('completed');
+    }
+}
+
+function awardKidStars(amount) {
+    PortalState.kidStars = (PortalState.kidStars || 0) + (amount || 1);
+    const starsEl = document.getElementById('kidStarsCount');
+    if (starsEl) starsEl.textContent = PortalState.kidStars;
+    savePatientData();
+    updateKidBentoProgress();
+}
+
+function awardKidCoins(amount) {
+    PortalState.kidCoins = (PortalState.kidCoins || 0) + (amount || 5);
+    const coinsEl = document.getElementById('kidCoinsCount');
+    if (coinsEl) coinsEl.textContent = PortalState.kidCoins;
+    savePatientData();
+}
+
 // ----------------------------------------------------
 // 1. CLIMA EMOCIONAL & MAPA SOMÁTICO CORPORAL
 // ----------------------------------------------------
+const KID_WEATHER_QUESTIONS = {
+    sunny: '☀️ ¡Qué lindo que te sientas alegre! ¿Qué fue lo más bonito que pasó hoy?',
+    partly_cloudy: '🌤️ Tranquilidad y calma. ¿Qué te gusta hacer cuando te sientes en paz?',
+    rainbow: '🌈 ¡Qué energía tan mágica y colorida! ¿Qué juego o idea tienes en mente?',
+    rainy: '🌧️ A veces llueve por dentro y es completamente normal. ¿Quieres contarme qué pasó?',
+    storm: '⚡ Sentir enojo o frustración es natural. ¿Qué hizo que la tormenta llegara?',
+    tornado: '🌪️ Si sientes muchas cosas revueltas o confusión, estamos aquí contigo. ¿Cómo te ayudamos?'
+};
+
 function selectKidWeather(weatherKey) {
     PortalState.kidWeather = weatherKey;
     document.querySelectorAll('.kid-weather-card-v2').forEach(btn => {
         btn.classList.toggle('selected', btn.getAttribute('data-weather') === weatherKey);
     });
+
+    const reflectionBox = document.getElementById('kidWeatherReflectionBox');
+    const promptText = document.getElementById('kidWeatherPromptText');
+    if (reflectionBox) {
+        reflectionBox.style.display = 'block';
+    }
+    if (promptText && KID_WEATHER_QUESTIONS[weatherKey]) {
+        promptText.textContent = KID_WEATHER_QUESTIONS[weatherKey];
+    }
+
     KidAudioEffects.playBoing();
+}
+
+function selectKidThoughtChip(chipText) {
+    const input = document.getElementById('kidWeatherStory');
+    if (input) {
+        input.value = chipText;
+    }
+    document.querySelectorAll('.kid-thought-chip').forEach(chip => {
+        chip.classList.toggle('active', chip.textContent.trim() === chipText.trim());
+    });
+    KidAudioEffects.playDing();
 }
 
 function selectKidBodyZone(zoneKey) {
@@ -2104,12 +2221,21 @@ function selectKidBodyZone(zoneKey) {
             throat: '🗣️ ¡Tengo un nudito en la garganta o palabras que quiero decir!',
             chest: '💖 ¡Mi corazón late como un tambor y siento calor en el pecho!',
             belly: '🌀 ¡Siento mariposas revoloteando o cosquillitas en la pancita!',
-            hands: '✊ ¡Mis manitas quieren apretar o moverse con mucha energía!'
+            hands: '✊ ¡Mis manitas quieren apretar o moverse con mucha energía!',
+            feet: '👟 ¡Mis pies quieren saltar, correr o quedarse quietecitos!'
         };
         speechEl.textContent = zonePhrases[zoneKey] || '✨ ¡Tu cuerpo te da señales mágicas!';
     }
 
     KidAudioEffects.playBoing();
+}
+
+function selectKidSensation(sensationKey, label) {
+    PortalState.kidSensation = { key: sensationKey, label: label };
+    document.querySelectorAll('.kid-sensation-pill').forEach(pill => {
+        pill.classList.toggle('selected', pill.getAttribute('data-sensation') === sensationKey);
+    });
+    KidAudioEffects.playDing();
 }
 
 async function submitKidWeatherAndBody(e) {
@@ -2132,14 +2258,20 @@ async function submitKidWeatherAndBody(e) {
         throat: 'En la garganta 🗣️',
         chest: 'En el pecho 💖',
         belly: 'En la pancita 🌀',
-        hands: 'En las manitas ✊'
+        hands: 'En las manitas ✊',
+        feet: 'En los pies 👟'
     };
+
+    const storyInput = document.getElementById('kidWeatherStory');
+    const reflectionStory = storyInput ? storyInput.value.trim() : '';
 
     const payloadData = {
         weather: PortalState.kidWeather,
         weatherLabel: weatherNames[PortalState.kidWeather] || PortalState.kidWeather,
         bodyZone: PortalState.kidBodyZone || 'general',
         bodyZoneLabel: zoneNames[PortalState.kidBodyZone] || 'En todo el cuerpo',
+        sensation: PortalState.kidSensation || null,
+        note: reflectionStory || null,
         recordedAt: new Date().toISOString()
     };
 
@@ -2152,10 +2284,11 @@ async function submitKidWeatherAndBody(e) {
     };
     PortalState.kidActivities.unshift(activityRecord);
 
-    // Sumar +1 Estrella ⭐ y disparo de confeti
+    // Sumar +1 Estrella ⭐ y +5 Monedas 🪙 con confeti
     awardKidStars(1);
+    awardKidCoins(5);
     KidAudioEffects.playSuccess();
-    KidConfetti.burst(window.innerWidth / 2, window.innerHeight * 0.4, 40);
+    KidConfetti.burst(window.innerWidth / 2, window.innerHeight * 0.4, 45);
 
     // Enviar al backend PostgreSQL con cola offline
     if (PortalState.portalToken) {
@@ -2167,14 +2300,8 @@ async function submitKidWeatherAndBody(e) {
     }
 
     savePatientData();
-    showToast('✨ ¡Genial! Tu clima emocional llegó a tu terapeuta (+1 ⭐)', 'success');
-}
-
-function awardKidStars(amount) {
-    PortalState.kidStars = (PortalState.kidStars || 0) + (amount || 1);
-    const starsEl = document.getElementById('kidStarsCount');
-    if (starsEl) starsEl.textContent = PortalState.kidStars;
-    savePatientData();
+    updateKidBentoProgress();
+    showToast('✨ ¡Genial! Tu clima emocional llegó a tu terapeuta (+1 ⭐, +5 🪙)', 'success');
 }
 
 // ----------------------------------------------------
@@ -2200,6 +2327,11 @@ function pickAvatarChar(charKey, emoji, name) {
     }
     if (stageName) stageName.textContent = name;
 
+    const customNameInput = document.getElementById('kidAvatarCustomName');
+    if (customNameInput) {
+        customNameInput.value = name;
+    }
+
     KidAudioEffects.playBoing();
 }
 
@@ -2208,7 +2340,7 @@ function pickAvatarAura(auraClass) {
     PortalState.kidAvatar.aura = auraClass;
 
     document.querySelectorAll('.aura-sparkle-btn').forEach(b => {
-        b.classList.toggle('active', b.classList.contains(auraClass + '-btn'));
+        b.classList.toggle('active', b.classList.contains(auraClass + '-btn') || b.getAttribute('data-aura') === auraClass);
     });
 
     const stageDisplay = document.getElementById('kidAvatarStageDisplay');
@@ -2235,8 +2367,8 @@ function pickAvatarAccessory(accKey, accEmoji) {
 }
 
 function generateRandomKidAvatarName() {
-    const prefixes = ['Super', 'Capitán', 'Príncipe', 'Princesa', 'Maestro', 'Explorador', 'Comandante', 'Mago'];
-    const suffixes = ['de las Galaxias', 'del Relámpago', 'de las Nubes', 'del Arcoíris', 'del Fuego Mágico', 'de las Estrellas', 'de la Calma', 'del Viento'];
+    const prefixes = ['Super', 'Capitán', 'Príncipe', 'Princesa', 'Maestro', 'Explorador', 'Comandante', 'Mago', 'Guardián', 'Valiente'];
+    const suffixes = ['de las Galaxias', 'del Relámpago', 'de las Nubes', 'del Arcoíris', 'del Fuego Mágico', 'de las Estrellas', 'de la Calma', 'del Viento', 'del Bosque', 'de los Sueños'];
     const baseName = (PortalState.kidAvatar && PortalState.kidAvatar.name) ? PortalState.kidAvatar.name.split(' ')[0] : 'Compañero';
 
     const p = prefixes[Math.floor(Math.random() * prefixes.length)];
@@ -2248,6 +2380,9 @@ function generateRandomKidAvatarName() {
 
     const nameEl = document.getElementById('kidAvatarDisplayName');
     if (nameEl) nameEl.textContent = randomTitle;
+
+    const customNameInput = document.getElementById('kidAvatarCustomName');
+    if (customNameInput) customNameInput.value = randomTitle;
 
     const charEl = document.getElementById('kidStageChar');
     if (charEl) {
@@ -2261,8 +2396,14 @@ function generateRandomKidAvatarName() {
 }
 
 async function saveKidAvatar() {
+    const customNameInput = document.getElementById('kidAvatarCustomName');
+    if (customNameInput && customNameInput.value.trim()) {
+        PortalState.kidAvatar.name = customNameInput.value.trim();
+    }
+
     updateKidAvatarDisplays();
     awardKidStars(1);
+    awardKidCoins(5);
     KidAudioEffects.playSuccess();
     KidConfetti.burst(window.innerWidth / 2, 300, 45);
 
@@ -2288,7 +2429,8 @@ async function saveKidAvatar() {
     }
 
     savePatientData();
-    showToast('🌟 ¡Avatar guardado! Te acompañará en todo tu espacio mágico (+1 ⭐)', 'success');
+    updateKidBentoProgress();
+    showToast('🌟 ¡Avatar guardado! Te acompañará en todo tu espacio mágico (+1 ⭐, +5 🪙)', 'success');
 }
 
 // ----------------------------------------------------
@@ -2302,7 +2444,9 @@ const DEFAULT_KID_WORRIES = [
     'Tristeza repentina 🌧️',
     'Enojo en la panza ⚡',
     'Ganas de llorar 💧',
-    'Miedo a la oscuridad 🔦'
+    'Miedo a la oscuridad 🔦',
+    'Vergüenza de hablar 🗣️',
+    'Pensar que no puedo hacerlo 🧱'
 ];
 
 function initKidBubbles() {
@@ -2314,7 +2458,7 @@ function initKidBubbles() {
 
     // Solo rellenar si está vacío
     if (playfield.children.length === 0) {
-        DEFAULT_KID_WORRIES.forEach(worry => {
+        DEFAULT_KID_WORRIES.slice(0, 7).forEach(worry => {
             const bubble = createBubbleElement(worry);
             playfield.appendChild(bubble);
         });
@@ -2333,7 +2477,7 @@ function popKidBubble(el, worryText, ev) {
     if (el.classList.contains('popping')) return;
     el.classList.add('popping');
 
-    // Efecto de sonido POP y confeti en las coordenadas del toque
+    // Sonido pop y confeti en las coordenadas del toque
     KidAudioEffects.playPop();
     const clickX = ev && ev.clientX ? ev.clientX : window.innerWidth / 2;
     const clickY = ev && ev.clientY ? ev.clientY : window.innerHeight / 2;
@@ -2343,6 +2487,9 @@ function popKidBubble(el, worryText, ev) {
     const countEl = document.getElementById('kidBubblesPoppedCount');
     if (countEl) countEl.textContent = PortalState.kidBubblesPopped;
 
+    // Cada burbuja da +1 moneda 🪙
+    awardKidCoins(1);
+
     setTimeout(() => {
         if (el.parentNode) el.parentNode.removeChild(el);
 
@@ -2351,9 +2498,10 @@ function popKidBubble(el, worryText, ev) {
         if (playfield && playfield.children.length === 0) {
             initKidBubbles();
             awardKidStars(1);
+            awardKidCoins(10);
             KidAudioEffects.playSuccess();
             KidConfetti.burst(window.innerWidth / 2, window.innerHeight / 2, 50);
-            showToast('🎉 ¡Has limpiado todas las burbujas! ¡Gran trabajo soltando tensiones! (+1 ⭐)', 'success');
+            showToast('🎉 ¡Has soltado todas las burbujas! ¡Gran trabajo liberando tensiones! (+1 ⭐, +10 🪙)', 'success');
         }
     }, 280);
 
@@ -2370,6 +2518,7 @@ function popKidBubble(el, worryText, ev) {
     };
     PortalState.kidActivities.unshift(activityRecord);
     savePatientData();
+    updateKidBentoProgress();
 
     // Notificar al terapeuta
     if (PortalState.portalToken) {
@@ -2381,21 +2530,65 @@ function popKidBubble(el, worryText, ev) {
     }
 }
 
-function promptCustomBubble() {
-    const custom = prompt('¿Qué preocupación o pensamiento quieres meter en una burbuja para dejarla ir?');
-    if (custom && custom.trim()) {
-        const playfield = document.getElementById('kidBubblesPlayfield');
-        if (playfield) {
-            const newBubble = createBubbleElement(custom.trim());
-            playfield.insertBefore(newBubble, playfield.firstChild);
-            KidAudioEffects.playDing();
-            showToast('🫧 ¡Burbuja creada! Tócala cuando estés listo para soltarla.', 'info');
+function skipCurrentBubble() {
+    const playfield = document.getElementById('kidBubblesPlayfield');
+    if (playfield && playfield.children.length > 0) {
+        const first = playfield.firstElementChild;
+        first.style.opacity = '0.3';
+        first.style.transform = 'translateY(80px) scale(0.6)';
+        setTimeout(() => {
+            if (first.parentNode) {
+                first.parentNode.removeChild(first);
+                playfield.appendChild(first);
+                first.style.opacity = '1';
+                first.style.transform = '';
+            }
+        }, 300);
+        KidAudioEffects.playBoing();
+        showToast('🍃 ¡No pasa nada! La dejamos flotar para después sin ninguna prisa.', 'info');
+    }
+}
+
+function openCustomBubbleModal() {
+    const modal = document.getElementById('kidCustomBubbleModal');
+    if (modal) {
+        modal.style.display = 'flex';
+        const input = document.getElementById('kidCustomBubbleInput');
+        if (input) {
+            input.value = '';
+            setTimeout(() => input.focus(), 150);
         }
     }
 }
 
+function closeCustomBubbleModal() {
+    const modal = document.getElementById('kidCustomBubbleModal');
+    if (modal) modal.style.display = 'none';
+}
+
+function confirmCustomBubble() {
+    const input = document.getElementById('kidCustomBubbleInput');
+    const text = input ? input.value.trim() : '';
+    if (!text) {
+        showToast('Escribe algo cortito para poner en tu burbuja 🫧', 'warning');
+        return;
+    }
+    const playfield = document.getElementById('kidBubblesPlayfield');
+    if (playfield) {
+        const newBubble = createBubbleElement(text);
+        playfield.insertBefore(newBubble, playfield.firstChild);
+        KidAudioEffects.playDing();
+        closeCustomBubbleModal();
+        showToast('🫧 ¡Burbuja lista! Dale un toque cuando quieras soltarla.', 'success');
+    }
+}
+
+function promptCustomBubble() {
+    openCustomBubbleModal();
+}
+
 // ----------------------------------------------------
-// 4. EL LIENZO MÁGICO (HTML5 CANVAS CON PINCEL ARCOÍRIS)
+// 4. EL LIENZO MÁGICO (HTML5 CANVAS CON DESHACER)
 // ----------------------------------------------------
 let kidCanvasState = {
     canvas: null,
@@ -2406,8 +2599,34 @@ let kidCanvasState = {
     isEraser: false,
     isRainbow: false,
     rainbowHue: 0,
-    selectedStamp: null
+    selectedStamp: null,
+    undoStack: []
 };
+
+function saveCanvasSnapshot() {
+    if (!kidCanvasState.ctx || !kidCanvasState.canvas) return;
+    try {
+        const snap = kidCanvasState.ctx.getImageData(0, 0, kidCanvasState.canvas.width, kidCanvasState.canvas.height);
+        kidCanvasState.undoStack.push(snap);
+        if (kidCanvasState.undoStack.length > 20) {
+            kidCanvasState.undoStack.shift();
+        }
+    } catch (e) {
+        console.warn('Canvas snapshot skipped:', e);
+    }
+}
+
+function undoKidCanvas() {
+    if (kidCanvasState.undoStack.length === 0) {
+        showToast('¡No hay más trazos anteriores para deshacer! 🎨', 'info');
+        return;
+    }
+    const prevSnap = kidCanvasState.undoStack.pop();
+    if (prevSnap && kidCanvasState.ctx) {
+        kidCanvasState.ctx.putImageData(prevSnap, 0, 0);
+        KidAudioEffects.playBoing();
+    }
+}
 
 function initKidDrawingCanvas() {
     const canvas = document.getElementById('kidDrawingCanvas');
@@ -2422,6 +2641,7 @@ function initKidDrawingCanvas() {
         ctx.fillStyle = '#ffffff';
         ctx.fillRect(0, 0, canvas.width, canvas.height);
         canvas.setAttribute('data-initialized', 'true');
+        saveCanvasSnapshot();
     }
 
     ctx.lineCap = 'round';
@@ -2445,6 +2665,7 @@ function initKidDrawingCanvas() {
 
     function startDraw(e) {
         e.preventDefault();
+        saveCanvasSnapshot();
         const coords = getCoords(e);
 
         if (kidCanvasState.selectedStamp) {
@@ -2512,7 +2733,8 @@ function setCanvasColor(hexColor) {
 
     document.querySelectorAll('.crayon-btn').forEach(btn => {
         btn.classList.remove('active');
-        if (btn.style.backgroundColor && btn.style.backgroundColor.includes(hexColor.toLowerCase())) {
+        const bg = btn.style.backgroundColor || '';
+        if (btn.getAttribute('data-color') === hexColor || bg.includes(hexColor.toLowerCase())) {
             btn.classList.add('active');
         }
     });
@@ -2574,6 +2796,7 @@ function clearKidCanvas() {
     if (confirm('¿Quieres limpiar todo el lienzo para empezar un dibujo nuevo? 🎨')) {
         const canvas = kidCanvasState.canvas || document.getElementById('kidDrawingCanvas');
         if (canvas) {
+            saveCanvasSnapshot();
             const ctx = canvas.getContext('2d');
             ctx.fillStyle = '#ffffff';
             ctx.fillRect(0, 0, canvas.width, canvas.height);
@@ -2594,8 +2817,12 @@ async function submitKidDrawing() {
         return;
     }
 
+    const storyInput = document.getElementById('kidDrawingStoryInput');
+    const drawingStory = storyInput ? storyInput.value.trim() : '';
+
     const payloadData = {
         imageDataUrl: drawingDataUrl,
+        story: drawingStory || null,
         sentAt: new Date().toISOString()
     };
 
@@ -2608,6 +2835,7 @@ async function submitKidDrawing() {
     PortalState.kidActivities.unshift(activityRecord);
 
     awardKidStars(2);
+    awardKidCoins(10);
     KidAudioEffects.playSuccess();
     KidConfetti.burst(window.innerWidth / 2, window.innerHeight * 0.45, 45);
 
@@ -2620,126 +2848,202 @@ async function submitKidDrawing() {
     }
 
     savePatientData();
-    showToast('🎨✨ ¡Precioso dibujo! Ya está en el consultorio de tu terapeuta (+2 ⭐)', 'success');
+    updateKidBentoProgress();
+    showToast('🎨✨ ¡Precioso dibujo! Ya está en el consultorio de tu terapeuta (+2 ⭐, +10 🪙)', 'success');
 }
 
 // ----------------------------------------------------
-// 5. EL GLOBO DE LA CALMA (RESPIRACIÓN ANIMADA)
+// 5. JARDÍN DE LA CALMA (RESPIRACIÓN MULTI-TÉCNICA)
 // ----------------------------------------------------
-let balloonBreathingTimer = null;
-let balloonBreathingActive = false;
-let balloonPhaseSeconds = 0;
-let isBalloonInhaling = true;
+let calmBreathingTimer = null;
+let calmBreathingActive = false;
+let calmPhaseSeconds = 0;
+let calmCurrentTechnique = 'balloon'; // balloon | flower | turtle
+
+function selectCalmTechnique(techKey) {
+    if (calmBreathingActive) {
+        stopBalloonBreathing();
+    }
+    calmCurrentTechnique = techKey;
+    PortalState.kidCalmTechnique = techKey;
+
+    document.querySelectorAll('.calm-tech-tab').forEach(tab => {
+        tab.classList.toggle('active', tab.getAttribute('data-tech') === techKey);
+    });
+
+    const balloonEl = document.getElementById('kidBalloon');
+    const flowerEl = document.getElementById('kidFlower');
+    const turtleEl = document.getElementById('kidTurtle');
+
+    if (balloonEl) balloonEl.style.display = techKey === 'balloon' ? 'flex' : 'none';
+    if (flowerEl) flowerEl.style.display = techKey === 'flower' ? 'flex' : 'none';
+    if (turtleEl) turtleEl.style.display = techKey === 'turtle' ? 'flex' : 'none';
+
+    const titleEl = document.getElementById('kidCalmTechTitle');
+    const descEl = document.getElementById('kidCalmTechDesc');
+
+    if (techKey === 'balloon') {
+        if (titleEl) titleEl.textContent = 'El Globo de la Calma';
+        if (descEl) descEl.textContent = 'Inhala para inflar el globo y exhala despacito para desinflarlo.';
+    } else if (techKey === 'flower') {
+        if (titleEl) titleEl.textContent = 'La Flor Mágica';
+        if (descEl) descEl.textContent = 'Huele la flor despacio, sostén su rico aroma y sopla suavemente.';
+    } else if (techKey === 'turtle') {
+        if (titleEl) titleEl.textContent = 'La Tortuga Serena';
+        if (descEl) descEl.textContent = 'Asómate al mundo tomando aire y guárdate en tu caparazón tranquilo soltando el aire.';
+    }
+
+    KidAudioEffects.playBoing();
+}
 
 function toggleBalloonBreathing() {
-    if (balloonBreathingActive) {
-        stopBalloonBreathing();
+    if (calmBreathingActive) {
+        pauseBalloonBreathing();
     } else {
         startBalloonBreathing();
     }
 }
 
 function startBalloonBreathing() {
-    balloonBreathingActive = true;
+    calmBreathingActive = true;
     const btn = document.getElementById('btnToggleBalloon');
-    if (btn) btn.innerHTML = '<span class="btn-puffy-icon">⏸️</span> <span class="btn-puffy-text">Pausar Respiración</span>';
+    if (btn) btn.innerHTML = '<span class="btn-puffy-icon">⏸️</span> <span class="btn-puffy-text">Pausar</span>';
 
     KidAudioEffects.playTone(392, 'sine', 0.5, 0.2); // Sol suave
-    runBalloonCycle();
+    runCalmCycle();
 }
 
-function stopBalloonBreathing() {
-    balloonBreathingActive = false;
-    if (balloonBreathingTimer) {
-        clearInterval(balloonBreathingTimer);
-        balloonBreathingTimer = null;
+function pauseBalloonBreathing() {
+    calmBreathingActive = false;
+    if (calmBreathingTimer) {
+        clearInterval(calmBreathingTimer);
+        calmBreathingTimer = null;
+    }
+    const btn = document.getElementById('btnToggleBalloon');
+    if (btn) btn.innerHTML = '<span class="btn-puffy-icon">▶️</span> <span class="btn-puffy-text">Continuar</span>';
+    const instruction = document.getElementById('kidBreathingInstruction');
+    if (instruction) instruction.textContent = 'Pausado. ¡Puedes respirar normal y continuar cuando quieras!';
+}
+
+function stopBalloonBreathing(isFinished) {
+    calmBreathingActive = false;
+    if (calmBreathingTimer) {
+        clearInterval(calmBreathingTimer);
+        calmBreathingTimer = null;
     }
 
     const balloon = document.getElementById('kidBalloon');
+    const flower = document.getElementById('kidFlower');
+    const turtle = document.getElementById('kidTurtle');
     const instruction = document.getElementById('kidBreathingInstruction');
     const timer = document.getElementById('kidBreathingTimer');
     const btn = document.getElementById('btnToggleBalloon');
     const eyes = document.getElementById('kidBalloonEyes');
     const mouth = document.getElementById('kidBalloonMouth');
 
-    if (balloon) {
-        balloon.classList.remove('inhale', 'exhale');
-    }
+    if (balloon) balloon.classList.remove('inhale', 'exhale');
+    if (flower) flower.classList.remove('inhale', 'exhale');
+    if (turtle) turtle.classList.remove('inhale', 'exhale');
+
     if (eyes) eyes.innerHTML = '<span class="eye left">●</span><span class="eye right">●</span>';
     if (mouth) mouth.textContent = '‿';
-    if (instruction) instruction.textContent = '¡Muy bien hecho! Puedes volver a respirar cuando quieras.';
+    if (instruction) instruction.textContent = isFinished ? '¡Excelente trabajo! Has completado tus momentos de calma.' : 'Puedes volver a respirar cuando quieras.';
     if (timer) timer.textContent = '0s';
-    if (btn) btn.innerHTML = '<span class="btn-puffy-icon">🎈</span> <span class="btn-puffy-text">¡Comenzar a Respirar!</span>';
+    if (btn) btn.innerHTML = '<span class="btn-puffy-icon">🎈</span> <span class="btn-puffy-text">¡Comenzar!</span>';
+
+    if (isFinished) {
+        awardKidStars(1);
+        awardKidCoins(5);
+        KidAudioEffects.playSuccess();
+        KidConfetti.burst(window.innerWidth / 2, window.innerHeight * 0.45, 35);
+        showToast('🌟 ¡Paz y serenidad completadas! (+1 ⭐, +5 🪙)', 'success');
+    }
 }
 
-function runBalloonCycle() {
-    if (!balloonBreathingActive) return;
+function runCalmCycle() {
+    if (!calmBreathingActive) return;
 
     const balloon = document.getElementById('kidBalloon');
+    const flower = document.getElementById('kidFlower');
+    const turtle = document.getElementById('kidTurtle');
     const instruction = document.getElementById('kidBreathingInstruction');
     const timer = document.getElementById('kidBreathingTimer');
     const eyes = document.getElementById('kidBalloonEyes');
     const mouth = document.getElementById('kidBalloonMouth');
 
-    // Fase 1: Inhalar (4 segundos)
-    isBalloonInhaling = true;
-    balloonPhaseSeconds = 4;
-    if (balloon) {
-        balloon.classList.remove('exhale');
-        balloon.classList.add('inhale');
-    }
+    // Fase 1: Inhalar (4s)
+    calmPhaseSeconds = 4;
+    if (balloon) { balloon.classList.remove('exhale'); balloon.classList.add('inhale'); }
+    if (flower) { flower.classList.remove('exhale'); flower.classList.add('inhale'); }
+    if (turtle) { turtle.classList.remove('exhale'); turtle.classList.add('inhale'); }
+
     if (eyes) eyes.innerHTML = '<span class="eye left">◉</span><span class="eye right">◉</span>';
     if (mouth) mouth.textContent = 'o';
-    if (instruction) instruction.textContent = '🌬️ Inhala suavemente por la nariz... llenando el globo';
-    if (timer) timer.textContent = `${balloonPhaseSeconds}s`;
 
+    if (calmCurrentTechnique === 'flower') {
+        if (instruction) instruction.textContent = '🌸 Inhala por la nariz... huele el aroma de la flor mágica';
+    } else if (calmCurrentTechnique === 'turtle') {
+        if (instruction) instruction.textContent = '🐢 Asómate al mundo... tomando aire suavemente';
+    } else {
+        if (instruction) instruction.textContent = '🌬️ Inhala suavemente por la nariz... llenando el globo';
+    }
+
+    if (timer) timer.textContent = `${calmPhaseSeconds}s`;
     KidAudioEffects.playTone(440, 'sine', 1.0, 0.15); // Tono suave de inhalación
 
     let elapsed = 0;
-    balloonBreathingTimer = setInterval(() => {
-        if (!balloonBreathingActive) return;
+    calmBreathingTimer = setInterval(() => {
+        if (!calmBreathingActive) return;
         elapsed++;
-        const remaining = balloonPhaseSeconds - elapsed;
+        const remaining = calmPhaseSeconds - elapsed;
         if (timer) timer.textContent = `${Math.max(0, remaining)}s`;
 
-        if (elapsed >= balloonPhaseSeconds) {
-            clearInterval(balloonBreathingTimer);
-            startBalloonExhale();
+        if (elapsed >= calmPhaseSeconds) {
+            clearInterval(calmBreathingTimer);
+            startCalmExhale();
         }
     }, 1000);
 }
 
-function startBalloonExhale() {
-    if (!balloonBreathingActive) return;
+function startCalmExhale() {
+    if (!calmBreathingActive) return;
 
     const balloon = document.getElementById('kidBalloon');
+    const flower = document.getElementById('kidFlower');
+    const turtle = document.getElementById('kidTurtle');
     const instruction = document.getElementById('kidBreathingInstruction');
     const timer = document.getElementById('kidBreathingTimer');
     const eyes = document.getElementById('kidBalloonEyes');
     const mouth = document.getElementById('kidBalloonMouth');
 
-    isBalloonInhaling = false;
-    balloonPhaseSeconds = 6;
-    if (balloon) {
-        balloon.classList.remove('inhale');
-        balloon.classList.add('exhale');
-    }
+    calmPhaseSeconds = 6;
+    if (balloon) { balloon.classList.remove('inhale'); balloon.classList.add('exhale'); }
+    if (flower) { flower.classList.remove('inhale'); flower.classList.add('exhale'); }
+    if (turtle) { turtle.classList.remove('inhale'); turtle.classList.add('exhale'); }
+
     if (eyes) eyes.innerHTML = '<span class="eye left">^</span><span class="eye right">^</span>';
     if (mouth) mouth.textContent = '‿';
-    if (instruction) instruction.textContent = '🍃 Exhala despacito por la boca... soltando el aire como una pluma';
-    if (timer) timer.textContent = `${balloonPhaseSeconds}s`;
 
-    KidAudioEffects.playTone(330, 'sine', 1.5, 0.12); // Tono relajante de exhalación
+    if (calmCurrentTechnique === 'flower') {
+        if (instruction) instruction.textContent = '🍃 Sopla despacio por la boca... acariciando los pétalos';
+    } else if (calmCurrentTechnique === 'turtle') {
+        if (instruction) instruction.textContent = '🐢 Guárdate en tu caparazón seguro... soltando el aire despacito';
+    } else {
+        if (instruction) instruction.textContent = '🍃 Exhala despacito por la boca... soltando el aire como una pluma';
+    }
+
+    if (timer) timer.textContent = `${calmPhaseSeconds}s`;
+    KidAudioEffects.playTone(330, 'sine', 1.5, 0.12); // Tono de exhalación
 
     let elapsed = 0;
-    balloonBreathingTimer = setInterval(() => {
-        if (!balloonBreathingActive) return;
+    calmBreathingTimer = setInterval(() => {
+        if (!calmBreathingActive) return;
         elapsed++;
-        const remaining = balloonPhaseSeconds - elapsed;
+        const remaining = calmPhaseSeconds - elapsed;
         if (timer) timer.textContent = `${Math.max(0, remaining)}s`;
 
-        if (elapsed >= balloonPhaseSeconds) {
-            clearInterval(balloonBreathingTimer);
+        if (elapsed >= calmPhaseSeconds) {
+            clearInterval(calmBreathingTimer);
 
             // Ciclo completado
             PortalState.kidCalmCycles = (PortalState.kidCalmCycles || 0) + 1;
@@ -2748,14 +3052,16 @@ function startBalloonExhale() {
 
             if (PortalState.kidCalmCycles % 3 === 0) {
                 awardKidStars(1);
+                awardKidCoins(5);
                 KidAudioEffects.playSuccess();
                 KidConfetti.burst(window.innerWidth / 2, window.innerHeight * 0.45, 30);
-                showToast('⭐ ¡Superpoder de calma desbloqueado! 3 respiraciones completas (+1 ⭐)', 'success');
+                showToast('⭐ ¡Superpoder de calma desbloqueado! 3 respiraciones completas (+1 ⭐, +5 🪙)', 'success');
 
                 const calmRecord = {
                     id: 'act_' + Date.now() + '_' + Math.random().toString(36).substr(2, 4),
                     activity_type: 'calm_breathing',
                     data: {
+                        technique: calmCurrentTechnique,
                         cyclesCompleted: PortalState.kidCalmCycles,
                         timestamp: new Date().toISOString()
                     },
@@ -2763,6 +3069,7 @@ function startBalloonExhale() {
                 };
                 PortalState.kidActivities.unshift(calmRecord);
                 savePatientData();
+                updateKidBentoProgress();
 
                 // Notificar al backend
                 if (PortalState.portalToken) {
@@ -2774,24 +3081,84 @@ function startBalloonExhale() {
                 }
             }
 
-            // Siguiente ciclo
-            runBalloonCycle();
+            // Continuar con el siguiente ciclo
+            runCalmCycle();
         }
     }, 1000);
+}
+
+// ----------------------------------------------------
+// 6. ASISTENCIA INFANTIL RECONFORTANTE (SOS CHILD-FRIENDLY)
+// ----------------------------------------------------
+function triggerKidSosHelp(reason) {
+    const modal = document.getElementById('kidCrisisModal');
+    if (modal) {
+        modal.style.display = 'flex';
+    }
+    KidAudioEffects.playDing();
+}
+
+function closeKidCrisisModal() {
+    const modal = document.getElementById('kidCrisisModal');
+    if (modal) modal.style.display = 'none';
+}
+
+function alertKidAdultTalk() {
+    alert('💛 Puedes acercarte a mamá, papá o la persona adulta que te cuida y decirles:\n\n"Necesito un abrazo o que hablemos un ratito."\n\n¡Siempre hay alguien que te quiere y te escucha!');
+}
+
+function goToKidCalmFromSos() {
+    closeKidCrisisModal();
+    switchKidView('kid-calm');
+}
+
+function sendKidSosToTherapist() {
+    if (PortalState.patientId && PortalState.portalToken) {
+        fetch('/api/v1/portal/crisis', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                patientId: PortalState.patientId,
+                token: PortalState.portalToken,
+                reason: 'El paciente infantil solicitó apoyo o contención desde el botón SOS infantil.'
+            })
+        }).catch(err => console.warn('Error enviando SOS infantil:', err));
+    }
+    closeKidCrisisModal();
+    showToast('💛 Le hemos avisado a tu terapeuta. Recuerda también hablar con el adulto que te acompaña.', 'info');
+}
+
+function toggleKidAudioMute() {
+    KidAudioEffects.enabled = !KidAudioEffects.enabled;
+    const btn = document.getElementById('btnKidSoundToggle');
+    if (btn) {
+        btn.textContent = KidAudioEffects.enabled ? '🔊 Sonidos' : '🔇 Silencio';
+    }
+    if (KidAudioEffects.enabled) KidAudioEffects.playDing();
 }
 
 // Exponer funciones globales para eventos onClick en portal.html
 window.toggleKidMode = toggleKidMode;
 window.switchKidView = switchKidView;
 window.selectKidWeather = selectKidWeather;
+window.selectKidThoughtChip = selectKidThoughtChip;
 window.selectKidBodyZone = selectKidBodyZone;
+window.selectKidSensation = selectKidSensation;
 window.submitKidWeatherAndBody = submitKidWeatherAndBody;
 window.pickAvatarChar = pickAvatarChar;
 window.pickAvatarAura = pickAvatarAura;
 window.pickAvatarAccessory = pickAvatarAccessory;
 window.generateRandomKidAvatarName = generateRandomKidAvatarName;
 window.saveKidAvatar = saveKidAvatar;
+window.initKidBubbles = initKidBubbles;
+window.popKidBubble = popKidBubble;
+window.skipCurrentBubble = skipCurrentBubble;
+window.openCustomBubbleModal = openCustomBubbleModal;
+window.closeCustomBubbleModal = closeCustomBubbleModal;
+window.confirmCustomBubble = confirmCustomBubble;
 window.promptCustomBubble = promptCustomBubble;
+window.saveCanvasSnapshot = saveCanvasSnapshot;
+window.undoKidCanvas = undoKidCanvas;
 window.setCanvasColor = setCanvasColor;
 window.setRainbowBrush = setRainbowBrush;
 window.setCanvasBrushSize = setCanvasBrushSize;
@@ -2799,6 +3166,16 @@ window.toggleCanvasEraser = toggleCanvasEraser;
 window.setCanvasStamp = setCanvasStamp;
 window.clearKidCanvas = clearKidCanvas;
 window.submitKidDrawing = submitKidDrawing;
+window.selectCalmTechnique = selectCalmTechnique;
 window.toggleBalloonBreathing = toggleBalloonBreathing;
+window.startBalloonBreathing = startBalloonBreathing;
+window.pauseBalloonBreathing = pauseBalloonBreathing;
+window.stopBalloonBreathing = stopBalloonBreathing;
+window.triggerKidSosHelp = triggerKidSosHelp;
+window.closeKidCrisisModal = closeKidCrisisModal;
+window.alertKidAdultTalk = alertKidAdultTalk;
+window.goToKidCalmFromSos = goToKidCalmFromSos;
+window.sendKidSosToTherapist = sendKidSosToTherapist;
+window.toggleKidAudioMute = toggleKidAudioMute;
 window.KidAudioEffects = KidAudioEffects;
 window.KidConfetti = KidConfetti;

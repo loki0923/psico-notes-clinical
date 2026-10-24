@@ -29,6 +29,12 @@ class DatabaseManager {
         if (!this.localStore.kid_portal_activities) {
             this.localStore.kid_portal_activities = [];
         }
+        if (!this.localStore.therapist_style_profiles) {
+            this.localStore.therapist_style_profiles = {};
+        }
+        if (!this.localStore.therapy_roadmap_sessions) {
+            this.localStore.therapy_roadmap_sessions = [];
+        }
     }
 
     _loadLocalStore() {
@@ -78,7 +84,9 @@ class DatabaseManager {
             audit_logs: [],
             billing_configs: {},
             billing_invoices: [],
-            kid_portal_activities: []
+            kid_portal_activities: [],
+            therapist_style_profiles: {},
+            therapy_roadmap_sessions: []
         };
     }
 
@@ -1040,6 +1048,269 @@ class DatabaseManager {
             igtfUSD: parseFloat(r.igtf_amount ?? r.igtfUSD ?? 0),
             igtf_amount: parseFloat(r.igtf_amount ?? r.igtfUSD ?? 0)
         }));
+    }
+
+    // ============================================
+    // MÉTODOS DE PERFIL DE ESTILO DEL TERAPEUTA (HEYFREUD BENCHMARK)
+    // ============================================
+
+    async getTherapistStyleProfile(therapistId) {
+        if (!therapistId) return null;
+        if (this.isPostgresConnected && this.pgPool) {
+            const res = await this.pgPool.query(
+                'SELECT profile FROM therapist_style_profiles WHERE therapist_id = $1',
+                [therapistId]
+            );
+            return res.rows[0]?.profile || null;
+        }
+        if (!this.localStore.therapist_style_profiles) {
+            this.localStore.therapist_style_profiles = {};
+        }
+        return this.localStore.therapist_style_profiles[therapistId] || null;
+    }
+
+    async saveTherapistStyleProfile(therapistId, profileData) {
+        if (!therapistId) throw new Error('therapistId requerido para guardar perfil de estilo.');
+        const cleanProfile = typeof profileData === 'object' && profileData !== null ? profileData : {};
+
+        if (this.isPostgresConnected && this.pgPool) {
+            const res = await this.pgPool.query(
+                `INSERT INTO therapist_style_profiles (therapist_id, profile, updated_at)
+                 VALUES ($1, $2, CURRENT_TIMESTAMP)
+                 ON CONFLICT (therapist_id) DO UPDATE SET
+                     profile = EXCLUDED.profile,
+                     updated_at = CURRENT_TIMESTAMP
+                 RETURNING *`,
+                [therapistId, JSON.stringify(cleanProfile)]
+            );
+            return res.rows[0]?.profile || cleanProfile;
+        }
+
+        if (!this.localStore.therapist_style_profiles) {
+            this.localStore.therapist_style_profiles = {};
+        }
+        this.localStore.therapist_style_profiles[therapistId] = cleanProfile;
+        this._persistLocalStore();
+        return cleanProfile;
+    }
+
+    // ============================================
+    // MÉTODOS DE MAPA DE RUTA Y SESIONES DE TERAPIA (ROADMAP)
+    // ============================================
+
+    async getTherapyRoadmapSessions(patientId) {
+        if (!patientId) return [];
+        if (this.isPostgresConnected && this.pgPool) {
+            const res = await this.pgPool.query(
+                `SELECT * FROM therapy_roadmap_sessions 
+                 WHERE patient_id = $1 
+                 ORDER BY display_order ASC, session_date ASC, session_number ASC`,
+                [patientId]
+            );
+            return res.rows.map(r => ({
+                id: r.id,
+                patientId: r.patient_id,
+                sessionNumber: r.session_number,
+                title: r.title,
+                date: r.session_date ? (r.session_date.toISOString ? r.session_date.toISOString().split('T')[0] : String(r.session_date).split('T')[0]) : '',
+                focusSummary: r.focus_summary || '',
+                status: r.status || 'pendiente',
+                clinicalNoteId: r.clinical_note_id || null,
+                appointmentId: r.appointment_id || null,
+                displayOrder: r.display_order ?? 0,
+                createdAt: r.created_at,
+                updatedAt: r.updated_at
+            }));
+        }
+
+        if (!this.localStore.therapy_roadmap_sessions) {
+            this.localStore.therapy_roadmap_sessions = [];
+        }
+        const filtered = this.localStore.therapy_roadmap_sessions.filter(s => s.patientId === patientId || s.patient_id === patientId);
+        return filtered.sort((a, b) => (a.displayOrder ?? a.display_order ?? 0) - (b.displayOrder ?? b.display_order ?? 0));
+    }
+
+    async saveTherapyRoadmapSession(sessionData) {
+        if (!sessionData || !sessionData.patientId) throw new Error('patientId requerido para sesión de roadmap');
+        const record = {
+            id: sessionData.id || `trs_${Date.now()}_${Math.random().toString(36).substr(2, 6)}`,
+            patient_id: sessionData.patientId || sessionData.patient_id,
+            patientId: sessionData.patientId || sessionData.patient_id,
+            session_number: Number(sessionData.sessionNumber || sessionData.session_number || 1),
+            sessionNumber: Number(sessionData.sessionNumber || sessionData.session_number || 1),
+            title: sessionData.title || `Sesión #${sessionData.sessionNumber || 1}`,
+            session_date: sessionData.date || sessionData.session_date || new Date().toISOString().split('T')[0],
+            date: sessionData.date || sessionData.session_date || new Date().toISOString().split('T')[0],
+            focus_summary: sessionData.focusSummary || sessionData.focus_summary || '',
+            focusSummary: sessionData.focusSummary || sessionData.focus_summary || '',
+            status: sessionData.status || 'pendiente',
+            clinical_note_id: sessionData.clinicalNoteId || sessionData.clinical_note_id || null,
+            clinicalNoteId: sessionData.clinicalNoteId || sessionData.clinical_note_id || null,
+            appointment_id: sessionData.appointmentId || sessionData.appointment_id || null,
+            appointmentId: sessionData.appointmentId || sessionData.appointment_id || null,
+            display_order: Number(sessionData.displayOrder ?? sessionData.display_order ?? 0),
+            displayOrder: Number(sessionData.displayOrder ?? sessionData.display_order ?? 0),
+            created_at: sessionData.createdAt || new Date().toISOString(),
+            updated_at: new Date().toISOString()
+        };
+
+        if (this.isPostgresConnected && this.pgPool) {
+            const query = `
+                INSERT INTO therapy_roadmap_sessions (
+                    id, patient_id, session_number, title, session_date, focus_summary,
+                    status, clinical_note_id, appointment_id, display_order, created_at, updated_at
+                ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, CURRENT_TIMESTAMP)
+                ON CONFLICT (id) DO UPDATE SET
+                    session_number = EXCLUDED.session_number,
+                    title = EXCLUDED.title,
+                    session_date = EXCLUDED.session_date,
+                    focus_summary = EXCLUDED.focus_summary,
+                    status = EXCLUDED.status,
+                    clinical_note_id = EXCLUDED.clinical_note_id,
+                    appointment_id = EXCLUDED.appointment_id,
+                    display_order = EXCLUDED.display_order,
+                    updated_at = CURRENT_TIMESTAMP
+                RETURNING *
+            `;
+            const res = await this.pgPool.query(query, [
+                record.id, record.patient_id, record.session_number, record.title, record.session_date,
+                record.focus_summary, record.status, record.clinical_note_id, record.appointment_id,
+                record.display_order, record.created_at
+            ]);
+            const r = res.rows[0];
+            return {
+                id: r.id,
+                patientId: r.patient_id,
+                sessionNumber: r.session_number,
+                title: r.title,
+                date: r.session_date ? String(r.session_date).split('T')[0] : '',
+                focusSummary: r.focus_summary || '',
+                status: r.status,
+                clinicalNoteId: r.clinical_note_id,
+                appointmentId: r.appointment_id,
+                displayOrder: r.display_order,
+                createdAt: r.created_at,
+                updatedAt: r.updated_at
+            };
+        }
+
+        if (!this.localStore.therapy_roadmap_sessions) {
+            this.localStore.therapy_roadmap_sessions = [];
+        }
+        const idx = this.localStore.therapy_roadmap_sessions.findIndex(s => s.id === record.id);
+        if (idx >= 0) {
+            this.localStore.therapy_roadmap_sessions[idx] = { ...this.localStore.therapy_roadmap_sessions[idx], ...record };
+        } else {
+            this.localStore.therapy_roadmap_sessions.push(record);
+        }
+        this._persistLocalStore();
+        return record;
+    }
+
+    async updateTherapyRoadmapSession(sessionId, updates) {
+        if (!sessionId) return null;
+        if (this.isPostgresConnected && this.pgPool) {
+            const current = await this.pgPool.query('SELECT * FROM therapy_roadmap_sessions WHERE id = $1', [sessionId]);
+            if (current.rows.length === 0) return null;
+            const r = current.rows[0];
+            const updated = {
+                session_number: updates.sessionNumber ?? updates.session_number ?? r.session_number,
+                title: updates.title ?? r.title,
+                session_date: updates.date ?? updates.session_date ?? r.session_date,
+                focus_summary: updates.focusSummary ?? updates.focus_summary ?? r.focus_summary,
+                status: updates.status ?? r.status,
+                clinical_note_id: updates.clinicalNoteId !== undefined ? updates.clinicalNoteId : r.clinical_note_id,
+                appointment_id: updates.appointmentId !== undefined ? updates.appointmentId : r.appointment_id,
+                display_order: updates.displayOrder ?? updates.display_order ?? r.display_order
+            };
+            const res = await this.pgPool.query(`
+                UPDATE therapy_roadmap_sessions SET
+                    session_number = $1, title = $2, session_date = $3, focus_summary = $4,
+                    status = $5, clinical_note_id = $6, appointment_id = $7, display_order = $8,
+                    updated_at = CURRENT_TIMESTAMP
+                WHERE id = $9 RETURNING *
+            `, [
+                updated.session_number, updated.title, updated.session_date, updated.focus_summary,
+                updated.status, updated.clinical_note_id, updated.appointment_id, updated.display_order, sessionId
+            ]);
+            const row = res.rows[0];
+            return {
+                id: row.id,
+                patientId: row.patient_id,
+                sessionNumber: row.session_number,
+                title: row.title,
+                date: row.session_date ? String(row.session_date).split('T')[0] : '',
+                focusSummary: row.focus_summary || '',
+                status: row.status,
+                clinicalNoteId: row.clinical_note_id,
+                appointmentId: row.appointment_id,
+                displayOrder: row.display_order,
+                updatedAt: row.updated_at
+            };
+        }
+
+        if (!this.localStore.therapy_roadmap_sessions) this.localStore.therapy_roadmap_sessions = [];
+        const idx = this.localStore.therapy_roadmap_sessions.findIndex(s => s.id === sessionId);
+        if (idx === -1) return null;
+        const current = this.localStore.therapy_roadmap_sessions[idx];
+        const merged = {
+            ...current,
+            ...updates,
+            sessionNumber: updates.sessionNumber ?? updates.session_number ?? current.sessionNumber,
+            title: updates.title ?? current.title,
+            date: updates.date ?? updates.session_date ?? current.date,
+            focusSummary: updates.focusSummary ?? updates.focus_summary ?? current.focusSummary,
+            status: updates.status ?? current.status,
+            displayOrder: updates.displayOrder ?? updates.display_order ?? current.displayOrder,
+            updatedAt: new Date().toISOString()
+        };
+        this.localStore.therapy_roadmap_sessions[idx] = merged;
+        this._persistLocalStore();
+        return merged;
+    }
+
+    async deleteTherapyRoadmapSession(sessionId, patientId) {
+        if (!sessionId) return false;
+        if (this.isPostgresConnected && this.pgPool) {
+            const res = await this.pgPool.query(
+                'DELETE FROM therapy_roadmap_sessions WHERE id = $1 AND ($2::VARCHAR IS NULL OR patient_id = $2) RETURNING id',
+                [sessionId, patientId || null]
+            );
+            return (res.rowCount || 0) > 0;
+        }
+
+        if (!this.localStore.therapy_roadmap_sessions) return false;
+        const initLen = this.localStore.therapy_roadmap_sessions.length;
+        this.localStore.therapy_roadmap_sessions = this.localStore.therapy_roadmap_sessions.filter(
+            s => !(s.id === sessionId && (!patientId || s.patientId === patientId || s.patient_id === patientId))
+        );
+        const changed = this.localStore.therapy_roadmap_sessions.length !== initLen;
+        if (changed) this._persistLocalStore();
+        return changed;
+    }
+
+    async reorderTherapyRoadmapSessions(patientId, orderedIds) {
+        if (!patientId || !Array.isArray(orderedIds)) return false;
+        if (this.isPostgresConnected && this.pgPool) {
+            for (let i = 0; i < orderedIds.length; i++) {
+                await this.pgPool.query(
+                    'UPDATE therapy_roadmap_sessions SET display_order = $1, updated_at = CURRENT_TIMESTAMP WHERE id = $2 AND patient_id = $3',
+                    [i + 1, orderedIds[i], patientId]
+                );
+            }
+            return true;
+        }
+
+        if (!this.localStore.therapy_roadmap_sessions) return false;
+        orderedIds.forEach((id, idx) => {
+            const item = this.localStore.therapy_roadmap_sessions.find(s => s.id === id && (s.patientId === patientId || s.patient_id === patientId));
+            if (item) {
+                item.displayOrder = idx + 1;
+                item.display_order = idx + 1;
+            }
+        });
+        this._persistLocalStore();
+        return true;
     }
 }
 

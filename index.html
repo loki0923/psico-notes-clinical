@@ -1319,13 +1319,18 @@
                 <div style="background: linear-gradient(135deg, rgba(13,148,136,0.12) 0%, rgba(99,102,241,0.08) 100%); border: 1px dashed var(--accent-primary); border-radius: 8px; padding: 12px; margin-bottom: 14px; display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px;">
                     <div>
                         <strong style="color:var(--accent-primary); font-size:13px; display:flex; align-items:center; gap:6px;">
-                            <i class="fas fa-wand-magic-sparkles"></i> Copiloto Clínico IA: Síntesis SOAP
+                            <i class="fas fa-wand-magic-sparkles"></i> Copiloto Clínico IA: Síntesis y Grabación de Sesión
                         </strong>
-                        <small style="color:var(--text-secondary); display:block; margin-top:2px;">Dicta por voz o escribe apuntes libres y Gemini estructurará S, O, A, P automáticamente.</small>
+                        <small style="color:var(--text-secondary); display:block; margin-top:2px;">Graba la sesión ambiental completa o dicta apuntes libres para estructurar en segundos con Gemini.</small>
                     </div>
-                    <button type="button" class="btn-sm btn-primary" onclick="openSoapAiModal()" style="font-size:12px; font-weight:700;">
-                        <i class="fas fa-sparkles"></i> ✨ Dictar / Sintetizar con IA
-                    </button>
+                    <div style="display:flex; gap:8px; flex-wrap:wrap;">
+                        <button type="button" class="btn-sm btn-secondary" onclick="startAmbientSessionRecording()" style="font-size:12px; font-weight:700; gap:5px;">
+                            <i class="fas fa-record-vinyl" style="color:#ef4444;"></i> 🔴 Grabar Sesión
+                        </button>
+                        <button type="button" class="btn-sm btn-primary" onclick="openSoapAiModal()" style="font-size:12px; font-weight:700; gap:5px;">
+                            <i class="fas fa-sparkles"></i> ✨ Sintetizar con IA
+                        </button>
+                    </div>
                 </div>
 
                 <div class="form-group">
@@ -1992,24 +1997,145 @@
     </div>
 </div>
 
+<!-- ROADMAP SESSION MODAL -->
+<div class="modal" id="roadmapSessionModal">
+    <div class="modal-overlay" onclick="closeModal('roadmapSessionModal')"></div>
+    <div class="modal-content modal-roadmap-dialog">
+        <div class="modal-header modal-header-roadmap">
+            <div class="roadmap-modal-header-info">
+                <div class="roadmap-modal-header-icon">
+                    <i class="fas fa-route"></i>
+                </div>
+                <div>
+                    <h2 id="roadmapSessionModalTitle">Planificar Sesión de Terapia</h2>
+                    <p class="roadmap-modal-subtitle">Mapa de ruta longitudinal y objetivos terapéuticos</p>
+                </div>
+            </div>
+            <button type="button" class="btn-icon btn-modal-close" onclick="closeModal('roadmapSessionModal')" title="Cerrar ventana">
+                <i class="fas fa-times"></i>
+            </button>
+        </div>
+
+        <!-- Pestañas internas del Modal -->
+        <div class="modal-subtabs-nav">
+            <button type="button" class="modal-subtab-btn active" onclick="switchRoadmapModalTab('encuadre', this)">
+                <i class="fas fa-calendar-alt"></i> <span>1. Encuadre & Fecha</span>
+            </button>
+            <button type="button" class="modal-subtab-btn" onclick="switchRoadmapModalTab('foco', this)">
+                <i class="fas fa-wand-magic-sparkles"></i> <span>2. Foco & Objetivos</span>
+            </button>
+            <button type="button" class="modal-subtab-btn" onclick="switchRoadmapModalTab('reporte', this)">
+                <i class="fas fa-file-signature"></i> <span>3. Reporte Clínico</span>
+            </button>
+        </div>
+
+        <form id="roadmapSessionForm" class="modal-form roadmap-modal-form" onsubmit="handleSaveRoadmapSession(event)">
+            <input type="hidden" id="roadmapSessionId">
+            <input type="hidden" id="roadmapPatientId">
+
+            <!-- Pestaña 1: Encuadre & Fecha -->
+            <div id="roadmapModalTab-encuadre" class="roadmap-modal-tab-content active">
+                <div class="form-row">
+                    <div class="form-group" style="flex:0 0 110px;">
+                        <label><i class="fas fa-hashtag"></i> Nº Sesión</label>
+                        <input type="number" id="roadmapSessionNumber" min="1" required class="input-clinical-styled">
+                    </div>
+                    <div class="form-group" style="flex:1;">
+                        <label><i class="fas fa-heading"></i> Título de la Sesión</label>
+                        <input type="text" id="roadmapSessionTitle" placeholder="Ej: Sesión 10 - Prevención de Recaídas" required class="input-clinical-styled">
+                    </div>
+                </div>
+
+                <div class="quick-title-suggestions">
+                    <span class="quick-title-label">Sugerencias:</span>
+                    <button type="button" class="chip-suggestion" onclick="applyRoadmapTitleSuggestion('Evaluación Inicial y Encuadre')">Evaluación Inicial</button>
+                    <button type="button" class="chip-suggestion" onclick="applyRoadmapTitleSuggestion('Psicoeducación y Modelo Cognitivo')">Psicoeducación</button>
+                    <button type="button" class="chip-suggestion" onclick="applyRoadmapTitleSuggestion('Reestructuración Cognitiva')">Reestructuración</button>
+                    <button type="button" class="chip-suggestion" onclick="applyRoadmapTitleSuggestion('Prevención de Recaídas')">Prevención Recaídas</button>
+                </div>
+
+                <div class="form-row" style="margin-top:14px;">
+                    <div class="form-group" style="flex:1;">
+                        <label><i class="far fa-calendar-alt"></i> Fecha de la Sesión</label>
+                        <input type="date" id="roadmapSessionDate" required class="input-clinical-styled">
+                    </div>
+                    <div class="form-group" style="flex:1;">
+                        <label><i class="fas fa-tag"></i> Estado Clínico</label>
+                        <select id="roadmapSessionStatus" class="input-clinical-styled">
+                            <option value="pendiente">🕒 Pendiente (Por realizar)</option>
+                            <option value="completada">✅ Completada (Realizada con éxito)</option>
+                            <option value="agendada">📅 En Curso / Agendada</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Pestaña 2: Foco & Objetivos -->
+            <div id="roadmapModalTab-foco" class="roadmap-modal-tab-content">
+                <div class="form-group">
+                    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;">
+                        <label style="margin:0;"><i class="fas fa-wand-magic-sparkles" style="color:#7c3aed;"></i> Foco Clínico / Resumen Terapéutico (✨)</label>
+                        <span style="font-size:11.5px;color:var(--text-tertiary);">Visible en la tarjeta de ruta</span>
+                    </div>
+                    <textarea id="roadmapSessionFocus" rows="4" placeholder="Detalle los objetivos, focos de trabajo cognitivo-conductual o intervenciones aplicadas en esta sesión..." class="input-clinical-styled textarea-clinical"></textarea>
+                </div>
+
+                <div class="quick-focus-templates">
+                    <span class="quick-title-label">Plantillas TCC:</span>
+                    <button type="button" class="chip-suggestion" onclick="appendRoadmapFocusTemplate('Exploración de pensamientos automáticos, registro de distorsiones y flecha descendente.')">🎯 Distorsiones Cognitivas</button>
+                    <button type="button" class="chip-suggestion" onclick="appendRoadmapFocusTemplate('Técnicas de regulación somática: respiración diafragmática 4-7-8 y anclaje sensorial 5-4-3-2-1.')">🧘 Regulación Somática</button>
+                    <button type="button" class="chip-suggestion" onclick="appendRoadmapFocusTemplate('Diseño y revisión de experimento conductual para contrastar creencias desadaptativas.')">🧪 Experimento Conductual</button>
+                </div>
+            </div>
+
+            <!-- Pestaña 3: Reporte Clínico -->
+            <div id="roadmapModalTab-reporte" class="roadmap-modal-tab-content">
+                <div class="roadmap-report-bridge-box">
+                    <div class="report-bridge-icon"><i class="fas fa-file-medical-alt"></i></div>
+                    <div class="report-bridge-info">
+                        <h4>Integración con Notas de Evolución SOAP</h4>
+                        <p>Puedes evolucionar esta sesión directamente a un Reporte de Atención oficial con membrete profesional y firma digitalizada.</p>
+                    </div>
+                </div>
+                <div style="text-align:center;margin:18px 0 6px;">
+                    <button type="button" class="btn-cta-evolve" onclick="jumpToReporteAtencionFromModal()">
+                        <i class="fas fa-file-signature"></i> Abrir Formulario de Reporte de Atención (SOAP)
+                    </button>
+                </div>
+            </div>
+
+            <div class="modal-actions roadmap-modal-actions">
+                <button type="button" class="btn-cancel-styled" onclick="closeModal('roadmapSessionModal')">Cancelar</button>
+                <button type="button" id="btnDeleteRoadmapSession" class="btn-danger-outline" style="display:none;" onclick="handleDeleteRoadmapSession()">
+                    <i class="fas fa-trash-alt"></i> Eliminar
+                </button>
+                <button type="submit" class="btn-save-roadmap">
+                    <i class="fas fa-check-circle"></i> Guardar Sesión
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
 <script src="phi-anonymizer.js"></script>
 <script src="voice-dictation.js"></script>
-<script src="ai-clinical.js"></script>
+<script src="session-recorder.js?v=7.0.0"></script>
+<script src="ai-clinical.js?v=7.0.0"></script>
 <script src="psychoed.js"></script>
 <script src="reports.js"></script>
 <script src="vademecum.js"></script>
-<script src="app.js?v=6.8.7"></script>
-<script src="scales.js?v=6.8.7"></script>
-<script src="finance.js?v=6.8.7"></script>
-<script src="adm.js?v=6.8.7"></script>
-<script src="session-reminders.js?v=6.8.7"></script>
-<script src="backup.js?v=6.8.7"></script>
-<script src="crisis-protocol.js?v=6.8.7"></script>
-<script src="consentimiento.js?v=6.8.7"></script>
-<script src="historia-clinica.js?v=6.8.7"></script>
+<script src="app.js?v=7.0.0"></script>
+<script src="scales.js?v=7.0.0"></script>
+<script src="finance.js?v=7.0.0"></script>
+<script src="adm.js?v=7.0.0"></script>
+<script src="session-reminders.js?v=7.0.0"></script>
+<script src="backup.js?v=7.0.0"></script>
+<script src="crisis-protocol.js?v=7.0.0"></script>
+<script src="consentimiento.js?v=7.0.0"></script>
+<script src="historia-clinica.js?v=7.0.0"></script>
 <script>
 if ('serviceWorker' in navigator && (window.location.protocol === 'http:' || window.location.protocol === 'https:')) {
-    navigator.serviceWorker.register('/sw.js?v=6.8.7')
+    navigator.serviceWorker.register('/sw.js?v=7.0.0')
         .then(() => console.log('✅ ServiceWorker registrado'))
         .catch(err => console.log('SW Error:', err));
 }

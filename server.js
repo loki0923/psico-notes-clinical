@@ -181,19 +181,25 @@ const DEFAULT_ALLOWED_ORIGINS = [
     'http://localhost:3000',
     'http://127.0.0.1:3000',
     'http://localhost:5173',
-    'http://127.0.0.1:5173'
+    'http://127.0.0.1:5173',
+    'http://localhost:8080',
+    'http://127.0.0.1:8080',
+    'http://localhost:8000',
+    'http://127.0.0.1:8000'
 ];
 const envOrigins = (process.env.ALLOWED_ORIGINS || '').split(',').map(o => o.trim()).filter(Boolean);
 export const ALLOWED_ORIGINS = new Set([...DEFAULT_ALLOWED_ORIGINS, ...envOrigins]);
 
 app.use((req, res, next) => {
     const origin = req.headers.origin;
-    // Peticiones internas, same-origin o sin encabezado origin (ej. herramientas locales de servidor o nativas)
+    // Peticiones internas, same-origin, apps móviles nativas (Android/iOS Dio) o sin encabezado origin
     if (!origin) {
         return next();
     }
 
-    if (ALLOWED_ORIGINS.has(origin)) {
+    const isLocalhostDev = !isProd && (origin.startsWith('http://localhost:') || origin.startsWith('http://127.0.0.1:'));
+
+    if (ALLOWED_ORIGINS.has(origin) || isLocalhostDev) {
         res.header('Access-Control-Allow-Origin', origin);
         res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
         res.header('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept, Authorization, X-Therapist-Id, X-Session-Token');
@@ -309,6 +315,7 @@ const ALLOWED_STATIC_FILES = new Set([
     'crisis-protocol.js',
     'consentimiento.js',
     'historia-clinica.js',
+    'session-recorder.js',
     'sw.js'
 ]);
 
@@ -867,6 +874,178 @@ app.post('/api/v1/clinical/soap-synthesize', requireTherapistAuth, async (req, r
     }
 });
 
+// ============================================
+// FORMATOS CLÍNICOS Y SÍNTESIS DE SESIÓN HEYFREUD-BENCHMARK (v7.0)
+// ============================================
+const CLINICAL_NOTE_FORMATS = {
+    SOAP: {
+        keys: ['subjetivo', 'objetivo', 'analisis', 'plan'],
+        systemInstruction: 'Eres un redactor clínico experto en psicología y psiquiatría. Convierte la sesión o apuntes en una NOTA SOAP en formato JSON estricto con las claves: subjetivo, objetivo, analisis, plan.'
+    },
+    DAP: {
+        keys: ['data', 'assessment', 'plan'],
+        systemInstruction: 'Eres un redactor clínico experto en psicoterapia ambulatoria. Convierte la sesión o apuntes en una NOTA DAP en formato JSON estricto con las claves: data (descripción objetiva del paciente y relato), assessment (evaluación clínica e hipótesis), plan (intervención realizada y metas acordadas).'
+    },
+    BIRP: {
+        keys: ['behavior', 'intervention', 'response', 'plan'],
+        systemInstruction: 'Eres un redactor clínico especializado en terapias conductuales y TCC. Convierte la sesión en una NOTA BIRP en formato JSON estricto con las claves: behavior (conducta observada y motivos de consulta), intervention (técnicas aplicadas por el terapeuta), response (receptividad, reacción e introspección del consultante), plan (acciones acordadas y próxima sesión).'
+    },
+    GIRP: {
+        keys: ['goals', 'intervention', 'response', 'plan'],
+        systemInstruction: 'Eres un redactor clínico especializado en psicoterapia orientada a objetivos. Convierte la sesión en una NOTA GIRP en formato JSON estricto con las claves: goals (metas terapéuticas abordadas), intervention (técnicas clínicas aplicadas), response (progreso y respuesta del consultante), plan (tareas y metas para el siguiente encuentro).'
+    },
+    NARRATIVE: {
+        keys: ['resumenSesion', 'temasAbordados', 'intervenciones', 'acuerdos'],
+        systemInstruction: 'Eres un redactor clínico experto en narrativa psicoterapéutica y fenomenológica. Estructura la sesión en formato JSON estricto con las claves: resumenSesion, temasAbordados, intervenciones, acuerdos.'
+    },
+    TREATMENT_PLAN: {
+        keys: ['problemasIdentificados', 'objetivosCortoPlazo', 'objetivosLargoPlazo', 'modalidadTerapeutica', 'criteriosAlta'],
+        systemInstruction: 'Eres un especialista en diseño de planes de tratamiento psicoterapéuticos. Estructura el plan en formato JSON estricto con las claves: problemasIdentificados, objetivosCortoPlazo, objetivosLargoPlazo, modalidadTerapeutica, criteriosAlta.'
+    }
+};
+
+// Síntesis de Sesión Multiformato con Soporte de Audio y Adaptación Estilística
+app.post('/api/v1/clinical/session-synthesize', requireTherapistAuth, async (req, res) => {
+    try {
+        const {
+            notes,
+            transcript,
+            audioBase64,
+            mimeType = 'audio/webm',
+            format = 'SOAP',
+            patientInfo = {},
+            styleConfig = null,
+            fewShotExamples = []
+        } = req.body;
+
+        const sessionText = (transcript || notes || '').trim();
+        if (!sessionText && !audioBase64) {
+            return res.status(400).json({ error: 'Faltan los apuntes o transcripción de la sesión' });
+        }
+
+        const apiKey = process.env.GEMINI_API_KEY;
+        if (!apiKey) {
+            return res.status(503).json({
+                error: 'Servicio de IA clínica (Gemini) no configurado en el servidor. Configure GEMINI_API_KEY en variables de entorno.',
+                source: 'unavailable'
+            });
+        }
+
+        const normalizedFormat = String(format || 'SOAP').toUpperCase().trim();
+        const formatDef = CLINICAL_NOTE_FORMATS[normalizedFormat] || CLINICAL_NOTE_FORMATS.SOAP;
+
+        // Construcción de la instrucción estilística adaptativa
+        let styleInstruction = '';
+        if (styleConfig && typeof styleConfig === 'object') {
+            const framework = styleConfig.theoreticalFramework || styleConfig.approach;
+            const tone = styleConfig.tone;
+            const conciseness = styleConfig.conciseness;
+            const parts = [];
+            if (framework) parts.push(`Marco teórico preferente: ${framework}.`);
+            if (tone) parts.push(`Tono de redacción: ${tone}.`);
+            if (conciseness === 'concise') parts.push('Nivel de concisión: Alto, prioriza la síntesis y viñetas clínicas claras.');
+            else if (conciseness === 'detailed') parts.push('Nivel de concisión: Detallado, incluye matices fenomenológicos y semiológicos.');
+            if (parts.length > 0) {
+                styleInstruction = `\n\nDirectrices de estilo del terapeuta:\n${parts.join('\n')}`;
+            }
+        }
+
+        let fewShotPrompt = '';
+        if (Array.isArray(fewShotExamples) && fewShotExamples.length > 0) {
+            fewShotPrompt = '\n\nEjemplos de referencia del estilo de redacción habitual del terapeuta:\n' +
+                fewShotExamples.slice(0, 2).map((ex, i) => `[Ejemplo ${i + 1}]:\n${typeof ex === 'string' ? ex : JSON.stringify(ex)}`).join('\n\n');
+        }
+
+        const sysPrompt = `${formatDef.systemInstruction}${styleInstruction}${fewShotPrompt}\n\nResponde ÚNICAMENTE con el objeto JSON válido.`;
+
+        const userPrompt = `Contexto del caso clínico:
+- Diagnóstico activo: ${patientInfo.diagnosis || 'En proceso diagnóstico'}
+- Motivo de consulta / Foco: ${patientInfo.reason || 'Seguimiento psicoterapéutico'}
+- Formato solicitado: ${normalizedFormat}
+
+Contenido o transcripción de la sesión:
+"${sessionText || '[Audio adjunto para análisis]'}"`;
+
+        const contentsParts = [];
+        if (audioBase64) {
+            contentsParts.push({
+                inlineData: {
+                    mimeType: mimeType || 'audio/webm',
+                    data: audioBase64
+                }
+            });
+        }
+        contentsParts.push({ text: userPrompt });
+
+        const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`;
+        const geminiRes = await fetch(url, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                contents: [{ role: 'user', parts: contentsParts }],
+                systemInstruction: { parts: [{ text: sysPrompt }] },
+                generationConfig: {
+                    responseMimeType: 'application/json',
+                    temperature: 0.2
+                }
+            })
+        });
+
+        if (!geminiRes.ok) {
+            const err = await geminiRes.json().catch(() => ({}));
+            return res.status(geminiRes.status).json({ error: err.error?.message || 'Error en Gemini API' });
+        }
+
+        const data = await geminiRes.json();
+        const rawText = data.candidates?.[0]?.content?.parts?.[0]?.text || '{}';
+        let parsedContent = {};
+        try {
+            parsedContent = JSON.parse(rawText);
+        } catch {
+            parsedContent = { rawText };
+        }
+
+        res.json({
+            format: normalizedFormat,
+            content: parsedContent,
+            metadata: {
+                model: 'gemini-2.5-flash',
+                styleApplied: Boolean(styleConfig),
+                timestamp: new Date().toISOString()
+            }
+        });
+    } catch (err) {
+        handleClinicalError(res, err, 'Error en síntesis multiformato de sesión');
+    }
+});
+
+// Perfil de estilo del terapeuta (HeyFreud Style Learning)
+app.get('/api/v1/clinical/style-profile', requireTherapistAuth, async (req, res) => {
+    try {
+        const profile = await db.getTherapistStyleProfile(req.therapistId);
+        res.json({
+            status: 'ok',
+            profile: profile || {
+                theoreticalFramework: 'TCC',
+                tone: 'clínico-profesional',
+                conciseness: 'medium',
+                defaultFormat: 'SOAP'
+            }
+        });
+    } catch (err) {
+        handleClinicalError(res, err, 'Error obteniendo perfil de estilo');
+    }
+});
+
+app.put('/api/v1/clinical/style-profile', requireTherapistAuth, async (req, res) => {
+    try {
+        const profile = await db.saveTherapistStyleProfile(req.therapistId, req.body || {});
+        res.json({ status: 'saved', profile });
+    } catch (err) {
+        handleClinicalError(res, err, 'Error guardando perfil de estilo');
+    }
+});
+
 // Estado de disponibilidad del servicio de IA clínica (Gemini)
 app.get('/api/v1/clinical/ai-status', requireTherapistAuth, (req, res) => {
     const isConfigured = Boolean(process.env.GEMINI_API_KEY && process.env.GEMINI_API_KEY.length > 10);
@@ -1265,6 +1444,130 @@ app.get('/api/v1/audit/logs', requireTherapistAuth, async (req, res) => {
         res.json({ status: 'ok', logs });
     } catch (err) {
         handleClinicalError(res, err, 'Error consultando bitácora de auditoría');
+    }
+});
+
+// ============================================
+// MAPA DE RUTA Y SESIONES DE TERAPIA (ROADMAP API)
+// ============================================
+
+// Helper para validar propiedad del paciente y prevenir BOLA/IDOR
+async function verifyTherapyPatientOwnership(patientId, therapistId, req) {
+    let patient = null;
+    if (db.isPostgresConnected && db.pgPool) {
+        const check = await db.pgPool.query('SELECT * FROM patients WHERE id = $1', [patientId]);
+        patient = check.rows[0];
+    } else {
+        patient = (db.localStore.patients || []).find(p => p.id === patientId);
+    }
+    if (!patient) return { errorStatus: 404, errorMessage: 'Paciente no encontrado' };
+    if (!patient.therapist_id || patient.therapist_id !== therapistId) {
+        await recordAuditLog(therapistId, patientId, 'CROSS_TENANT_THERAPY_ROADMAP_BLOCKED', 'PATIENTS', req);
+        return {
+            errorStatus: 403,
+            errorMessage: 'Acceso denegado: El expediente consultado pertenece a otro profesional de la salud o carece de asignación válida.'
+        };
+    }
+    return { patient };
+}
+
+// Obtener sesiones del mapa de ruta para un paciente
+app.get('/api/v1/patients/:id/therapy-sessions', requireTherapistAuth, async (req, res) => {
+    try {
+        const patientId = req.params.id;
+        const therapistId = req.therapistId;
+        const check = await verifyTherapyPatientOwnership(patientId, therapistId, req);
+        if (check.errorStatus) {
+            return res.status(check.errorStatus).json({ error: check.errorMessage });
+        }
+
+        const sessions = await db.getTherapyRoadmapSessions(patientId);
+        await recordAuditLog(therapistId, patientId, 'READ_THERAPY_ROADMAP_SESSIONS', 'ROADMAP', req);
+        res.json({ status: 'ok', patientId, sessions });
+    } catch (err) {
+        handleClinicalError(res, err, 'Error obteniendo sesiones del mapa de ruta');
+    }
+});
+
+// Crear nueva sesión en el mapa de ruta
+app.post('/api/v1/patients/:id/therapy-sessions', requireTherapistAuth, async (req, res) => {
+    try {
+        const patientId = req.params.id;
+        const therapistId = req.therapistId;
+        const check = await verifyTherapyPatientOwnership(patientId, therapistId, req);
+        if (check.errorStatus) {
+            return res.status(check.errorStatus).json({ error: check.errorMessage });
+        }
+
+        const session = await db.saveTherapyRoadmapSession({
+            patientId,
+            ...req.body
+        });
+        await recordAuditLog(therapistId, patientId, 'CREATE_THERAPY_ROADMAP_SESSION', 'ROADMAP', req);
+        res.status(201).json({ status: 'created', session });
+    } catch (err) {
+        handleClinicalError(res, err, 'Error creando sesión en el mapa de ruta');
+    }
+});
+
+// Actualizar una sesión existente del mapa de ruta
+app.put('/api/v1/patients/:id/therapy-sessions/:sessionId', requireTherapistAuth, async (req, res) => {
+    try {
+        const { id: patientId, sessionId } = req.params;
+        const therapistId = req.therapistId;
+        const check = await verifyTherapyPatientOwnership(patientId, therapistId, req);
+        if (check.errorStatus) {
+            return res.status(check.errorStatus).json({ error: check.errorMessage });
+        }
+
+        const session = await db.updateTherapyRoadmapSession(sessionId, req.body);
+        if (!session) {
+            return res.status(404).json({ error: 'Sesión no encontrada en el mapa de ruta' });
+        }
+        await recordAuditLog(therapistId, patientId, 'UPDATE_THERAPY_ROADMAP_SESSION', 'ROADMAP', req);
+        res.json({ status: 'updated', session });
+    } catch (err) {
+        handleClinicalError(res, err, 'Error actualizando sesión en el mapa de ruta');
+    }
+});
+
+// Eliminar una sesión del mapa de ruta
+app.delete('/api/v1/patients/:id/therapy-sessions/:sessionId', requireTherapistAuth, async (req, res) => {
+    try {
+        const { id: patientId, sessionId } = req.params;
+        const therapistId = req.therapistId;
+        const check = await verifyTherapyPatientOwnership(patientId, therapistId, req);
+        if (check.errorStatus) {
+            return res.status(check.errorStatus).json({ error: check.errorMessage });
+        }
+
+        const deleted = await db.deleteTherapyRoadmapSession(sessionId, patientId);
+        if (!deleted) {
+            return res.status(404).json({ error: 'Sesión no encontrada para eliminar' });
+        }
+        await recordAuditLog(therapistId, patientId, 'DELETE_THERAPY_ROADMAP_SESSION', 'ROADMAP', req);
+        res.json({ status: 'deleted', sessionId });
+    } catch (err) {
+        handleClinicalError(res, err, 'Error eliminando sesión del mapa de ruta');
+    }
+});
+
+// Reordenar las sesiones del mapa de ruta
+app.post('/api/v1/patients/:id/therapy-sessions/reorder', requireTherapistAuth, async (req, res) => {
+    try {
+        const patientId = req.params.id;
+        const therapistId = req.therapistId;
+        const { orderedIds } = req.body;
+        const check = await verifyTherapyPatientOwnership(patientId, therapistId, req);
+        if (check.errorStatus) {
+            return res.status(check.errorStatus).json({ error: check.errorMessage });
+        }
+
+        await db.reorderTherapyRoadmapSessions(patientId, orderedIds || []);
+        await recordAuditLog(therapistId, patientId, 'REORDER_THERAPY_ROADMAP_SESSIONS', 'ROADMAP', req);
+        res.json({ status: 'reordered', success: true });
+    } catch (err) {
+        handleClinicalError(res, err, 'Error reordenando sesiones del mapa de ruta');
     }
 });
 

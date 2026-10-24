@@ -4280,6 +4280,285 @@ ClinicalTestSuite.add('TC-FIN-07', 'Apertura Reactiva, Inyección Dinámica y Pe
     }
 });
 
+// ============================================
+// SUITE HEYFREUD-BENCHMARK (v7.0)
+// ============================================
+
+// 96. TC-REC-01: SessionRecorder & Ambient Listening Zero-Retention
+ClinicalTestSuite.add('TC-REC-01', 'SessionRecorder & Ambient Listening Zero-Retention (HeyFreud Benchmark)', async () => {
+    await import('./session-recorder.js');
+    const SessionRecorder = globalThis.SessionRecorder || (typeof global !== 'undefined' ? global.SessionRecorder : null);
+
+    if (!SessionRecorder || typeof SessionRecorder.formatTime !== 'function') {
+        throw new Error('SessionRecorder no exporta formatTime');
+    }
+
+    // 1. Verificación de formateo de tiempo
+    if (SessionRecorder.formatTime(0) !== '00:00') {
+        throw new Error(`formatTime(0) esperado 00:00 pero se obtuvo ${SessionRecorder.formatTime(0)}`);
+    }
+    if (SessionRecorder.formatTime(125) !== '02:05') {
+        throw new Error(`formatTime(125) esperado 02:05 pero se obtuvo ${SessionRecorder.formatTime(125)}`);
+    }
+    if (SessionRecorder.formatTime(3665) !== '61:05') {
+        throw new Error(`formatTime(3665) esperado 61:05 pero se obtuvo ${SessionRecorder.formatTime(3665)}`);
+    }
+
+    // 2. Verificación de callbacks y ciclo de vida de estado
+    let stateNotificationReceived = false;
+    const testListener = (state) => {
+        stateNotificationReceived = true;
+        if (typeof state.secondsElapsed !== 'number') {
+            throw new Error('El estado notificado no contiene secondsElapsed numérico');
+        }
+    };
+
+    SessionRecorder.onStatusChange(testListener);
+    SessionRecorder.notifyStatus();
+    if (!stateNotificationReceived) {
+        throw new Error('SessionRecorder no ejecutó el callback registrado en onStatusChange');
+    }
+    SessionRecorder.offStatusChange(testListener);
+
+    // 3. Garantía Ética Zero-Retention: purga y destrucción de memoria
+    SessionRecorder.audioChunks = [new Uint8Array([1, 2, 3]), new Uint8Array([4, 5, 6])];
+    SessionRecorder.isRecording = true;
+    SessionRecorder.isPaused = true;
+
+    SessionRecorder.purgeAudio();
+
+    if (SessionRecorder.audioChunks.length !== 0) {
+        throw new Error('purgeAudio() no vació el buffer de audio chunks en memoria');
+    }
+    if (SessionRecorder.isRecording !== false || SessionRecorder.isPaused !== false) {
+        throw new Error('purgeAudio() no restableció las banderas de grabación');
+    }
+});
+
+// 97. TC-FMT-01: Motor Clínico Multiformato (SOAP, DAP, BIRP, GIRP, NARRATIVE, TREATMENT_PLAN)
+ClinicalTestSuite.add('TC-FMT-01', 'Motor Clínico Multiformato (SOAP, DAP, BIRP, GIRP, Narrative, Treatment Plan)', async () => {
+    await import('./ai-clinical.js');
+    const ClinicalAI = globalThis.ClinicalAI || (typeof global !== 'undefined' ? global.ClinicalAI : null);
+
+    if (!ClinicalAI || typeof ClinicalAI.simulateMultiformatSynthesis !== 'function') {
+        throw new Error('ClinicalAI no exporta simulateMultiformatSynthesis');
+    }
+
+    const sample = 'Paciente acude refiriendo estrés laboral y episodios de insomnio. Trabajamos reestructuración y respiración.';
+
+    // 1. Probar formato DAP
+    const dap = await ClinicalAI.simulateMultiformatSynthesis(sample, 'DAP');
+    if (!dap.data || !dap.assessment || !dap.plan) {
+        throw new Error('El formato DAP no contiene las claves canónicas data, assessment y plan');
+    }
+
+    // 2. Probar formato BIRP
+    const birp = await ClinicalAI.simulateMultiformatSynthesis(sample, 'BIRP');
+    if (!birp.behavior || !birp.intervention || !birp.response || !birp.plan) {
+        throw new Error('El formato BIRP no contiene las claves canónicas behavior, intervention, response y plan');
+    }
+
+    // 3. Probar formato GIRP
+    const girp = await ClinicalAI.simulateMultiformatSynthesis(sample, 'GIRP');
+    if (!girp.goals || !girp.intervention || !girp.response || !girp.plan) {
+        throw new Error('El formato GIRP no contiene las claves canónicas goals, intervention, response y plan');
+    }
+
+    // 4. Probar formato NARRATIVE
+    const narrative = await ClinicalAI.simulateMultiformatSynthesis(sample, 'NARRATIVE');
+    if (!narrative.resumenSesion || !narrative.temasAbordados || !narrative.intervenciones || !narrative.acuerdos) {
+        throw new Error('El formato NARRATIVE no contiene las claves canónicas resumenSesion, temasAbordados, intervenciones y acuerdos');
+    }
+
+    // 5. Probar formato TREATMENT_PLAN
+    const tp = await ClinicalAI.simulateMultiformatSynthesis(sample, 'TREATMENT_PLAN');
+    if (!tp.problemasIdentificados || !tp.objetivosCortoPlazo || !tp.objetivosLargoPlazo || !tp.modalidadTerapeutica || !tp.criteriosAlta) {
+        throw new Error('El formato TREATMENT_PLAN no contiene las claves canónicas de planificación clínica');
+    }
+
+    // 6. Probar método principal synthesizeSessionNote en entorno headless
+    const synthResult = await ClinicalAI.synthesizeSessionNote(sample, { format: 'BIRP' });
+    if (synthResult.format !== 'BIRP' || !synthResult.content || !synthResult.content.behavior) {
+        throw new Error('synthesizeSessionNote no devolvió la estructura BIRP esperada');
+    }
+});
+
+// 98. TC-STY-01: Perfil de Estilo del Terapeuta (HeyFreud Style Learning)
+ClinicalTestSuite.add('TC-STY-01', 'Perfil de Estilo del Terapeuta (HeyFreud Style Learning)', async () => {
+    const { db } = await import('./db.js');
+    await db.initialize();
+
+    const testTherapistId = `therapist_style_test_${Date.now()}`;
+    const testProfile = {
+        theoreticalFramework: 'ACT',
+        tone: 'humanista-cálido',
+        conciseness: 'detailed',
+        defaultFormat: 'DAP',
+        preferredGlossary: ['defusión', 'valores', 'yo-como-contexto']
+    };
+
+    // 1. Guardar perfil de estilo
+    const saved = await db.saveTherapistStyleProfile(testTherapistId, testProfile);
+    if (!saved || saved.theoreticalFramework !== 'ACT' || saved.defaultFormat !== 'DAP') {
+        throw new Error('Fallo al guardar el perfil de estilo del terapeuta en db.js');
+    }
+
+    // 2. Recuperar perfil de estilo
+    const fetched = await db.getTherapistStyleProfile(testTherapistId);
+    if (!fetched || fetched.theoreticalFramework !== 'ACT' || fetched.tone !== 'humanista-cálido') {
+        throw new Error('No se recuperó el perfil de estilo coincidente desde la base de datos');
+    }
+
+    // 3. Probar persistencia ante actualizaciones parciales
+    const updated = await db.saveTherapistStyleProfile(testTherapistId, {
+        ...fetched,
+        conciseness: 'concise'
+    });
+    if (updated.conciseness !== 'concise') {
+        throw new Error('Fallo al actualizar la concisión en el perfil de estilo');
+    }
+});
+
+// 99. TC-ROA-01: Validación de Renderizado del Mapa Serpenteante de Sesiones en el Expediente Clínico
+ClinicalTestSuite.add('TC-ROA-01', 'Mapa de Ruta Longitudinal de Sesiones en Expediente Clínico (UI, Serpentine Layout y Acordeón ✨)', async () => {
+    const fs = await import('fs');
+    const appJs = fs.readFileSync('app.js', 'utf8');
+    const stylesCss = fs.readFileSync('styles.css', 'utf8');
+    const indexHtml = fs.readFileSync('index.html', 'utf8');
+
+    // 1. Validar presencia en styles.css de clases críticas del roadmap
+    const requiredCssClasses = [
+        '.therapy-roadmap-container',
+        '.therapy-session-card',
+        '.therapy-roadmap-row',
+        '.therapy-roadmap-track',
+        '.therapy-roadmap-node',
+        '.session-card-focus-box',
+        '.session-status-pill',
+        '.btn-add-session-roadmap'
+    ];
+    for (const cls of requiredCssClasses) {
+        if (!stylesCss.includes(cls)) {
+            throw new Error(`styles.css debe incluir la regla de estilo ${cls} para el roadmap`);
+        }
+    }
+
+    // 2. Validar presencia de modal independiente en index.html
+    if (!indexHtml.includes('id="roadmapSessionModal"')) {
+        throw new Error('index.html debe contener el modal independiente #roadmapSessionModal');
+    }
+    const modalFields = ['roadmapSessionNumber', 'roadmapSessionTitle', 'roadmapSessionDate', 'roadmapSessionStatus', 'roadmapSessionFocus'];
+    for (const f of modalFields) {
+        if (!indexHtml.includes(`id="${f}"`)) {
+            throw new Error(`index.html debe incluir el campo #${f} en el modal de sesión`);
+        }
+    }
+
+    // 3. Validar integración de renderTherapySessionsRoadmap dentro de renderTabResumen en app.js
+    if (!appJs.includes('renderTherapySessionsRoadmap(patientId)')) {
+        throw new Error('renderTabResumen en app.js debe invocar renderTherapySessionsRoadmap(patientId)');
+    }
+    if (!appJs.includes('function renderTherapySessionsRoadmap')) {
+        throw new Error('app.js debe definir la función renderTherapySessionsRoadmap');
+    }
+    if (!appJs.includes('toggleRoadmapSnippet') || !appJs.includes('quickToggleRoadmapStatus')) {
+        throw new Error('app.js debe definir los helpers interactivos toggleRoadmapSnippet y quickToggleRoadmapStatus');
+    }
+});
+
+// 100. TC-ROA-02: Integración de API REST y Ciclo de Vida del Mapa de Ruta (CRUD, Persistencia y Seguridad BOLA/IDOR)
+ClinicalTestSuite.add('TC-ROA-02', 'API REST de Sesiones del Mapa de Ruta (CRUD, BOLA/IDOR Prevention y Persistencia Relacional)', async () => {
+    const baseUrl = await ensureTestServer();
+    const { generateSessionToken } = await import('./server.js');
+    const { db } = await import('./db.js');
+
+    const therapistA = 'dr_roadmap_a_' + Date.now();
+    const therapistB = 'dr_roadmap_b_' + Date.now();
+    const tokenA = generateSessionToken(therapistA, 'roadmap_a@clinica.com');
+    const tokenB = generateSessionToken(therapistB, 'roadmap_b@clinica.com');
+
+    const patientA = {
+        id: 'pat_roadmap_' + Date.now(),
+        name: 'Carlos Valenzuela',
+        diagnosis: 'F41.1 Ansiedad Generalizada',
+        therapist_id: therapistA
+    };
+    await db.syncPatients([patientA], therapistA);
+
+    // 1. Crear sesión en el roadmap vía REST API
+    const newSessionPayload = {
+        sessionNumber: 1,
+        title: 'Evaluación Inicial y Psicoeducación',
+        date: '2026-10-25',
+        focusSummary: 'Identificación de pensamientos automáticos y establecimiento de línea base PHQ-9.',
+        status: 'pendiente'
+    };
+
+    const createRes = await fetch(`${baseUrl}/api/v1/patients/${patientA.id}/therapy-sessions`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${tokenA}`
+        },
+        body: JSON.stringify(newSessionPayload)
+    });
+
+    if (createRes.status !== 201) {
+        throw new Error(`Fallo al crear sesión en roadmap: esperado 201, recibido ${createRes.status}`);
+    }
+    const createData = await createRes.json();
+    if (!createData.session || createData.session.title !== newSessionPayload.title) {
+        throw new Error('La sesión devuelta por la API no coincide con la enviada');
+    }
+    const sessionId = createData.session.id;
+
+    // 2. Consultar sesiones como Terapeuta A (200 OK)
+    const listRes = await fetch(`${baseUrl}/api/v1/patients/${patientA.id}/therapy-sessions`, {
+        headers: { 'Authorization': `Bearer ${tokenA}` }
+    });
+    if (listRes.status !== 200) {
+        throw new Error(`Fallo al consultar sesiones: esperado 200, recibido ${listRes.status}`);
+    }
+    const listData = await listRes.json();
+    if (!Array.isArray(listData.sessions) || listData.sessions.length === 0) {
+        throw new Error('La lista de sesiones no devolvió el registro persistido');
+    }
+
+    // 3. Prueba de seguridad BOLA / IDOR: Terapeuta B intenta consultar el paciente de Terapeuta A (403 Forbidden)
+    const crossRes = await fetch(`${baseUrl}/api/v1/patients/${patientA.id}/therapy-sessions`, {
+        headers: { 'Authorization': `Bearer ${tokenB}` }
+    });
+    if (crossRes.status !== 403) {
+        throw new Error(`Fallo de seguridad BOLA/IDOR: Terapeuta B pudo consultar paciente ajeno (status: ${crossRes.status}, esperado: 403)`);
+    }
+
+    // 4. Actualizar sesión a completada
+    const updateRes = await fetch(`${baseUrl}/api/v1/patients/${patientA.id}/therapy-sessions/${sessionId}`, {
+        method: 'PUT',
+        headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${tokenA}`
+        },
+        body: JSON.stringify({ status: 'completada' })
+    });
+    if (updateRes.status !== 200) {
+        throw new Error(`Fallo al actualizar sesión: esperado 200, recibido ${updateRes.status}`);
+    }
+    const updateData = await updateRes.json();
+    if (updateData.session.status !== 'completada') {
+        throw new Error('El estado de la sesión no se actualizó a completada');
+    }
+
+    // 5. Eliminar sesión del roadmap
+    const delRes = await fetch(`${baseUrl}/api/v1/patients/${patientA.id}/therapy-sessions/${sessionId}`, {
+        method: 'DELETE',
+        headers: { 'Authorization': `Bearer ${tokenA}` }
+    });
+    if (delRes.status !== 200) {
+        throw new Error(`Fallo al eliminar sesión: esperado 200, recibido ${delRes.status}`);
+    }
+});
+
 // Auto-ejecución si se corre desde Node.js (CLI)
 if (typeof process !== 'undefined' && process.argv && process.argv[1] && process.argv[1].endsWith('tests.js')) {
     ClinicalTestSuite.runAll().then(res => {

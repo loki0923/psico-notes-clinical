@@ -8,50 +8,64 @@
    ============================================ */
 
 :root {
-  /* Fondo general y superficies */
-  --bg-primary: #F7F8F6;
-  --bg-secondary: #EEF1ED;
-  --bg-tertiary: #E5E9E5;
-  --bg-hover: #E7F0EB;
+  /* ============================================
+     PALETA OFICIAL PSICO-NOTES: SOFT-CLAY & MODERN GLASS
+     Colores Institucionales:
+     #9FE7F5 (Celeste Glacial) | #429EBD (Azul Océano)
+     #053F5C (Deep Navy)      | #F7AD19 (Ámbar Solar)
+     ============================================ */
+  --brand-deep: #053F5C;
+  --brand-mid: #429EBD;
+  --brand-light: #9FE7F5;
+  --brand-amber: #F7AD19;
+
+  /* Fondo general y superficies (Atmósfera serena tipo FundFlow/CoachPro) */
+  --bg-primary: #F4F8FA;
+  --bg-secondary: #EAF2F6;
+  --bg-tertiary: #DFEBF0;
+  --bg-hover: #E3EFF5;
   --bg-sidebar: #FFFFFF;
   --bg-card: #FFFFFF;
   --bg-modal: #FFFFFF;
   --bg-input: #FFFFFF;
-  --bg-code: #EEF1ED;
+  --bg-code: #EAF2F6;
 
   /* Textos de alta legibilidad y jerarquía (WCAG 2.2 AAA / AA) */
-  --text-primary: #202923;
-  --text-secondary: #69736D;
-  --text-tertiary: #8A958E;
+  --text-primary: #053F5C;
+  --text-secondary: #4A6370;
+  --text-tertiary: #7D97A5;
   --text-inverse: #FFFFFF;
 
-  /* Bordes y separadores discretos */
-  --border-primary: #E5E9E5;
-  --border-secondary: #D7DED8;
-  --border-hover: #285C50;
+  /* Bordes y separadores discretos con tinte oceánico */
+  --border-primary: rgba(66, 158, 189, 0.18);
+  --border-secondary: rgba(66, 158, 189, 0.28);
+  --border-hover: #429EBD;
 
-  /* Verde petróleo clínico y acentos */
-  --accent-primary: #285C50;
-  --accent-hover: #1E463D;
-  --accent-light: #E7F0EB;
-  --accent-focus: rgba(40, 92, 80, 0.22);
+  /* Acentos de marca principales */
+  --accent-primary: #053F5C;
+  --accent-hover: #032B40;
+  --accent-secondary: #429EBD;
+  --accent-highlight: #9FE7F5;
+  --accent-light: rgba(66, 158, 189, 0.12);
+  --accent-focus: rgba(66, 158, 189, 0.26);
 
   /* Alertas clínicas de grado médico */
   --accent-danger: #D32F2F;
-  --accent-success: #1E7E34;
-  --accent-warning: #B45309;
+  --accent-success: #15803D;
+  --accent-warning: #F7AD19;
 
-  /* Sombras ultra-sutiles libres de estridencia */
-  --shadow-sm: 0 1px 3px rgba(32, 41, 35, 0.04), 0 1px 2px rgba(32, 41, 35, 0.02);
-  --shadow-md: 0 4px 14px -2px rgba(32, 41, 35, 0.06), 0 2px 6px -1px rgba(32, 41, 35, 0.03);
-  --shadow-lg: 0 16px 36px -4px rgba(32, 41, 35, 0.09), 0 6px 14px -2px rgba(32, 41, 35, 0.04);
-  --shadow-xl: 0 24px 48px -10px rgba(32, 41, 35, 0.14);
+  /* Sombras Soft-Clay & Modern Glass multinivel */
+  --shadow-sm: 0 2px 6px rgba(5, 63, 92, 0.04), 0 1px 2px rgba(5, 63, 92, 0.02);
+  --shadow-md: 0 6px 18px -2px rgba(5, 63, 92, 0.08), 0 2px 6px rgba(5, 63, 92, 0.03);
+  --shadow-lg: 0 18px 38px -6px rgba(5, 63, 92, 0.12), 0 6px 14px -2px rgba(5, 63, 92, 0.05);
+  --shadow-xl: 0 26px 54px -10px rgba(5, 63, 92, 0.16);
+  --shadow-clay: 0 12px 28px -4px rgba(5, 63, 92, 0.08), 0 4px 12px -2px rgba(5, 63, 92, 0.04);
 
-  /* Radios y métricas ergonómicas */
+  /* Radios ergonómicos y métricas suaves */
   --radius-sm: 8px;
   --radius-md: 12px;
-  --radius-lg: 16px;
-  --radius-xl: 20px;
+  --radius-lg: 18px;
+  --radius-xl: 24px;
   --sidebar-width: 260px;
   --sidebar-collapsed: 64px;
   --topbar-height: 58px;
@@ -60,37 +74,40 @@
   --font-sans: "Inter", -apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text", "Segoe UI", Roboto, sans-serif;
   --font-serif: "Inter", -apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text", "Segoe UI", Roboto, sans-serif;
   --transition-fast: 0.15s cubic-bezier(0.4, 0, 0.2, 1);
-  --transition-normal: 0.22s cubic-bezier(0.4, 0, 0.2, 1);
+  --transition-normal: 0.22s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
-/* Modo oscuro sereno y equilibrado (Carbón clínico & Verde oliva profundo) */
+/* Modo oscuro sereno y equilibrado (Océano nocturno & Acentos cian) */
 [data-theme="dark"] {
-  --bg-primary: #121815;
-  --bg-secondary: #19221D;
-  --bg-tertiary: #232E28;
-  --bg-hover: #26332C;
-  --bg-sidebar: #161E1A;
-  --bg-card: #1A241F;
-  --bg-modal: #1A241F;
-  --bg-input: #151D18;
-  --bg-code: #232E28;
-  --text-primary: #F0F4F1;
-  --text-secondary: #A3B0A7;
-  --text-tertiary: #728076;
-  --text-inverse: #121815;
-  --border-primary: rgba(229, 233, 229, 0.12);
-  --border-secondary: rgba(229, 233, 229, 0.18);
-  --border-hover: #488B7B;
-  --accent-primary: #3E8473;
-  --accent-hover: #529E8C;
-  --accent-light: rgba(62, 132, 115, 0.18);
-  --accent-focus: rgba(62, 132, 115, 0.32);
+  --bg-primary: #031722;
+  --bg-secondary: #072635;
+  --bg-tertiary: #0c364b;
+  --bg-hover: #10425a;
+  --bg-sidebar: #051e2b;
+  --bg-card: #072635;
+  --bg-modal: #072635;
+  --bg-input: #031722;
+  --bg-code: #0c364b;
+  --text-primary: #F4F8FA;
+  --text-secondary: #90AAB8;
+  --text-tertiary: #658292;
+  --text-inverse: #031722;
+  --border-primary: rgba(159, 231, 245, 0.14);
+  --border-secondary: rgba(159, 231, 245, 0.22);
+  --border-hover: #9FE7F5;
+  --accent-primary: #429EBD;
+  --accent-hover: #9FE7F5;
+  --accent-secondary: #9FE7F5;
+  --accent-highlight: rgba(159, 231, 245, 0.25);
+  --accent-light: rgba(66, 158, 189, 0.22);
+  --accent-focus: rgba(159, 231, 245, 0.35);
   --accent-danger: #EF5350;
-  --accent-success: #4CAF50;
-  --accent-warning: #FFA726;
-  --shadow-sm: 0 2px 4px rgba(0, 0, 0, 0.25);
-  --shadow-md: 0 6px 18px rgba(0, 0, 0, 0.35);
-  --shadow-lg: 0 20px 48px rgba(0, 0, 0, 0.50);
+  --accent-success: #34D399;
+  --accent-warning: #F7AD19;
+  --shadow-sm: 0 2px 4px rgba(0, 0, 0, 0.35);
+  --shadow-md: 0 6px 18px rgba(0, 0, 0, 0.45);
+  --shadow-lg: 0 20px 48px rgba(0, 0, 0, 0.60);
+  --shadow-clay: 0 12px 30px -4px rgba(0, 0, 0, 0.5);
 }
 
 /* Reset */
@@ -203,7 +220,17 @@ body {
 .nav-item span:not(.nav-badge) { flex: 1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .sidebar.collapsed .nav-item span:not(.nav-badge) { opacity: 0; width: 0; }
 .nav-item:hover { background: var(--bg-hover); color: var(--text-primary); }
-.nav-item.active { background: var(--accent-light); color: var(--accent-primary); font-weight: 600; }
+.nav-item.active {
+  background: linear-gradient(135deg, rgba(66, 158, 189, 0.16), rgba(159, 231, 245, 0.22));
+  color: var(--brand-deep);
+  font-weight: 600;
+  box-shadow: 0 2px 8px rgba(66, 158, 189, 0.12);
+}
+[data-theme="dark"] .nav-item.active {
+  background: linear-gradient(135deg, rgba(66, 158, 189, 0.3), rgba(5, 63, 92, 0.4));
+  color: #9FE7F5;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+}
 
 .nav-badge {
   font-size: 11px;
@@ -293,23 +320,25 @@ body {
   cursor: pointer;
   transition: all var(--transition-fast);
   white-space: nowrap;
-  box-shadow: 0 1px 3px rgba(40, 92, 80, 0.18), 0 1px 2px rgba(40, 92, 80, 0.10);
+  box-shadow: 0 2px 8px rgba(5, 63, 92, 0.18), 0 1px 3px rgba(5, 63, 92, 0.10);
 }
 .btn-primary:hover {
   background: var(--accent-hover);
   transform: translateY(-0.5px);
-  box-shadow: 0 4px 12px rgba(40, 92, 80, 0.25);
+  box-shadow: 0 6px 18px rgba(5, 63, 92, 0.26);
 }
 .btn-primary:active {
   transform: scale(0.98);
 }
 [data-theme="dark"] .btn-primary {
-  color: #121815;
+  color: #031722;
   font-weight: 700;
-  box-shadow: 0 2px 8px rgba(62, 132, 115, 0.28);
+  background: var(--accent-primary);
+  box-shadow: 0 4px 14px rgba(66, 158, 189, 0.35);
 }
 [data-theme="dark"] .btn-primary:hover {
-  box-shadow: 0 4px 14px rgba(62, 132, 115, 0.38);
+  background: var(--accent-hover);
+  box-shadow: 0 6px 20px rgba(159, 231, 245, 0.45);
 }
 
 .btn-secondary {
@@ -1656,7 +1685,7 @@ LISTAS Y TARJETAS
   gap: 6px;
   background: var(--bg-card);
   padding: 6px 8px;
-  border-radius: 12px;
+  border-radius: 14px;
   border: 1px solid var(--border-primary);
   margin-bottom: 20px;
   overflow-x: auto;
@@ -1673,31 +1702,42 @@ LISTAS Y TARJETAS
   box-shadow: 0 4px 14px rgba(0, 0, 0, 0.25);
 }
 .patient-tab {
-  padding: 8px 14px;
+  padding: 9px 16px;
   background: transparent;
   border: 1px solid transparent;
   color: var(--text-secondary);
   font-size: 13px;
-  font-weight: 500;
+  font-weight: 550;
   cursor: pointer;
-  border-radius: 8px;
-  transition: all 0.18s ease;
+  border-radius: 10px;
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
   white-space: nowrap;
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: 7px;
   flex-shrink: 0;
 }
 .patient-tab:hover {
-  color: var(--text-primary);
-  background: var(--bg-hover);
+  color: var(--brand-deep);
+  background: rgba(66, 158, 189, 0.10);
+}
+[data-theme="dark"] .patient-tab:hover {
+  color: #9FE7F5;
+  background: rgba(159, 231, 245, 0.15);
 }
 .patient-tab.active {
-  color: var(--accent-primary);
-  background: var(--bg-secondary);
-  border-color: var(--border-primary);
+  color: #ffffff;
+  background: var(--brand-deep);
+  border-color: var(--brand-deep);
   font-weight: 600;
-  box-shadow: var(--shadow-sm);
+  box-shadow: 0 4px 14px rgba(5, 63, 92, 0.28);
+}
+[data-theme="dark"] .patient-tab.active {
+  background: #429EBD;
+  border-color: #429EBD;
+  color: #031722;
+  font-weight: 700;
+  box-shadow: 0 4px 14px rgba(66, 158, 189, 0.40);
 }
 .patient-tab-content { display: none; animation: fadeIn 0.25s ease; }
 .patient-tab-content.active { display: block; }
@@ -5177,7 +5217,1189 @@ body.screen-locked .sidebar {
     line-height: 1.5;
 }
 
+/* ============================================
+   SESSION RECORDER & HEYFREUD BENCHMARK (v7.0)
+   ============================================ */
+.session-recorder-floating-bar {
+    position: fixed;
+    bottom: 24px;
+    left: 50%;
+    transform: translateX(-50%);
+    z-index: 2500;
+    background: rgba(255, 255, 255, 0.94);
+    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
+    border: 1px solid rgba(40, 92, 80, 0.2);
+    box-shadow: 0 12px 32px -4px rgba(32, 41, 35, 0.16), 0 4px 12px rgba(0, 0, 0, 0.06);
+    border-radius: 9999px;
+    padding: 6px 14px;
+    animation: srfSlideUp 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+    max-width: 95vw;
+}
 
+@keyframes srfSlideUp {
+    from {
+        opacity: 0;
+        transform: translate(-50%, 20px) scale(0.96);
+    }
+    to {
+        opacity: 1;
+        transform: translate(-50%, 0) scale(1);
+    }
+}
+
+.srf-inner {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.srf-status-pill {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding-right: 8px;
+    border-right: 1px solid rgba(0, 0, 0, 0.08);
+}
+
+.srf-indicator-dot {
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    background-color: #ef4444;
+    flex-shrink: 0;
+}
+
+.srf-indicator-dot.pulse {
+    animation: srfPulse 1.5s infinite;
+}
+
+@keyframes srfPulse {
+    0% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.7); }
+    70% { transform: scale(1.15); box-shadow: 0 0 0 8px rgba(239, 68, 68, 0); }
+    100% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(239, 68, 68, 0); }
+}
+
+.srf-label {
+    font-size: 10.5px;
+    font-weight: 700;
+    letter-spacing: 0.05em;
+    color: #69736d;
+    text-transform: uppercase;
+}
+
+.srf-timer {
+    font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+    font-size: 13.5px;
+    font-weight: 700;
+    color: #202923;
+}
+
+.srf-meta {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.srf-patient-name {
+    font-size: 12.5px;
+    font-weight: 600;
+    color: #202923;
+    max-width: 140px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.srf-format-badge {
+    background: #e7f0eb;
+    color: #285c50;
+    font-size: 10.5px;
+    font-weight: 700;
+    padding: 2px 7px;
+    border-radius: 6px;
+}
+
+.srf-vu-container {
+    width: 48px;
+    height: 6px;
+    background: #e5e9e5;
+    border-radius: 3px;
+    overflow: hidden;
+}
+
+.srf-vu-bar {
+    height: 100%;
+    width: 0%;
+    background: #0d9488;
+    border-radius: 3px;
+    transition: width 0.06s ease, background-color 0.15s ease;
+}
+
+.srf-actions {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.srf-btn {
+    border: none;
+    outline: none;
+    cursor: pointer;
+    border-radius: 9999px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.15s ease;
+}
+
+.srf-btn-pause {
+    width: 32px;
+    height: 32px;
+    background: #f1f5f3;
+    color: #4b5563;
+}
+.srf-btn-pause:hover {
+    background: #e5e9e5;
+    color: #111827;
+}
+
+.srf-btn-finish {
+    height: 32px;
+    padding: 0 13px;
+    background: #285c50;
+    color: #ffffff;
+    font-size: 12px;
+    font-weight: 600;
+    gap: 6px;
+    box-shadow: 0 2px 6px rgba(40, 92, 80, 0.25);
+}
+.srf-btn-finish:hover {
+    background: #1e463d;
+    transform: translateY(-1px);
+}
+
+.srf-btn-cancel {
+    width: 28px;
+    height: 28px;
+    background: transparent;
+    color: #9ca3af;
+}
+.srf-btn-cancel:hover {
+    color: #ef4444;
+    background: #fee2e2;
+}
+
+/* Selector Multiformato de Notas */
+.format-selector-pills {
+    display: flex;
+    gap: 6px;
+    flex-wrap: wrap;
+    margin-bottom: 14px;
+}
+
+.format-pill-btn {
+    background: #f1f5f3;
+    border: 1px solid #e5e9e5;
+    color: #4b5563;
+    padding: 5px 11px;
+    border-radius: 8px;
+    font-size: 12px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.15s ease;
+}
+
+.format-pill-btn:hover {
+    border-color: #285c50;
+    color: #285c50;
+}
+
+.format-pill-btn.active {
+    background: #285c50;
+    border-color: #285c50;
+    color: #ffffff;
+    box-shadow: 0 2px 4px rgba(40, 92, 80, 0.2);
+}
+
+@media (max-width: 640px) {
+    .session-recorder-floating-bar {
+        bottom: 74px; /* Clearance sobre la barra inferior móvil */
+        padding: 5px 10px;
+    }
+    .srf-patient-name {
+        max-width: 85px;
+    }
+    .srf-vu-container {
+        display: none;
+    }
+}
+
+/* ==========================================================================
+   ARQUITECTURA MULTI-DISPOSITIVO CLÍNICA (Apple HIG & Material 3)
+   Optimización para Smartphones, Tablets (iPads/Galaxy Tabs) y PWA Standalone
+   Preserva 100% de la identidad, paleta y componentes originales.
+   ========================================================================== */
+
+/* 1. TABLETS Y PANTALLAS INTERMEDIAS (769px a 1024px: iPad, Galaxy Tab, Laptops compactas) */
+@media (min-width: 769px) and (max-width: 1024px) {
+    :root {
+        --sidebar-width: 220px;
+    }
+
+    .main-content {
+        margin-left: 220px !important;
+        padding-bottom: 24px;
+    }
+
+    /* Grids adaptativos balanceados de 2 columnas */
+    .dashboard-metrics,
+    .summary-cards,
+    .patient-dossier-grid,
+    .metrics-grid {
+        grid-template-columns: repeat(2, 1fr) !important;
+        gap: 14px !important;
+    }
+
+    /* Modales centrados con margen óptimo */
+    .modal-content,
+    .modal-content.modal-large,
+    .modal-content.modal-xl {
+        max-width: 88vw !important;
+        max-height: 88vh !important;
+        border-radius: 16px !important;
+    }
+
+    /* Botones y controles táctiles confortables */
+    .btn, .btn-primary, .btn-secondary, .action-btn {
+        min-height: 42px;
+        padding: 8px 16px;
+    }
+}
+
+/* 2. ERGONOMÍA TÁCTIL EN SMARTPHONES (<= 768px: iOS & Android) */
+@media (max-width: 768px) {
+    /* Touch Target WCAG 2.2: Mínimo 44px para dedos */
+    .btn-icon,
+    .mobile-nav-item,
+    .tab-btn,
+    .btn-action-touch {
+        min-height: 44px;
+        min-width: 44px;
+    }
+
+    /* Barra inferior con elevación sutil y feedback táctil */
+    .mobile-bottom-nav {
+        box-shadow: 0 -4px 20px rgba(32, 41, 35, 0.08) !important;
+        height: calc(60px + env(safe-area-inset-bottom, 0px)) !important;
+        padding-bottom: env(safe-area-inset-bottom, 0px) !important;
+    }
+
+    .mobile-nav-item:active {
+        transform: scale(0.92);
+        opacity: 0.85;
+    }
+
+    /* Indicador tipo Sheet Drag Handle en Modales Móviles */
+    .modal-content::before {
+        content: '';
+        display: block;
+        width: 42px;
+        height: 4px;
+        background: var(--border-secondary);
+        border-radius: 4px;
+        margin: 8px auto 4px auto;
+        flex-shrink: 0;
+    }
+
+    /* Pestañas del expediente con deslizamiento táctil horizontal fluido */
+    .patient-tabs,
+    .clinical-tabs,
+    .nav-tabs {
+        display: flex !important;
+        overflow-x: auto !important;
+        -webkit-overflow-scrolling: touch !important;
+        scrollbar-width: none !important;
+        gap: 6px !important;
+        padding-bottom: 4px !important;
+    }
+    .patient-tabs::-webkit-scrollbar,
+    .clinical-tabs::-webkit-scrollbar,
+    .nav-tabs::-webkit-scrollbar {
+        display: none !important;
+    }
+
+    /* Tablas con scroll horizontal suave sin romper el ancho de pantalla */
+    .table-responsive,
+    .table-container {
+        overflow-x: auto !important;
+        -webkit-overflow-scrolling: touch !important;
+        border-radius: var(--radius-sm);
+    }
+}
+
+/* 3. MODO APP INSTALADA (PWA Standalone en Teléfonos y Tablets) */
+@media all and (display-mode: standalone) {
+    /* Respeto estricto del notch (Dynamic Island / iPhone notch / cámara frontal) */
+    .top-bar {
+        padding-top: env(safe-area-inset-top, 0px) !important;
+        height: calc(56px + env(safe-area-inset-top, 0px)) !important;
+    }
+
+    /* Evitar solapamiento con la barra de gestos de inicio */
+    .mobile-bottom-nav {
+        padding-bottom: max(env(safe-area-inset-bottom, 0px), 8px) !important;
+    }
+}
+
+/* ========================================================
+   ORGANIZADOR DE SESIONES DE TERAPIA — MAPA DE RUTA (ROADMAP)
+   ======================================================== */
+
+.therapy-roadmap-container {
+    margin: 24px 0;
+    padding: 24px;
+    background: var(--bg-card, #ffffff);
+    border: 1px solid var(--border-secondary, #e2e8f0);
+    border-radius: 18px;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.03);
+    position: relative;
+}
+
+[data-theme="dark"] .therapy-roadmap-container {
+    background: var(--bg-card, #1e293b);
+    border-color: var(--border-secondary, #334155);
+}
+
+.therapy-roadmap-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 24px;
+    flex-wrap: wrap;
+    gap: 12px;
+}
+
+.therapy-roadmap-title-wrap {
+    display: flex;
+    align-items: baseline;
+    gap: 12px;
+}
+
+.therapy-roadmap-title {
+    margin: 0;
+    font-size: 22px;
+    font-weight: 700;
+    color: var(--text-primary, #1e1b4b);
+    letter-spacing: -0.02em;
+}
+
+[data-theme="dark"] .therapy-roadmap-title {
+    color: #f1f5f9;
+}
+
+.therapy-roadmap-count {
+    font-size: 13px;
+    color: var(--text-tertiary, #64748b);
+    font-weight: 500;
+}
+
+.btn-add-session-roadmap {
+    background: #504677 !important;
+    color: #ffffff !important;
+    border: none !important;
+    padding: 10px 18px !important;
+    border-radius: 10px !important;
+    font-weight: 600 !important;
+    font-size: 13.5px !important;
+    display: inline-flex !important;
+    align-items: center !important;
+    gap: 8px !important;
+    cursor: pointer !important;
+    transition: all 0.2s ease !important;
+    box-shadow: 0 2px 8px rgba(80, 70, 119, 0.25) !important;
+}
+
+.btn-add-session-roadmap:hover {
+    background: #413863 !important;
+    transform: translateY(-1px) !important;
+    box-shadow: 0 4px 12px rgba(80, 70, 119, 0.35) !important;
+}
+
+/* --- Layout Serpenteante del Roadmap --- */
+.therapy-roadmap-board {
+    display: flex;
+    flex-direction: column;
+    gap: 0;
+    position: relative;
+    padding: 8px 4px;
+}
+
+/* Fila de 3 tarjetas */
+.therapy-roadmap-row {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 24px;
+    position: relative;
+    z-index: 2;
+}
+
+/* Riel / Pista conector horizontal con nodos */
+.therapy-roadmap-track {
+    position: relative;
+    height: 48px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin: 4px 0;
+    z-index: 1;
+}
+
+.therapy-roadmap-track-line {
+    position: absolute;
+    left: calc(16.66% - 7px);
+    right: calc(16.66% - 7px);
+    top: 50%;
+    height: 2px;
+    background: #e2e8f0;
+    transform: translateY(-50%);
+    z-index: 1;
+}
+
+[data-theme="dark"] .therapy-roadmap-track-line {
+    background: #334155;
+}
+
+.therapy-roadmap-track-nodes {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    width: 100%;
+    position: relative;
+    z-index: 2;
+}
+
+.therapy-roadmap-node-wrap {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+}
+
+.therapy-roadmap-node {
+    width: 14px;
+    height: 14px;
+    border-radius: 50%;
+    background: var(--brand-deep);
+    border: 3px solid var(--brand-light);
+    box-shadow: 0 0 0 2px rgba(66, 158, 189, 0.3);
+    transition: transform 0.2s ease, background 0.2s ease;
+}
+
+[data-theme="dark"] .therapy-roadmap-node {
+    background: var(--brand-light);
+    border-color: #072635;
+}
+
+/* Conector vertical entre filas (ascenso longitudinal) */
+.therapy-roadmap-vertical-connector {
+    position: absolute;
+    width: 2px;
+    background: #e2e8f0;
+    z-index: 1;
+}
+
+[data-theme="dark"] .therapy-roadmap-vertical-connector {
+    background: #334155;
+}
+
+.therapy-roadmap-vertical-connector.connector-left {
+    left: calc(16.66% - 1px);
+    top: 0;
+    bottom: 0;
+}
+
+.therapy-roadmap-vertical-connector.connector-right {
+    right: calc(16.66% - 1px);
+    top: 0;
+    bottom: 0;
+}
+
+/* --- Tarjeta de Sesión Individual --- */
+.therapy-session-card {
+    background: var(--bg-card, #ffffff);
+    border: 1px solid var(--border-secondary, #e8e9f0);
+    border-radius: 16px;
+    padding: 18px 20px;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    box-shadow: 0 3px 12px rgba(0, 0, 0, 0.03);
+    transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease;
+    cursor: default;
+    position: relative;
+}
+
+.therapy-session-card:hover {
+    transform: translateY(-2px);
+    box-shadow: var(--shadow-clay);
+    border-color: var(--brand-mid);
+}
+
+[data-theme="dark"] .therapy-session-card {
+    background: #072635;
+    border-color: rgba(159, 231, 245, 0.16);
+    box-shadow: 0 3px 12px rgba(0, 0, 0, 0.2);
+}
+
+[data-theme="dark"] .therapy-session-card:hover {
+    border-color: #9FE7F5;
+}
+
+/* Cabecera de la Tarjeta */
+.session-card-header {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.session-card-number {
+    width: 28px;
+    height: 28px;
+    border-radius: 50%;
+    background: var(--bg-secondary);
+    color: var(--brand-deep);
+    font-size: 13px;
+    font-weight: 700;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+}
+
+[data-theme="dark"] .session-card-number {
+    background: #0c364b;
+    color: #9FE7F5;
+}
+
+.session-card-title {
+    font-size: 14.5px;
+    font-weight: 700;
+    color: var(--text-primary, #053F5C);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    flex: 1;
+}
+
+[data-theme="dark"] .session-card-title {
+    color: #F4F8FA;
+}
+
+.session-card-chevron {
+    background: transparent;
+    border: none;
+    color: #7D97A5;
+    font-size: 13px;
+    cursor: pointer;
+    padding: 4px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 6px;
+    transition: color 0.2s ease, transform 0.2s ease;
+}
+
+.session-card-chevron:hover {
+    color: var(--brand-mid);
+    transform: translateX(2px);
+}
+
+[data-theme="dark"] .session-card-chevron:hover {
+    color: #9FE7F5;
+}
+
+/* Fecha de la sesión */
+.session-card-date {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 12.5px;
+    color: var(--text-tertiary, #7D97A5);
+    font-weight: 500;
+}
+
+.session-card-date i {
+    color: #7D97A5;
+    font-size: 13px;
+}
+
+/* Caja de Foco Clínico / Resumen Terapéutico con destellos ✨ */
+.session-card-focus-box {
+    background: var(--bg-secondary, #EAF2F6);
+    border-radius: 10px;
+    padding: 10px 12px;
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 8px;
+    transition: background 0.2s ease;
+}
+
+[data-theme="dark"] .session-card-focus-box {
+    background: #031722;
+    border: 1px solid rgba(159, 231, 245, 0.12);
+}
+
+.session-card-focus-content {
+    display: flex;
+    align-items: flex-start;
+    gap: 8px;
+    flex: 1;
+}
+
+.session-card-focus-content .focus-icon {
+    color: var(--brand-amber);
+    font-size: 14px;
+    margin-top: 2px;
+    flex-shrink: 0;
+}
+
+[data-theme="dark"] .session-card-focus-content .focus-icon {
+    color: var(--brand-amber);
+}
+
+.session-card-focus-content .focus-text {
+    font-size: 12px;
+    color: var(--text-secondary, #475569);
+    line-height: 1.45;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+    word-break: break-word;
+    transition: max-height 0.3s ease;
+}
+
+[data-theme="dark"] .session-card-focus-content .focus-text {
+    color: #94a3b8;
+}
+
+.session-card-focus-content .focus-text.expanded {
+    display: block;
+    -webkit-line-clamp: unset;
+}
+
+.focus-toggle-btn {
+    background: transparent;
+    border: none;
+    color: #94a3b8;
+    font-size: 11px;
+    cursor: pointer;
+    padding: 2px 4px;
+    border-radius: 4px;
+    transition: transform 0.2s ease, color 0.2s ease;
+    align-self: flex-start;
+}
+
+.focus-toggle-btn:hover {
+    color: #504677;
+}
+
+.focus-toggle-btn.expanded i {
+    transform: rotate(180deg);
+}
+
+/* Footer & Píldora de Estado */
+.session-card-footer {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-top: auto;
+    padding-top: 4px;
+}
+
+.session-status-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 4px 12px;
+    border-radius: 20px;
+    font-size: 11.5px;
+    font-weight: 600;
+    cursor: pointer;
+    border: 1px solid transparent;
+    transition: all 0.2s ease;
+}
+
+/* Estado: Pendiente (Ámbar suave idéntico a la imagen) */
+.session-status-pill.pill-pendiente {
+    background: #fffdf5;
+    border-color: #fde68a;
+    color: #b45309;
+}
+
+.session-status-pill.pill-pendiente:hover {
+    background: #fef3c7;
+}
+
+[data-theme="dark"] .session-status-pill.pill-pendiente {
+    background: rgba(245, 158, 11, 0.1);
+    border-color: rgba(245, 158, 11, 0.3);
+    color: #fbbf24;
+}
+
+/* Estado: Completada (Verde esmeralda suave) */
+.session-status-pill.pill-completada {
+    background: #f0fdf4;
+    border-color: #bbf7d0;
+    color: #15803d;
+}
+
+.session-status-pill.pill-completada:hover {
+    background: #dcfce7;
+}
+
+[data-theme="dark"] .session-status-pill.pill-completada {
+    background: rgba(16, 185, 129, 0.1);
+    border-color: rgba(16, 185, 129, 0.3);
+    color: #34d399;
+}
+
+/* Estado: Agendada / En curso */
+.session-status-pill.pill-agendada {
+    background: #eff6ff;
+    border-color: #bfdbfe;
+    color: #1d4ed8;
+}
+
+.session-card-edit-btn {
+    background: transparent;
+    border: none;
+    color: #94a3b8;
+    font-size: 12px;
+    cursor: pointer;
+    padding: 4px 6px;
+    border-radius: 4px;
+    opacity: 0.6;
+    transition: opacity 0.2s, color 0.2s;
+}
+
+.session-card-edit-btn:hover {
+    opacity: 1;
+    color: #504677;
+}
+
+/* Empty State del Roadmap */
+.therapy-roadmap-empty {
+    padding: 36px 20px;
+    text-align: center;
+    background: #fafafc;
+    border: 2px dashed #e2e8f0;
+    border-radius: 14px;
+    margin: 12px 0;
+}
+
+[data-theme="dark"] .therapy-roadmap-empty {
+    background: #0f172a;
+    border-color: #334155;
+}
+
+/* Responsividad para Tablets y Móviles */
+@media (max-width: 900px) {
+    .therapy-roadmap-row {
+        grid-template-columns: 1fr;
+        gap: 16px;
+    }
+    .therapy-roadmap-track {
+        display: none;
+    }
+}
+
+/* ============================================
+   MODAL DE PLANIFICACIÓN DE SESIONES (ROADMAP MODAL)
+   Estética Clínica Premium - Human Interface & Material 3
+   ============================================ */
+
+.modal-roadmap-dialog {
+    max-width: 640px;
+    width: 92%;
+    border-radius: 18px;
+    padding: 24px;
+    background: var(--bg-card, #ffffff);
+    border: 1px solid var(--border-primary, #e2e8f0);
+    box-shadow: 0 20px 48px -10px rgba(80, 70, 119, 0.18), 0 8px 20px -4px rgba(15, 23, 42, 0.08);
+    position: relative;
+    overflow: hidden;
+    animation: modalScaleIn 0.22s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+@keyframes modalScaleIn {
+    from {
+        opacity: 0;
+        transform: scale(0.96) translateY(6px);
+    }
+    to {
+        opacity: 1;
+        transform: scale(1) translateY(0);
+    }
+}
+
+.modal-header-roadmap {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    padding-bottom: 16px;
+    border-bottom: 1px solid var(--border-primary, #e2e8f0);
+    margin-bottom: 16px;
+}
+
+.roadmap-modal-header-info {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+}
+
+.roadmap-modal-header-icon {
+    width: 44px;
+    height: 44px;
+    border-radius: 12px;
+    background: linear-gradient(135deg, rgba(66, 158, 189, 0.18), rgba(159, 231, 245, 0.28));
+    color: var(--brand-deep);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 20px;
+    flex-shrink: 0;
+}
+
+[data-theme="dark"] .roadmap-modal-header-icon {
+    background: rgba(66, 158, 189, 0.3);
+    color: #9FE7F5;
+}
+
+.modal-header-roadmap h2 {
+    font-size: 19px;
+    font-weight: 700;
+    color: var(--text-primary, #053F5C);
+    margin: 0;
+    line-height: 1.3;
+}
+
+.roadmap-modal-subtitle {
+    font-size: 12.5px;
+    color: var(--text-secondary, #4A6370);
+    margin: 3px 0 0 0;
+}
+
+.btn-modal-close {
+    background: transparent;
+    border: none;
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--text-tertiary, #7D97A5);
+    cursor: pointer;
+    font-size: 15px;
+    transition: all 0.18s ease;
+}
+
+.btn-modal-close:hover {
+    background: var(--bg-hover, #E3EFF5);
+    color: var(--text-primary, #053F5C);
+    transform: rotate(90deg);
+}
+
+/* Pestañas Segmentadas Internas del Modal */
+.modal-subtabs-nav {
+    display: flex;
+    background: var(--bg-secondary, #EAF2F6);
+    padding: 4px;
+    border-radius: 12px;
+    gap: 4px;
+    margin-bottom: 20px;
+    border: 1px solid var(--border-primary, rgba(66, 158, 189, 0.18));
+}
+
+[data-theme="dark"] .modal-subtabs-nav {
+    background: rgba(7, 38, 53, 0.85);
+    border-color: rgba(159, 231, 245, 0.14);
+}
+
+.modal-subtab-btn {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    padding: 9px 12px;
+    font-size: 12.5px;
+    font-weight: 600;
+    color: var(--text-secondary, #4A6370);
+    background: transparent;
+    border: none;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: all 0.18s ease;
+    white-space: nowrap;
+}
+
+.modal-subtab-btn:hover {
+    color: var(--text-primary, #053F5C);
+}
+
+.modal-subtab-btn.active {
+    background: var(--bg-card, #ffffff);
+    color: var(--brand-deep);
+    box-shadow: 0 2px 8px rgba(5, 63, 92, 0.10);
+}
+
+[data-theme="dark"] .modal-subtab-btn.active {
+    background: #0c364b;
+    color: #9FE7F5;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.4);
+}
+
+/* Contenido de cada subpestaña del Modal */
+.roadmap-modal-tab-content {
+    display: none;
+    animation: fadeIn 0.2s ease;
+}
+
+.roadmap-modal-tab-content.active {
+    display: block;
+}
+
+/* Campos de Formulario Clínicos Estilizados */
+.roadmap-modal-form .form-group {
+    margin-bottom: 14px;
+}
+
+.roadmap-modal-form label {
+    display: block;
+    font-size: 12.5px;
+    font-weight: 600;
+    color: var(--text-primary, #053F5C);
+    margin-bottom: 6px;
+}
+
+.input-clinical-styled {
+    width: 100%;
+    padding: 10px 14px;
+    font-size: 13.5px;
+    color: var(--text-primary, #053F5C);
+    background: var(--bg-card, #ffffff);
+    border: 1.5px solid var(--border-secondary, rgba(66, 158, 189, 0.28));
+    border-radius: 10px;
+    outline: none;
+    transition: all 0.18s ease;
+    box-sizing: border-box;
+}
+
+[data-theme="dark"] .input-clinical-styled {
+    background: #031722;
+    border-color: rgba(159, 231, 245, 0.2);
+    color: #F4F8FA;
+}
+
+.input-clinical-styled:focus {
+    border-color: var(--brand-mid);
+    box-shadow: 0 0 0 3px rgba(66, 158, 189, 0.22);
+}
+
+.textarea-clinical {
+    resize: vertical;
+    min-height: 95px;
+    line-height: 1.5;
+    font-family: inherit;
+}
+
+/* Chips de Sugerencias Rápidas */
+.quick-title-suggestions,
+.quick-focus-templates {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    flex-wrap: wrap;
+    margin-top: 8px;
+}
+
+.quick-title-label {
+    font-size: 11.5px;
+    font-weight: 600;
+    color: var(--text-tertiary, #7D97A5);
+    margin-right: 2px;
+}
+
+.chip-suggestion {
+    font-size: 11.5px;
+    font-weight: 500;
+    background: var(--bg-secondary, #EAF2F6);
+    color: var(--text-secondary, #4A6370);
+    border: 1px solid var(--border-primary, rgba(66, 158, 189, 0.18));
+    border-radius: 14px;
+    padding: 4px 10px;
+    cursor: pointer;
+    transition: all 0.15s ease;
+}
+
+.chip-suggestion:hover {
+    background: rgba(66, 158, 189, 0.12);
+    border-color: var(--brand-mid);
+    color: var(--brand-deep);
+    transform: translateY(-1px);
+}
+
+[data-theme="dark"] .chip-suggestion {
+    background: #0c364b;
+    border-color: rgba(159, 231, 245, 0.18);
+    color: #90AAB8;
+}
+
+[data-theme="dark"] .chip-suggestion:hover {
+    background: rgba(66, 158, 189, 0.25);
+    border-color: #9FE7F5;
+    color: #9FE7F5;
+}
+
+/* Tarjeta de Puente para Reporte Clínico SOAP */
+.roadmap-report-bridge-box {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    padding: 16px;
+    background: linear-gradient(135deg, rgba(66, 158, 189, 0.08), rgba(159, 231, 245, 0.15));
+    border: 1.5px dashed rgba(66, 158, 189, 0.35);
+    border-radius: 14px;
+    margin-top: 10px;
+}
+
+[data-theme="dark"] .roadmap-report-bridge-box {
+    background: rgba(66, 158, 189, 0.16);
+    border-color: rgba(159, 231, 245, 0.35);
+}
+
+.report-bridge-icon {
+    width: 48px;
+    height: 48px;
+    border-radius: 12px;
+    background: linear-gradient(135deg, #053F5C, #429EBD);
+    color: #ffffff;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 22px;
+    flex-shrink: 0;
+}
+
+.report-bridge-info h4 {
+    margin: 0 0 4px 0;
+    font-size: 14px;
+    font-weight: 700;
+    color: var(--text-primary, #053F5C);
+}
+
+.report-bridge-info p {
+    margin: 0;
+    font-size: 12.5px;
+    color: var(--text-secondary, #4A6370);
+    line-height: 1.4;
+}
+
+.btn-cta-evolve {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 11px 20px;
+    background: linear-gradient(135deg, #053F5C, #429EBD);
+    color: #ffffff;
+    font-size: 13.5px;
+    font-weight: 600;
+    border: none;
+    border-radius: 10px;
+    cursor: pointer;
+    box-shadow: 0 4px 14px rgba(5, 63, 92, 0.25);
+    transition: all 0.18s ease;
+}
+
+.btn-cta-evolve:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 6px 18px rgba(5, 63, 92, 0.35);
+    filter: brightness(1.06);
+}
+
+/* Pie y Botones de Acción del Modal */
+.roadmap-modal-actions {
+    display: flex;
+    justify-content: flex-end;
+    align-items: center;
+    gap: 10px;
+    margin-top: 24px;
+    padding-top: 16px;
+    border-top: 1px solid var(--border-primary, rgba(66, 158, 189, 0.18));
+}
+
+.btn-cancel-styled {
+    padding: 10px 18px;
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--text-secondary, #4A6370);
+    background: var(--bg-secondary, #EAF2F6);
+    border: 1px solid var(--border-secondary, rgba(66, 158, 189, 0.28));
+    border-radius: 10px;
+    cursor: pointer;
+    transition: all 0.15s ease;
+}
+
+.btn-cancel-styled:hover {
+    background: var(--bg-hover, #DFEBF0);
+    color: var(--text-primary, #053F5C);
+}
+
+.btn-danger-outline {
+    padding: 10px 16px;
+    font-size: 13px;
+    font-weight: 600;
+    color: #ef4444;
+    background: transparent;
+    border: 1px solid rgba(239, 68, 68, 0.35);
+    border-radius: 10px;
+    cursor: pointer;
+    transition: all 0.15s ease;
+    margin-right: auto;
+}
+
+.btn-danger-outline:hover {
+    background: rgba(239, 68, 68, 0.08);
+    border-color: #ef4444;
+}
+
+.btn-save-roadmap {
+    padding: 10px 22px;
+    font-size: 13.5px;
+    font-weight: 600;
+    color: #ffffff;
+    background: linear-gradient(135deg, #053F5C, #0a4f73);
+    border: none;
+    border-radius: 10px;
+    cursor: pointer;
+    box-shadow: 0 4px 14px rgba(5, 63, 92, 0.28);
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    transition: all 0.18s ease;
+}
+
+.btn-save-roadmap:hover {
+    background: linear-gradient(135deg, #032b40, #053F5C);
+    transform: translateY(-1px);
+    box-shadow: 0 6px 18px rgba(5, 63, 92, 0.38);
+}
+
+.btn-save-roadmap:active {
+    transform: translateY(0);
+}
 
 
 

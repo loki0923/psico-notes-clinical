@@ -16,6 +16,7 @@ const AppState = {
     appointments: [],
     notes: [],
     treatmentPlans: [],
+    therapyRoadmaps: [],
     currentDate: new Date(),
     selectedDate: new Date(),
     editingId: null,
@@ -298,10 +299,12 @@ async function loadData() {
         const appointments = localStorage.getItem(userStorageKey('appointments'));
         const notes = localStorage.getItem(userStorageKey('notes'));
         const plans = localStorage.getItem(userStorageKey('plans'));
+        const roadmaps = localStorage.getItem(userStorageKey('therapyRoadmaps'));
         AppState.patients = await loadAndMigratePatients(patients);
         AppState.appointments = appointments ? await decryptData(appointments) : [];
         AppState.notes = notes ? await decryptData(notes) : [];
         AppState.treatmentPlans = plans ? await decryptData(plans) : [];
+        AppState.therapyRoadmaps = roadmaps ? await decryptData(roadmaps) : [];
     } catch (e) {
         console.error('Error cargando:', e);
     }
@@ -760,6 +763,7 @@ async function saveDataLocallyOnly() {
         localStorage.setItem(userStorageKey('appointments'), await encryptData(AppState.appointments));
         localStorage.setItem(userStorageKey('notes'), await encryptData(AppState.notes));
         localStorage.setItem(userStorageKey('plans'), await encryptData(AppState.treatmentPlans));
+        localStorage.setItem(userStorageKey('therapyRoadmaps'), await encryptData(AppState.therapyRoadmaps || []));
         localStorage.setItem('psico_darkMode', AppState.darkMode);
         // Remediación de seguridad PHI: no persistir notas en texto plano en localStorage
         localStorage.removeItem('psico_portal_notes_backup');
@@ -2925,6 +2929,9 @@ function renderTabResumen(patientId, wellbeing, sessionPrep, emotionalProfile, c
                 </div>
             </div>
 
+            <!-- MAPA DE RUTA Y ORGANIZADOR DE SESIONES DE TERAPIA -->
+            ${renderTherapySessionsRoadmap(patientId)}
+
             <!-- PREPARACIÓN DE SESIÓN CLÍNICA -->
             ${sessionPrep ? renderSessionPrepCard(sessionPrep) : ''}
 
@@ -2976,6 +2983,587 @@ function renderTabResumen(patientId, wellbeing, sessionPrep, emotionalProfile, c
             ` : ''}
         </div>
     `;
+}
+
+// ============================================
+// MAPA DE RUTA Y ORGANIZADOR DE SESIONES DE TERAPIA
+// ============================================
+
+function formatRoadmapDate(dateStr) {
+    if (!dateStr) return 'Sin fecha';
+    try {
+        const clean = dateStr.includes('T') ? dateStr.split('T')[0] : dateStr;
+        const [y, m, d] = clean.split('-').map(Number);
+        if (y && m && d) {
+            const dateObj = new Date(y, m - 1, d);
+            return dateObj.toLocaleDateString('es-ES', { day: 'numeric', month: 'short', year: 'numeric' });
+        }
+        return dateStr;
+    } catch {
+        return dateStr;
+    }
+}
+
+function getTherapyRoadmapSessionsForPatient(patientId) {
+    if (!patientId) return [];
+    const storedRoadmap = (AppState.therapyRoadmaps || []).filter(s => String(s.patientId) === String(patientId));
+    const notes = (AppState.notes || []).filter(n => String(n.patientId) === String(patientId));
+
+    let sessions = [...storedRoadmap];
+
+    // Auto-incorporar notas clínicas como sesiones completadas si no están en el roadmap
+    notes.forEach((note, idx) => {
+        const alreadyLinked = sessions.find(s => s.clinicalNoteId === note.id || s.id === `note_session_${note.id}`);
+        if (!alreadyLinked) {
+            const num = note.sessionNum || note.sessionNumber || (idx + 1);
+            sessions.push({
+                id: `note_session_${note.id}`,
+                patientId: String(patientId),
+                sessionNumber: Number(num),
+                title: note.title || `Sesión #${num}`,
+                date: note.date || (note.createdAt ? note.createdAt.split('T')[0] : new Date().toISOString().split('T')[0]),
+                focusSummary: note.subjetivo?.substring(0, 150) || note.sessionDescription?.substring(0, 150) || note.plan?.substring(0, 150) || 'Sesión terapéutica registrada',
+                status: 'completada',
+                clinicalNoteId: note.id,
+                displayOrder: Number(num)
+            });
+        }
+    });
+
+    // Si el paciente aún no tiene sesiones ni notas, generar un recorrido inicial demostrativo alineado con la referencia visual
+    if (sessions.length === 0) {
+        sessions = [
+            {
+                id: `demo_${patientId}_1`,
+                patientId: String(patientId),
+                sessionNumber: 1,
+                title: 'Evaluación Inicial',
+                date: '2026-07-31',
+                focusSummary: 'Evaluación inicial revela ansiedad y estrés laboral crecientes tras cambios de puesto...',
+                status: 'pendiente',
+                displayOrder: 1
+            },
+            {
+                id: `demo_${patientId}_2`,
+                patientId: String(patientId),
+                sessionNumber: 2,
+                title: 'Sesión 2 - Psicoeducación',
+                date: '2026-08-14',
+                focusSummary: 'Se introdujo psicoeducación sobre la respuesta al estrés y el triángulo cognitivo...',
+                status: 'pendiente',
+                displayOrder: 2
+            },
+            {
+                id: `demo_${patientId}_3`,
+                patientId: String(patientId),
+                sessionNumber: 3,
+                title: 'Sesión 5 - Reestructuración Cognitiva',
+                date: '2026-09-11',
+                focusSummary: 'Se aplicó reestructuración cognitiva para desafiar pensamiento todo o nada...',
+                status: 'pendiente',
+                displayOrder: 3
+            },
+            {
+                id: `demo_${patientId}_4`,
+                patientId: String(patientId),
+                sessionNumber: 4,
+                title: 'Sesión 8 - Fortaleciendo la Autoeficacia',
+                date: '2026-10-09',
+                focusSummary: 'Enfoque en confianza en liderazgo y establecimiento de límites saludables...',
+                status: 'pendiente',
+                displayOrder: 4
+            },
+            {
+                id: `demo_${patientId}_5`,
+                patientId: String(patientId),
+                sessionNumber: 5,
+                title: 'Sesión 9 - Revisión de Progreso',
+                date: '2026-10-16',
+                focusSummary: 'Revisión integral de progreso mostrando ansiedad reducida de moderada a leve...',
+                status: 'pendiente',
+                displayOrder: 5
+            },
+            {
+                id: `demo_${patientId}_6`,
+                patientId: String(patientId),
+                sessionNumber: 6,
+                title: 'Sesión 10 - Prevención de Recaídas',
+                date: '2026-10-30',
+                focusSummary: 'Consolidación de logros, plan de acción ante eventos estresores y cierre...',
+                status: 'pendiente',
+                displayOrder: 6
+            }
+        ];
+        if (!AppState.therapyRoadmaps) AppState.therapyRoadmaps = [];
+        AppState.therapyRoadmaps.push(...sessions);
+        saveDataLocallyOnly();
+    }
+
+    return sessions.sort((a, b) => (Number(a.sessionNumber) || 0) - (Number(b.sessionNumber) || 0));
+}
+
+function renderRoadmapCardHtml(s, patientId) {
+    if (!s) return '<div class="therapy-session-card-placeholder" style="visibility:hidden;"></div>';
+    const isCompleted = s.status === 'completada';
+    const statusLabel = isCompleted ? 'Completada' : (s.status === 'agendada' ? 'En curso' : 'Pendiente');
+    const statusIcon = isCompleted ? 'fa-check-circle' : (s.status === 'agendada' ? 'fa-calendar-check' : 'fa-clock');
+    const statusClass = isCompleted ? 'pill-completada' : (s.status === 'agendada' ? 'pill-agendada' : 'pill-pendiente');
+    const hasFocus = Boolean(s.focusSummary && s.focusSummary.trim().length > 0);
+    const safeTitle = (s.title || `Sesión #${s.sessionNumber}`).replace(/"/g, '&quot;');
+
+    return `
+        <div class="therapy-session-card ${isCompleted ? 'card-completada' : ''}" data-session-id="${s.id}">
+            <div class="session-card-header">
+                <div class="session-card-number">${s.sessionNumber}</div>
+                <div class="session-card-title" title="${safeTitle}">${safeTitle}</div>
+                <button type="button" class="session-card-chevron" onclick="handleRoadmapSessionClick('${s.id}', '${patientId}')" title="Ver detalles / evolucionar reporte">
+                    <i class="fas fa-chevron-right"></i>
+                </button>
+            </div>
+
+            <div class="session-card-date">
+                <i class="far fa-calendar-alt"></i>
+                <span>${formatRoadmapDate(s.date)}</span>
+            </div>
+
+            ${hasFocus ? `
+                <div class="session-card-focus-box">
+                    <div class="session-card-focus-content">
+                        <i class="fas fa-wand-magic-sparkles focus-icon"></i>
+                        <span class="focus-text">${s.focusSummary}</span>
+                    </div>
+                    <button type="button" class="focus-toggle-btn" onclick="toggleRoadmapSnippet(this)" title="Desplegar resumen completo">
+                        <i class="fas fa-chevron-down"></i>
+                    </button>
+                </div>
+            ` : ''}
+
+            <div class="session-card-footer">
+                <button type="button" class="session-status-pill ${statusClass}" onclick="quickToggleRoadmapStatus('${patientId}', '${s.id}', '${s.status}')" title="Clic para alternar entre Pendiente y Completada">
+                    <i class="far ${statusIcon}"></i>
+                    <span>${statusLabel}</span>
+                </button>
+                <button type="button" class="session-card-edit-btn" onclick="openEditRoadmapSessionModal('${patientId}', '${s.id}')" title="Editar datos de sesión">
+                    <i class="fas fa-pencil-alt"></i>
+                </button>
+            </div>
+        </div>
+    `;
+}
+
+function renderRoadmapTrackHtml(dotsCount = 3) {
+    return `
+        <div class="therapy-roadmap-track">
+            <div class="therapy-roadmap-track-line"></div>
+            <div class="therapy-roadmap-track-nodes">
+                ${Array.from({ length: dotsCount }).map(() => `
+                    <div class="therapy-roadmap-node-wrap">
+                        <div class="therapy-roadmap-node"></div>
+                    </div>
+                `).join('')}
+            </div>
+        </div>
+    `;
+}
+
+function renderRoadmapBoard(sessions, patientId) {
+    if (!sessions || sessions.length === 0) {
+        return `
+            <div class="therapy-roadmap-empty">
+                <div style="font-size:32px;margin-bottom:8px;">🗺️</div>
+                <p style="margin:0 0 12px;color:var(--text-secondary);font-size:14px;">No hay sesiones planificadas en la ruta de este paciente.</p>
+                <button class="btn-primary btn-sm" onclick="openAddRoadmapSessionModal('${patientId}')">
+                    <i class="fas fa-plus"></i> Iniciar Ruta de Sesiones
+                </button>
+            </div>
+        `;
+    }
+
+    if (sessions.length <= 3) {
+        return `
+            <div class="therapy-roadmap-row">
+                ${sessions.map(s => renderRoadmapCardHtml(s, patientId)).join('')}
+            </div>
+            ${renderRoadmapTrackHtml(sessions.length)}
+        `;
+    }
+
+    // Disposición idéntica a la imagen:
+    // Fila 1 (inferior): Sesiones 3, 2, 1 (de izquierda a derecha)
+    // Fila 2 (superior): Sesiones 4, 5, 6 (de izquierda a derecha)
+    const rowBottomSessions = [sessions[2] || null, sessions[1] || null, sessions[0] || null];
+    const rowTopSessions = [sessions[3] || null, sessions[4] || null, sessions[5] || null];
+
+    let html = `
+        <!-- Fila Superior (Sesiones 4, 5, 6) -->
+        <div class="therapy-roadmap-row">
+            ${rowTopSessions.map(s => renderRoadmapCardHtml(s, patientId)).join('')}
+        </div>
+
+        <!-- Pista Media con Conector Vertical Izquierdo -->
+        <div style="position:relative;">
+            ${renderRoadmapTrackHtml(3)}
+            <div class="therapy-roadmap-vertical-connector connector-left" style="height:36px;top:-18px;"></div>
+        </div>
+
+        <!-- Fila Inferior (Sesiones 3, 2, 1) -->
+        <div class="therapy-roadmap-row">
+            ${rowBottomSessions.map(s => renderRoadmapCardHtml(s, patientId)).join('')}
+        </div>
+
+        <!-- Pista Inferior con Nodos -->
+        ${renderRoadmapTrackHtml(3)}
+    `;
+
+    if (sessions.length > 6) {
+        const extraSessions = sessions.slice(6);
+        html += `
+            <div style="margin-top:20px;border-top:1px dashed var(--border-secondary);padding-top:16px;">
+                <h4 style="font-size:13px;color:var(--text-tertiary);text-transform:uppercase;margin-bottom:12px;">Sesiones Posteriores Planificadas</h4>
+                <div class="therapy-roadmap-row">
+                    ${extraSessions.map(s => renderRoadmapCardHtml(s, patientId)).join('')}
+                </div>
+            </div>
+        `;
+    }
+
+    return html;
+}
+
+function renderTherapySessionsRoadmap(patientId) {
+    const sessions = getTherapyRoadmapSessionsForPatient(patientId);
+    return `
+        <div class="therapy-roadmap-container" id="therapyRoadmapContainer">
+            <div class="therapy-roadmap-header">
+                <div class="therapy-roadmap-title-wrap">
+                    <h3 class="therapy-roadmap-title">Sesiones de Terapia</h3>
+                </div>
+                <button type="button" class="btn-primary btn-add-session-roadmap" onclick="openAddRoadmapSessionModal('${patientId}')" title="Planificar o agregar una nueva sesión a la ruta terapéutica">
+                    <i class="fas fa-plus"></i> Agregar Sesión
+                </button>
+            </div>
+
+            <div class="therapy-roadmap-board">
+                ${renderRoadmapBoard(sessions, patientId)}
+            </div>
+        </div>
+    `;
+}
+
+function toggleRoadmapSnippet(btn) {
+    if (!btn) return;
+    const focusBox = btn.closest('.session-card-focus-box');
+    if (!focusBox) return;
+    const textEl = focusBox.querySelector('.focus-text');
+    if (!textEl) return;
+    const isExpanded = textEl.classList.toggle('expanded');
+    btn.classList.toggle('expanded', isExpanded);
+}
+
+async function quickToggleRoadmapStatus(patientId, sessionId, currentStatus) {
+    const nextStatus = currentStatus === 'completada' ? 'pendiente' : 'completada';
+    if (!AppState.therapyRoadmaps) AppState.therapyRoadmaps = [];
+    const item = AppState.therapyRoadmaps.find(s => s.id === sessionId);
+    if (item) {
+        item.status = nextStatus;
+        item.updatedAt = new Date().toISOString();
+        await saveDataLocallyOnly();
+    }
+
+    try {
+        const token = localStorage.getItem('psico_session_token');
+        if (token) {
+            fetch(`/api/v1/patients/${patientId}/therapy-sessions/${sessionId}`, {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+                body: JSON.stringify({ status: nextStatus })
+            }).catch(() => {});
+        }
+    } catch {}
+
+    viewPatient(patientId);
+}
+
+function handleRoadmapSessionClick(sessionId, patientId) {
+    const session = (AppState.therapyRoadmaps || []).find(s => s.id === sessionId);
+    if (session && session.clinicalNoteId) {
+        const note = (AppState.notes || []).find(n => n.id === session.clinicalNoteId);
+        if (note && typeof viewNote === 'function') {
+            closeModal('patientDetailModal');
+            viewNote(note.id);
+            return;
+        }
+    }
+
+    if (session && session.status === 'pendiente') {
+        openReporteAtencionFromRoadmapSession(sessionId, patientId);
+    } else {
+        openEditRoadmapSessionModal(patientId, sessionId);
+    }
+}
+
+function openReporteAtencionFromRoadmapSession(sessionId, patientId) {
+    const session = (AppState.therapyRoadmaps || []).find(s => s.id === sessionId);
+    const patient = (AppState.patients || []).find(p => String(p.id) === String(patientId));
+    if (!patient) return;
+
+    closeModal('patientDetailModal');
+    openReporteAtencionForPatient(patientId);
+
+    if (session) {
+        if (document.getElementById('noteTitle')) {
+            document.getElementById('noteTitle').value = session.title || `Sesión #${session.sessionNumber} - ${patient.name}`;
+        }
+        if (document.getElementById('noteSessionNum')) {
+            document.getElementById('noteSessionNum').value = session.sessionNumber;
+        }
+        if (session.date && document.getElementById('noteDate')) {
+            document.getElementById('noteDate').value = session.date;
+        }
+        if (session.focusSummary) {
+            if (document.getElementById('noteSessionGoals')) {
+                document.getElementById('noteSessionGoals').value = session.focusSummary;
+            }
+            if (document.getElementById('notePlan')) {
+                document.getElementById('notePlan').value = session.focusSummary;
+            }
+        }
+    }
+}
+
+function openAddRoadmapSessionModal(patientId) {
+    const patient = (AppState.patients || []).find(p => String(p.id) === String(patientId));
+    if (!patient) return;
+
+    const existingSessions = (AppState.therapyRoadmaps || []).filter(s => String(s.patientId) === String(patientId));
+    const nextNum = existingSessions.length > 0 
+        ? Math.max(...existingSessions.map(s => Number(s.sessionNumber) || 0)) + 1 
+        : (AppState.notes.filter(n => String(n.patientId) === String(patientId)).length + 1);
+
+    document.getElementById('roadmapSessionId').value = '';
+    document.getElementById('roadmapPatientId').value = patientId;
+    document.getElementById('roadmapSessionModalTitle').textContent = 'Planificar Sesión de Terapia';
+    document.getElementById('roadmapSessionNumber').value = nextNum;
+    document.getElementById('roadmapSessionTitle').value = `Sesión ${nextNum} - `;
+    document.getElementById('roadmapSessionDate').value = new Date().toISOString().split('T')[0];
+    document.getElementById('roadmapSessionStatus').value = 'pendiente';
+    document.getElementById('roadmapSessionFocus').value = '';
+
+    const delBtn = document.getElementById('btnDeleteRoadmapSession');
+    if (delBtn) delBtn.style.display = 'none';
+
+    if (typeof switchRoadmapModalTab === 'function') {
+        switchRoadmapModalTab('encuadre');
+    }
+
+    openModal('roadmapSessionModal');
+}
+
+function openEditRoadmapSessionModal(patientId, sessionId) {
+    const session = (AppState.therapyRoadmaps || []).find(s => s.id === sessionId);
+    if (!session) return;
+
+    document.getElementById('roadmapSessionId').value = session.id;
+    document.getElementById('roadmapPatientId').value = patientId;
+    document.getElementById('roadmapSessionModalTitle').textContent = `Editar Sesión #${session.sessionNumber}`;
+    document.getElementById('roadmapSessionNumber').value = session.sessionNumber;
+    document.getElementById('roadmapSessionTitle').value = session.title;
+    document.getElementById('roadmapSessionDate').value = session.date ? session.date.split('T')[0] : '';
+    document.getElementById('roadmapSessionStatus').value = session.status || 'pendiente';
+    document.getElementById('roadmapSessionFocus').value = session.focusSummary || '';
+
+    const delBtn = document.getElementById('btnDeleteRoadmapSession');
+    if (delBtn) delBtn.style.display = 'inline-block';
+
+    if (typeof switchRoadmapModalTab === 'function') {
+        switchRoadmapModalTab('encuadre');
+    }
+
+    openModal('roadmapSessionModal');
+}
+
+async function handleSaveRoadmapSession(event) {
+    if (event) event.preventDefault();
+    const sessionId = document.getElementById('roadmapSessionId').value;
+    const patientId = document.getElementById('roadmapPatientId').value;
+    const sessionNumber = Number(document.getElementById('roadmapSessionNumber').value) || 1;
+    const title = document.getElementById('roadmapSessionTitle').value.trim();
+    const date = document.getElementById('roadmapSessionDate').value;
+    const status = document.getElementById('roadmapSessionStatus').value;
+    const focusSummary = document.getElementById('roadmapSessionFocus').value.trim();
+
+    if (!title || !date) {
+        alert('Por favor completa el título y la fecha de la sesión');
+        return;
+    }
+
+    if (!AppState.therapyRoadmaps) AppState.therapyRoadmaps = [];
+
+    let sessionRecord = null;
+    if (sessionId) {
+        const idx = AppState.therapyRoadmaps.findIndex(s => s.id === sessionId);
+        if (idx >= 0) {
+            AppState.therapyRoadmaps[idx] = {
+                ...AppState.therapyRoadmaps[idx],
+                sessionNumber,
+                title,
+                date,
+                status,
+                focusSummary,
+                updatedAt: new Date().toISOString()
+            };
+            sessionRecord = AppState.therapyRoadmaps[idx];
+        }
+    } else {
+        sessionRecord = {
+            id: `trs_${Date.now()}_${Math.random().toString(36).substr(2, 6)}`,
+            patientId,
+            sessionNumber,
+            title,
+            date,
+            status,
+            focusSummary,
+            displayOrder: sessionNumber,
+            createdAt: new Date().toISOString(),
+            updatedAt: new Date().toISOString()
+        };
+        AppState.therapyRoadmaps.push(sessionRecord);
+    }
+
+    await saveDataLocallyOnly();
+    closeModal('roadmapSessionModal');
+
+    try {
+        const token = localStorage.getItem('psico_session_token');
+        if (token && sessionRecord) {
+            if (sessionId) {
+                fetch(`/api/v1/patients/${patientId}/therapy-sessions/${sessionId}`, {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+                    body: JSON.stringify(sessionRecord)
+                }).catch(() => {});
+            } else {
+                fetch(`/api/v1/patients/${patientId}/therapy-sessions`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+                    body: JSON.stringify(sessionRecord)
+                }).catch(() => {});
+            }
+        }
+    } catch {}
+
+    if (typeof showToast === 'function') {
+        showToast('Sesión guardada en el mapa de ruta', 'success');
+    }
+
+    viewPatient(patientId);
+}
+
+async function handleDeleteRoadmapSession() {
+    const sessionId = document.getElementById('roadmapSessionId').value;
+    const patientId = document.getElementById('roadmapPatientId').value;
+    if (!sessionId || !patientId) return;
+
+    if (!confirm('¿Está seguro de eliminar esta sesión del mapa de ruta?')) return;
+
+    AppState.therapyRoadmaps = (AppState.therapyRoadmaps || []).filter(s => s.id !== sessionId);
+    await saveDataLocallyOnly();
+    closeModal('roadmapSessionModal');
+
+    try {
+        const token = localStorage.getItem('psico_session_token');
+        if (token) {
+            fetch(`/api/v1/patients/${patientId}/therapy-sessions/${sessionId}`, {
+                method: 'DELETE',
+                headers: { 'Authorization': `Bearer ${token}` }
+            }).catch(() => {});
+        }
+    } catch {}
+
+    if (typeof showToast === 'function') {
+        showToast('Sesión eliminada del mapa de ruta', 'info');
+    }
+
+    viewPatient(patientId);
+}
+
+function switchRoadmapModalTab(tabName, btn) {
+    const modal = document.getElementById('roadmapSessionModal');
+    if (!modal) return;
+
+    // Actualizar botones de pestaña
+    const buttons = modal.querySelectorAll('.modal-subtab-btn');
+    buttons.forEach(b => b.classList.remove('active'));
+    if (btn) {
+        btn.classList.add('active');
+    } else {
+        const targetBtn = modal.querySelector(`.modal-subtab-btn[onclick*="${tabName}"]`);
+        if (targetBtn) targetBtn.classList.add('active');
+    }
+
+    // Actualizar paneles de contenido
+    const contents = modal.querySelectorAll('.roadmap-modal-tab-content');
+    contents.forEach(c => c.classList.remove('active'));
+    const targetContent = document.getElementById(`roadmapModalTab-${tabName}`);
+    if (targetContent) targetContent.classList.add('active');
+}
+
+function applyRoadmapTitleSuggestion(title) {
+    const titleInput = document.getElementById('roadmapSessionTitle');
+    const numInput = document.getElementById('roadmapSessionNumber');
+    if (!titleInput) return;
+    const num = numInput ? numInput.value : '';
+    if (num && !title.toLowerCase().startsWith('sesión') && !title.toLowerCase().startsWith('sesion')) {
+        titleInput.value = `Sesión ${num} - ${title}`;
+    } else {
+        titleInput.value = title;
+    }
+    titleInput.focus();
+}
+
+function appendRoadmapFocusTemplate(templateText) {
+    const focusArea = document.getElementById('roadmapSessionFocus');
+    if (!focusArea) return;
+    if (!focusArea.value || focusArea.value.trim().length === 0) {
+        focusArea.value = templateText;
+    } else {
+        focusArea.value = focusArea.value.trim() + '\n\n' + templateText;
+    }
+    focusArea.focus();
+}
+
+function jumpToReporteAtencionFromModal() {
+    const patientId = document.getElementById('roadmapPatientId')?.value;
+    const sessionNum = document.getElementById('roadmapSessionNumber')?.value;
+    const sessionTitle = document.getElementById('roadmapSessionTitle')?.value;
+    const sessionDate = document.getElementById('roadmapSessionDate')?.value;
+    const sessionFocus = document.getElementById('roadmapSessionFocus')?.value;
+
+    closeModal('roadmapSessionModal');
+    closeModal('patientDetailModal');
+
+    if (patientId) {
+        openReporteAtencionForPatient(patientId);
+        setTimeout(() => {
+            if (document.getElementById('noteTitle') && sessionTitle) {
+                document.getElementById('noteTitle').value = sessionTitle;
+            }
+            if (document.getElementById('noteSessionNum') && sessionNum) {
+                document.getElementById('noteSessionNum').value = sessionNum;
+            }
+            if (document.getElementById('noteDate') && sessionDate) {
+                document.getElementById('noteDate').value = sessionDate;
+            }
+            if (sessionFocus) {
+                if (document.getElementById('noteSessionGoals')) {
+                    document.getElementById('noteSessionGoals').value = sessionFocus;
+                }
+                if (document.getElementById('notePlan')) {
+                    document.getElementById('notePlan').value = sessionFocus;
+                }
+            }
+        }, 80);
+    }
 }
 
 function renderTabNotasSesion(patientId) {
@@ -3492,6 +4080,39 @@ function renderTabEscalas(patientId) {
 // ASISTENTE CLÍNICO IA: DICTADO Y SÍNTESIS SOAP
 // ============================================
 let soapAiGeneratedResult = null;
+let currentAiSelectedFormat = 'SOAP';
+
+function selectAiNoteFormat(format) {
+    currentAiSelectedFormat = (format || 'SOAP').toUpperCase();
+    document.querySelectorAll('.ai-format-pill').forEach(btn => {
+        btn.classList.toggle('active', btn.dataset.format === currentAiSelectedFormat);
+    });
+    const label = document.getElementById('selectedFormatLabel');
+    if (label) label.textContent = currentAiSelectedFormat;
+}
+window.selectAiNoteFormat = selectAiNoteFormat;
+
+function startAmbientSessionRecording() {
+    const patientId = document.getElementById('notePatient')?.value;
+    const patient = AppState.patients.find(p => p.id === patientId);
+    const patientName = patient ? patient.name : 'Paciente en consulta';
+    const activeFormat = currentAiSelectedFormat || 'SOAP';
+
+    if (typeof SessionRecorder !== 'undefined') {
+        SessionRecorder.start(patientId, patientName, activeFormat);
+    } else {
+        showToast('Módulo SessionRecorder no cargado en este entorno', 'error');
+    }
+}
+window.startAmbientSessionRecording = startAmbientSessionRecording;
+
+function openSessionSynthesizedDraftModal(format, content, patientId) {
+    openSoapAiModal();
+    selectAiNoteFormat(format);
+    soapAiGeneratedResult = content;
+    renderAiDraftPreview(format, content);
+}
+window.openSessionSynthesizedDraftModal = openSessionSynthesizedDraftModal;
 
 function openSoapAiModal() {
     let modal = document.getElementById('soapAiModal');
@@ -3504,53 +4125,57 @@ function openSoapAiModal() {
             <div class="modal-content modal-large">
                 <div class="modal-header">
                     <div>
-                        <h2><i class="fas fa-wand-magic-sparkles" style="color:var(--accent-primary);"></i> Copiloto Clínico IA: Generador SOAP</h2>
-                        <small style="color:var(--text-secondary);">Convierte dictado por voz o notas rápidas en estructura SOAP DSM-5</small>
+                        <h2><i class="fas fa-wand-magic-sparkles" style="color:var(--accent-primary);"></i> Copiloto Clínico IA Multiformato (v7.0)</h2>
+                        <small style="color:var(--text-secondary);">Benchmark HeyFreud: Ambient Listening, Síntesis Multiformato y Estilo Adaptativo</small>
                     </div>
                     <button class="btn-icon" onclick="closeSoapAiModal()"><i class="fas fa-times"></i></button>
                 </div>
                 <div class="modal-body" style="padding:16px 20px;">
+                    <!-- Selector de Formato Clínico -->
+                    <div style="margin-bottom:14px;">
+                        <label style="font-weight:700; font-size:12.5px; display:block; margin-bottom:6px;">Selecciona el Formato de la Nota:</label>
+                        <div class="format-selector-pills">
+                            <button type="button" class="format-pill-btn ai-format-pill active" data-format="SOAP" onclick="selectAiNoteFormat('SOAP')">SOAP</button>
+                            <button type="button" class="format-pill-btn ai-format-pill" data-format="DAP" onclick="selectAiNoteFormat('DAP')">DAP</button>
+                            <button type="button" class="format-pill-btn ai-format-pill" data-format="BIRP" onclick="selectAiNoteFormat('BIRP')">BIRP</button>
+                            <button type="button" class="format-pill-btn ai-format-pill" data-format="GIRP" onclick="selectAiNoteFormat('GIRP')">GIRP</button>
+                            <button type="button" class="format-pill-btn ai-format-pill" data-format="NARRATIVE" onclick="selectAiNoteFormat('NARRATIVE')">Narrativa</button>
+                            <button type="button" class="format-pill-btn ai-format-pill" data-format="TREATMENT_PLAN" onclick="selectAiNoteFormat('TREATMENT_PLAN')">Plan Tratamiento</button>
+                        </div>
+                    </div>
+
                     <div style="background:var(--bg-secondary); border-radius:8px; padding:12px; margin-bottom:14px; font-size:13px; border-left:3px solid var(--accent-primary);">
-                        <strong>💡 Instrucción:</strong> Dicta por voz o escribe apuntes libres de la sesión. Nuestro modelo desidentifica los datos sensibles del paciente (PHI) y genera los 4 apartados clínicos (S, O, A, P).
+                        <strong>💡 Dos vías de captura:</strong> Graba la sesión ambiental completa en segundo plano (Zero-Retention) o dicta/escribe tus apuntes para estructurar automáticamente en formato <span id="selectedFormatLabel" style="font-weight:700; color:var(--accent-primary);">SOAP</span>.
                     </div>
 
                     <div class="form-group">
-                        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;">
-                            <label style="font-weight:700;">Apuntes o Dictado de la Sesión:</label>
-                            <button type="button" class="btn-sm btn-secondary" id="btnSoapVoiceDictate" onclick="toggleSoapVoiceDictation()">
-                                <i class="fas fa-microphone"></i> Dictar por Voz
-                            </button>
+                        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px; flex-wrap:wrap; gap:8px;">
+                            <label style="font-weight:700;">Apuntes o Transcripción:</label>
+                            <div style="display:flex; gap:6px;">
+                                <button type="button" class="btn-sm btn-secondary" onclick="startAmbientSessionRecording()" style="color:#ef4444;">
+                                    <i class="fas fa-record-vinyl"></i> Grabar Sesión
+                                </button>
+                                <button type="button" class="btn-sm btn-secondary" id="btnSoapVoiceDictate" onclick="toggleSoapVoiceDictation()">
+                                    <i class="fas fa-microphone"></i> Dictar por Voz
+                                </button>
+                            </div>
                         </div>
                         <textarea id="soapAiInput" rows="4" style="width:100%; border-radius:8px; padding:10px; font-size:13px;" placeholder="Ejemplo: Paciente refiere que la ansiedad laboral ha disminuido de 8 a 4. Logró realizar la técnica de respiración 4-7-8 antes de su reunión. Exploramos distorsión de lectura de mente..."></textarea>
                     </div>
 
                     <div style="margin-bottom:16px;">
                         <button type="button" class="btn-primary full-width" id="btnGenerateSoapAi" onclick="generateSoapFromAiModal()">
-                            <i class="fas fa-sparkles"></i> ✨ Sintetizar Nota SOAP con IA
+                            <i class="fas fa-sparkles"></i> ✨ Sintetizar con Gemini AI
                         </button>
                     </div>
 
-                    <!-- PREVIEW GENERADO -->
+                    <!-- PREVIEW GENERADO MULTIFORMATO -->
                     <div id="soapAiPreviewWrap" style="display:none; background:var(--bg-primary); border:1px solid var(--border-color); border-radius:10px; padding:14px; margin-bottom:14px;">
-                        <h4 style="margin:0 0 10px 0; font-size:14px; color:var(--text-primary);">Vista Previa Estructurada:</h4>
-                        <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(240px, 1fr)); gap:10px; margin-bottom:12px;">
-                            <div style="background:var(--bg-card); padding:8px 10px; border-radius:6px; font-size:12px; border:1px solid var(--border-color);">
-                                <strong style="color:var(--accent-primary);">[S] Subjetivo:</strong>
-                                <div id="previewSoapS" style="margin-top:4px; color:var(--text-secondary);"></div>
-                            </div>
-                            <div style="background:var(--bg-card); padding:8px 10px; border-radius:6px; font-size:12px; border:1px solid var(--border-color);">
-                                <strong style="color:var(--accent-primary);">[O] Objetivo:</strong>
-                                <div id="previewSoapO" style="margin-top:4px; color:var(--text-secondary);"></div>
-                            </div>
-                            <div style="background:var(--bg-card); padding:8px 10px; border-radius:6px; font-size:12px; border:1px solid var(--border-color);">
-                                <strong style="color:var(--accent-primary);">[A] Análisis:</strong>
-                                <div id="previewSoapA" style="margin-top:4px; color:var(--text-secondary);"></div>
-                            </div>
-                            <div style="background:var(--bg-card); padding:8px 10px; border-radius:6px; font-size:12px; border:1px solid var(--border-color);">
-                                <strong style="color:var(--accent-primary);">[P] Plan:</strong>
-                                <div id="previewSoapP" style="margin-top:4px; color:var(--text-secondary);"></div>
-                            </div>
-                        </div>
+                        <h4 style="margin:0 0 10px 0; font-size:14px; color:var(--text-primary); display:flex; justify-content:space-between; align-items:center;">
+                            <span>Vista Previa Estructurada:</span>
+                            <span id="previewFormatTag" style="font-size:11px; font-weight:700; background:#e7f0eb; color:#285c50; padding:2px 8px; border-radius:6px;">SOAP</span>
+                        </h4>
+                        <div id="dynamicMultiformatGrid" style="display:grid; grid-template-columns:repeat(auto-fit, minmax(240px, 1fr)); gap:10px; margin-bottom:12px;"></div>
                         <button type="button" class="btn-primary full-width" onclick="applyGeneratedSoapToForm()">
                             <i class="fas fa-check"></i> 📥 Aplicar al Formulario de la Sesión
                         </button>
@@ -3571,6 +4196,35 @@ function closeSoapAiModal() {
     }
 }
 
+function renderAiDraftPreview(format, content) {
+    const wrap = document.getElementById('soapAiPreviewWrap');
+    const grid = document.getElementById('dynamicMultiformatGrid');
+    const tag = document.getElementById('previewFormatTag');
+    if (!wrap || !grid) return;
+
+    tag.textContent = format;
+    grid.innerHTML = '';
+
+    const labelsMap = {
+        subjetivo: 'Subjetivo [S]', objetivo: 'Objetivo [O]', analisis: 'Análisis [A]', plan: 'Plan [P]',
+        data: 'Data [D]', assessment: 'Assessment [A]',
+        behavior: 'Conducta [B]', intervention: 'Intervención [I]', response: 'Respuesta [R]',
+        goals: 'Metas [G]',
+        resumenSesion: 'Resumen de Sesión', temasAbordados: 'Temas Abordados', intervenciones: 'Intervenciones', acuerdos: 'Acuerdos',
+        problemasIdentificados: 'Problemas', objetivosCortoPlazo: 'Objetivos Corto Plazo', objetivosLargoPlazo: 'Objetivos Largo Plazo', modalidadTerapeutica: 'Modalidad', criteriosAlta: 'Criterios de Alta'
+    };
+
+    Object.entries(content).forEach(([key, val]) => {
+        const title = labelsMap[key] || key.toUpperCase();
+        const card = document.createElement('div');
+        card.style.cssText = 'background:var(--bg-card); padding:8px 10px; border-radius:6px; font-size:12px; border:1px solid var(--border-color);';
+        card.innerHTML = `<strong style="color:var(--accent-primary); display:block; margin-bottom:4px;">${title}:</strong><div style="color:var(--text-secondary); line-height:1.4;">${typeof val === 'string' ? val : JSON.stringify(val)}</div>`;
+        grid.appendChild(card);
+    });
+
+    wrap.style.display = 'block';
+}
+
 async function generateSoapFromAiModal() {
     const text = document.getElementById('soapAiInput')?.value.trim();
     if (!text) {
@@ -3587,69 +4241,100 @@ async function generateSoapFromAiModal() {
     try {
         const patientId = document.getElementById('notePatient')?.value;
         const patient = AppState.patients.find(p => p.id === patientId) || {};
-        
-        let soap = null;
-        if (typeof ClinicalAI !== 'undefined') {
-            soap = await ClinicalAI.synthesizeSoapNote(text, patient);
+        const format = currentAiSelectedFormat || 'SOAP';
+
+        let res = null;
+        if (typeof ClinicalAI !== 'undefined' && typeof ClinicalAI.synthesizeSessionNote === 'function') {
+            res = await ClinicalAI.synthesizeSessionNote(text, { format, patientInfo: patient });
         } else {
-            soap = {
-                subjetivo: `El paciente refiere: ${text}`,
-                objetivo: 'Paciente orientado en las tres esferas, lenguaje fluido, afecto congruente.',
-                analisis: 'Evolución psicoterapéutica favorable con asimilación de estrategias cognitivas.',
-                plan: 'Continuar con el encuadre psicoterapéutico y monitoreo de tareas intersesión.'
+            res = {
+                format,
+                content: {
+                    subjetivo: `El paciente refiere: ${text}`,
+                    objetivo: 'Paciente orientado en las tres esferas, lenguaje fluido, afecto congruente.',
+                    analisis: 'Evolución psicoterapéutica favorable con asimilación de estrategias cognitivas.',
+                    plan: 'Continuar con el encuadre psicoterapéutico y monitoreo de tareas intersesión.'
+                }
             };
         }
 
-        soapAiGeneratedResult = soap;
-        document.getElementById('previewSoapS').textContent = soap.subjetivo || '';
-        document.getElementById('previewSoapO').textContent = soap.objetivo || '';
-        document.getElementById('previewSoapA').textContent = soap.analisis || '';
-        document.getElementById('previewSoapP').textContent = soap.plan || '';
-        document.getElementById('soapAiPreviewWrap').style.display = 'block';
+        soapAiGeneratedResult = res.content || res;
+        renderAiDraftPreview(format, soapAiGeneratedResult);
 
-        showToast('¡Nota SOAP estructurada con éxito!', 'success');
+        showToast(`¡Nota estructurada en formato ${format} con éxito!`, 'success');
     } catch (e) {
-        console.error('Error generando SOAP:', e);
+        console.error('Error generando síntesis con IA:', e);
         showToast('Error procesando nota con IA: ' + e.message, 'error');
     } finally {
         if (btn) {
             btn.disabled = false;
-            btn.innerHTML = '<i class="fas fa-sparkles"></i> ✨ Sintetizar Nota SOAP con IA';
+            btn.innerHTML = '<i class="fas fa-sparkles"></i> ✨ Sintetizar con Gemini AI';
         }
     }
 }
 
 function applyGeneratedSoapToForm() {
     if (!soapAiGeneratedResult) return;
-    
-    // Si estamos en formato SOAP, poblar los textareas
+
+    const res = soapAiGeneratedResult;
     const sub = document.getElementById('noteSubjetivo');
     const obj = document.getElementById('noteObjetivo');
     const ana = document.getElementById('noteAnalisis');
     const pla = document.getElementById('notePlan');
 
-    if (sub) sub.value = soapAiGeneratedResult.subjetivo || '';
-    if (obj) obj.value = soapAiGeneratedResult.objetivo || '';
-    if (ana) ana.value = soapAiGeneratedResult.analisis || '';
-    if (pla) pla.value = soapAiGeneratedResult.plan || '';
+    if (res.subjetivo && sub) sub.value = res.subjetivo;
+    if (res.objetivo && obj) obj.value = res.objetivo;
+    if (res.analisis && ana) ana.value = res.analisis;
+    if (res.plan && pla) pla.value = res.plan;
 
-    // Si estamos en reporte oficial, también enriquecer la descripción y observaciones
+    // Adaptación para DAP
+    if (res.data) {
+        if (sub) sub.value = res.data;
+        if (obj) obj.value = 'Observaciones clínicas integradas en Data.';
+        if (ana && res.assessment) ana.value = res.assessment;
+        if (pla && res.plan) pla.value = res.plan;
+    }
+
+    // Adaptación para BIRP
+    if (res.behavior) {
+        if (sub) sub.value = `[Conducta]: ${res.behavior}`;
+        if (obj) obj.value = `[Intervención]: ${res.intervention}`;
+        if (ana && res.response) ana.value = `[Respuesta]: ${res.response}`;
+        if (pla && res.plan) pla.value = res.plan;
+    }
+
+    // Adaptación para GIRP
+    if (res.goals) {
+        if (sub) sub.value = `[Metas]: ${res.goals}`;
+        if (obj) obj.value = `[Intervención]: ${res.intervention}`;
+        if (ana && res.response) ana.value = `[Progreso]: ${res.response}`;
+        if (pla && res.plan) pla.value = res.plan;
+    }
+
+    // Adaptación para Narrativo
+    if (res.resumenSesion) {
+        if (sub) sub.value = `${res.resumenSesion}\n\nTemas: ${res.temasAbordados || ''}`;
+        if (obj) obj.value = res.intervenciones || '';
+        if (ana) ana.value = 'Proceso fenomenológico y reflexión clínica activa.';
+        if (pla) pla.value = res.acuerdos || '';
+    }
+
+    // Reporte Oficial FPV
     const desc = document.getElementById('noteSessionDescription');
     const obs = document.getElementById('noteObservations');
     if (desc && !desc.value) {
-        desc.value = `${soapAiGeneratedResult.subjetivo}\n\n${soapAiGeneratedResult.analisis}`;
+        desc.value = Object.entries(res).map(([k, v]) => `• ${k.toUpperCase()}: ${v}`).join('\n\n');
     }
     if (obs && !obs.value) {
-        obs.value = soapAiGeneratedResult.objetivo;
+        obs.value = res.objetivo || res.assessment || res.response || 'Observación clínica realizada.';
     }
 
-    // Cambiar a formato SOAP visual si está disponible
     if (typeof switchNoteFormat === 'function') {
         switchNoteFormat('soap');
     }
 
     closeSoapAiModal();
-    showToast('Nota SOAP aplicada al formulario de sesión', 'success');
+    showToast('Borrador clínico aplicado al formulario de sesión', 'success');
 }
 
 function toggleSoapVoiceDictation() {
@@ -7663,5 +8348,22 @@ if (typeof window !== 'undefined') {
     if (typeof viewAppointmentDetail === 'function') window.viewAppointmentDetail = viewAppointmentDetail;
     if (typeof zoomIntoDay === 'function') window.zoomIntoDay = zoomIntoDay;
     if (typeof evolveAppointmentSession === 'function') window.evolveAppointmentSession = evolveAppointmentSession;
+    if (typeof selectAiNoteFormat === 'function') window.selectAiNoteFormat = selectAiNoteFormat;
+    if (typeof startAmbientSessionRecording === 'function') window.startAmbientSessionRecording = startAmbientSessionRecording;
+    if (typeof openSessionSynthesizedDraftModal === 'function') window.openSessionSynthesizedDraftModal = openSessionSynthesizedDraftModal;
+    if (typeof renderAiDraftPreview === 'function') window.renderAiDraftPreview = renderAiDraftPreview;
+    if (typeof renderTherapySessionsRoadmap === 'function') window.renderTherapySessionsRoadmap = renderTherapySessionsRoadmap;
+    if (typeof openAddRoadmapSessionModal === 'function') window.openAddRoadmapSessionModal = openAddRoadmapSessionModal;
+    if (typeof openEditRoadmapSessionModal === 'function') window.openEditRoadmapSessionModal = openEditRoadmapSessionModal;
+    if (typeof handleSaveRoadmapSession === 'function') window.handleSaveRoadmapSession = handleSaveRoadmapSession;
+    if (typeof handleDeleteRoadmapSession === 'function') window.handleDeleteRoadmapSession = handleDeleteRoadmapSession;
+    if (typeof toggleRoadmapSnippet === 'function') window.toggleRoadmapSnippet = toggleRoadmapSnippet;
+    if (typeof quickToggleRoadmapStatus === 'function') window.quickToggleRoadmapStatus = quickToggleRoadmapStatus;
+    if (typeof handleRoadmapSessionClick === 'function') window.handleRoadmapSessionClick = handleRoadmapSessionClick;
+    if (typeof openReporteAtencionFromRoadmapSession === 'function') window.openReporteAtencionFromRoadmapSession = openReporteAtencionFromRoadmapSession;
+    if (typeof switchRoadmapModalTab === 'function') window.switchRoadmapModalTab = switchRoadmapModalTab;
+    if (typeof applyRoadmapTitleSuggestion === 'function') window.applyRoadmapTitleSuggestion = applyRoadmapTitleSuggestion;
+    if (typeof appendRoadmapFocusTemplate === 'function') window.appendRoadmapFocusTemplate = appendRoadmapFocusTemplate;
+    if (typeof jumpToReporteAtencionFromModal === 'function') window.jumpToReporteAtencionFromModal = jumpToReporteAtencionFromModal;
 }
 
