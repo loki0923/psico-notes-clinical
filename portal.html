@@ -140,6 +140,33 @@
                     <i class="fas fa-check-circle"></i>
                     <span>¡Gracias por compartir! Tu estado ha sido registrado.</span>
                 </div>
+
+                <!-- PALABRA DEL DÍA (PSIRIS INSP) -->
+                <div class="mood-word-box" id="moodWordBox" style="margin-top: 14px; padding-top: 12px; border-top: 1px dashed var(--border-primary, rgba(0,0,0,0.08));">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+                        <label for="inputDailyWord" style="font-size: 13px; font-weight: 700; color: var(--text-primary); display: flex; align-items: center; gap: 6px;">
+                            <span>🏷️</span> Una palabra con la que te sientas identificado hoy
+                        </label>
+                        <span id="dailyWordSavedTag" class="badge-word-saved" style="display: none;">Registrada ✓</span>
+                    </div>
+                    <div style="display: flex; gap: 8px;">
+                        <input type="text" id="inputDailyWord" class="portal-input" placeholder="Ej: Esperanza, Tranquilidad, Agotamiento..." maxlength="30" style="flex: 1; padding: 10px 14px; font-size: 13px; border-radius: 10px; border: 1px solid var(--border-primary);">
+                        <button type="button" class="btn-primary" onclick="submitDailyWord()" style="padding: 10px 16px; font-size: 13px; white-space: nowrap; border-radius: 10px;">
+                            <i class="fas fa-check"></i> Guardar
+                        </button>
+                    </div>
+                    <!-- Quick emotion chips -->
+                    <div class="mood-chips-container" style="display: flex; flex-wrap: wrap; gap: 6px; margin-top: 10px;">
+                        <button type="button" class="mood-word-chip" onclick="selectDailyWordChip('Esperanza')">🌱 Esperanza</button>
+                        <button type="button" class="mood-word-chip" onclick="selectDailyWordChip('Tranquilidad')">🌊 Tranquilidad</button>
+                        <button type="button" class="mood-word-chip" onclick="selectDailyWordChip('Ansiedad')">⚡ Ansiedad</button>
+                        <button type="button" class="mood-word-chip" onclick="selectDailyWordChip('Gratitud')">🙏 Gratitud</button>
+                        <button type="button" class="mood-word-chip" onclick="selectDailyWordChip('Cansancio')">🔋 Cansancio</button>
+                        <button type="button" class="mood-word-chip" onclick="selectDailyWordChip('Motivación')">🔥 Motivación</button>
+                        <button type="button" class="mood-word-chip" onclick="selectDailyWordChip('Paz')">🕊️ Paz</button>
+                        <button type="button" class="mood-word-chip" onclick="selectDailyWordChip('Abrumado')">🌪️ Abrumado</button>
+                    </div>
+                </div>
             </div>
 
             <!-- TARJETA DE CONSENTIMIENTO INFORMADO -->
@@ -157,18 +184,70 @@
             </div>
 
             <div class="quick-stats">
-                <div class="quick-stat">
+                <div class="quick-stat" onclick="switchView('tasks')" style="cursor: pointer;" title="Ver mis tareas intersesión">
                     <div class="stat-icon">📋</div>
                     <div class="stat-info">
                         <div class="stat-value" id="pendingTasksCount">0</div>
                         <div class="stat-label">Tareas pendientes</div>
                     </div>
                 </div>
-                <div class="quick-stat">
+                <div class="quick-stat" onclick="switchView('sessions')" style="cursor: pointer;" title="Ver y gestionar mis sesiones">
                     <div class="stat-icon">📅</div>
                     <div class="stat-info">
                         <div class="stat-value" id="nextSessionText">—</div>
                         <div class="stat-label">Próxima sesión</div>
+                    </div>
+                </div>
+                <div class="quick-stat" onclick="switchView('tests')" style="cursor: pointer;" title="Realizar chequeo o evaluaciones">
+                    <div class="stat-icon">❤️</div>
+                    <div class="stat-info">
+                        <div class="stat-value">Bienestar</div>
+                        <div class="stat-label">Evaluaciones</div>
+                    </div>
+                </div>
+                <div class="quick-stat" onclick="switchView('progress')" style="cursor: pointer;" title="Ver mi evolución clínica">
+                    <div class="stat-icon">📈</div>
+                    <div class="stat-info">
+                        <div class="stat-value">Evolución</div>
+                        <div class="stat-label">Mi Progreso</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- TARJETA DESTACADA DE PRÓXIMA SESIÓN EN HOME -->
+            <div id="homeNextSessionCard" class="portal-next-session-card"></div>
+
+            <!-- ESPACIO INFORMATIVO: MI PSICÓLOGO TRATANTE -->
+            <div id="therapistInfoCard" class="portal-therapist-card section-card">
+                <div class="therapist-card-header">
+                    <div class="therapist-card-avatar" id="therapistCardAvatar">👨‍⚕️</div>
+                    <div class="therapist-card-main">
+                        <span class="therapist-card-badge">MI PSICÓLOGO TRATANTE</span>
+                        <h3 class="therapist-card-name" id="therapistCardName">Licenciado(a) en Psicología</h3>
+                        <p class="therapist-card-specialty" id="therapistCardSpecialty">Psicología Clínica y de la Salud</p>
+                    </div>
+                </div>
+                <div class="therapist-card-details">
+                    <div class="therapist-detail-item">
+                        <i class="fas fa-id-card"></i>
+                        <div>
+                            <small>Federación / Colegiado</small>
+                            <span id="therapistCardFpv">FPV Nº 54567</span>
+                        </div>
+                    </div>
+                    <div class="therapist-detail-item">
+                        <i class="fas fa-envelope"></i>
+                        <div>
+                            <small>Correo electrónico</small>
+                            <span id="therapistCardEmail">contacto@psiconotes.com</span>
+                        </div>
+                    </div>
+                    <div class="therapist-detail-item">
+                        <i class="fas fa-map-marker-alt"></i>
+                        <div>
+                            <small>Ubicación / Consultorio</small>
+                            <span id="therapistCardLocation">Consultorio Clínico / Consulta Online y Presencial</span>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -206,6 +285,57 @@
             <div class="section-card">
                 <h3><i class="fas fa-lightbulb"></i> Reflexión del día</h3>
                 <p class="reflection-text" id="dailyReflection">Cargando...</p>
+            </div>
+        </div>
+
+        <!-- VISTA SESIONES Y CITAS -->
+        <div class="portal-view" id="viewSessions">
+            <div class="view-header">
+                <h2>Mis Sesiones</h2>
+                <p class="view-subtitle">Consulta tu próxima sesión, enlaces de videollamada y agenda tus citas</p>
+            </div>
+
+            <!-- Próxima Sesión Destacada -->
+            <div id="sessionsUpcomingContainer"></div>
+
+            <!-- HORARIOS DE CITAS DISPONIBLES (SELECCIÓN DIRECTA) -->
+            <div class="section-card available-slots-card" id="availableSlotsSection">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+                    <h3 style="margin: 0; font-size: 15px; font-weight: 700; color: var(--text-primary); display: flex; align-items: center; gap: 8px;">
+                        <i class="fas fa-clock" style="color: var(--accent-primary);"></i> Horarios Disponibles para Agendar
+                    </h3>
+                    <span style="font-size: 11px; background: rgba(5,150,105,0.1); color: #059669; font-weight: 700; padding: 2px 8px; border-radius: 12px;">En tiempo real</span>
+                </div>
+                <p style="font-size: 12px; color: var(--text-secondary); margin-bottom: 12px;">
+                    Selecciona una fecha y toca cualquier horario libre para apartar tu cita inmediatamente:
+                </p>
+                <div style="display: flex; gap: 8px; align-items: center; margin-bottom: 12px;">
+                    <input type="date" id="portalAvailabilityPicker" class="portal-input" onchange="loadPortalAvailability(this.value)" style="flex: 1; padding: 8px 12px; font-size: 13px; border-radius: 8px; border: 1px solid var(--border-primary);">
+                    <button type="button" class="btn-sm btn-secondary" onclick="loadPortalAvailability(document.getElementById('portalAvailabilityPicker').value)" title="Actualizar disponibilidad">
+                        <i class="fas fa-sync-alt"></i>
+                    </button>
+                </div>
+                <div id="availableSlotsChipsContainer" class="portal-slots-grid">
+                    <!-- Dynamic rendering of available slots -->
+                </div>
+            </div>
+
+            <!-- Botón para Solicitar / Agendar Nueva Sesión -->
+            <div style="margin: 18px 0 16px 0;">
+                <button class="btn-primary" onclick="openScheduleSessionModal()" style="width: 100%; justify-content: center; padding: 13px 18px; font-size: 14px; font-weight: 700; border-radius: var(--radius-md); box-shadow: var(--shadow-sm);">
+                    <i class="fas fa-calendar-plus" style="margin-right: 8px;"></i> Agendar Nueva Sesión
+                </button>
+            </div>
+
+            <!-- Historial de Sesiones -->
+            <div class="section-card">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px;">
+                    <h3 style="margin: 0; font-size: 15px; font-weight: 700; color: var(--text-primary); display: flex; align-items: center; gap: 8px;">
+                        <i class="fas fa-history" style="color: var(--accent-primary);"></i> Historial de Sesiones
+                    </h3>
+                    <span id="sessionsHistoryCount" style="font-size: 12px; color: var(--text-tertiary); font-weight: 600;">0 sesiones</span>
+                </div>
+                <div id="sessionsHistoryList" class="portal-sessions-history-list"></div>
             </div>
         </div>
 
@@ -336,6 +466,255 @@
                 <div id="evaluationsHistory" class="evaluations-history">
                     <div class="empty-state-small">Aún no hay evaluaciones registradas</div>
                 </div>
+            </div>
+        </div>
+
+        <!-- VISTA MIS DOCUMENTOS (COMPARTIR WORD, PDF, IMÁGENES) -->
+        <div class="portal-view" id="viewDocuments">
+            <div class="view-header">
+                <h2>Mis Documentos</h2>
+                <p class="view-subtitle">Comparte archivos en Word, PDF o imágenes con tu terapeuta y consulta tus guías clínicas</p>
+            </div>
+
+            <!-- SUBIR NUEVO DOCUMENTO -->
+            <div class="section-card upload-document-card">
+                <h3 style="margin-top: 0; font-size: 15px; font-weight: 700; color: var(--text-primary); display: flex; align-items: center; gap: 8px;">
+                    <i class="fas fa-cloud-upload-alt" style="color: var(--accent-primary);"></i> Compartir Documento
+                </h3>
+                <p style="font-size: 13px; color: var(--text-secondary); margin-bottom: 14px;">
+                    Puedes subir informes médicos previos, tareas intersesión escritas, hojas de autorregistro o estudios en formatos <strong>PDF, Word (.doc, .docx) o imágenes</strong> (hasta 10MB).
+                </p>
+                <form id="formUploadDocument" onsubmit="handleDocumentUpload(event)">
+                    <div style="margin-bottom: 12px;">
+                        <label for="docTitleInput" style="display: block; font-size: 12px; font-weight: 600; margin-bottom: 5px;">Título o Descripción</label>
+                        <input type="text" id="docTitleInput" class="portal-input" placeholder="Ej: Registro semanal de pensamientos / Informe previo" required style="width: 100%; padding: 10px 12px; border-radius: 8px; border: 1px solid var(--border-primary);">
+                    </div>
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 12px;">
+                        <div>
+                            <label for="docCategorySelect" style="display: block; font-size: 12px; font-weight: 600; margin-bottom: 5px;">Categoría</label>
+                            <select id="docCategorySelect" class="portal-input" style="width: 100%; padding: 10px 12px; border-radius: 8px; border: 1px solid var(--border-primary);">
+                                <option value="tarea">📝 Tarea intersesión</option>
+                                <option value="informe">📄 Informe médico / psicológico</option>
+                                <option value="estudio">🔬 Estudio o Evaluación</option>
+                                <option value="comprobante">🧾 Comprobante o Trámite</option>
+                                <option value="general">📁 General / Otro</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label for="docFileInput" style="display: block; font-size: 12px; font-weight: 600; margin-bottom: 5px;">Archivo (.pdf, .doc, .docx, img)</label>
+                            <input type="file" id="docFileInput" accept=".pdf,.doc,.docx,.png,.jpg,.jpeg,.webp" required style="width: 100%; font-size: 12px; padding: 7px; border-radius: 8px; border: 1px dashed var(--border-primary); background: rgba(0,0,0,0.02);">
+                        </div>
+                    </div>
+                    <button type="submit" id="btnUploadDoc" class="btn-primary" style="width: 100%; justify-content: center; padding: 11px 16px; font-weight: 700; border-radius: 8px;">
+                        <i class="fas fa-upload" style="margin-right: 6px;"></i> Subir y Compartir con mi Terapeuta
+                    </button>
+                </form>
+            </div>
+
+            <!-- DOCUMENTOS COMPARTIDOS POR EL TERAPEUTA -->
+            <div class="section-card">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px;">
+                    <h3 style="margin: 0; font-size: 15px; font-weight: 700; color: var(--text-primary); display: flex; align-items: center; gap: 8px;">
+                        <i class="fas fa-folder-open" style="color: #0284c7;"></i> Documentos de mi Terapeuta
+                    </h3>
+                    <span id="therapistDocsCount" style="font-size: 12px; color: var(--text-tertiary); font-weight: 600;">0 archivos</span>
+                </div>
+                <div id="therapistDocsList" class="portal-documents-list">
+                    <!-- Dynamic rendering -->
+                </div>
+            </div>
+
+            <!-- MIS DOCUMENTOS SUBIDOS -->
+            <div class="section-card">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px;">
+                    <h3 style="margin: 0; font-size: 15px; font-weight: 700; color: var(--text-primary); display: flex; align-items: center; gap: 8px;">
+                        <i class="fas fa-file-alt" style="color: var(--accent-primary);"></i> Mis Documentos Compartidos
+                    </h3>
+                    <span id="patientDocsCount" style="font-size: 12px; color: var(--text-tertiary); font-weight: 600;">0 archivos</span>
+                </div>
+                <div id="patientDocsList" class="portal-documents-list">
+                    <!-- Dynamic rendering -->
+                </div>
+            </div>
+        </div>
+
+        <!-- VISTA PAGOS Y MÉTODOS DE PAGO -->
+        <div class="portal-view" id="viewPayments">
+            <div class="view-header">
+                <h2>Pagos y Facturación</h2>
+                <p class="view-subtitle">Consulta los métodos de pago de tu terapeuta y reporta tus comprobantes de sesión</p>
+            </div>
+
+            <!-- MÉTODOS DE PAGO DEL TERAPEUTA -->
+            <div class="section-card">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px;">
+                    <h3 style="margin: 0; font-size: 15px; font-weight: 700; color: var(--text-primary); display: flex; align-items: center; gap: 8px;">
+                        <i class="fas fa-credit-card" style="color: var(--accent-primary);"></i> Métodos de Pago Disponibles
+                    </h3>
+                    <span style="font-size: 11px; background: rgba(5,150,105,0.1); color: #059669; font-weight: 700; padding: 3px 8px; border-radius: 12px;">Activos</span>
+                </div>
+                <p style="font-size: 12px; color: var(--text-secondary); margin-bottom: 14px;">
+                    Toca el botón copiar en cualquiera de los métodos para transferir rápidamente los datos a tu banca móvil:
+                </p>
+                <div id="paymentMethodsGrid" class="portal-payment-methods-grid">
+                    <!-- Dynamic rendering -->
+                </div>
+            </div>
+
+            <!-- REPORTAR PAGO REALIZADO -->
+            <div class="section-card">
+                <h3 style="margin-top: 0; font-size: 15px; font-weight: 700; color: var(--text-primary); display: flex; align-items: center; gap: 8px;">
+                    <i class="fas fa-receipt" style="color: #059669;"></i> Reportar Pago Realizado
+                </h3>
+                <p style="font-size: 12px; color: var(--text-secondary); margin-bottom: 14px;">
+                    Ingresa los datos de tu transferencia o pago móvil para que tu terapeuta lo valide y acredite en tu historial:
+                </p>
+                <form id="formReportPayment" onsubmit="handleReportPayment(event)">
+                    <div style="display: grid; grid-template-columns: 2fr 1fr; gap: 10px; margin-bottom: 12px;">
+                        <div>
+                            <label for="payAmountInput" style="display: block; font-size: 12px; font-weight: 600; margin-bottom: 5px;">Monto Pagado</label>
+                            <input type="number" step="0.01" min="0.01" id="payAmountInput" class="portal-input" placeholder="Ej: 35.00" required style="width: 100%; padding: 10px 12px; border-radius: 8px; border: 1px solid var(--border-primary);">
+                        </div>
+                        <div>
+                            <label for="payCurrencySelect" style="display: block; font-size: 12px; font-weight: 600; margin-bottom: 5px;">Moneda</label>
+                            <select id="payCurrencySelect" class="portal-input" style="width: 100%; padding: 10px 12px; border-radius: 8px; border: 1px solid var(--border-primary);">
+                                <option value="USD">USD ($)</option>
+                                <option value="VES">VES (Bs.)</option>
+                                <option value="EUR">EUR (€)</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 12px;">
+                        <div>
+                            <label for="payMethodSelect" style="display: block; font-size: 12px; font-weight: 600; margin-bottom: 5px;">Método Utilizado</label>
+                            <select id="payMethodSelect" class="portal-input" style="width: 100%; padding: 10px 12px; border-radius: 8px; border: 1px solid var(--border-primary);">
+                                <option value="pago_movil">📱 Pago Móvil</option>
+                                <option value="zelle">💵 Zelle</option>
+                                <option value="transferencia">🏦 Transferencia Bancaria</option>
+                                <option value="binance">🟡 Binance Pay</option>
+                                <option value="efectivo">💶 Efectivo en Consulta</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label for="payReferenceInput" style="display: block; font-size: 12px; font-weight: 600; margin-bottom: 5px;">Nº Referencia / Lote</label>
+                            <input type="text" id="payReferenceInput" class="portal-input" placeholder="Últimos 6 u 8 dígitos" required style="width: 100%; padding: 10px 12px; border-radius: 8px; border: 1px solid var(--border-primary);">
+                        </div>
+                    </div>
+
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 12px;">
+                        <div>
+                            <label for="payDateInput" style="display: block; font-size: 12px; font-weight: 600; margin-bottom: 5px;">Fecha del Pago</label>
+                            <input type="date" id="payDateInput" class="portal-input" required style="width: 100%; padding: 9px 12px; border-radius: 8px; border: 1px solid var(--border-primary);">
+                        </div>
+                        <div>
+                            <label for="payConceptInput" style="display: block; font-size: 12px; font-weight: 600; margin-bottom: 5px;">Concepto / Detalle</label>
+                            <input type="text" id="payConceptInput" class="portal-input" placeholder="Ej: Sesión individual de terapia" style="width: 100%; padding: 10px 12px; border-radius: 8px; border: 1px solid var(--border-primary);">
+                        </div>
+                    </div>
+
+                    <div style="margin-bottom: 14px;">
+                        <label for="payReceiptFile" style="display: block; font-size: 12px; font-weight: 600; margin-bottom: 5px;">Comprobante de Captura (opcional, imagen o PDF)</label>
+                        <input type="file" id="payReceiptFile" accept="image/*,.pdf" style="width: 100%; font-size: 12px; padding: 7px; border-radius: 8px; border: 1px dashed var(--border-primary); background: rgba(0,0,0,0.02);">
+                    </div>
+
+                    <button type="submit" id="btnSubmitPaymentReport" class="btn-primary" style="width: 100%; justify-content: center; padding: 12px 16px; font-weight: 700; border-radius: 8px; background: #059669;">
+                        <i class="fas fa-paper-plane" style="margin-right: 6px;"></i> Enviar Reporte de Pago
+                    </button>
+                </form>
+            </div>
+
+            <!-- HISTORIAL DE PAGOS REPORTADOS -->
+            <div class="section-card">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px;">
+                    <h3 style="margin: 0; font-size: 15px; font-weight: 700; color: var(--text-primary); display: flex; align-items: center; gap: 8px;">
+                        <i class="fas fa-history" style="color: var(--accent-primary);"></i> Historial de Pagos y Recibos
+                    </h3>
+                    <span id="paymentReportsCount" style="font-size: 12px; color: var(--text-tertiary); font-weight: 600;">0 registros</span>
+                </div>
+                <div id="paymentReportsList" class="portal-payment-reports-list">
+                    <!-- Dynamic rendering -->
+                </div>
+            </div>
+        </div>
+
+        <!-- VISTA MI PERFIL (DATOS LLENADOS POR EL PACIENTE) -->
+        <div class="portal-view" id="viewProfile">
+            <div class="view-header">
+                <h2>Mi Perfil</h2>
+                <p class="view-subtitle">Consulta y actualiza tus datos de contacto, emergencia y expectativas terapéuticas</p>
+            </div>
+
+            <div class="section-card">
+                <div style="display: flex; align-items: center; gap: 14px; margin-bottom: 20px; padding-bottom: 16px; border-bottom: 1px solid var(--border-primary);">
+                    <div class="profile-avatar-large" id="profileLargeAvatar" style="width: 56px; height: 56px; border-radius: 50%; background: var(--accent-gradient, linear-gradient(135deg, #4f46e5, #7c3aed)); color: white; display: flex; align-items: center; justify-content: center; font-size: 22px; font-weight: 700; box-shadow: 0 4px 12px rgba(79,70,229,0.25);">
+                        👤
+                    </div>
+                    <div>
+                        <h3 id="profileDisplayName" style="margin: 0; font-size: 18px; font-weight: 700; color: var(--text-primary);">Paciente</h3>
+                        <p id="profileDisplaySubtitle" style="margin: 2px 0 0 0; font-size: 12px; color: var(--text-secondary);">Expediente Activo • Portal Seguro</p>
+                    </div>
+                </div>
+
+                <form id="formPatientProfile" onsubmit="handleSavePatientProfile(event)">
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 14px;">
+                        <div>
+                            <label for="profNameInput" style="display: block; font-size: 12px; font-weight: 600; margin-bottom: 5px;">Nombre Completo</label>
+                            <input type="text" id="profNameInput" class="portal-input" required style="width: 100%; padding: 10px 12px; border-radius: 8px; border: 1px solid var(--border-primary);">
+                        </div>
+                        <div>
+                            <label for="profBirthdateInput" style="display: block; font-size: 12px; font-weight: 600; margin-bottom: 5px;">Fecha de Nacimiento</label>
+                            <input type="date" id="profBirthdateInput" class="portal-input" style="width: 100%; padding: 9px 12px; border-radius: 8px; border: 1px solid var(--border-primary);">
+                        </div>
+                    </div>
+
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 14px;">
+                        <div>
+                            <label for="profPhoneInput" style="display: block; font-size: 12px; font-weight: 600; margin-bottom: 5px;">Teléfono / WhatsApp</label>
+                            <input type="tel" id="profPhoneInput" class="portal-input" placeholder="+58 414-1234567" style="width: 100%; padding: 10px 12px; border-radius: 8px; border: 1px solid var(--border-primary);">
+                        </div>
+                        <div>
+                            <label for="profEmailInput" style="display: block; font-size: 12px; font-weight: 600; margin-bottom: 5px;">Correo Electrónico</label>
+                            <input type="email" id="profEmailInput" class="portal-input" placeholder="correo@ejemplo.com" style="width: 100%; padding: 10px 12px; border-radius: 8px; border: 1px solid var(--border-primary);">
+                        </div>
+                    </div>
+
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 14px;">
+                        <div>
+                            <label for="profOccupationInput" style="display: block; font-size: 12px; font-weight: 600; margin-bottom: 5px;">Ocupación / Profesión</label>
+                            <input type="text" id="profOccupationInput" class="portal-input" placeholder="Ej: Ingeniero, Docente, Estudiante..." style="width: 100%; padding: 10px 12px; border-radius: 8px; border: 1px solid var(--border-primary);">
+                        </div>
+                        <div>
+                            <label for="profAddressInput" style="display: block; font-size: 12px; font-weight: 600; margin-bottom: 5px;">Ciudad / Domicilio</label>
+                            <input type="text" id="profAddressInput" class="portal-input" placeholder="Ej: Caracas, Venezuela" style="width: 100%; padding: 10px 12px; border-radius: 8px; border: 1px solid var(--border-primary);">
+                        </div>
+                    </div>
+
+                    <div style="padding: 12px; background: rgba(0,0,0,0.02); border-radius: 10px; margin-bottom: 16px; border: 1px solid var(--border-primary);">
+                        <h4 style="margin: 0 0 10px 0; font-size: 13px; font-weight: 700; color: var(--text-primary); display: flex; align-items: center; gap: 6px;">
+                            <i class="fas fa-phone-alt" style="color: #dc2626;"></i> Contacto de Emergencia
+                        </h4>
+                        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
+                            <div>
+                                <label for="profEmergencyContactInput" style="display: block; font-size: 11px; font-weight: 600; margin-bottom: 4px;">Nombre y Parentesco</label>
+                                <input type="text" id="profEmergencyContactInput" class="portal-input" placeholder="Ej: Carmen Gómez (Madre)" style="width: 100%; padding: 8px 10px; font-size: 13px; border-radius: 6px; border: 1px solid var(--border-primary);">
+                            </div>
+                            <div>
+                                <label for="profEmergencyPhoneInput" style="display: block; font-size: 11px; font-weight: 600; margin-bottom: 4px;">Teléfono de Contacto</label>
+                                <input type="tel" id="profEmergencyPhoneInput" class="portal-input" placeholder="+58 412-9876543" style="width: 100%; padding: 8px 10px; font-size: 13px; border-radius: 6px; border: 1px solid var(--border-primary);">
+                            </div>
+                        </div>
+                    </div>
+
+                    <div style="margin-bottom: 16px;">
+                        <label for="profExpectationsInput" style="display: block; font-size: 12px; font-weight: 600; margin-bottom: 5px;">¿Qué esperas lograr en este proceso terapéutico?</label>
+                        <textarea id="profExpectationsInput" class="portal-input" rows="3" placeholder="Describe brevemente tus metas personales o lo que deseas trabajar en consulta..." style="width: 100%; padding: 10px 12px; border-radius: 8px; border: 1px solid var(--border-primary); font-family: inherit; font-size: 13px; resize: vertical;"></textarea>
+                    </div>
+
+                    <button type="submit" id="btnSaveProfile" class="btn-primary" style="width: 100%; justify-content: center; padding: 12px 16px; font-weight: 700; border-radius: 8px;">
+                        <i class="fas fa-save" style="margin-right: 6px;"></i> Guardar Mis Datos
+                    </button>
+                </form>
             </div>
         </div>
 
@@ -1055,15 +1434,31 @@
             <i class="fas fa-home"></i>
             <span>Inicio</span>
         </button>
-        <button class="nav-btn" data-view="tasks" onclick="switchView('tasks')">
+        <button class="nav-btn" data-view="sessions" onclick="switchView('sessions')">
+            <i class="fas fa-calendar-check"></i>
+            <span>Sesiones</span>
+        </button>
+        <button class="nav-btn" data-view="documents" onclick="switchView('documents')">
+            <i class="fas fa-folder-open"></i>
+            <span>Documentos</span>
+        </button>
+        <button class="nav-btn" data-view="payments" onclick="switchView('payments')">
+            <i class="fas fa-wallet"></i>
+            <span>Pagos</span>
+        </button>
+        <button class="nav-btn" data-view="profile" onclick="switchView('profile')">
+            <i class="fas fa-user-circle"></i>
+            <span>Mi Perfil</span>
+        </button>
+        <button class="nav-btn" data-view="tasks" onclick="switchView('tasks')" style="display: none;">
             <i class="fas fa-tasks"></i>
             <span>Tareas</span>
         </button>
-        <button class="nav-btn" data-view="tests" onclick="switchView('tests')">
+        <button class="nav-btn" data-view="tests" onclick="switchView('tests')" style="display: none;">
             <i class="fas fa-heart"></i>
             <span>Bienestar</span>
         </button>
-        <button class="nav-btn" data-view="progress" onclick="switchView('progress')">
+        <button class="nav-btn" data-view="progress" onclick="switchView('progress')" style="display: none;">
             <i class="fas fa-chart-line"></i>
             <span>Progreso</span>
         </button>
@@ -1358,6 +1753,101 @@
                 <button type="button" class="btn-kid-puffy-sm" onclick="confirmCustomBubble()" style="background: #34d399; color: white;">🫧 ¡Soplar Burbuja!</button>
             </div>
         </div>
+    </div>
+</div>
+
+<!-- MODAL AGENDAR PRÓXIMA SESIÓN -->
+<div id="scheduleSessionModal" class="modal" style="display: none;">
+    <div class="modal-overlay" onclick="closeScheduleSessionModal()"></div>
+    <div class="modal-content" style="max-width: 480px; border-radius: var(--radius-lg); background: var(--bg-card); box-shadow: var(--shadow-lg);">
+        <div class="modal-header" style="display: flex; justify-content: space-between; align-items: center; padding: 18px 22px; border-bottom: 1px solid var(--border-primary);">
+            <div style="display: flex; align-items: center; gap: 12px;">
+                <div style="width: 40px; height: 40px; border-radius: 12px; background: var(--accent-light); color: var(--accent-primary); display: flex; align-items: center; justify-content: center; font-size: 18px;">
+                    <i class="fas fa-calendar-plus"></i>
+                </div>
+                <div>
+                    <h3 style="margin: 0; font-size: 16.5px; font-weight: 700; color: var(--text-primary);">Agendar Próxima Sesión</h3>
+                    <p style="margin: 2px 0 0 0; font-size: 12px; color: var(--text-secondary);">Selecciona tu fecha, horario y modalidad de preferencia</p>
+                </div>
+            </div>
+            <button class="btn-icon" onclick="closeScheduleSessionModal()" style="background: none; border: none; font-size: 18px; color: var(--text-tertiary); cursor: pointer;">✕</button>
+        </div>
+        <form id="scheduleSessionForm" onsubmit="handleScheduleSessionSubmit(event)" style="padding: 20px 22px;">
+            <div class="form-group" style="margin-bottom: 14px;">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
+                    <label style="font-size: 12.5px; font-weight: 600; color: var(--text-primary); margin: 0;">
+                        <i class="far fa-calendar-alt" style="color: var(--accent-primary); margin-right: 4px;"></i> Fecha de la Sesión *
+                    </label>
+                    <span id="scheduleDayBadge" style="font-size: 11px; font-weight: 600; color: var(--text-secondary);"></span>
+                </div>
+                <input type="date" id="scheduleDate" required onchange="handleScheduleDateChange(this.value)" style="width: 100%; padding: 10px 14px; border: 1px solid var(--border-secondary); border-radius: var(--radius-sm); font-family: inherit; font-size: 13.5px; background: var(--bg-secondary); color: var(--text-primary); outline: none;">
+            </div>
+
+            <div class="form-group" style="margin-bottom: 14px;">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
+                    <label style="font-size: 12.5px; font-weight: 600; color: var(--text-primary); margin: 0;">
+                        <i class="far fa-clock" style="color: var(--accent-primary); margin-right: 4px;"></i> Selección Inteligente de Horario *
+                    </label>
+                    <span id="slotAvailabilitySummary" class="slot-summary-badge"></span>
+                </div>
+                <!-- Select oculto sincronizado para compatibilidad de formulario y pruebas -->
+                <select id="scheduleTime" required style="display: none;">
+                    <option value="08:00">08:00 AM</option>
+                    <option value="09:00">09:00 AM</option>
+                    <option value="10:00" selected>10:00 AM</option>
+                    <option value="11:00">11:00 AM</option>
+                    <option value="12:00">12:00 PM</option>
+                    <option value="14:00">02:00 PM</option>
+                    <option value="15:00">03:00 PM</option>
+                    <option value="16:00">04:00 PM</option>
+                    <option value="17:00">05:00 PM</option>
+                    <option value="18:00">06:00 PM</option>
+                </select>
+                <!-- Contenedor dinámico de horarios inteligentes -->
+                <div id="smartSlotsContainer" class="smart-slots-container"></div>
+                <div id="slotSelectedFeedback" style="display: none; margin-top: 8px; font-size: 12px; color: #059669; background: rgba(16, 185, 129, 0.08); padding: 7px 12px; border-radius: 8px; border: 1px solid rgba(16, 185, 129, 0.2);">
+                    <i class="fas fa-check-circle" style="margin-right: 5px;"></i> Horario seleccionado: <strong id="selectedSlotText"></strong> (Disponible para ti)
+                </div>
+            </div>
+
+            <div class="form-group" style="margin-bottom: 14px;">
+                <label style="display: block; font-size: 12.5px; font-weight: 600; margin-bottom: 6px; color: var(--text-primary);">
+                    <i class="fas fa-video" style="color: var(--accent-primary); margin-right: 4px;"></i> Modalidad de Consulta *
+                </label>
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
+                    <div class="modality-option-label active" id="modalityOnlineLabel" onclick="selectPortalModality('Online')">
+                        <input type="radio" name="portalModality" value="Online" checked style="display: none;">
+                        <span style="font-size: 20px;">💻</span>
+                        <div style="text-align: left;">
+                            <strong style="display: block; font-size: 13px;">Online</strong>
+                            <small style="color: var(--text-secondary); font-size: 10.5px;">Videollamada</small>
+                        </div>
+                    </div>
+                    <div class="modality-option-label" id="modalityPresencialLabel" onclick="selectPortalModality('Presencial')">
+                        <input type="radio" name="portalModality" value="Presencial" style="display: none;">
+                        <span style="font-size: 20px;">🏢</span>
+                        <div style="text-align: left;">
+                            <strong style="display: block; font-size: 13px;">Presencial</strong>
+                            <small style="color: var(--text-secondary); font-size: 10.5px;">En consultorio</small>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="form-group" style="margin-bottom: 18px;">
+                <label style="display: block; font-size: 12.5px; font-weight: 600; margin-bottom: 6px; color: var(--text-primary);">
+                    <i class="far fa-comment-dots" style="color: var(--accent-primary); margin-right: 4px;"></i> Motivo o temas de consulta (Opcional)
+                </label>
+                <textarea id="scheduleNotes" rows="2" placeholder="¿Hay algún tema o avance que te gustaría profundizar en esta sesión?" style="width: 100%; padding: 10px 14px; border: 1px solid var(--border-secondary); border-radius: var(--radius-sm); font-family: inherit; font-size: 13px; background: var(--bg-secondary); color: var(--text-primary); outline: none; resize: vertical;"></textarea>
+            </div>
+
+            <div style="display: flex; justify-content: flex-end; gap: 10px; margin-top: 10px;">
+                <button type="button" class="btn-secondary" onclick="closeScheduleSessionModal()" style="padding: 10px 18px; border-radius: var(--radius-sm);">Cancelar</button>
+                <button type="submit" class="btn-primary" id="btnConfirmSchedule" style="padding: 10px 20px; border-radius: var(--radius-sm); font-weight: 700;">
+                    <i class="fas fa-check" style="margin-right: 6px;"></i> Agendar Sesión
+                </button>
+            </div>
+        </form>
     </div>
 </div>
 

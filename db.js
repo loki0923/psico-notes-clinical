@@ -86,7 +86,9 @@ class DatabaseManager {
             billing_invoices: [],
             kid_portal_activities: [],
             therapist_style_profiles: {},
-            therapy_roadmap_sessions: []
+            therapy_roadmap_sessions: [],
+            patient_documents: [],
+            patient_payment_reports: []
         };
     }
 
@@ -252,44 +254,115 @@ class DatabaseManager {
         if (!patientId) return null;
 
         if (this.isPostgresConnected && this.pgPool) {
-            const [pRes, tasksRes, cbtRes, moodsRes, evalsRes, alertsRes] = await Promise.all([
+            const [pRes, tasksRes, cbtRes, moodsRes, evalsRes, alertsRes, appsRes] = await Promise.all([
                 this.pgPool.query('SELECT * FROM patients WHERE id = $1', [patientId]),
                 this.pgPool.query('SELECT * FROM patient_tasks WHERE patient_id = $1 ORDER BY created_at DESC', [patientId]),
                 this.pgPool.query('SELECT * FROM cbt_records WHERE patient_id = $1 ORDER BY created_at DESC', [patientId]),
                 this.pgPool.query('SELECT * FROM mood_logs WHERE patient_id = $1 ORDER BY created_at DESC LIMIT 30', [patientId]),
                 this.pgPool.query('SELECT * FROM evaluations WHERE patient_id = $1 ORDER BY created_at DESC', [patientId]),
-                this.pgPool.query('SELECT * FROM crisis_alerts WHERE patient_id = $1 AND acknowledged = FALSE ORDER BY created_at DESC LIMIT 1', [patientId])
+                this.pgPool.query('SELECT * FROM crisis_alerts WHERE patient_id = $1 AND acknowledged = FALSE ORDER BY created_at DESC LIMIT 1', [patientId]),
+                this.pgPool.query('SELECT * FROM appointments WHERE patient_id = $1 ORDER BY appointment_date ASC, appointment_time ASC', [patientId]).catch(() => ({ rows: [] }))
             ]);
 
             const patient = pRes.rows[0];
             if (!patient) return null;
 
+            const normalizedAppointments = (appsRes.rows || []).map(r => ({
+                id: r.id,
+                patientId: r.patient_id,
+                patient_id: r.patient_id,
+                date: r.appointment_date instanceof Date ? r.appointment_date.toISOString().split('T')[0] : String(r.appointment_date).split('T')[0],
+                time: String(r.appointment_time || '').substring(0, 5),
+                duration: Number(r.duration) || 50,
+                status: r.status || 'agendada',
+                attendanceConfirmed: Boolean(r.attendance_confirmed || r.status === 'confirmada'),
+                type: r.type || 'Online',
+                notes: r.notes || '',
+                createdAt: r.created_at
+            }));
+
+            const therapistRes = patient.therapist_id 
+                ? await this.pgPool.query('SELECT * FROM therapists WHERE id = $1', [patient.therapist_id]).catch(() => ({ rows: [] }))
+                : { rows: [] };
+            const therapist = therapistRes.rows[0] || {};
+            const therapistInfo = {
+                name: therapist.name || patient.therapist_name || 'Licenciado(a) en Psicología',
+                specialty: therapist.specialty || patient.therapist_specialty || 'Psicología Clínica y de la Salud',
+                registryNumber: therapist.registry_number || patient.therapist_registry || 'FPV Nº 54567',
+                email: therapist.email || 'terapia.clinica@gmail.com',
+                phone: therapist.phone || '+58 414-0000000',
+                location: therapist.institution || 'Consultorio Clínico / Consulta Online y Presencial'
+            };
+            const documents = await this.getPatientDocuments(patientId);
+            const paymentReports = await this.getPatientPaymentReports(patientId);
+            const paymentMethods = await this.getTherapistPaymentMethods(patient.therapist_id);
+
             return {
                 patient,
+                therapistInfo,
+                paymentMethods,
+                documents,
+                paymentReports,
                 tasks: tasksRes.rows,
                 cbtRecords: cbtRes.rows,
                 moodLogs: moodsRes.rows,
                 evaluations: evalsRes.rows,
                 hasActiveCrisisAlert: alertsRes.rows.length > 0,
-                kidActivities: await this.getKidActivities(patientId)
+                kidActivities: await this.getKidActivities(patientId),
+                appointments: normalizedAppointments
             };
         }
 
         const patient = this.localStore.patients.find(p => p.id === patientId);
         if (!patient) return null;
 
+        const therapist = (this.localStore.therapists || []).find(t => t.id === patient.therapist_id) || {};
+        const therapistInfo = {
+            name: therapist.name || patient.therapist_name || 'Licenciado(a) en Psicología',
+            specialty: therapist.specialty || patient.therapist_specialty || 'Psicología Clínica y de la Salud',
+            registryNumber: therapist.registry_number || patient.therapist_registry || 'FPV Nº 54567',
+            email: therapist.email || 'terapia.clinica@gmail.com',
+            phone: therapist.phone || '+58 414-0000000',
+            location: therapist.institution || 'Consultorio Clínico / Consulta Online y Presencial'
+        };
+
+        const localApps = (this.localStore.appointments || [])
+            .filter(a => String(a.patient_id || a.patientId) === String(patientId))
+            .map(a => ({
+                id: a.id,
+                patientId: a.patientId || a.patient_id,
+                patient_id: a.patientId || a.patient_id,
+                date: a.date || a.appointment_date,
+                time: String(a.time || a.appointment_time || '').substring(0, 5),
+                duration: Number(a.duration) || 50,
+                status: a.status || 'agendada',
+                attendanceConfirmed: Boolean(a.attendance_confirmed || a.attendanceConfirmed || a.status === 'confirmada'),
+                type: a.type || 'Online',
+                notes: a.notes || '',
+                createdAt: a.createdAt || a.created_at || new Date().toISOString()
+            }));
+
+        const documents = await this.getPatientDocuments(patientId);
+        const paymentReports = await this.getPatientPaymentReports(patientId);
+        const paymentMethods = await this.getTherapistPaymentMethods(patient.therapist_id);
+
         return {
             patient,
-            tasks: this.localStore.patient_tasks.filter(t => t.patient_id === patientId),
-            cbtRecords: this.localStore.cbt_records.filter(c => c.patient_id === patientId),
-            moodLogs: this.localStore.mood_logs.filter(m => m.patient_id === patientId),
-            evaluations: this.localStore.evaluations.filter(e => e.patient_id === patientId),
-            hasActiveCrisisAlert: this.localStore.crisis_alerts.some(a => a.patient_id === patientId && !a.acknowledged),
-            kidActivities: (this.localStore.kid_portal_activities || []).filter(k => k.patient_id === patientId)
+            therapistInfo,
+            paymentMethods,
+            documents,
+            paymentReports,
+            tasks: (this.localStore.patient_tasks || []).filter(t => t.patient_id === patientId),
+            cbtRecords: (this.localStore.cbt_records || []).filter(c => c.patient_id === patientId),
+            moodLogs: (this.localStore.mood_logs || []).filter(m => m.patient_id === patientId),
+            evaluations: (this.localStore.evaluations || []).filter(e => e.patient_id === patientId),
+            hasActiveCrisisAlert: (this.localStore.crisis_alerts || []).some(a => a.patient_id === patientId && !a.acknowledged),
+            kidActivities: (this.localStore.kid_portal_activities || []).filter(k => k.patient_id === patientId),
+            appointments: localApps
         };
     }
 
-    async addMoodLog(patientId, { mood, sleep, energy, note }) {
+    async addMoodLog(patientId, { mood, sleep, energy, note, word }) {
         const record = {
             id: `mood_${Date.now()}_${Math.random().toString(36).substr(2, 5)}`,
             patient_id: patientId,
@@ -297,18 +370,29 @@ class DatabaseManager {
             sleep_score: Number(sleep) || 3,
             energy_score: Number(energy) || 3,
             note: note || '',
+            word: word || '',
             created_at: new Date().toISOString()
         };
 
         if (this.isPostgresConnected && this.pgPool) {
-            const res = await this.pgPool.query(
-                `INSERT INTO mood_logs (id, patient_id, mood_score, sleep_score, energy_score, note, created_at)
-                 VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING *`,
-                [record.id, record.patient_id, record.mood_score, record.sleep_score, record.energy_score, record.note, record.created_at]
-            );
-            return res.rows[0];
+            try {
+                const res = await this.pgPool.query(
+                    `INSERT INTO mood_logs (id, patient_id, mood_score, sleep_score, energy_score, note, word, created_at)
+                     VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING *`,
+                    [record.id, record.patient_id, record.mood_score, record.sleep_score, record.energy_score, record.note, record.word, record.created_at]
+                );
+                return res.rows[0];
+            } catch (err) {
+                const res = await this.pgPool.query(
+                    `INSERT INTO mood_logs (id, patient_id, mood_score, sleep_score, energy_score, note, created_at)
+                     VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING *`,
+                    [record.id, record.patient_id, record.mood_score, record.sleep_score, record.energy_score, record.note, record.created_at]
+                );
+                return { ...res.rows[0], word: record.word };
+            }
         }
 
+        if (!this.localStore.mood_logs) this.localStore.mood_logs = [];
         this.localStore.mood_logs.unshift(record);
         this._persistLocalStore();
         return record;
@@ -476,6 +560,838 @@ class DatabaseManager {
             .sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
     }
 
+    async getTherapistAvailability(therapistId, dateStr, patientId = null) {
+        if (!dateStr) {
+            const tmrw = new Date();
+            tmrw.setDate(tmrw.getDate() + 1);
+            dateStr = tmrw.toISOString().split('T')[0];
+        }
+
+        const candidateSlots = [
+            { time: '08:00', label: '08:00 AM', shift: 'morning', recommended: false },
+            { time: '09:00', label: '09:00 AM', shift: 'morning', recommended: true },
+            { time: '10:00', label: '10:00 AM', shift: 'morning', recommended: true },
+            { time: '11:00', label: '11:00 AM', shift: 'morning', recommended: false },
+            { time: '12:00', label: '12:00 PM', shift: 'morning', recommended: false },
+            { time: '14:00', label: '02:00 PM', shift: 'afternoon', recommended: false },
+            { time: '15:00', label: '03:00 PM', shift: 'afternoon', recommended: true },
+            { time: '16:00', label: '04:00 PM', shift: 'afternoon', recommended: true },
+            { time: '17:00', label: '05:00 PM', shift: 'afternoon', recommended: false },
+            { time: '18:00', label: '06:00 PM', shift: 'afternoon', recommended: false }
+        ];
+
+        const [y, m, d] = dateStr.split('-').map(Number);
+        const targetDate = new Date(y, m - 1, d, 12, 0, 0);
+        const dayOfWeek = targetDate.getDay();
+        const isSunday = dayOfWeek === 0;
+
+        const dayNames = ['Domingo', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado'];
+        const dayName = dayNames[dayOfWeek] || '';
+
+        const now = new Date();
+        const todayStr = now.toISOString().split('T')[0];
+        const isToday = dateStr === todayStr;
+        const currentMinutes = now.getHours() * 60 + now.getMinutes();
+
+        let occupiedApps = [];
+
+        if (this.isPostgresConnected && this.pgPool) {
+            try {
+                const res = await this.pgPool.query(
+                    `SELECT a.id, a.patient_id, a.appointment_date, a.appointment_time, a.duration, a.status
+                     FROM appointments a
+                     LEFT JOIN patients p ON a.patient_id = p.id
+                     WHERE (p.therapist_id = $1 OR a.patient_id = $2 OR $1 IS NULL)
+                       AND a.appointment_date = $3
+                       AND a.status NOT IN ('cancelada')`,
+                    [therapistId || null, patientId || null, dateStr]
+                );
+                occupiedApps = res.rows.map(r => ({
+                    time: String(r.appointment_time || '').substring(0, 5),
+                    duration: Number(r.duration) || 50
+                }));
+            } catch (err) {
+                console.warn('[DB] Error consultando citas para disponibilidad:', err.message);
+            }
+        } else {
+            const therapistPatientIds = new Set(
+                (this.localStore.patients || [])
+                    .filter(p => !therapistId || p.therapist_id === therapistId || p.therapistId === therapistId)
+                    .map(p => p.id)
+            );
+            if (patientId) therapistPatientIds.add(patientId);
+
+            occupiedApps = (this.localStore.appointments || [])
+                .filter(a => {
+                    const aDate = (a.date || a.appointment_date || '').toString().split('T')[0];
+                    if (aDate !== dateStr) return false;
+                    if (a.status === 'cancelada') return false;
+                    const pId = a.patientId || a.patient_id;
+                    if (therapistId && !therapistPatientIds.has(pId) && (!patientId || pId !== patientId)) return false;
+                    return true;
+                })
+                .map(a => ({
+                    time: String(a.time || a.appointment_time || '').substring(0, 5),
+                    duration: Number(a.duration) || 50
+                }));
+        }
+
+        const slots = candidateSlots.map(slot => {
+            const [sh, sm] = slot.time.split(':').map(Number);
+            const slotStart = sh * 60 + sm;
+            const slotEnd = slotStart + 50;
+
+            if (isSunday) {
+                return {
+                    ...slot,
+                    available: false,
+                    reason: 'Día no laborable (Domingo)'
+                };
+            }
+
+            if (isToday && slotStart <= currentMinutes + 15) {
+                return {
+                    ...slot,
+                    available: false,
+                    reason: 'Horario pasado'
+                };
+            }
+
+            const conflict = occupiedApps.some(app => {
+                const [ah, am] = (app.time || '00:00').split(':').map(Number);
+                const appStart = ah * 60 + am;
+                const appEnd = appStart + (app.duration || 50);
+                return Math.max(slotStart, appStart) < Math.min(slotEnd, appEnd);
+            });
+
+            if (conflict) {
+                return {
+                    ...slot,
+                    available: false,
+                    reason: 'Horario ocupado'
+                };
+            }
+
+            return {
+                ...slot,
+                available: true,
+                reason: null
+            };
+        });
+
+        const totalAvailable = slots.filter(s => s.available).length;
+        const totalOccupied = slots.filter(s => !s.available && s.reason === 'Horario ocupado').length;
+
+        return {
+            date: dateStr,
+            dayName,
+            isWorkingDay: !isSunday,
+            slots,
+            availableSlots: slots.filter(s => s.available),
+            totalAvailable,
+            totalOccupied,
+            message: isSunday ? 'El consultorio no atiende los domingos. Por favor selecciona de lunes a sábado.' : (totalAvailable === 0 ? 'No hay disponibilidad para esta fecha.' : 'Horarios disponibles encontrados.')
+        };
+    }
+
+    async isSlotAvailable(therapistId, dateStr, timeStr, patientId = null) {
+        if (!dateStr || !timeStr) return false;
+        const cleanTime = String(timeStr).substring(0, 5);
+        const availability = await this.getTherapistAvailability(therapistId, dateStr, patientId);
+        if (!availability.isWorkingDay) return false;
+        const slot = availability.slots.find(s => s.time === cleanTime);
+        return slot ? Boolean(slot.available) : false;
+    }
+
+    async getTherapistAppointments(therapistId) {
+        if (!therapistId) return [];
+
+        if (this.isPostgresConnected && this.pgPool) {
+            try {
+                const res = await this.pgPool.query(
+                    `SELECT a.id, a.patient_id, a.appointment_date, a.appointment_time,
+                            a.duration, a.status, a.notes, a.created_at
+                     FROM appointments a
+                     JOIN patients p ON a.patient_id = p.id
+                     WHERE p.therapist_id = $1
+                     ORDER BY a.appointment_date ASC, a.appointment_time ASC`,
+                    [therapistId]
+                );
+                return res.rows.map(r => ({
+                    id: r.id,
+                    patientId: r.patient_id,
+                    patient_id: r.patient_id,
+                    date: r.appointment_date instanceof Date ? r.appointment_date.toISOString().split('T')[0] : String(r.appointment_date).split('T')[0],
+                    time: String(r.appointment_time || '').substring(0, 5),
+                    duration: Number(r.duration) || 50,
+                    status: r.status || 'agendada',
+                    type: r.type || 'Online',
+                    notes: r.notes || '',
+                    createdAt: r.created_at
+                }));
+            } catch (err) {
+                console.warn('[DB] Error consultando citas del terapeuta:', err.message);
+                return [];
+            }
+        }
+
+        const therapistPatients = new Set(
+            (this.localStore.patients || [])
+                .filter(p => p.therapist_id === therapistId || p.therapistId === therapistId)
+                .map(p => p.id)
+        );
+
+        return (this.localStore.appointments || [])
+            .filter(a => therapistPatients.has(a.patientId || a.patient_id))
+            .map(a => ({
+                id: a.id,
+                patientId: a.patientId || a.patient_id,
+                patient_id: a.patientId || a.patient_id,
+                date: (a.date || a.appointment_date || '').toString().split('T')[0],
+                time: String(a.time || a.appointment_time || '').substring(0, 5),
+                duration: Number(a.duration) || 50,
+                status: a.status || 'agendada',
+                type: a.type || 'Online',
+                notes: a.notes || '',
+                createdAt: a.createdAt || a.created_at || new Date().toISOString()
+            }));
+    }
+
+    async createPortalAppointment(patientId, { date, time, duration = 50, type = 'Online', notes = '' }) {
+        if (!patientId || !date || !time) {
+            throw new Error('patientId, date y time son requeridos');
+        }
+
+        const id = `apt_${Date.now()}_${Math.random().toString(36).substr(2, 6)}`;
+        const status = 'agendada';
+        const createdAt = new Date().toISOString();
+
+        if (this.isPostgresConnected && this.pgPool) {
+            const res = await this.pgPool.query(
+                `INSERT INTO appointments (id, patient_id, appointment_date, appointment_time, duration, status, notes, created_at)
+                 VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+                 RETURNING *`,
+                [id, patientId, date, time, Number(duration) || 50, status, notes, createdAt]
+            );
+            const r = res.rows[0];
+            return {
+                id: r.id,
+                patientId: r.patient_id,
+                patient_id: r.patient_id,
+                date: r.appointment_date instanceof Date ? r.appointment_date.toISOString().split('T')[0] : String(r.appointment_date).split('T')[0],
+                time: String(r.appointment_time || '').substring(0, 5),
+                duration: Number(r.duration) || 50,
+                status: r.status,
+                type,
+                notes: r.notes || '',
+                createdAt: r.created_at
+            };
+        }
+
+        if (!Array.isArray(this.localStore.appointments)) {
+            this.localStore.appointments = [];
+        }
+
+        const record = {
+            id,
+            patientId,
+            patient_id: patientId,
+            date,
+            time: String(time).substring(0, 5),
+            duration: Number(duration) || 50,
+            type,
+            status,
+            notes,
+            createdAt
+        };
+
+        this.localStore.appointments.unshift(record);
+        this._persistLocalStore();
+        return record;
+    }
+
+    getDefaultPaymentMethods(therapist = {}, billingConfig = {}) {
+        return [
+            {
+                id: 'pago_movil',
+                name: 'Pago Móvil Interbancario',
+                icon: '📱',
+                bank: 'Banesco (0134) / Mercantil (0105)',
+                idNumber: billingConfig.rif || 'V-15890123',
+                phone: billingConfig.phone || therapist.phone || '0414-2345678',
+                instructions: 'Registrar la referencia bancaria al completar la transferencia.',
+                enabled: true
+            },
+            {
+                id: 'zelle',
+                name: 'Zelle (USD)',
+                icon: '💵',
+                email: therapist.email || 'terapia.clinica@gmail.com',
+                holder: therapist.name || 'Dr. Terapeuta Clínico',
+                instructions: 'Indicar únicamente el nombre del paciente en la nota o memo.',
+                enabled: true
+            },
+            {
+                id: 'transferencia',
+                name: 'Transferencia Bancaria Nacional',
+                icon: '🏦',
+                bank: 'Banesco Banco Universal',
+                accountNumber: '0134-0987-65-0123456789',
+                holder: billingConfig.fiscal_name || therapist.name || 'Consulta Psicológica',
+                idNumber: billingConfig.rif || 'V-15890123',
+                instructions: 'Acreditación inmediata para cuentas del mismo banco.',
+                enabled: true
+            },
+            {
+                id: 'binance',
+                name: 'Binance Pay / Cripto (USDT)',
+                icon: '🟡',
+                payId: '892341052',
+                network: 'USDT (Red TRC20 / BEP20)',
+                instructions: 'Transferencias directas con 0% comisión mediante Binance Pay ID.',
+                enabled: true
+            },
+            {
+                id: 'efectivo',
+                name: 'Efectivo en Consulta',
+                icon: '💶',
+                currency: 'USD / EUR / VES',
+                instructions: 'Pago directo en recepción previo al inicio de su sesión presencial.',
+                enabled: true
+            }
+        ];
+    }
+
+    async getTherapistPaymentMethods(therapistId) {
+        if (!therapistId) return this.getDefaultPaymentMethods();
+
+        if (this.isPostgresConnected && this.pgPool) {
+            try {
+                const res = await this.pgPool.query('SELECT payment_methods FROM therapists WHERE id = $1', [therapistId]);
+                if (res.rows && res.rows[0] && Array.isArray(res.rows[0].payment_methods) && res.rows[0].payment_methods.length > 0) {
+                    return res.rows[0].payment_methods;
+                }
+            } catch (e) {}
+        }
+
+        if (this.localStore?.therapist_payment_methods && Array.isArray(this.localStore.therapist_payment_methods[therapistId]) && this.localStore.therapist_payment_methods[therapistId].length > 0) {
+            return this.localStore.therapist_payment_methods[therapistId];
+        }
+
+        const therapist = (this.localStore?.therapists || []).find(t => String(t.id) === String(therapistId)) || {};
+        const billingConfig = (this.localStore?.billing_configs && this.localStore.billing_configs[therapistId]) || {};
+
+        return this.getDefaultPaymentMethods(therapist, billingConfig);
+    }
+
+    async saveTherapistPaymentMethods(therapistId, paymentMethods) {
+        if (!therapistId) throw new Error('therapistId requerido');
+        if (!Array.isArray(paymentMethods)) throw new Error('paymentMethods debe ser un arreglo');
+
+        if (this.isPostgresConnected && this.pgPool) {
+            try {
+                await this.pgPool.query(
+                    `UPDATE therapists 
+                     SET payment_methods = $2::jsonb, updated_at = CURRENT_TIMESTAMP 
+                     WHERE id = $1`,
+                    [therapistId, JSON.stringify(paymentMethods)]
+                );
+            } catch (err) {
+                console.warn('[DB] Error guardando payment_methods en PostgreSQL:', err.message);
+            }
+        }
+
+        if (!this.localStore.therapist_payment_methods) {
+            this.localStore.therapist_payment_methods = {};
+        }
+        this.localStore.therapist_payment_methods[therapistId] = paymentMethods;
+        this._persistLocalStore();
+
+        return paymentMethods;
+    }
+
+    async confirmAppointmentAttendance(appointmentId, patientId = null) {
+        if (!appointmentId) throw new Error('appointmentId requerido');
+
+        if (this.isPostgresConnected && this.pgPool) {
+            let res;
+            if (patientId) {
+                res = await this.pgPool.query(
+                    `UPDATE appointments 
+                     SET attendance_confirmed = TRUE,
+                         status = CASE WHEN status = 'completada' THEN 'completada' ELSE 'confirmada' END
+                     WHERE id = $1 AND patient_id = $2
+                     RETURNING *`,
+                    [appointmentId, patientId]
+                );
+            } else {
+                res = await this.pgPool.query(
+                    `UPDATE appointments 
+                     SET attendance_confirmed = TRUE,
+                         status = CASE WHEN status = 'completada' THEN 'completada' ELSE 'confirmada' END
+                     WHERE id = $1
+                     RETURNING *`,
+                    [appointmentId]
+                );
+            }
+            if (res.rows && res.rows[0]) {
+                const r = res.rows[0];
+                return {
+                    id: r.id,
+                    patientId: r.patient_id,
+                    date: r.appointment_date instanceof Date ? r.appointment_date.toISOString().split('T')[0] : String(r.appointment_date).split('T')[0],
+                    time: String(r.appointment_time || '').substring(0, 5),
+                    duration: Number(r.duration) || 50,
+                    status: r.status,
+                    attendanceConfirmed: true,
+                    notes: r.notes || ''
+                };
+            }
+            return null;
+        }
+
+        const app = (this.localStore.appointments || []).find(a => 
+            String(a.id) === String(appointmentId) && (!patientId || String(a.patientId || a.patient_id) === String(patientId))
+        );
+        if (!app) return null;
+
+        app.attendance_confirmed = true;
+        app.attendanceConfirmed = true;
+        if (app.status !== 'completada') {
+            app.status = 'confirmada';
+        }
+        app.updatedAt = new Date().toISOString();
+        this._persistLocalStore();
+        return app;
+    }
+
+    async updateAppointmentStatus(appointmentId, { status, notes, date, time, duration, therapistId = null } = {}) {
+        if (!appointmentId) throw new Error('appointmentId requerido');
+
+        if (this.isPostgresConnected && this.pgPool) {
+            const fields = [];
+            const values = [appointmentId];
+            let pIndex = 2;
+
+            if (status) {
+                fields.push(`status = $${pIndex++}`);
+                values.push(status);
+            }
+            if (notes !== undefined) {
+                fields.push(`notes = $${pIndex++}`);
+                values.push(notes);
+            }
+            if (date) {
+                fields.push(`appointment_date = $${pIndex++}`);
+                values.push(date);
+            }
+            if (time) {
+                fields.push(`appointment_time = $${pIndex++}`);
+                values.push(time);
+            }
+            if (duration) {
+                fields.push(`duration = $${pIndex++}`);
+                values.push(Number(duration) || 50);
+            }
+
+            if (fields.length > 0) {
+                const query = `UPDATE appointments SET ${fields.join(', ')} WHERE id = $1 RETURNING *`;
+                const res = await this.pgPool.query(query, values);
+                if (res.rows && res.rows[0]) {
+                    const r = res.rows[0];
+                    return {
+                        id: r.id,
+                        patientId: r.patient_id,
+                        patient_id: r.patient_id,
+                        date: r.appointment_date instanceof Date ? r.appointment_date.toISOString().split('T')[0] : String(r.appointment_date).split('T')[0],
+                        time: String(r.appointment_time || '').substring(0, 5),
+                        duration: Number(r.duration) || 50,
+                        status: r.status,
+                        notes: r.notes || '',
+                        attendanceConfirmed: Boolean(r.attendance_confirmed),
+                        createdAt: r.created_at
+                    };
+                }
+            }
+        }
+
+        if (!Array.isArray(this.localStore.appointments)) {
+            this.localStore.appointments = [];
+        }
+
+        const app = this.localStore.appointments.find(a => String(a.id) === String(appointmentId));
+        if (!app) return null;
+
+        if (status) app.status = status;
+        if (notes !== undefined) app.notes = notes;
+        if (date) {
+            app.date = date;
+            app.appointment_date = date;
+        }
+        if (time) {
+            app.time = String(time).substring(0, 5);
+            app.appointment_time = String(time).substring(0, 5);
+        }
+        if (duration) app.duration = Number(duration) || 50;
+        app.updatedAt = new Date().toISOString();
+
+        this._persistLocalStore();
+        return app;
+    }
+
+    async deleteAppointment(appointmentId, therapistId = null) {
+        if (!appointmentId) throw new Error('appointmentId requerido');
+
+        if (this.isPostgresConnected && this.pgPool) {
+            const res = await this.pgPool.query(
+                `UPDATE appointments SET status = 'cancelada' WHERE id = $1 RETURNING *`,
+                [appointmentId]
+            );
+            return res.rows && res.rows.length > 0;
+        }
+
+        if (!Array.isArray(this.localStore.appointments)) return false;
+        const app = this.localStore.appointments.find(a => String(a.id) === String(appointmentId));
+        if (app) {
+            app.status = 'cancelada';
+            app.updatedAt = new Date().toISOString();
+            this._persistLocalStore();
+            return true;
+        }
+        return false;
+    }
+
+    async syncTherapistAppointments(therapistId, appointmentsList) {
+        if (!Array.isArray(appointmentsList)) return [];
+        const results = [];
+        for (const app of appointmentsList) {
+            if (!app || !app.id || !app.patientId || !app.date) continue;
+            const pId = app.patientId || app.patient_id;
+            const aDate = (app.date || app.appointment_date || '').toString().split('T')[0];
+            const aTime = String(app.time || app.appointment_time || '10:00').substring(0, 5);
+            const aDuration = Number(app.duration) || 50;
+            const aStatus = app.status || 'agendada';
+            const aNotes = app.notes || '';
+
+            if (this.isPostgresConnected && this.pgPool) {
+                const res = await this.pgPool.query(
+                    `INSERT INTO appointments (id, patient_id, appointment_date, appointment_time, duration, status, notes)
+                     VALUES ($1, $2, $3, $4, $5, $6, $7)
+                     ON CONFLICT (id) DO UPDATE SET
+                        appointment_date = EXCLUDED.appointment_date,
+                        appointment_time = EXCLUDED.appointment_time,
+                        duration = EXCLUDED.duration,
+                        status = EXCLUDED.status,
+                        notes = EXCLUDED.notes
+                     RETURNING *`,
+                    [app.id, pId, aDate, aTime, aDuration, aStatus, aNotes]
+                ).catch(() => null);
+                if (res && res.rows[0]) results.push(res.rows[0]);
+            } else {
+                if (!Array.isArray(this.localStore.appointments)) this.localStore.appointments = [];
+                const idx = this.localStore.appointments.findIndex(a => String(a.id) === String(app.id));
+                const record = {
+                    id: app.id,
+                    patientId: pId,
+                    patient_id: pId,
+                    date: aDate,
+                    appointment_date: aDate,
+                    time: aTime,
+                    appointment_time: aTime,
+                    duration: aDuration,
+                    status: aStatus,
+                    notes: aNotes,
+                    updatedAt: new Date().toISOString()
+                };
+                if (idx >= 0) {
+                    this.localStore.appointments[idx] = { ...this.localStore.appointments[idx], ...record };
+                } else {
+                    this.localStore.appointments.unshift(record);
+                }
+                results.push(record);
+            }
+        }
+        if (!this.isPostgresConnected) {
+            this._persistLocalStore();
+        }
+        return results;
+    }
+
+    async savePatientDocument(patientId, therapistId, docData) {
+        if (!patientId || !docData.fileName) throw new Error('patientId y fileName son requeridos');
+        const record = {
+            id: `doc_${Date.now()}_${Math.random().toString(36).substr(2, 6)}`,
+            patient_id: patientId,
+            therapist_id: therapistId || null,
+            title: docData.title || docData.fileName,
+            category: docData.category || 'general',
+            file_name: docData.fileName || docData.file_name,
+            file_type: docData.fileType || docData.file_type || 'application/octet-stream',
+            file_size: Number(docData.fileSize || docData.file_size) || 0,
+            file_data: docData.fileData || docData.file_data || '',
+            uploaded_by: docData.uploadedBy || docData.uploaded_by || 'patient',
+            notes: docData.notes || '',
+            created_at: new Date().toISOString()
+        };
+
+        if (this.isPostgresConnected && this.pgPool) {
+            const res = await this.pgPool.query(
+                `INSERT INTO patient_documents 
+                 (id, patient_id, therapist_id, title, category, file_name, file_type, file_size, file_data, uploaded_by, notes, created_at)
+                 VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
+                 RETURNING *`,
+                [record.id, record.patient_id, record.therapist_id, record.title, record.category, record.file_name, record.file_type, record.file_size, record.file_data, record.uploaded_by, record.notes, record.created_at]
+            );
+            return res.rows[0];
+        }
+
+        if (!this.localStore.patient_documents) this.localStore.patient_documents = [];
+        this.localStore.patient_documents.unshift(record);
+        this._persistLocalStore();
+        return record;
+    }
+
+    async getPatientDocuments(patientId) {
+        if (!patientId) return [];
+
+        if (this.isPostgresConnected && this.pgPool) {
+            const res = await this.pgPool.query(
+                `SELECT id, patient_id, therapist_id, title, category, file_name, file_type, file_size, 
+                        file_data, uploaded_by, notes, created_at
+                 FROM patient_documents 
+                 WHERE patient_id = $1 
+                 ORDER BY created_at DESC`,
+                [patientId]
+            );
+            return res.rows;
+        }
+
+        if (!this.localStore.patient_documents) this.localStore.patient_documents = [];
+        return (this.localStore.patient_documents || [])
+            .filter(d => String(d.patient_id || d.patientId) === String(patientId))
+            .sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+    }
+
+    async deletePatientDocument(documentId, patientId = null) {
+        if (!documentId) return false;
+
+        if (this.isPostgresConnected && this.pgPool) {
+            let res;
+            if (patientId) {
+                res = await this.pgPool.query('DELETE FROM patient_documents WHERE id = $1 AND patient_id = $2 RETURNING id', [documentId, patientId]);
+            } else {
+                res = await this.pgPool.query('DELETE FROM patient_documents WHERE id = $1 RETURNING id', [documentId]);
+            }
+            return (res.rowCount || 0) > 0;
+        }
+
+        if (!this.localStore.patient_documents) return false;
+        const initialLen = this.localStore.patient_documents.length;
+        this.localStore.patient_documents = this.localStore.patient_documents.filter(d => {
+            if (String(d.id) !== String(documentId)) return true;
+            if (patientId && String(d.patient_id || d.patientId) !== String(patientId)) return true;
+            return false;
+        });
+        const deleted = this.localStore.patient_documents.length < initialLen;
+        if (deleted) this._persistLocalStore();
+        return deleted;
+    }
+
+    async savePaymentReport(patientId, therapistId, reportData) {
+        if (!patientId || !reportData.amount || !reportData.reference) {
+            throw new Error('patientId, amount y reference son requeridos');
+        }
+
+        if (!therapistId) {
+            if (this.isPostgresConnected && this.pgPool) {
+                try {
+                    const patRes = await this.pgPool.query(`SELECT therapist_id FROM patients WHERE id = $1`, [patientId]);
+                    if (patRes.rows.length > 0 && patRes.rows[0].therapist_id) {
+                        therapistId = patRes.rows[0].therapist_id;
+                    }
+                } catch (e) {}
+            } else {
+                const pat = (this.localStore.patients || []).find(p => p.id === patientId);
+                if (pat && (pat.therapist_id || pat.therapistId)) {
+                    therapistId = pat.therapist_id || pat.therapistId;
+                }
+            }
+        }
+
+        const record = {
+            id: `pay_${Date.now()}_${Math.random().toString(36).substr(2, 6)}`,
+            patient_id: patientId,
+            therapist_id: therapistId || null,
+            amount: Number(reportData.amount) || 0,
+            currency: reportData.currency || 'USD',
+            payment_method: reportData.paymentMethod || reportData.payment_method || 'pago_movil',
+            reference: String(reportData.reference).trim(),
+            payment_date: reportData.paymentDate || reportData.payment_date || new Date().toISOString().split('T')[0],
+            concept: reportData.concept || 'Sesión de psicoterapia',
+            receipt_data: reportData.receiptData || reportData.receipt_data || '',
+            status: 'pendiente',
+            therapist_notes: '',
+            created_at: new Date().toISOString(),
+            updated_at: new Date().toISOString()
+        };
+
+        if (this.isPostgresConnected && this.pgPool) {
+            const res = await this.pgPool.query(
+                `INSERT INTO patient_payment_reports 
+                 (id, patient_id, therapist_id, amount, currency, payment_method, reference, payment_date, concept, receipt_data, status, therapist_notes, created_at, updated_at)
+                 VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)
+                 RETURNING *`,
+                [record.id, record.patient_id, record.therapist_id, record.amount, record.currency, record.payment_method, record.reference, record.payment_date, record.concept, record.receipt_data, record.status, record.therapist_notes, record.created_at, record.updated_at]
+            );
+            return res.rows[0];
+        }
+
+        if (!this.localStore.patient_payment_reports) this.localStore.patient_payment_reports = [];
+        this.localStore.patient_payment_reports.unshift(record);
+        this._persistLocalStore();
+        return record;
+    }
+
+    async getPatientPaymentReports(patientId) {
+        if (!patientId) return [];
+
+        if (this.isPostgresConnected && this.pgPool) {
+            const res = await this.pgPool.query(
+                `SELECT * FROM patient_payment_reports 
+                 WHERE patient_id = $1 
+                 ORDER BY created_at DESC`,
+                [patientId]
+            );
+            return res.rows;
+        }
+
+        if (!this.localStore.patient_payment_reports) this.localStore.patient_payment_reports = [];
+        return (this.localStore.patient_payment_reports || [])
+            .filter(p => String(p.patient_id || p.patientId) === String(patientId))
+            .sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+    }
+
+    async getTherapistPaymentReports(therapistId) {
+        if (!therapistId) return [];
+
+        if (this.isPostgresConnected && this.pgPool) {
+            const res = await this.pgPool.query(
+                `SELECT r.*, p.name as patient_name
+                 FROM patient_payment_reports r
+                 LEFT JOIN patients p ON r.patient_id = p.id
+                 WHERE r.therapist_id = $1 OR p.therapist_id = $1
+                 ORDER BY r.created_at DESC`,
+                [therapistId]
+            );
+            return res.rows;
+        }
+
+        if (!this.localStore.patient_payment_reports) this.localStore.patient_payment_reports = [];
+        const patients = (this.localStore.patients || []).filter(p => p.therapist_id === therapistId || p.therapistId === therapistId);
+        const patientIds = new Set(patients.map(p => p.id));
+        return (this.localStore.patient_payment_reports || [])
+            .filter(r => r.therapist_id === therapistId || patientIds.has(r.patient_id) || !r.therapist_id)
+            .map(r => {
+                const pat = (this.localStore.patients || []).find(p => p.id === r.patient_id);
+                return {
+                    ...r,
+                    patient_name: pat ? pat.name : 'Paciente'
+                };
+            })
+            .sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+    }
+
+    async updatePaymentReportStatus(reportId, therapistId, status, notes = '') {
+        if (!reportId || !status) throw new Error('reportId y status son requeridos');
+
+        if (this.isPostgresConnected && this.pgPool) {
+            let res;
+            if (therapistId) {
+                res = await this.pgPool.query(
+                    `UPDATE patient_payment_reports 
+                     SET status = $1, therapist_notes = $2, updated_at = CURRENT_TIMESTAMP
+                     WHERE id = $3 AND (therapist_id = $4 OR therapist_id IS NULL)
+                     RETURNING *`,
+                    [status, notes, reportId, therapistId]
+                );
+            } else {
+                res = await this.pgPool.query(
+                    `UPDATE patient_payment_reports 
+                     SET status = $1, therapist_notes = $2, updated_at = CURRENT_TIMESTAMP
+                     WHERE id = $3
+                     RETURNING *`,
+                    [status, notes, reportId]
+                );
+            }
+            return res.rows[0] || null;
+        }
+
+        if (!this.localStore.patient_payment_reports) return null;
+        const report = this.localStore.patient_payment_reports.find(p => String(p.id) === String(reportId));
+        if (!report) return null;
+
+        report.status = status;
+        if (notes) report.therapist_notes = notes;
+        report.updated_at = new Date().toISOString();
+        this._persistLocalStore();
+        return report;
+    }
+
+    async updatePatientProfile(patientId, profileData) {
+        if (!patientId) throw new Error('patientId requerido');
+
+        if (this.isPostgresConnected && this.pgPool) {
+            const patientRes = await this.pgPool.query('SELECT * FROM patients WHERE id = $1', [patientId]);
+            const p = patientRes.rows[0];
+            if (!p) return null;
+
+            const name = profileData.name !== undefined ? profileData.name : p.name;
+            const phone = profileData.phone !== undefined ? profileData.phone : p.phone;
+            const email = profileData.email !== undefined ? profileData.email : p.email;
+            const occupation = profileData.occupation !== undefined ? profileData.occupation : p.occupation;
+            const emergency_contact = profileData.emergencyContact !== undefined ? profileData.emergencyContact : p.emergency_contact;
+            const emergency_phone = profileData.emergencyPhone !== undefined ? profileData.emergencyPhone : p.emergency_phone;
+            const address = profileData.address !== undefined ? profileData.address : p.address;
+            const expectations = profileData.expectations !== undefined ? profileData.expectations : (p.preconsulta_data?.expectations || '');
+            const birthdate = profileData.birthdate !== undefined ? profileData.birthdate : p.birthdate;
+
+            const preconsulta = { ...(p.preconsulta_data || {}), expectations, patientUpdatedProfile: true };
+
+            const res = await this.pgPool.query(
+                `UPDATE patients 
+                 SET name = $1, phone = $2, email = $3, occupation = $4, emergency_contact = $5,
+                     emergency_phone = $6, address = $7, birthdate = $8, preconsulta_data = $9,
+                     updated_at = CURRENT_TIMESTAMP
+                 WHERE id = $10
+                 RETURNING *`,
+                [name, phone, email, occupation, emergency_contact, emergency_phone, address, birthdate, JSON.stringify(preconsulta), patientId]
+            );
+            return res.rows[0];
+        }
+
+        const patient = (this.localStore.patients || []).find(p => String(p.id) === String(patientId));
+        if (!patient) return null;
+
+        if (profileData.name !== undefined) patient.name = profileData.name;
+        if (profileData.phone !== undefined) patient.phone = profileData.phone;
+        if (profileData.email !== undefined) patient.email = profileData.email;
+        if (profileData.occupation !== undefined) patient.occupation = profileData.occupation;
+        if (profileData.emergencyContact !== undefined) patient.emergencyContact = profileData.emergencyContact;
+        if (profileData.emergencyPhone !== undefined) patient.emergencyPhone = profileData.emergencyPhone;
+        if (profileData.emergency_contact !== undefined) patient.emergency_contact = profileData.emergency_contact;
+        if (profileData.emergency_phone !== undefined) patient.emergency_phone = profileData.emergency_phone;
+        if (profileData.address !== undefined) patient.address = profileData.address;
+        if (profileData.birthdate !== undefined) patient.birthdate = profileData.birthdate;
+        if (profileData.expectations !== undefined) {
+            patient.expectations = profileData.expectations;
+            patient.preconsulta_data = patient.preconsulta_data || {};
+            patient.preconsulta_data.expectations = profileData.expectations;
+        }
+        patient.updatedAt = new Date().toISOString();
+        this._persistLocalStore();
+        return patient;
+    }
+
     // ============================================
     // SINCRONIZACIÓN GENERAL DEL EXPEDIENTE CLÍNICO
     // ============================================
@@ -562,7 +1478,13 @@ class DatabaseManager {
             await this.upsertPatient(data);
         }
         for (const t of tasksArray) {
-            if (t.id && t.patient_id && t.title) {
+            const patientId = t.patient_id || t.patientId;
+            const title = t.title || t.text;
+            if (t.id && patientId && title) {
+                const deadline = t.deadline || t.dueDate || null;
+                const completed = Boolean(t.completed);
+                const description = t.description || '';
+                const createdAt = t.created_at || t.assignedAt || new Date().toISOString();
                 if (this.isPostgresConnected && this.pgPool) {
                     await this.pgPool.query(`
                         INSERT INTO patient_tasks (id, patient_id, title, description, deadline, completed, created_at)
@@ -572,11 +1494,22 @@ class DatabaseManager {
                             description = EXCLUDED.description,
                             deadline = EXCLUDED.deadline,
                             completed = EXCLUDED.completed
-                    `, [t.id, t.patient_id, t.title, t.description || '', t.deadline || null, Boolean(t.completed), t.created_at || new Date().toISOString()]);
+                    `, [t.id, patientId, title, description, deadline, completed, createdAt]);
                 } else {
                     const idx = this.localStore.patient_tasks.findIndex(existing => existing.id === t.id);
-                    if (idx >= 0) this.localStore.patient_tasks[idx] = { ...this.localStore.patient_tasks[idx], ...t };
-                    else this.localStore.patient_tasks.push(t);
+                    const taskRecord = {
+                        id: t.id,
+                        patient_id: patientId,
+                        patientId: patientId,
+                        title,
+                        description,
+                        deadline,
+                        dueDate: deadline,
+                        completed,
+                        created_at: createdAt
+                    };
+                    if (idx >= 0) this.localStore.patient_tasks[idx] = { ...this.localStore.patient_tasks[idx], ...taskRecord };
+                    else this.localStore.patient_tasks.push(taskRecord);
                 }
             }
         }
@@ -711,7 +1644,17 @@ class DatabaseManager {
         if (Array.isArray(payload.patients) && payload.patients.length > 0) {
             try {
                 const tasks = (payload.notes || [])
-                    .flatMap(n => n.intersessionTasks || [])
+                    .flatMap(n => (n.intersessionTasks || []).map(t => ({
+                        id: t.id || `task_${Math.random().toString(36).substr(2, 6)}`,
+                        patient_id: t.patient_id || t.patientId || n.patientId,
+                        patientId: t.patient_id || t.patientId || n.patientId,
+                        title: t.title || t.text,
+                        description: t.description || '',
+                        deadline: t.deadline || t.dueDate || null,
+                        dueDate: t.dueDate || t.deadline || null,
+                        completed: Boolean(t.completed),
+                        created_at: t.created_at || t.assignedAt || n.date || new Date().toISOString()
+                    })))
                     .concat(payload.tasks || []);
                 await this.syncPatientsBatch(payload.patients, tasks, therapistId);
             } catch (err) {

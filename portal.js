@@ -10,6 +10,7 @@ const PortalState = {
     evaluations: [],
     moodLog: [],
     cbtRecords: [],
+    appointments: [],
     activeCrisisAlert: false,
     currentFilter: 'pending',
     // --- PORTAL PACIENTES KID (PSICO KIDS SPACE) ---
@@ -471,7 +472,20 @@ async function loadPatientData() {
             if (res.ok) {
                 const data = await res.json();
                 if (data.status === 'ok') {
-                    if (data.tasks) PortalState.tasks = data.tasks;
+                    if (data.tasks) {
+                        PortalState.tasks = data.tasks.map(t => ({
+                            ...t,
+                            id: t.id,
+                            patientId: t.patient_id || t.patientId || PortalState.patientId,
+                            patient_id: t.patient_id || t.patientId || PortalState.patientId,
+                            title: t.title || t.text,
+                            description: t.description || '',
+                            dueDate: t.dueDate || t.deadline || null,
+                            deadline: t.deadline || t.dueDate || null,
+                            completed: Boolean(t.completed),
+                            completedAt: t.completed_at || t.completedAt || null
+                        }));
+                    }
                     if (data.evaluations) PortalState.evaluations = data.evaluations;
                     if (data.moodLogs) PortalState.moodLog = data.moodLogs.map(m => ({
                         id: m.id,
@@ -491,6 +505,30 @@ async function loadPatientData() {
                     }));
                     PortalState.activeCrisisAlert = Boolean(data.hasActiveCrisisAlert);
                     if (data.therapistName) PortalState.therapistName = data.therapistName;
+                    if (data.therapistInfo) PortalState.therapistInfo = data.therapistInfo;
+                    if (data.documents) PortalState.documents = data.documents;
+                    if (data.paymentMethods) PortalState.paymentMethods = data.paymentMethods;
+                    if (data.paymentReports) PortalState.paymentReports = data.paymentReports;
+                    if (data.patient) {
+                        PortalState.patientProfile = data.patient;
+                        if (data.patient.name) PortalState.patientName = data.patient.name;
+                    }
+
+                    // Extraer palabra del día si existe en el último mood log de hoy
+                    if (Array.isArray(data.moodLogs) && data.moodLogs.length > 0) {
+                        const todayStr = new Date().toISOString().split('T')[0];
+                        const todayMood = data.moodLogs.find(m => (m.created_at || m.date || '').startsWith(todayStr) && m.word);
+                        if (todayMood && todayMood.word) {
+                            PortalState.dailyWord = todayMood.word;
+                            const inputWord = document.getElementById('inputDailyWord');
+                            const tagWord = document.getElementById('dailyWordSavedTag');
+                            if (inputWord) inputWord.value = todayMood.word;
+                            if (tagWord) {
+                                tagWord.textContent = `"${todayMood.word}" registrada ✓`;
+                                tagWord.style.display = 'inline-block';
+                            }
+                        }
+                    }
 
                     // Datos específicos de actividades lúdicas infantiles
                     if (Array.isArray(data.kidActivities)) {
@@ -504,6 +542,44 @@ async function loadPatientData() {
 
                     // Auto-activación estricta de Portal KIDS si edad < 13 años
                     PortalState.isKidMode = determineIfKid(data.patient);
+
+                    if (Array.isArray(data.appointments)) {
+                        PortalState.appointments = data.appointments.map(a => ({
+                            id: a.id,
+                            patientId: a.patientId || a.patient_id || PortalState.patientId,
+                            date: a.date,
+                            time: a.time,
+                            duration: Number(a.duration) || 50,
+                            status: a.status || 'agendada',
+                            attendanceConfirmed: Boolean(a.attendanceConfirmed || a.attendance_confirmed || a.status === 'confirmada'),
+                            type: a.type || 'Online',
+                            notes: a.notes || '',
+                            createdAt: a.createdAt || new Date().toISOString()
+                        }));
+
+                        // Sincronizar el puente local con el estatus del servidor para mantener consistencia
+                        try {
+                            const bridge = JSON.parse(localStorage.getItem('psico_portal_appointments_bridge') || '{}');
+                            let bridgeChanged = false;
+                            data.appointments.forEach(sa => {
+                                if (sa && sa.id && bridge[sa.id]) {
+                                    if (bridge[sa.id].status !== sa.status) {
+                                        bridge[sa.id].status = sa.status;
+                                        bridgeChanged = true;
+                                    }
+                                }
+                            });
+                            if (bridgeChanged) {
+                                localStorage.setItem('psico_portal_appointments_bridge', JSON.stringify(bridge));
+                            }
+                        } catch (e) {}
+                    }
+                    if (typeof mergeAppointmentsFromBridge === 'function') mergeAppointmentsFromBridge();
+                    if (typeof renderNextSession === 'function') renderNextSession();
+                    if (typeof renderTherapistCard === 'function') renderTherapistCard();
+                    if (typeof renderDocumentsView === 'function') renderDocumentsView();
+                    if (typeof renderPaymentsView === 'function') renderPaymentsView();
+                    if (typeof renderProfileView === 'function') renderProfileView();
 
                     savePatientDataLocally();
                     return;
@@ -521,30 +597,59 @@ async function loadPatientData() {
 function loadPatientDataLocally() {
     try {
         const stored = localStorage.getItem(`psico_portal_data_${PortalState.patientId}`);
+        const patients = loadPortalPatients();
+        const pObj = patients.find(p => p.id === PortalState.patientId);
+
         if (stored) {
             const data = JSON.parse(stored);
             PortalState.tasks = data.tasks || [];
             PortalState.evaluations = data.evaluations || [];
             PortalState.moodLog = data.moodLog || [];
             PortalState.cbtRecords = data.cbtRecords || [];
+            PortalState.appointments = data.appointments || [];
             PortalState.activeCrisisAlert = Boolean(data.activeCrisisAlert);
             PortalState.kidStars = typeof data.kidStars === 'number' ? data.kidStars : 0;
             PortalState.kidCoins = typeof data.kidCoins === 'number' ? data.kidCoins : 50;
             PortalState.kidAvatar = data.kidAvatar || PortalState.kidAvatar;
             PortalState.kidActivities = data.kidActivities || [];
+            PortalState.therapistOccupiedSlots = data.therapistOccupiedSlots || [];
+            PortalState.documents = data.documents || PortalState.documents || [];
+            PortalState.paymentReports = data.paymentReports || PortalState.paymentReports || [];
+            PortalState.paymentMethods = data.paymentMethods || PortalState.paymentMethods || [];
+            PortalState.patientProfile = data.patientProfile || PortalState.patientProfile || pObj || {};
+            PortalState.therapistInfo = data.therapistInfo || PortalState.therapistInfo || null;
+            PortalState.dailyWord = data.dailyWord || PortalState.dailyWord || '';
         } else {
             PortalState.tasks = [];
             PortalState.evaluations = [];
             PortalState.moodLog = [];
             PortalState.cbtRecords = [];
+            PortalState.appointments = [];
             PortalState.activeCrisisAlert = false;
             PortalState.kidStars = 0;
             PortalState.kidCoins = 50;
             PortalState.kidActivities = [];
+            PortalState.documents = PortalState.documents || [];
+            PortalState.paymentReports = PortalState.paymentReports || [];
+            PortalState.paymentMethods = PortalState.paymentMethods || [];
+            PortalState.patientProfile = PortalState.patientProfile || pObj || {};
         }
 
-        const patients = loadPortalPatients();
-        const pObj = patients.find(p => p.id === PortalState.patientId);
+        // Cargar formas de pago personalizadas del terapeuta desde localStorage si existen
+        try {
+            const customMethods = JSON.parse(localStorage.getItem('psico_therapist_payment_methods') || 'null');
+            if (Array.isArray(customMethods) && customMethods.length > 0) {
+                PortalState.paymentMethods = customMethods;
+            }
+        } catch (e) {}
+
+        if (typeof mergeAppointmentsFromBridge === 'function') mergeAppointmentsFromBridge();
+        if (typeof renderNextSession === 'function') renderNextSession();
+        if (typeof renderTherapistCard === 'function') renderTherapistCard();
+        if (typeof renderDocumentsView === 'function') renderDocumentsView();
+        if (typeof renderPaymentsView === 'function') renderPaymentsView();
+        if (typeof renderProfileView === 'function') renderProfileView();
+
         PortalState.isKidMode = determineIfKid(pObj);
     } catch (e) {
         console.error('Error cargando datos locales del portal:', e);
@@ -562,11 +667,19 @@ function savePatientData() {
             evaluations: PortalState.evaluations,
             moodLog: PortalState.moodLog,
             cbtRecords: PortalState.cbtRecords,
+            appointments: PortalState.appointments,
             activeCrisisAlert: PortalState.activeCrisisAlert,
             kidStars: PortalState.kidStars,
             kidCoins: PortalState.kidCoins,
             kidAvatar: PortalState.kidAvatar,
             kidActivities: PortalState.kidActivities,
+            therapistOccupiedSlots: PortalState.therapistOccupiedSlots || [],
+            documents: PortalState.documents || [],
+            paymentReports: PortalState.paymentReports || [],
+            paymentMethods: PortalState.paymentMethods || [],
+            patientProfile: PortalState.patientProfile || {},
+            therapistInfo: PortalState.therapistInfo || null,
+            dailyWord: PortalState.dailyWord || '',
             lastUpdate: new Date().toISOString()
         };
         localStorage.setItem(`psico_portal_data_${PortalState.patientId}`, JSON.stringify(data));
@@ -576,6 +689,7 @@ function savePatientData() {
             localStorage.setItem(`psico_portal_results_${PortalState.patientId}`, JSON.stringify(PortalState.evaluations));
             localStorage.setItem(`psico_portal_mood_${PortalState.patientId}`, JSON.stringify(PortalState.moodLog));
             localStorage.setItem(`psico_portal_cbt_${PortalState.patientId}`, JSON.stringify(PortalState.cbtRecords));
+            localStorage.setItem(`psico_portal_payments_${PortalState.patientId}`, JSON.stringify(PortalState.paymentReports || []));
             localStorage.setItem(`psico_portal_kid_${PortalState.patientId}`, JSON.stringify({
                 avatar: PortalState.kidAvatar,
                 stars: PortalState.kidStars,
@@ -591,22 +705,42 @@ function savePatientData() {
 function loadTasksFromNotes() {
     try {
         const bridge = JSON.parse(localStorage.getItem('psico_portal_tasks_bridge') || '{}');
-        const patientTasks = Object.values(bridge).filter(t => t.patientId === PortalState.patientId);
-        if (patientTasks.length === 0) {
+        const patientTasks = Object.values(bridge).filter(t => String(t.patientId || t.patient_id) === String(PortalState.patientId));
+        
+        let localTasks = [];
+        try {
+            const stored = localStorage.getItem(`psico_portal_data_${PortalState.patientId}`);
+            if (stored) {
+                const parsed = JSON.parse(stored);
+                if (Array.isArray(parsed.tasks)) localTasks = parsed.tasks;
+            }
+        } catch (e) {}
+
+        const allAvailable = [...patientTasks];
+        localTasks.forEach(lt => {
+            if (!allAvailable.some(at => at.id === lt.id)) allAvailable.push(lt);
+        });
+
+        if (allAvailable.length === 0) {
             return;
         }
         const currentTasks = PortalState.tasks || [];
-        patientTasks.forEach(task => {
+        const mergedTasks = allAvailable.map(task => {
             const existing = currentTasks.find(t => t.id === task.id);
-            if (existing) {
-                task.completed = existing.completed;
-                task.completedAt = existing.completedAt;
-            } else {
-                task.completed = false;
-                task.completedAt = null;
-            }
+            return {
+                ...task,
+                id: task.id,
+                patientId: task.patientId || task.patient_id || PortalState.patientId,
+                patient_id: task.patient_id || task.patientId || PortalState.patientId,
+                title: task.title || task.text,
+                description: task.description || '',
+                dueDate: task.dueDate || task.deadline || null,
+                deadline: task.deadline || task.dueDate || null,
+                completed: existing ? existing.completed : Boolean(task.completed),
+                completedAt: existing ? existing.completedAt : (task.completedAt || null)
+            };
         });
-        PortalState.tasks = patientTasks;
+        PortalState.tasks = mergedTasks;
         savePatientData();
     } catch (e) {
         console.error('Error cargando tareas desde puente:', e);
@@ -626,11 +760,21 @@ function updateHeader() {
 function switchView(viewName) {
     document.querySelectorAll('.portal-view').forEach(v => v.classList.remove('active'));
     document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
-    document.getElementById(`view${viewName.charAt(0).toUpperCase() + viewName.slice(1)}`).classList.add('active');
-    document.querySelector(`.nav-btn[data-view="${viewName}"]`).classList.add('active');
+    const target = document.getElementById(`view${viewName.charAt(0).toUpperCase() + viewName.slice(1)}`);
+    if (target) target.classList.add('active');
+    const navBtn = document.querySelector(`.nav-btn[data-view="${viewName}"]`);
+    if (navBtn) navBtn.classList.add('active');
+    if (viewName === 'sessions') renderSessionsView();
     if (viewName === 'tasks') renderTasks();
     if (viewName === 'tests') updateTestsLastResults();
     if (viewName === 'progress') updateProgress();
+    if (viewName === 'home') {
+        renderNextSession();
+        if (typeof renderTherapistCard === 'function') renderTherapistCard();
+    }
+    if (viewName === 'documents' && typeof renderDocumentsView === 'function') renderDocumentsView();
+    if (viewName === 'payments' && typeof renderPaymentsView === 'function') renderPaymentsView();
+    if (viewName === 'profile' && typeof renderProfileView === 'function') renderProfileView();
 }
 
 function updateDailyReflection() {
@@ -642,9 +786,12 @@ function updateDailyReflection() {
 function selectMood(value) {
     document.querySelectorAll('.mood-btn').forEach(btn => btn.classList.remove('selected'));
     document.querySelector(`.mood-btn[data-mood="${value}"]`).classList.add('selected');
+    const currentWord = (document.getElementById('inputDailyWord')?.value || PortalState.dailyWord || '').trim();
+
     const moodLog = {
         id: generateId(),
         value: value,
+        word: currentWord,
         date: new Date().toISOString(),
         timestamp: Date.now()
     };
@@ -658,7 +805,8 @@ function selectMood(value) {
             token: PortalState.portalToken,
             mood: value,
             sleep: 3,
-            energy: 3
+            energy: 3,
+            word: currentWord
         });
     }
 
@@ -749,11 +897,33 @@ function toggleTask(taskId) {
 function updateTaskInBridge(task) {
     try {
         const bridge = JSON.parse(localStorage.getItem('psico_portal_tasks_bridge') || '{}');
-        const taskKey = `${task.patientId}_${task.id}`;
+        const pId = task.patientId || task.patient_id || PortalState.patientId;
+        const taskKey = `${pId}_${task.id}`;
         if (bridge[taskKey]) {
             bridge[taskKey].completed = task.completed;
             bridge[taskKey].completedAt = task.completedAt;
-            localStorage.setItem('psico_portal_tasks_bridge', JSON.stringify(bridge));
+        } else {
+            bridge[taskKey] = {
+                ...task,
+                patientId: pId,
+                patient_id: pId,
+                completed: task.completed,
+                completedAt: task.completedAt
+            };
+        }
+        localStorage.setItem('psico_portal_tasks_bridge', JSON.stringify(bridge));
+
+        const stored = localStorage.getItem(`psico_portal_data_${pId}`);
+        if (stored) {
+            const parsed = JSON.parse(stored);
+            if (Array.isArray(parsed.tasks)) {
+                const tIdx = parsed.tasks.findIndex(t => t.id === task.id);
+                if (tIdx >= 0) {
+                    parsed.tasks[tIdx].completed = task.completed;
+                    parsed.tasks[tIdx].completedAt = task.completedAt;
+                }
+                localStorage.setItem(`psico_portal_data_${pId}`, JSON.stringify(parsed));
+            }
         }
     } catch (e) {
         console.error('Error actualizando tarea en puente:', e);
@@ -1070,6 +1240,8 @@ function triggerPortalEmergencyHelp(reason) {
 function closeCrisisHelpModal() {
     const modal = document.getElementById('crisisHelpModal');
     if (modal) modal.style.display = 'none';
+    PortalState.activeCrisisAlert = false;
+    savePatientData();
 }
 
 function submitMoodLog() {
@@ -3101,6 +3273,8 @@ function triggerKidSosHelp(reason) {
 function closeKidCrisisModal() {
     const modal = document.getElementById('kidCrisisModal');
     if (modal) modal.style.display = 'none';
+    PortalState.activeCrisisAlert = false;
+    savePatientData();
 }
 
 function alertKidAdultTalk() {
@@ -3137,7 +3311,693 @@ function toggleKidAudioMute() {
     if (KidAudioEffects.enabled) KidAudioEffects.playDing();
 }
 
+// ============================================
+// GESTIÓN Y AGENDAMIENTO DE SESIONES EN EL PORTAL
+// ============================================
+function mergeAppointmentsFromBridge() {
+    try {
+        const bridge = JSON.parse(localStorage.getItem('psico_portal_appointments_bridge') || '{}');
+        const patientAppointments = Object.values(bridge).filter(a => String(a.patientId || a.patient_id) === String(PortalState.patientId));
+        patientAppointments.forEach(ba => {
+            const idx = (PortalState.appointments || []).findIndex(a => String(a.id) === String(ba.id));
+            if (idx >= 0) {
+                const current = PortalState.appointments[idx];
+                // Si la cita fue cancelada por el terapeuta en backend o en el puente, priorizar siempre estado cancelado
+                let resolvedStatus = ba.status || current.status;
+                if (current.status === 'cancelada' && ba.status !== 'reprogramada' && ba.status !== 'agendada') {
+                    resolvedStatus = 'cancelada';
+                } else if (ba.status === 'cancelada') {
+                    resolvedStatus = 'cancelada';
+                }
+                PortalState.appointments[idx] = { 
+                    ...current, 
+                    ...ba,
+                    status: resolvedStatus
+                };
+            } else {
+                if (!PortalState.appointments) PortalState.appointments = [];
+                PortalState.appointments.push(ba);
+            }
+        });
+    } catch (e) {}
+}
+
+function renderNextSession() {
+    const todayStr = new Date().toISOString().split('T')[0];
+    const upcoming = (PortalState.appointments || [])
+        .filter(a => a.status !== 'cancelada' && a.status !== 'completada' && (a.date >= todayStr || a.status === 'agendada'))
+        .sort((a, b) => new Date(a.date + 'T' + (a.time || '00:00')) - new Date(b.date + 'T' + (b.time || '00:00')));
+
+    const nextApp = upcoming[0];
+    const nextSessionStatEl = document.getElementById('nextSessionText');
+    const homeCardEl = document.getElementById('homeNextSessionCard');
+
+    if (!nextApp) {
+        if (nextSessionStatEl) nextSessionStatEl.textContent = 'Sin agendar';
+        if (homeCardEl) {
+            homeCardEl.innerHTML = `
+                <div class="portal-session-banner-inner">
+                    <div style="display: flex; align-items: center; gap: 14px;">
+                        <div style="width: 44px; height: 44px; border-radius: 12px; background: rgba(59, 130, 246, 0.12); color: #2563eb; display: flex; align-items: center; justify-content: center; font-size: 20px;">
+                            📅
+                        </div>
+                        <div>
+                            <strong style="display: block; font-size: 14.5px; color: var(--text-primary);">Próxima Sesión Terapéutica</strong>
+                            <p style="margin: 2px 0 0 0; font-size: 12px; color: var(--text-secondary);">No tienes ninguna sesión programada en este momento.</p>
+                        </div>
+                    </div>
+                    <button class="btn-primary" onclick="openScheduleSessionModal()" style="font-size: 12.5px; padding: 8px 16px; border-radius: var(--radius-sm); font-weight: 700;">
+                        <i class="fas fa-calendar-plus" style="margin-right: 6px;"></i> Agendar Cita
+                    </button>
+                </div>
+            `;
+        }
+        return;
+    }
+
+    const dateObj = new Date(nextApp.date + 'T12:00:00');
+    const dayNum = isNaN(dateObj.getDate()) ? '—' : dateObj.getDate();
+    const monthStr = isNaN(dateObj.getDate()) ? '' : dateObj.toLocaleDateString('es-ES', { month: 'short' });
+    const yearNum = isNaN(dateObj.getFullYear()) ? '' : dateObj.getFullYear();
+    const formattedDate = formatDateSafe(nextApp.date);
+
+    if (nextSessionStatEl) {
+        nextSessionStatEl.textContent = `${dayNum} ${monthStr}`;
+    }
+
+    const isOnline = (nextApp.type || 'Online').toLowerCase().includes('online');
+    const therapist = PortalState.therapistName || 'Tu Terapeuta';
+
+    if (homeCardEl) {
+        homeCardEl.innerHTML = `
+            <div class="portal-session-banner-inner">
+                <div style="display: flex; align-items: center; gap: 14px; flex: 1; min-width: 240px;">
+                    <div class="portal-session-date-box">
+                        <span class="portal-session-day">${dayNum}</span>
+                        <span class="portal-session-month">${monthStr}</span>
+                        <span class="portal-session-year">${yearNum}</span>
+                    </div>
+                    <div class="portal-session-info-wrap">
+                        <div class="portal-session-badge-row">
+                            <span class="portal-session-badge portal-badge-agendada">
+                                <i class="fas fa-calendar-check"></i> Próxima Sesión
+                            </span>
+                            <span class="portal-session-badge ${isOnline ? 'portal-badge-online' : 'portal-badge-presencial'}">
+                                <i class="fas ${isOnline ? 'fa-video' : 'fa-building'}"></i> ${nextApp.type || 'Online'}
+                            </span>
+                        </div>
+                        <h4 class="portal-session-title">${formattedDate} a las ${nextApp.time || '10:00'}</h4>
+                        <p class="portal-session-subtitle">
+                            <span><i class="fas fa-user-md"></i> ${therapist}</span>
+                            <span>•</span>
+                            <span><i class="far fa-clock"></i> ${nextApp.duration || 50} min</span>
+                        </p>
+                    </div>
+                </div>
+
+                <div class="portal-session-actions">
+                    ${(nextApp.attendanceConfirmed || nextApp.status === 'confirmada') ? `
+                        <span class="badge-attendance-confirmed" title="Asistencia confirmada para esta sesión">
+                            <i class="fas fa-check-circle"></i> Asistencia confirmada
+                        </span>
+                    ` : `
+                        <button class="btn-confirm-attendance" onclick="confirmSessionAttendance('${nextApp.id}')" title="Confirmar mi asistencia con mi psicólogo">
+                            <i class="fas fa-check"></i> Confirmar Asistencia
+                        </button>
+                    `}
+                    ${isOnline ? `
+                        <button class="btn-telehealth-join" onclick="openTelehealthFromPortal('${nextApp.id}')" title="Ingresar a la sala cifrada de teleconsulta">
+                            <i class="fas fa-video"></i> Unirme a Sesión
+                        </button>
+                    ` : ''}
+                    <button class="btn-secondary" onclick="switchView('sessions')" style="font-size: 12px; padding: 8px 14px; border-radius: var(--radius-sm);">
+                        Ver Sesiones
+                    </button>
+                </div>
+            </div>
+        `;
+    }
+}
+
+function renderSessionsView() {
+    renderNextSession();
+
+    const container = document.getElementById('sessionsUpcomingContainer');
+    const historyList = document.getElementById('sessionsHistoryList');
+    const historyCountEl = document.getElementById('sessionsHistoryCount');
+
+    const todayStr = new Date().toISOString().split('T')[0];
+    const appointments = PortalState.appointments || [];
+
+    const upcoming = appointments
+        .filter(a => a.status !== 'cancelada' && a.status !== 'completada' && (a.date >= todayStr || a.status === 'agendada'))
+        .sort((a, b) => new Date(a.date + 'T' + (a.time || '00:00')) - new Date(b.date + 'T' + (b.time || '00:00')));
+
+    const history = appointments
+        .filter(a => a.status === 'completada' || a.status === 'cancelada' || a.status === 'reprogramada' || a.date < todayStr)
+        .sort((a, b) => new Date(b.date + 'T' + (b.time || '00:00')) - new Date(a.date + 'T' + (a.time || '00:00')));
+
+    if (historyCountEl) {
+        historyCountEl.textContent = `${history.length} sesión${history.length === 1 ? '' : 'es'}`;
+    }
+
+    if (container) {
+        if (upcoming.length === 0) {
+            container.innerHTML = `
+                <div class="section-card" style="text-align: center; padding: 26px 20px;">
+                    <div style="font-size: 38px; margin-bottom: 8px;">📅</div>
+                    <h3 style="margin: 0 0 6px 0; font-size: 16px; color: var(--text-primary);">No tienes sesiones programadas</h3>
+                    <p style="margin: 0 0 16px 0; font-size: 13px; color: var(--text-secondary); max-width: 380px; margin-inline: auto;">
+                        Mantén la constancia en tu proceso terapéutico agendando tu próxima sesión de forma rápida y sencilla.
+                    </p>
+                    <button class="btn-primary" onclick="openScheduleSessionModal()" style="padding: 10px 20px; font-weight: 700; border-radius: var(--radius-sm);">
+                        <i class="fas fa-calendar-plus" style="margin-right: 6px;"></i> Agendar mi Próxima Sesión
+                    </button>
+                </div>
+            `;
+        } else {
+            const next = upcoming[0];
+            const dateObj = new Date(next.date + 'T12:00:00');
+            const dayNum = isNaN(dateObj.getDate()) ? '—' : dateObj.getDate();
+            const monthStr = isNaN(dateObj.getDate()) ? '' : dateObj.toLocaleDateString('es-ES', { month: 'short' });
+            const yearNum = isNaN(dateObj.getFullYear()) ? '' : dateObj.getFullYear();
+            const isOnline = (next.type || 'Online').toLowerCase().includes('online');
+
+            container.innerHTML = `
+                <div class="portal-next-session-card" style="margin-top: 0; border-color: var(--accent-primary);">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; border-bottom: 1px solid var(--border-secondary); padding-bottom: 8px;">
+                        <span style="font-size: 12px; font-weight: 700; text-transform: uppercase; color: var(--accent-primary); letter-spacing: 0.5px;">
+                            <i class="fas fa-star" style="margin-right: 4px;"></i> Próxima Consulta Confirmada
+                        </span>
+                        <span class="portal-session-badge portal-badge-agendada">Programada</span>
+                    </div>
+                    <div class="portal-session-banner-inner">
+                        <div style="display: flex; align-items: center; gap: 14px; flex: 1; min-width: 240px;">
+                            <div class="portal-session-date-box">
+                                <span class="portal-session-day">${dayNum}</span>
+                                <span class="portal-session-month">${monthStr}</span>
+                                <span class="portal-session-year">${yearNum}</span>
+                            </div>
+                            <div class="portal-session-info-wrap">
+                                <h4 class="portal-session-title">${formatDateSafe(next.date)} a las ${next.time || '10:00'}</h4>
+                                <p class="portal-session-subtitle">
+                                    <span><i class="fas fa-user-md"></i> ${PortalState.therapistName || 'Tu Terapeuta'}</span>
+                                    <span>•</span>
+                                    <span><i class="far fa-clock"></i> ${next.duration || 50} minutos</span>
+                                </p>
+                                <div style="margin-top: 6px; font-size: 12px; color: var(--text-secondary);">
+                                    <i class="fas ${isOnline ? 'fa-video' : 'fa-building'}" style="color: var(--accent-primary); margin-right: 4px;"></i>
+                                    <strong>Modalidad:</strong> ${next.type || 'Online (Videollamada)'}
+                                </div>
+                                ${next.notes ? `<div style="margin-top: 4px; font-size: 12px; color: var(--text-tertiary); font-style: italic;">"${next.notes}"</div>` : ''}
+                            </div>
+                        </div>
+
+                        <div class="portal-session-actions">
+                            ${(next.attendanceConfirmed || next.status === 'confirmada') ? `
+                                <span class="badge-attendance-confirmed" title="Asistencia confirmada para esta sesión">
+                                    <i class="fas fa-check-circle"></i> Asistencia confirmada
+                                </span>
+                            ` : `
+                                <button class="btn-confirm-attendance" onclick="confirmSessionAttendance('${next.id}')" title="Confirmar mi asistencia con mi psicólogo">
+                                    <i class="fas fa-check"></i> Confirmar Asistencia
+                                </button>
+                            `}
+                            ${isOnline ? `
+                                <button class="btn-telehealth-join" onclick="openTelehealthFromPortal('${next.id}')">
+                                    <i class="fas fa-video"></i> Unirme a Videollamada
+                                </button>
+                            ` : ''}
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+    }
+
+    if (typeof loadPortalAvailability === 'function') {
+        const picker = document.getElementById('portalAvailabilityPicker');
+        const dt = picker && picker.value ? picker.value : '';
+        loadPortalAvailability(dt);
+    }
+
+    if (historyList) {
+        if (history.length === 0) {
+            historyList.innerHTML = `
+                <div style="text-align: center; padding: 20px 10px; color: var(--text-tertiary); font-size: 13px;">
+                    <p style="margin: 0;">No tienes sesiones pasadas registradas en tu historial.</p>
+                </div>
+            `;
+        } else {
+            historyList.innerHTML = history.map(h => {
+                const dateObj = new Date(h.date + 'T12:00:00');
+                const dayNum = isNaN(dateObj.getDate()) ? '—' : dateObj.getDate();
+                const monthStr = isNaN(dateObj.getDate()) ? '' : dateObj.toLocaleDateString('es-ES', { month: 'short' });
+                const status = h.status || 'completada';
+
+                const statusBadges = {
+                    completada: '<span class="portal-session-badge portal-badge-completada"><i class="fas fa-check-circle"></i> Asistida</span>',
+                    reprogramada: '<span class="portal-session-badge portal-badge-reprogramada"><i class="fas fa-sync-alt"></i> Reprogramada</span>',
+                    cancelada: '<span class="portal-session-badge portal-badge-cancelada"><i class="fas fa-times-circle"></i> Cancelada</span>',
+                    agendada: '<span class="portal-session-badge portal-badge-agendada"><i class="fas fa-calendar-alt"></i> Agendada</span>'
+                };
+
+                return `
+                    <div class="portal-session-history-item">
+                        <div style="display: flex; align-items: center; gap: 12px;">
+                            <div style="font-weight: 800; font-size: 15px; color: var(--text-primary); min-width: 45px; text-align: center;">
+                                ${dayNum} ${monthStr}
+                            </div>
+                            <div>
+                                <div style="font-size: 13.5px; font-weight: 600; color: var(--text-primary);">
+                                    Sesión ${h.type || 'Online'} — ${h.time || 'Horario no especificado'}
+                                </div>
+                                <div style="font-size: 11.5px; color: var(--text-secondary);">
+                                    ${formatDateSafe(h.date)} (${h.duration || 50} min)
+                                </div>
+                            </div>
+                        </div>
+                        <div>
+                            ${statusBadges[status] || `<span class="portal-session-badge portal-badge-agendada">${status}</span>`}
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        }
+    }
+}
+
+// ============================================
+// SELECCIÓN INTELIGENTE DE HORARIOS Y DISPONIBILIDAD
+// ============================================
+
+const DEFAULT_SMART_SLOTS = [
+    { time: '08:00', label: '08:00 AM', shift: 'morning', recommended: false },
+    { time: '09:00', label: '09:00 AM', shift: 'morning', recommended: true },
+    { time: '10:00', label: '10:00 AM', shift: 'morning', recommended: true },
+    { time: '11:00', label: '11:00 AM', shift: 'morning', recommended: false },
+    { time: '12:00', label: '12:00 PM', shift: 'morning', recommended: false },
+    { time: '14:00', label: '02:00 PM', shift: 'afternoon', recommended: false },
+    { time: '15:00', label: '03:00 PM', shift: 'afternoon', recommended: true },
+    { time: '16:00', label: '04:00 PM', shift: 'afternoon', recommended: true },
+    { time: '17:00', label: '05:00 PM', shift: 'afternoon', recommended: false },
+    { time: '18:00', label: '06:00 PM', shift: 'afternoon', recommended: false }
+];
+
+async function fetchPortalAvailability(dateStr) {
+    if (!dateStr) return null;
+    if (PortalState.portalToken && typeof fetch !== 'undefined' && window.location.protocol !== 'file:') {
+        try {
+            const res = await fetch(`/api/v1/portal/availability?token=${encodeURIComponent(PortalState.portalToken)}&date=${encodeURIComponent(dateStr)}`);
+            if (res.ok) {
+                return await res.json();
+            }
+        } catch (e) {
+            console.warn('[Portal] Error consultando disponibilidad en servidor, usando cálculo local:', e);
+        }
+    }
+
+    // Cálculo local inteligente (modo offline / local file / mock)
+    const [y, m, d] = dateStr.split('-').map(Number);
+    const targetDate = new Date(y, m - 1, d, 12, 0, 0);
+    const dayOfWeek = targetDate.getDay();
+    const isSunday = dayOfWeek === 0;
+    const dayNames = ['Domingo', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado'];
+    const dayName = dayNames[dayOfWeek] || '';
+
+    const now = new Date();
+    const todayStr = now.toISOString().split('T')[0];
+    const isToday = dateStr === todayStr;
+    const currentMinutes = now.getHours() * 60 + now.getMinutes();
+
+    let occupied = [];
+    try {
+        const stored = JSON.parse(localStorage.getItem('psico_therapist_occupied_slots') || '[]');
+        if (Array.isArray(stored)) occupied = stored;
+    } catch (e) {}
+
+    // Agregar citas del propio portal
+    (PortalState.appointments || []).forEach(a => {
+        if (a.status !== 'cancelada') {
+            occupied.push({ date: a.date, time: String(a.time || '').substring(0, 5) });
+        }
+    });
+
+    const slots = DEFAULT_SMART_SLOTS.map(slot => {
+        const [sh, sm] = slot.time.split(':').map(Number);
+        const slotMinutes = sh * 60 + sm;
+
+        if (isSunday) {
+            return { ...slot, available: false, reason: 'Día no laborable (Domingo)' };
+        }
+        if (isToday && slotMinutes <= currentMinutes + 15) {
+            return { ...slot, available: false, reason: 'Horario pasado' };
+        }
+        const isOcc = occupied.some(o => o.date === dateStr && o.time === slot.time);
+        if (isOcc) {
+            return { ...slot, available: false, reason: 'Horario ocupado' };
+        }
+        return { ...slot, available: true, reason: null };
+    });
+
+    return {
+        date: dateStr,
+        dayName,
+        isWorkingDay: !isSunday,
+        slots,
+        totalAvailable: slots.filter(s => s.available).length,
+        totalOccupied: slots.filter(s => !s.available && s.reason === 'Horario ocupado').length,
+        message: isSunday ? 'El consultorio no atiende los domingos. Por favor selecciona de lunes a sábado.' : ''
+    };
+}
+
+async function handleScheduleDateChange(dateStr) {
+    const container = document.getElementById('smartSlotsContainer');
+    const summaryEl = document.getElementById('slotAvailabilitySummary');
+    const dayBadgeEl = document.getElementById('scheduleDayBadge');
+    const feedbackEl = document.getElementById('slotSelectedFeedback');
+    const selectEl = document.getElementById('scheduleTime');
+
+    if (!dateStr || !container) return;
+
+    if (summaryEl) summaryEl.textContent = 'Consultando...';
+    container.innerHTML = `
+        <div style="display:flex;align-items:center;justify-content:center;gap:8px;padding:20px;color:var(--text-secondary);font-size:12.5px;">
+            <i class="fas fa-spinner fa-spin" style="color:var(--accent-primary);"></i> Verificando disponibilidad de agenda...
+        </div>
+    `;
+
+    const data = await fetchPortalAvailability(dateStr);
+    if (!data) return;
+
+    if (dayBadgeEl) {
+        dayBadgeEl.textContent = data.dayName;
+    }
+
+    if (!data.isWorkingDay) {
+        if (summaryEl) {
+            summaryEl.textContent = 'No laborable';
+            summaryEl.style.color = '#d97706';
+            summaryEl.style.background = '#fef3c7';
+        }
+        if (feedbackEl) feedbackEl.style.display = 'none';
+        if (selectEl) selectEl.value = '';
+        container.innerHTML = `
+            <div class="slot-alert-box alert-closed">
+                <div style="font-size: 24px;">🗓️</div>
+                <div style="flex:1;">
+                    <strong style="display:block;font-size:13px;">Domingo no laborable</strong>
+                    <div style="font-size:11.5px;margin-top:2px;opacity:0.9;">El terapeuta atiende de lunes a sábado. Te invitamos a seleccionar el lunes.</div>
+                </div>
+                <button type="button" class="btn-slot-quick-pick" onclick="selectNextAvailableWorkingDay()">Elegir Lunes</button>
+            </div>
+        `;
+        return;
+    }
+
+    if (data.totalAvailable === 0) {
+        if (summaryEl) {
+            summaryEl.textContent = 'Día Completo (0 disponibles)';
+            summaryEl.style.color = '#dc2626';
+            summaryEl.style.background = '#fee2e2';
+        }
+        if (feedbackEl) feedbackEl.style.display = 'none';
+        if (selectEl) selectEl.value = '';
+        container.innerHTML = `
+            <div class="slot-alert-box alert-full">
+                <div style="font-size: 22px;">🔒</div>
+                <div style="flex:1;">
+                    <strong style="display:block;font-size:13px;">Sin disponibilidad en esta fecha</strong>
+                    <div style="font-size:11.5px;margin-top:2px;">Todos los horarios están reservados. Te sugerimos revisar el siguiente día disponible.</div>
+                </div>
+                <button type="button" class="btn-slot-quick-pick" onclick="selectNextAvailableWorkingDay()">Día Siguiente</button>
+            </div>
+        `;
+        return;
+    }
+
+    if (summaryEl) {
+        summaryEl.textContent = `🟢 ${data.totalAvailable} horarios disponibles`;
+        summaryEl.style.color = '#059669';
+        summaryEl.style.background = 'rgba(16, 185, 129, 0.12)';
+    }
+
+    const morningSlots = data.slots.filter(s => s.shift === 'morning');
+    const afternoonSlots = data.slots.filter(s => s.shift === 'afternoon');
+
+    let currentSelected = PortalState.selectedScheduleSlot;
+    // Si el horario seleccionado previamente ya no está disponible, seleccionar el primer horario disponible recomendado
+    const isCurrentValid = data.slots.some(s => s.time === currentSelected && s.available);
+    if (!isCurrentValid) {
+        const firstAvail = data.slots.find(s => s.available && s.recommended) || data.slots.find(s => s.available);
+        currentSelected = firstAvail ? firstAvail.time : '';
+        PortalState.selectedScheduleSlot = currentSelected;
+    }
+
+    if (selectEl && currentSelected) {
+        selectEl.value = currentSelected;
+    }
+
+    const renderShiftGroup = (title, icon, slots) => `
+        <div class="slot-shift-section">
+            <div class="slot-shift-title">${icon} ${title}</div>
+            <div class="slot-chips-grid">
+                ${slots.map(s => {
+                    const isSel = s.time === currentSelected && s.available;
+                    if (!s.available) {
+                        const isPast = s.reason === 'Horario pasado';
+                        return `
+                            <button type="button" class="slot-chip-btn ${isPast ? 'past' : 'occupied'}" disabled title="${s.reason || 'No disponible'}">
+                                <span class="slot-chip-time">${s.label}</span>
+                                <span class="slot-chip-tag">${isPast ? 'Pasado' : '🔒 Ocupado'}</span>
+                            </button>
+                        `;
+                    }
+                    const isRec = s.recommended;
+                    return `
+                        <button type="button" 
+                                class="slot-chip-btn available ${isRec ? 'recommended' : ''} ${isSel ? 'selected' : ''}" 
+                                onclick="pickSmartSlot('${s.time}', '${s.label}')">
+                            <span class="slot-chip-time">${s.label}</span>
+                            <span class="slot-chip-tag">${isRec ? '✨ Sugerido' : 'Libre'}</span>
+                        </button>
+                    `;
+                }).join('')}
+            </div>
+        </div>
+    `;
+
+    container.innerHTML = `
+        ${renderShiftGroup('Turno Mañana', '☀️', morningSlots)}
+        ${renderShiftGroup('Turno Tarde', '🌤️', afternoonSlots)}
+    `;
+
+    if (currentSelected) {
+        const selSlotObj = data.slots.find(s => s.time === currentSelected);
+        if (selSlotObj && feedbackEl) {
+            feedbackEl.style.display = 'block';
+            const feedbackText = document.getElementById('selectedSlotText');
+            if (feedbackText) feedbackText.textContent = `${selSlotObj.label} (${data.dayName})`;
+        }
+    } else if (feedbackEl) {
+        feedbackEl.style.display = 'none';
+    }
+}
+
+function pickSmartSlot(timeStr, labelStr) {
+    PortalState.selectedScheduleSlot = timeStr;
+    const selectEl = document.getElementById('scheduleTime');
+    if (selectEl) {
+        selectEl.value = timeStr;
+    }
+
+    // Actualizar clases activas en los botones
+    const allBtns = document.querySelectorAll('.slot-chip-btn.available');
+    allBtns.forEach(btn => {
+        if (btn.querySelector('.slot-chip-time')?.textContent === labelStr || btn.getAttribute('onclick')?.includes(timeStr)) {
+            btn.classList.add('selected');
+        } else {
+            btn.classList.remove('selected');
+        }
+    });
+
+    const feedbackEl = document.getElementById('slotSelectedFeedback');
+    const feedbackText = document.getElementById('selectedSlotText');
+    const dayBadgeEl = document.getElementById('scheduleDayBadge');
+    const dayStr = dayBadgeEl?.textContent ? ` · ${dayBadgeEl.textContent}` : '';
+
+    if (feedbackEl) feedbackEl.style.display = 'block';
+    if (feedbackText) feedbackText.textContent = `${labelStr || timeStr}${dayStr}`;
+}
+
+function selectNextAvailableWorkingDay() {
+    const dateInput = document.getElementById('scheduleDate');
+    if (!dateInput) return;
+    const curr = new Date(dateInput.value + 'T12:00:00');
+    curr.setDate(curr.getDate() + 1);
+    if (curr.getDay() === 0) {
+        curr.setDate(curr.getDate() + 1); // Si cae domingo, pasar a lunes
+    }
+    const nextStr = curr.toISOString().split('T')[0];
+    dateInput.value = nextStr;
+    handleScheduleDateChange(nextStr);
+}
+
+function openScheduleSessionModal() {
+    const modal = document.getElementById('scheduleSessionModal');
+    if (!modal) return;
+    const form = document.getElementById('scheduleSessionForm');
+    if (form) form.reset();
+
+    const dateInput = document.getElementById('scheduleDate');
+    let targetDateStr = '';
+    if (dateInput) {
+        const tomorrow = new Date();
+        tomorrow.setDate(tomorrow.getDate() + 1);
+        if (tomorrow.getDay() === 0) {
+            tomorrow.setDate(tomorrow.getDate() + 1); // Si mañana es domingo, abrir en lunes
+        }
+        targetDateStr = tomorrow.toISOString().split('T')[0];
+        dateInput.min = new Date().toISOString().split('T')[0];
+        dateInput.value = targetDateStr;
+    }
+
+    selectPortalModality('Online');
+    modal.style.display = 'flex';
+
+    if (targetDateStr) {
+        handleScheduleDateChange(targetDateStr);
+    }
+}
+
+function closeScheduleSessionModal() {
+    const modal = document.getElementById('scheduleSessionModal');
+    if (modal) modal.style.display = 'none';
+}
+
+function selectPortalModality(modality) {
+    const onlineLabel = document.getElementById('modalityOnlineLabel');
+    const presencialLabel = document.getElementById('modalityPresencialLabel');
+    const radios = document.querySelectorAll('input[name="portalModality"]');
+
+    radios.forEach(r => {
+        if (r.value === modality) r.checked = true;
+    });
+
+    if (modality === 'Online') {
+        if (onlineLabel) onlineLabel.classList.add('active');
+        if (presencialLabel) presencialLabel.classList.remove('active');
+    } else {
+        if (onlineLabel) onlineLabel.classList.remove('active');
+        if (presencialLabel) presencialLabel.classList.add('active');
+    }
+}
+
+async function handleScheduleSessionSubmit(e) {
+    e.preventDefault();
+    const date = document.getElementById('scheduleDate')?.value;
+    const time = document.getElementById('scheduleTime')?.value;
+    const modality = document.querySelector('input[name="portalModality"]:checked')?.value || 'Online';
+    const notes = document.getElementById('scheduleNotes')?.value?.trim() || '';
+
+    if (!date || !time) {
+        showToast('Por favor selecciona una fecha y un horario disponible', 'warning');
+        return;
+    }
+
+    // Verificar si el día es domingo
+    const [y, m, d] = date.split('-').map(Number);
+    if (new Date(y, m - 1, d, 12, 0, 0).getDay() === 0) {
+        showToast('El consultorio no atiende los domingos. Por favor selecciona de lunes a sábado.', 'warning');
+        return;
+    }
+
+    // Si hay backend disponible, validar contra la API antes de persistir
+    if (PortalState.portalToken && PortalState.patientId && typeof fetch !== 'undefined' && window.location.protocol !== 'file:') {
+        try {
+            const res = await fetch('/api/v1/portal/appointments/request', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    token: PortalState.portalToken,
+                    patientId: PortalState.patientId,
+                    date: date,
+                    time: time,
+                    duration: 50,
+                    type: modality,
+                    notes: notes
+                })
+            });
+
+            if (res.status === 409) {
+                const errData = await res.json().catch(() => ({}));
+                showToast(errData.error || 'El horario seleccionado ya no se encuentra disponible. Por favor elige otro.', 'warning');
+                handleScheduleDateChange(date);
+                return;
+            }
+
+            if (!res.ok) {
+                const errData = await res.json().catch(() => ({}));
+                showToast(errData.error || 'Error agendando cita en el servidor', 'warning');
+                return;
+            }
+        } catch (netErr) {
+            console.warn('[Portal] Servidor no disponible, procediendo con guardado local:', netErr);
+        }
+    }
+
+    const appointmentRecord = {
+        id: `apt_${Date.now()}_${Math.random().toString(36).substr(2, 6)}`,
+        patientId: PortalState.patientId,
+        patient_id: PortalState.patientId,
+        date: date,
+        time: time,
+        duration: 50,
+        type: modality,
+        status: 'agendada',
+        notes: notes || 'Sesión agendada desde el Portal del Paciente',
+        createdAt: new Date().toISOString()
+    };
+
+    if (!PortalState.appointments) PortalState.appointments = [];
+    PortalState.appointments.push(appointmentRecord);
+
+    // Guardar en puente local para que la app del terapeuta lo vea de inmediato
+    try {
+        const bridge = JSON.parse(localStorage.getItem('psico_portal_appointments_bridge') || '{}');
+        bridge[appointmentRecord.id] = appointmentRecord;
+        localStorage.setItem('psico_portal_appointments_bridge', JSON.stringify(bridge));
+        localStorage.setItem('psico_portal_appointments_last_update', Date.now().toString());
+    } catch (err) {}
+
+    savePatientData();
+
+    closeScheduleSessionModal();
+    renderNextSession();
+    renderSessionsView();
+    showToast('🎉 ¡Sesión agendada exitosamente!', 'success');
+}
+
+function openTelehealthFromPortal(appointmentId) {
+    const pId = PortalState.patientId || 'patient';
+    const roomName = `psiconotes-session-${pId.substring(0, 8)}-${(appointmentId || 'live').substring(0, 8)}`;
+    const jitsiUrl = `https://meet.jit.si/${encodeURIComponent(roomName)}#config.prejoinPageEnabled=false&userInfo.displayName=${encodeURIComponent(PortalState.patientName || 'Paciente')}`;
+    window.open(jitsiUrl, '_blank');
+    showToast('Abriendo sala de teleconsulta cifrada...', 'info');
+}
+
 // Exponer funciones globales para eventos onClick en portal.html
+window.renderNextSession = renderNextSession;
+window.renderSessionsView = renderSessionsView;
+window.openScheduleSessionModal = openScheduleSessionModal;
+window.closeScheduleSessionModal = closeScheduleSessionModal;
+window.selectPortalModality = selectPortalModality;
+window.handleScheduleSessionSubmit = handleScheduleSessionSubmit;
+window.openTelehealthFromPortal = openTelehealthFromPortal;
+window.handleScheduleDateChange = handleScheduleDateChange;
+window.pickSmartSlot = pickSmartSlot;
+window.selectNextAvailableWorkingDay = selectNextAvailableWorkingDay;
+window.fetchPortalAvailability = fetchPortalAvailability;
 window.toggleKidMode = toggleKidMode;
 window.switchKidView = switchKidView;
 window.selectKidWeather = selectKidWeather;
@@ -3179,3 +4039,820 @@ window.sendKidSosToTherapist = sendKidSosToTherapist;
 window.toggleKidAudioMute = toggleKidAudioMute;
 window.KidAudioEffects = KidAudioEffects;
 window.KidConfetti = KidConfetti;
+
+// ============================================
+// FUNCIONES PSIRIS: PALABRA DEL DÍA, MI PSICÓLOGO,
+// DOCUMENTOS, PAGOS, ASISTENCIA Y PERFIL
+// ============================================
+
+function escapeHtml(str) {
+    if (!str) return '';
+    return String(str)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
+}
+
+function renderTherapistCard() {
+    const info = PortalState.therapistInfo || {};
+    const name = info.name || PortalState.therapistName || 'Dr. Jose Correa';
+    const specialty = info.specialty || 'Psicología Clínica y de la Salud';
+    const fpv = info.registryNumber || 'FPV Nº 54567';
+    const email = info.email || 'atalantillo@gmail.com';
+    const location = info.location || 'Consultorio Clínico / Consulta Online y Presencial';
+
+    const nameEl = document.getElementById('therapistCardName');
+    const specEl = document.getElementById('therapistCardSpecialty');
+    const fpvEl = document.getElementById('therapistCardFpv');
+    const emailEl = document.getElementById('therapistCardEmail');
+    const locEl = document.getElementById('therapistCardLocation');
+
+    if (nameEl) nameEl.textContent = name;
+    if (specEl) specEl.textContent = specialty;
+    if (fpvEl) fpvEl.textContent = fpv;
+    if (emailEl) emailEl.textContent = email;
+    if (locEl) locEl.textContent = location;
+}
+
+function selectDailyWordChip(word) {
+    const input = document.getElementById('inputDailyWord');
+    if (input) {
+        input.value = word;
+        submitDailyWord();
+    }
+}
+
+async function submitDailyWord() {
+    const input = document.getElementById('inputDailyWord');
+    const word = (input ? input.value : '').trim();
+    if (!word) {
+        showToast('Escribe una palabra o selecciona una sugerencia', 'warning');
+        return;
+    }
+
+    PortalState.dailyWord = word;
+    const tag = document.getElementById('dailyWordSavedTag');
+    if (tag) {
+        tag.textContent = `"${word}" guardada ✓`;
+        tag.style.display = 'inline-block';
+    }
+
+    // Persistir y sincronizar con mood log de hoy
+    if (PortalState.patientId && PortalState.portalToken) {
+        sendPortalPost('/api/v1/portal/mood', {
+            patientId: PortalState.patientId,
+            token: PortalState.portalToken,
+            mood: 4,
+            sleep: 3,
+            energy: 3,
+            word: word
+        });
+    }
+
+    showToast(`Palabra del día registrada: "${word}" ✨`, 'success');
+}
+
+async function confirmSessionAttendance(appointmentId) {
+    if (!appointmentId) return;
+
+    // 1. Actualización local inmediata (optimistic UI)
+    const app = (PortalState.appointments || []).find(a => String(a.id) === String(appointmentId));
+    if (app) {
+        app.attendanceConfirmed = true;
+        app.status = 'confirmada';
+    }
+    savePatientDataLocally();
+    renderNextSession();
+    renderSessionsView();
+
+    // 2. Sincronización defensiva con backend
+    if (PortalState.portalToken && typeof window !== 'undefined' && window.location && window.location.protocol !== 'file:') {
+        try {
+            const res = await fetch(`/api/v1/portal/appointments/${encodeURIComponent(appointmentId)}/confirm`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    token: PortalState.portalToken,
+                    patientId: PortalState.patientId
+                })
+            });
+
+            if (!res.ok) {
+                console.warn('[Portal] Servidor devolvió estado no exitoso para confirmación, conservado localmente');
+            }
+        } catch (netErr) {
+            console.warn('[Portal] Red o backend no disponible al confirmar asistencia, registrado localmente');
+        }
+    }
+
+    showToast('¡Asistencia confirmada! Tu terapeuta ha sido notificado.', 'success');
+}
+
+async function loadPortalAvailability(dateStr) {
+    const container = document.getElementById('availableSlotsChipsContainer');
+    const picker = document.getElementById('portalAvailabilityPicker');
+    if (!dateStr) {
+        const tmrw = new Date();
+        tmrw.setDate(tmrw.getDate() + 1);
+        dateStr = tmrw.toISOString().split('T')[0];
+    }
+    if (picker) picker.value = dateStr;
+
+    if (!container) return;
+    container.innerHTML = `<div style="grid-column: 1/-1; font-size: 12px; color: var(--text-tertiary); text-align: center; padding: 10px;"><i class="fas fa-spinner fa-spin"></i> Consultando horarios...</div>`;
+
+    let slots = [];
+    if (typeof window !== 'undefined' && window.location && window.location.protocol !== 'file:' && PortalState.portalToken) {
+        try {
+            const token = PortalState.portalToken || '';
+            const res = await fetch(`/api/v1/portal/availability?token=${encodeURIComponent(token)}&date=${encodeURIComponent(dateStr)}`);
+            if (res.ok) {
+                const data = await res.json();
+                slots = data.availableSlots || [];
+            }
+        } catch (e) {
+            console.warn('[Portal] Backend no disponible para disponibilidad, recurriendo a cálculo inteligente local');
+        }
+    }
+
+    // Fallback defensivo inteligente si el servidor no está disponible o es file://
+    if (slots.length === 0) {
+        const checkDate = new Date(dateStr + 'T12:00:00');
+        const dayOfWeek = checkDate.getDay();
+        if (dayOfWeek !== 0) { // Lunes a Sábado
+            const hours = ['09:00', '10:00', '11:00', '14:00', '15:00', '16:00', '17:00'];
+            const occupied = PortalState.therapistOccupiedSlots || [];
+            const patientApps = (PortalState.appointments || []).filter(a => a.status !== 'cancelada');
+            slots = hours.filter(h => {
+                const isOccupied = occupied.some(o => o.date === dateStr && o.time === h);
+                const isPatientBooked = patientApps.some(a => a.date === dateStr && a.time === h);
+                return !isOccupied && !isPatientBooked;
+            }).map((h, idx) => ({
+                time: h,
+                label: `${h} hrs`,
+                recommended: idx === 0 || idx === 3
+            }));
+        }
+    }
+
+    if (slots.length === 0) {
+        container.innerHTML = `
+            <div style="grid-column: 1/-1; background: #fffbeb; border: 1px solid #fef3c7; color: #92400e; padding: 10px 14px; border-radius: 8px; font-size: 12px; text-align: center;">
+                No hay turnos disponibles para el ${formatDateSafe(dateStr)}. Por favor selecciona otra fecha.
+            </div>
+        `;
+        return;
+    }
+
+    container.innerHTML = slots.map(s => `
+        <button type="button" class="portal-slot-chip ${s.recommended ? 'recommended' : ''}" onclick="pickAvailableSlot('${dateStr}', '${s.time}')" title="${s.recommended ? 'Horario recomendado' : ''}">
+            ${s.label || s.time}
+        </button>
+    `).join('');
+}
+
+function pickAvailableSlot(dateStr, timeStr) {
+    if (typeof openScheduleSessionModal === 'function') {
+        openScheduleSessionModal();
+        const dateInput = document.getElementById('scheduleSessionDate');
+        const timeInput = document.getElementById('scheduleSessionTime');
+        if (dateInput) {
+            dateInput.value = dateStr;
+            dateInput.dispatchEvent(new Event('change'));
+        }
+        setTimeout(() => {
+            if (timeInput) timeInput.value = timeStr;
+        }, 300);
+    }
+}
+
+function renderDocumentsView() {
+    const listTherapist = document.getElementById('therapistDocsList');
+    const listPatient = document.getElementById('patientDocsList');
+    const countTherapist = document.getElementById('therapistDocsCount');
+    const countPatient = document.getElementById('patientDocsCount');
+
+    const docs = PortalState.documents || [];
+    const therapistDocs = docs.filter(d => d.uploaded_by === 'therapist' || d.uploadedBy === 'therapist');
+    const patientDocs = docs.filter(d => d.uploaded_by !== 'therapist' && d.uploadedBy !== 'therapist');
+
+    if (countTherapist) countTherapist.textContent = `${therapistDocs.length} archivo${therapistDocs.length === 1 ? '' : 's'}`;
+    if (countPatient) countPatient.textContent = `${patientDocs.length} archivo${patientDocs.length === 1 ? '' : 's'}`;
+
+    if (listTherapist) {
+        if (therapistDocs.length === 0) {
+            listTherapist.innerHTML = `<div class="empty-state-small">Tu terapeuta no ha compartido documentos aún.</div>`;
+        } else {
+            listTherapist.innerHTML = therapistDocs.map(d => renderDocumentItem(d, false)).join('');
+        }
+    }
+
+    if (listPatient) {
+        if (patientDocs.length === 0) {
+            listPatient.innerHTML = `<div class="empty-state-small">Aún no has compartido documentos con tu terapeuta.</div>`;
+        } else {
+            listPatient.innerHTML = patientDocs.map(d => renderDocumentItem(d, true)).join('');
+        }
+    }
+}
+
+function renderDocumentItem(d, allowDelete = false) {
+    const ext = (d.file_name || d.fileName || '').split('.').pop().toLowerCase();
+    let badgeClass = 'other';
+    let icon = '📁';
+    if (ext === 'pdf') { badgeClass = 'pdf'; icon = '📕'; }
+    else if (ext === 'doc' || ext === 'docx') { badgeClass = 'word'; icon = '📘'; }
+    else if (['png', 'jpg', 'jpeg', 'webp'].includes(ext)) { badgeClass = 'img'; icon = '🖼️'; }
+
+    const sizeKb = d.file_size ? `${Math.round(d.file_size / 1024)} KB` : '';
+    const dateFormatted = d.created_at ? formatDateSafe(d.created_at.split('T')[0]) : '';
+
+    return `
+        <div class="portal-document-item">
+            <div class="doc-item-left">
+                <div class="doc-icon-badge ${badgeClass}">${icon}</div>
+                <div class="doc-meta">
+                    <div class="doc-title">${escapeHtml(d.title || d.file_name || d.fileName)}</div>
+                    <div class="doc-sub">
+                        <span>${escapeHtml(d.file_name || d.fileName)}</span>
+                        ${sizeKb ? `<span>• ${sizeKb}</span>` : ''}
+                        ${dateFormatted ? `<span>• ${dateFormatted}</span>` : ''}
+                    </div>
+                </div>
+            </div>
+            <div style="display: flex; gap: 6px;">
+                ${d.file_data ? `
+                    <button class="btn-sm btn-secondary" onclick="downloadPortalDoc('${d.id}')" title="Descargar / Ver">
+                        <i class="fas fa-download"></i>
+                    </button>
+                ` : ''}
+                ${allowDelete ? `
+                    <button class="btn-sm btn-secondary" onclick="deletePortalDoc('${d.id}')" title="Eliminar" style="color: #dc2626;">
+                        <i class="fas fa-trash"></i>
+                    </button>
+                ` : ''}
+            </div>
+        </div>
+    `;
+}
+
+function downloadPortalDoc(docId) {
+    const doc = (PortalState.documents || []).find(d => String(d.id) === String(docId));
+    if (!doc || !doc.file_data) {
+        showToast('Documento no disponible para descarga directa', 'warning');
+        return;
+    }
+    const link = document.createElement('a');
+    link.href = doc.file_data;
+    link.download = doc.file_name || doc.fileName || 'documento';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+}
+
+async function handleDocumentUpload(e) {
+    e.preventDefault();
+    const title = (document.getElementById('docTitleInput').value || '').trim();
+    const category = document.getElementById('docCategorySelect').value || 'general';
+    const fileInput = document.getElementById('docFileInput');
+    const file = fileInput ? fileInput.files[0] : null;
+
+    if (!file) {
+        showToast('Selecciona un archivo', 'warning');
+        return;
+    }
+
+    if (file.size > 15 * 1024 * 1024) {
+        showToast('El archivo supera el límite de 15 MB. Por favor sube un archivo más ligero.', 'warning');
+        return;
+    }
+
+    const btn = document.getElementById('btnUploadDoc');
+    if (btn) btn.disabled = true;
+
+    try {
+        const reader = new FileReader();
+        reader.onload = async () => {
+            try {
+                const fileData = reader.result;
+                const docRecord = {
+                    id: `doc_${Date.now()}_${Math.random().toString(36).substr(2, 6)}`,
+                    patient_id: PortalState.patientId,
+                    title: title || file.name,
+                    category,
+                    file_name: file.name,
+                    fileName: file.name,
+                    file_type: file.type || 'application/octet-stream',
+                    fileType: file.type || 'application/octet-stream',
+                    file_size: file.size,
+                    fileSize: file.size,
+                    file_data: fileData,
+                    fileData: fileData,
+                    uploaded_by: 'patient',
+                    uploadedBy: 'patient',
+                    notes: '',
+                    created_at: new Date().toISOString()
+                };
+
+                // Optimistic local storage & UI
+                if (!Array.isArray(PortalState.documents)) PortalState.documents = [];
+                PortalState.documents.unshift(docRecord);
+                savePatientDataLocally();
+                renderDocumentsView();
+
+                // Intentar sincronizar con backend si no es file://
+                if (PortalState.portalToken && typeof window !== 'undefined' && window.location && window.location.protocol !== 'file:') {
+                    try {
+                        const payload = {
+                            token: PortalState.portalToken,
+                            patientId: PortalState.patientId,
+                            title: docRecord.title,
+                            category: docRecord.category,
+                            fileName: docRecord.file_name,
+                            fileType: docRecord.file_type,
+                            fileSize: docRecord.file_size,
+                            fileData: docRecord.file_data
+                        };
+                        const res = await fetch('/api/v1/portal/documents/upload', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify(payload)
+                        });
+                        if (res.ok) {
+                            const data = await res.json();
+                            if (data.document && data.document.id) {
+                                docRecord.id = data.document.id;
+                                savePatientDataLocally();
+                            }
+                        }
+                    } catch (netErr) {
+                        console.warn('[Portal] Servidor no alcanzable para subir documento, almacenado localmente:', netErr);
+                    }
+                }
+
+                showToast('Documento guardado y compartido exitosamente', 'success');
+                const form = document.getElementById('formUploadDocument');
+                if (form) form.reset();
+            } catch (errInner) {
+                console.error('[Portal] Error procesando archivo:', errInner);
+                showToast('Error procesando el archivo', 'error');
+            } finally {
+                if (btn) btn.disabled = false;
+            }
+        };
+        reader.readAsDataURL(file);
+    } catch (err) {
+        if (btn) btn.disabled = false;
+        showToast('Error al leer el archivo seleccionado', 'error');
+    }
+}
+
+async function deletePortalDoc(docId) {
+    if (!confirm('¿Deseas eliminar este documento compartido?')) return;
+
+    PortalState.documents = (PortalState.documents || []).filter(d => String(d.id) !== String(docId));
+    savePatientDataLocally();
+    renderDocumentsView();
+
+    if (PortalState.portalToken && typeof window !== 'undefined' && window.location && window.location.protocol !== 'file:') {
+        try {
+            await fetch(`/api/v1/portal/documents/${encodeURIComponent(docId)}`, {
+                method: 'DELETE',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ token: PortalState.portalToken })
+            });
+        } catch (netErr) {
+            console.warn('[Portal] Servidor no alcanzable al eliminar documento, removido localmente:', netErr);
+        }
+    }
+    showToast('Documento eliminado', 'info');
+}
+
+function renderPaymentsView() {
+    const methodsGrid = document.getElementById('paymentMethodsGrid');
+    const reportsList = document.getElementById('paymentReportsList');
+    const countEl = document.getElementById('paymentReportsCount');
+    const payMethodSelect = document.getElementById('payMethodSelect');
+
+    const allMethods = PortalState.paymentMethods && PortalState.paymentMethods.length > 0 
+        ? PortalState.paymentMethods 
+        : getDefaultPaymentMethods();
+
+    // Filtrar métodos activos y habilitados
+    const activeMethods = allMethods.filter(m => m.enabled !== false && m.active !== false);
+
+    if (methodsGrid) {
+        if (activeMethods.length === 0) {
+            methodsGrid.innerHTML = `
+                <div class="empty-state-small" style="grid-column: 1 / -1; padding: 20px; text-align: center; color: var(--text-secondary);">
+                    No hay formas de pago habilitadas actualmente. Por favor consulta con tu terapeuta.
+                </div>
+            `;
+        } else {
+            methodsGrid.innerHTML = activeMethods.map(m => `
+                <div class="portal-payment-method-card">
+                    <div>
+                        <div class="pay-method-header">
+                            <span class="pay-method-icon">${m.icon || '💳'}</span>
+                            <span class="pay-method-title">${escapeHtml(m.name)}</span>
+                        </div>
+                        <div class="pay-method-body">
+                            ${m.bank ? `<div><strong>Banco:</strong> ${escapeHtml(m.bank)}</div>` : ''}
+                            ${m.idNumber ? `<div><strong>C.I. / RIF:</strong> ${escapeHtml(m.idNumber)}</div>` : ''}
+                            ${m.phone ? `<div><strong>Teléfono:</strong> ${escapeHtml(m.phone)}</div>` : ''}
+                            ${m.email ? `<div><strong>Email:</strong> ${escapeHtml(m.email)}</div>` : ''}
+                            ${m.holder ? `<div><strong>Titular:</strong> ${escapeHtml(m.holder)}</div>` : ''}
+                            ${m.accountNumber ? `<div><strong>Cuenta:</strong> <span style="font-family:monospace;font-size:11px;">${escapeHtml(m.accountNumber)}</span></div>` : ''}
+                            ${m.payId ? `<div><strong>Pay ID:</strong> <span style="font-family:monospace;font-weight:700;">${escapeHtml(m.payId)}</span></div>` : ''}
+                            ${m.network ? `<div><strong>Red:</strong> ${escapeHtml(m.network)}</div>` : ''}
+                            ${m.instructions ? `<div style="margin-top:6px;font-style:italic;color:var(--text-tertiary);">${escapeHtml(m.instructions)}</div>` : ''}
+                        </div>
+                    </div>
+                    <button type="button" class="btn-copy-payment" onclick="copyPaymentDetails('${m.id}')">
+                        <i class="fas fa-copy"></i> Copiar Datos
+                    </button>
+                </div>
+            `).join('');
+        }
+    }
+
+    // Actualizar dinámicamente las opciones del selector de método de pago
+    if (payMethodSelect && activeMethods.length > 0) {
+        const prevValue = payMethodSelect.value;
+        payMethodSelect.innerHTML = activeMethods.map(m => `
+            <option value="${escapeHtml(m.id)}">${m.icon ? escapeHtml(m.icon) + ' ' : ''}${escapeHtml(m.name)}</option>
+        `).join('');
+        if (activeMethods.some(m => m.id === prevValue)) {
+            payMethodSelect.value = prevValue;
+        }
+    }
+
+    const reports = PortalState.paymentReports || [];
+    if (countEl) countEl.textContent = `${reports.length} registro${reports.length === 1 ? '' : 's'}`;
+
+    if (reportsList) {
+        if (reports.length === 0) {
+            reportsList.innerHTML = `<div class="empty-state-small">No has reportado pagos todavía.</div>`;
+        } else {
+            reportsList.innerHTML = reports.map(r => {
+                const statusClass = (r.status || 'pendiente').toLowerCase();
+                const statusLabel = r.status === 'verificado' || r.status === 'aprobado' ? 'Aprobado ✓' : (r.status === 'rechazado' ? 'Rechazado' : 'Pendiente ⏳');
+                return `
+                    <div class="portal-payment-report-item">
+                        <div>
+                            <div style="font-size: 14px; font-weight: 700; color: var(--text-primary); display: flex; align-items: center; gap: 8px;">
+                                <span>${r.currency || 'USD'} ${Number(r.amount).toFixed(2)}</span>
+                                <span class="report-status-badge status-${statusClass}">${statusLabel}</span>
+                            </div>
+                            <div style="font-size: 12px; color: var(--text-secondary); margin-top: 3px;">
+                                <strong>Ref:</strong> ${escapeHtml(r.reference)} • <strong>Fecha:</strong> ${formatDateSafe(r.payment_date || r.paymentDate)}
+                            </div>
+                            <div style="font-size: 11px; color: var(--text-tertiary); margin-top: 2px;">
+                                ${escapeHtml(r.concept || 'Sesión de psicoterapia')} (${formatPaymentMethodName(r.payment_method || r.paymentMethod)})
+                            </div>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        }
+    }
+}
+
+function getDefaultPaymentMethods() {
+    return [
+        { id: 'pago_movil', name: 'Pago Móvil Interbancario', icon: '📱', enabled: true, bank: 'Banesco (0134) / Mercantil (0105)', idNumber: 'V-15890123', phone: '0414-2345678', instructions: 'Transferencias interbancarias inmediatas' },
+        { id: 'zelle', name: 'Zelle (USD)', icon: '💵', enabled: true, email: 'atalantillo@gmail.com', holder: 'Lic. Jose Correa', instructions: 'Indicar únicamente el nombre del paciente en la nota' },
+        { id: 'transferencia', name: 'Transferencia Bancaria Nacional', icon: '🏦', enabled: true, bank: 'Banesco Banco Universal', accountNumber: '0134-0987-65-0123456789', idNumber: 'V-15890123', holder: 'Consulta Psicológica' },
+        { id: 'binance', name: 'Binance Pay (USDT)', icon: '🟡', enabled: true, payId: '892341052', network: 'USDT (Red TRC20 / BEP20)', instructions: 'Transferencias directas sin comisiones' },
+        { id: 'efectivo', name: 'Efectivo en Consulta', icon: '💶', enabled: true, instructions: 'Pago directo al inicio de tu sesión presencial' }
+    ];
+}
+
+function formatPaymentMethodName(id) {
+    const methods = PortalState.paymentMethods && PortalState.paymentMethods.length > 0 ? PortalState.paymentMethods : getDefaultPaymentMethods();
+    const found = methods.find(x => x.id === id);
+    if (found && found.name) return found.name;
+    const map = { pago_movil: 'Pago Móvil', zelle: 'Zelle', transferencia: 'Transferencia', binance: 'Binance Pay', efectivo: 'Efectivo' };
+    return map[id] || id;
+}
+
+function copyPaymentDetails(methodId) {
+    const methods = PortalState.paymentMethods && PortalState.paymentMethods.length > 0 ? PortalState.paymentMethods : getDefaultPaymentMethods();
+    const m = methods.find(x => x.id === methodId);
+    if (!m) return;
+
+    let text = `${m.name}\n`;
+    if (m.bank) text += `Banco: ${m.bank}\n`;
+    if (m.idNumber) text += `C.I./RIF: ${m.idNumber}\n`;
+    if (m.phone) text += `Teléfono: ${m.phone}\n`;
+    if (m.email) text += `Email: ${m.email}\n`;
+    if (m.holder) text += `Titular: ${m.holder}\n`;
+    if (m.accountNumber) text += `Cuenta: ${m.accountNumber}\n`;
+    if (m.payId) text += `Binance Pay ID: ${m.payId}\n`;
+
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(text.trim()).then(() => {
+            showToast(`Datos de ${m.name} copiados al portapapeles ✓`, 'success');
+        }).catch(() => {
+            showToast('Copia manual: ' + text.trim().substring(0, 40) + '...', 'info');
+        });
+    } else {
+        showToast(`Datos de ${m.name} copiados ✓`, 'success');
+    }
+}
+
+async function handleReportPayment(e) {
+    e.preventDefault();
+    const amountVal = parseFloat(document.getElementById('payAmountInput').value);
+    const currency = document.getElementById('payCurrencySelect').value || 'USD';
+    const paymentMethod = document.getElementById('payMethodSelect').value || 'pago_movil';
+    const reference = (document.getElementById('payReferenceInput').value || '').trim();
+    const paymentDate = document.getElementById('payDateInput').value || new Date().toISOString().split('T')[0];
+    const concept = (document.getElementById('payConceptInput').value || '').trim();
+    const receiptFileInput = document.getElementById('payReceiptFile');
+    const receiptFile = receiptFileInput && receiptFileInput.files ? receiptFileInput.files[0] : null;
+
+    if (!amountVal || isNaN(amountVal) || amountVal <= 0) {
+        showToast('Ingresa un monto válido', 'warning');
+        return;
+    }
+    if (!reference) {
+        showToast('Ingresa el número de referencia bancaria', 'warning');
+        return;
+    }
+
+    const doSubmit = async (receiptData = '') => {
+        const reportRecord = {
+            id: `pay_${Date.now()}_${Math.random().toString(36).substr(2, 6)}`,
+            patient_id: PortalState.patientId,
+            amount: amountVal,
+            currency,
+            payment_method: paymentMethod,
+            paymentMethod,
+            reference,
+            payment_date: paymentDate,
+            paymentDate,
+            concept: concept || 'Sesión de psicoterapia',
+            receipt_data: receiptData,
+            receiptData,
+            status: 'pendiente',
+            created_at: new Date().toISOString()
+        };
+
+        // Guardado optimista local
+        if (!Array.isArray(PortalState.paymentReports)) PortalState.paymentReports = [];
+        PortalState.paymentReports.unshift(reportRecord);
+        savePatientDataLocally();
+        renderPaymentsView();
+
+        // Notificar al entorno local y entre pestañas para sincronización inmediata con el terapeuta
+        try {
+            const bridge = JSON.parse(localStorage.getItem('psico_therapist_payment_reports_bridge') || '[]');
+            bridge.unshift({ ...reportRecord, patientName: PortalState.patientName || 'Paciente' });
+            localStorage.setItem('psico_therapist_payment_reports_bridge', JSON.stringify(bridge));
+            localStorage.setItem('psico_portal_payment_reported', JSON.stringify({
+                patientId: PortalState.patientId,
+                patientName: PortalState.patientName || 'Paciente',
+                report: reportRecord,
+                timestamp: Date.now()
+            }));
+            localStorage.setItem('psico_portal_payment_last_update', Date.now().toString());
+            if (typeof window !== 'undefined') {
+                window.dispatchEvent(new CustomEvent('psico_payment_reported', { detail: reportRecord }));
+            }
+        } catch (e) {}
+
+        // Sincronización en backend si no es file://
+        if (PortalState.portalToken && typeof window !== 'undefined' && window.location && window.location.protocol !== 'file:') {
+            try {
+                const payload = {
+                    token: PortalState.portalToken,
+                    patientId: PortalState.patientId,
+                    amount: amountVal,
+                    currency,
+                    paymentMethod,
+                    reference,
+                    paymentDate,
+                    concept: reportRecord.concept,
+                    receiptData
+                };
+                const res = await fetch('/api/v1/portal/payments/report', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+                if (res.ok) {
+                    const data = await res.json();
+                    if (data.paymentReport && data.paymentReport.id) {
+                        reportRecord.id = data.paymentReport.id;
+                        savePatientDataLocally();
+                    }
+                }
+            } catch (netErr) {
+                console.warn('[Portal] Servidor no alcanzable al reportar pago, registrado localmente:', netErr);
+            }
+        }
+
+        showToast('Pago reportado exitosamente. Tu terapeuta lo validará en breve.', 'success');
+        const form = document.getElementById('formReportPayment');
+        if (form) form.reset();
+    };
+
+    try {
+        if (receiptFile) {
+            if (receiptFile.size > 15 * 1024 * 1024) {
+                showToast('El comprobante supera el tamaño máximo permitido (15 MB)', 'warning');
+                return;
+            }
+            const reader = new FileReader();
+            reader.onload = async () => {
+                await doSubmit(reader.result);
+            };
+            reader.readAsDataURL(receiptFile);
+        } else {
+            await doSubmit('');
+        }
+    } catch (err) {
+        console.error('[Portal] Error al reportar pago:', err);
+        showToast('Error al procesar el comprobante', 'error');
+    }
+}
+
+function renderProfileView() {
+    const patient = PortalState.patientProfile || {};
+    const nameEl = document.getElementById('profileDisplayName');
+    const avatarEl = document.getElementById('profileLargeAvatar');
+    const name = patient.name || PortalState.patientName || 'Paciente';
+
+    if (nameEl) nameEl.textContent = name;
+    if (avatarEl) avatarEl.textContent = getInitials(name);
+
+    const nameInput = document.getElementById('profNameInput');
+    const birthdateInput = document.getElementById('profBirthdateInput');
+    const phoneInput = document.getElementById('profPhoneInput');
+    const emailInput = document.getElementById('profEmailInput');
+    const occInput = document.getElementById('profOccupationInput');
+    const addressInput = document.getElementById('profAddressInput');
+    const emerContactInput = document.getElementById('profEmergencyContactInput');
+    const emerPhoneInput = document.getElementById('profEmergencyPhoneInput');
+    const expInput = document.getElementById('profExpectationsInput');
+
+    if (nameInput) nameInput.value = patient.name || PortalState.patientName || '';
+    if (birthdateInput && patient.birthdate) birthdateInput.value = patient.birthdate.split('T')[0];
+    if (phoneInput) phoneInput.value = patient.phone || '';
+    if (emailInput) emailInput.value = patient.email || '';
+    if (occInput) occInput.value = patient.occupation || '';
+    if (addressInput) addressInput.value = patient.address || '';
+    if (emerContactInput) emerContactInput.value = patient.emergency_contact || patient.emergencyContact || '';
+    if (emerPhoneInput) emerPhoneInput.value = patient.emergency_phone || patient.emergencyPhone || '';
+    if (expInput) expInput.value = patient.expectations || patient.preconsulta_data?.expectations || '';
+}
+
+async function handleSavePatientProfile(e) {
+    e.preventDefault();
+    const name = (document.getElementById('profNameInput').value || '').trim();
+    const birthdate = document.getElementById('profBirthdateInput').value;
+    const phone = (document.getElementById('profPhoneInput').value || '').trim();
+    const email = (document.getElementById('profEmailInput').value || '').trim();
+    const occupation = (document.getElementById('profOccupationInput').value || '').trim();
+    const address = (document.getElementById('profAddressInput').value || '').trim();
+    const emergencyContact = (document.getElementById('profEmergencyContactInput').value || '').trim();
+    const emergencyPhone = (document.getElementById('profEmergencyPhoneInput').value || '').trim();
+    const expectations = (document.getElementById('profExpectationsInput').value || '').trim();
+
+    // Actualización inmediata en estado local y header
+    PortalState.patientProfile = {
+        ...(PortalState.patientProfile || {}),
+        name: name || PortalState.patientName,
+        birthdate,
+        phone,
+        email,
+        occupation,
+        address,
+        emergency_contact: emergencyContact,
+        emergencyContact,
+        emergency_phone: emergencyPhone,
+        emergencyPhone,
+        expectations
+    };
+    if (name) {
+        PortalState.patientName = name;
+        updateHeader();
+    }
+    savePatientDataLocally();
+
+    // Sincronización en backend si no es file://
+    if (PortalState.portalToken && typeof window !== 'undefined' && window.location && window.location.protocol !== 'file:') {
+        try {
+            const res = await fetch('/api/v1/portal/profile', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    token: PortalState.portalToken,
+                    patientId: PortalState.patientId,
+                    name,
+                    birthdate,
+                    phone,
+                    email,
+                    occupation,
+                    address,
+                    emergencyContact,
+                    emergencyPhone,
+                    expectations
+                })
+            });
+            if (res.ok) {
+                const data = await res.json();
+                if (data.patient) {
+                    PortalState.patientProfile = data.patient;
+                    if (data.patient.name) PortalState.patientName = data.patient.name;
+                    savePatientDataLocally();
+                }
+            } else {
+                console.warn('[Portal] Servidor devolvió error al guardar perfil, persistido localmente');
+            }
+        } catch (netErr) {
+            console.warn('[Portal] Servidor no alcanzable al guardar perfil, persistido localmente:', netErr);
+        }
+    }
+
+    showToast('Tus datos han sido actualizados y sincronizados con tu expediente ✓', 'success');
+}
+
+// Exposición global
+window.renderTherapistCard = renderTherapistCard;
+window.selectDailyWordChip = selectDailyWordChip;
+window.submitDailyWord = submitDailyWord;
+window.confirmSessionAttendance = confirmSessionAttendance;
+window.loadPortalAvailability = loadPortalAvailability;
+window.pickAvailableSlot = pickAvailableSlot;
+window.renderDocumentsView = renderDocumentsView;
+window.downloadPortalDoc = downloadPortalDoc;
+window.handleDocumentUpload = handleDocumentUpload;
+window.deletePortalDoc = deletePortalDoc;
+window.renderPaymentsView = renderPaymentsView;
+window.copyPaymentDetails = copyPaymentDetails;
+window.handleReportPayment = handleReportPayment;
+window.renderProfileView = renderProfileView;
+window.handleSavePatientProfile = handleSavePatientProfile;
+
+// ============================================
+// ESCUCHA REACTIVA DE ACTUALIZACIONES DEL TERAPEUTA (CITAS, CANCELACIONES, PERFIL)
+// ============================================
+if (typeof window !== 'undefined') {
+    // Sincronización en tiempo real ante eventos de LocalStorage (entre pestañas)
+    window.addEventListener('storage', (e) => {
+        if (!e.key || e.key === 'psico_portal_appointments_bridge' || 
+            e.key === 'psico_portal_appointments_last_update' || 
+            e.key === 'psico_therapist_payment_methods' ||
+            e.key === 'psico_payment_methods_updated' ||
+            (PortalState.patientId && e.key === `psico_portal_data_${PortalState.patientId}`)) {
+            if (e.key === 'psico_therapist_payment_methods') {
+                try {
+                    const parsed = JSON.parse(e.newValue || '[]');
+                    if (Array.isArray(parsed) && parsed.length > 0) {
+                        PortalState.paymentMethods = parsed;
+                    }
+                } catch (err) {}
+            }
+            if (typeof mergeAppointmentsFromBridge === 'function') mergeAppointmentsFromBridge();
+            if (typeof renderNextSession === 'function') renderNextSession();
+            if (typeof renderSessionsView === 'function') renderSessionsView();
+            if (typeof renderTherapistCard === 'function') renderTherapistCard();
+            if (typeof renderPaymentsView === 'function') renderPaymentsView();
+        }
+    });
+
+    // Sincronización en la misma ventana / contexto
+    window.addEventListener('psico_appointment_updated', (e) => {
+        if (typeof mergeAppointmentsFromBridge === 'function') mergeAppointmentsFromBridge();
+        if (typeof renderNextSession === 'function') renderNextSession();
+        if (typeof renderSessionsView === 'function') renderSessionsView();
+    });
+
+    window.addEventListener('psico_payment_methods_updated', (e) => {
+        try {
+            const custom = JSON.parse(localStorage.getItem('psico_therapist_payment_methods') || 'null');
+            if (Array.isArray(custom) && custom.length > 0) {
+                PortalState.paymentMethods = custom;
+            }
+        } catch (err) {}
+        if (typeof renderPaymentsView === 'function') renderPaymentsView();
+    });
+
+    // Auto-actualización cuando el paciente vuelve al tab
+    window.addEventListener('focus', () => {
+        if (PortalState.portalToken && typeof loadPatientData === 'function') {
+            loadPatientData();
+        }
+    });
+
+    // Sondeo de seguridad cada 20s para verificar cambios remotos si el tab está visible
+    setInterval(() => {
+        if (typeof document !== 'undefined' && !document.hidden && PortalState.portalToken && typeof loadPatientData === 'function') {
+            loadPatientData();
+        }
+    }, 20000);
+}

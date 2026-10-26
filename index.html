@@ -492,27 +492,24 @@
                     </button>
                 </div>
             </div>
-            <!-- Etapas del Ciclo Vital: Niñez, Adolescencia, Adultez -->
+            <!-- Etapas del Ciclo Vital: Infantil, Adolescente, Adulto -->
             <div class="population-filter-tabs" id="populationFilterTabs">
                 <button class="population-tab-btn active" id="tabPopAll" onclick="setPatientCategoryFilter('all')">
                     <span class="tab-pop-label">Todos</span>
                     <span class="tab-pop-count" id="countAllPatients">0</span>
                 </button>
                 <button class="population-tab-btn" id="tabPopChild" onclick="setPatientCategoryFilter('child')">
-                    <span class="tab-pop-icon">🧒</span>
-                    <span class="tab-pop-label">Niñez</span>
+                    <span class="tab-pop-label">Infantil</span>
                     <span class="tab-pop-hint">(&lt;12a)</span>
                     <span class="tab-pop-count badge-child-count" id="countChildPatients">0</span>
                 </button>
                 <button class="population-tab-btn" id="tabPopAdolescent" onclick="setPatientCategoryFilter('adolescent')">
-                    <span class="tab-pop-icon">🧑</span>
-                    <span class="tab-pop-label">Adolescencia</span>
+                    <span class="tab-pop-label">Adolescente</span>
                     <span class="tab-pop-hint">(12-17a)</span>
                     <span class="tab-pop-count badge-adolescent-count" id="countAdolescentPatients">0</span>
                 </button>
                 <button class="population-tab-btn" id="tabPopAdult" onclick="setPatientCategoryFilter('adult')">
-                    <span class="tab-pop-icon">👤</span>
-                    <span class="tab-pop-label">Adultez</span>
+                    <span class="tab-pop-label">Adulto</span>
                     <span class="tab-pop-hint">(18+a)</span>
                     <span class="tab-pop-count badge-adult-count" id="countAdultPatients">0</span>
                 </button>
@@ -788,9 +785,9 @@
                 <div class="form-group">
                     <label>Etapa del Ciclo Vital *</label>
                     <select id="patientCategory" onchange="onPatientCategoryChange()">
-                        <option value="adult">👤 Adultez (18+ años)</option>
-                        <option value="adolescent">🧑 Adolescencia (12 a 17 años)</option>
-                        <option value="child">🧒 Niñez / Infancia (&lt; 12 años)</option>
+                        <option value="adult">Adulto (18+ años)</option>
+                        <option value="adolescent">Adolescente (12 a 17 años)</option>
+                        <option value="child">Infantil (&lt; 12 años)</option>
                     </select>
                 </div>
                 <div class="form-group">
@@ -1200,9 +1197,10 @@
                 <label>Estado de la Cita *</label>
                 <select id="appointmentStatus">
                     <option value="agendada" selected>📅 Agendada / Programada</option>
-                    <option value="completada">✅ Completada</option>
+                    <option value="completada">✅ Completada / Asistió</option>
                     <option value="reprogramada">🔄 Reprogramada</option>
                     <option value="cancelada">❌ Cancelada</option>
+                    <option value="no_asistio">⚠️ No Asistió / Inasistencia</option>
                 </select>
             </div>
             <div class="form-group">
@@ -1792,11 +1790,105 @@
                     Dibuja tu firma. Se estampará automáticamente en informes de derivación, epicrisis, certificados y hojas de evolución SOAP.
                 </small>
             </div>
+            <div style="margin-top: 14px; padding: 12px 14px; background: rgba(99, 102, 241, 0.08); border: 1px solid rgba(99, 102, 241, 0.2); border-radius: 8px; display: flex; justify-content: space-between; align-items: center; gap: 12px;">
+                <div>
+                    <strong style="display:block; font-size:13px; color:var(--text-primary);"><i class="fas fa-credit-card" style="color:var(--accent-primary);"></i> Formas de Pago para el Portal Paciente</strong>
+                    <span style="font-size:12px; color:var(--text-secondary);">Configura Pago Móvil, Zelle, cuentas bancarias y Binance Pay que verán tus pacientes.</span>
+                </div>
+                <button type="button" class="btn-secondary btn-sm" onclick="openPortalPaymentMethodsModal()" style="white-space:nowrap;">
+                    <i class="fas fa-cog"></i> Configurar
+                </button>
+            </div>
             <div class="modal-actions" style="margin-top:16px;display:flex;justify-content:flex-end;gap:10px;">
                 <button type="button" class="btn-secondary" onclick="closeModal('therapistProfileModal')">Cancelar</button>
                 <button type="submit" class="btn-primary"><i class="fas fa-save"></i> Guardar Credenciales y Firma</button>
             </div>
         </form>
+    </div>
+</div>
+
+<!-- MODAL DE CONFIGURACIÓN DE FORMAS DE PAGO DEL PORTAL -->
+<div class="modal" id="portalPaymentMethodsModal">
+    <div class="modal-overlay" onclick="closeModal('portalPaymentMethodsModal')"></div>
+    <div class="modal-content modal-large" style="max-width: 780px; max-height: 90vh; display: flex; flex-direction: column;">
+        <div class="modal-header" style="flex-shrink: 0;">
+            <div style="display: flex; align-items: center; gap: 12px;">
+                <div style="width: 40px; height: 40px; border-radius: 10px; background: rgba(99, 102, 241, 0.15); color: #6366f1; display: flex; align-items: center; justify-content: center; font-size: 20px;">
+                    💳
+                </div>
+                <div>
+                    <h2 style="margin: 0; font-size: 17px; font-weight: 700;">Formas de Pago — Portal del Paciente</h2>
+                    <p style="margin: 2px 0 0 0; font-size: 12px; color: var(--text-secondary);">Personaliza los métodos de pago y datos bancarios que verán tus pacientes al reportar transferencias o abonar sus sesiones.</p>
+                </div>
+            </div>
+            <button class="btn-icon" onclick="closeModal('portalPaymentMethodsModal')">
+                <i class="fas fa-times"></i>
+            </button>
+        </div>
+        <form id="portalPaymentMethodsForm" onsubmit="handleSavePortalPaymentMethods(event)" style="display: flex; flex-direction: column; overflow: hidden; flex: 1;">
+            <div class="modal-body" style="padding: 20px 24px; overflow-y: auto; flex: 1;">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; flex-wrap: wrap; gap: 10px;">
+                    <div style="font-size: 13px; color: var(--text-secondary);">
+                        Puedes activar/desactivar métodos, cambiar bancos o correos y agregar cuentas adicionales:
+                    </div>
+                    <div style="display: flex; gap: 8px;">
+                        <button type="button" class="btn-secondary btn-sm" onclick="addNewPaymentMethodRow()">
+                            <i class="fas fa-plus"></i> Agregar Método
+                        </button>
+                        <button type="button" class="btn-secondary btn-sm" onclick="resetDefaultPaymentMethods()" title="Restablecer métodos estándar">
+                            <i class="fas fa-undo"></i> Predeterminados
+                        </button>
+                    </div>
+                </div>
+
+                <div id="portalPaymentMethodsList" style="display: flex; flex-direction: column; gap: 16px;">
+                    <!-- Renderizado dinámico de tarjetas de cada método de pago -->
+                </div>
+            </div>
+            <div class="modal-actions" style="padding: 16px 24px; border-top: 1px solid var(--border-color); display: flex; justify-content: flex-end; gap: 10px; flex-shrink: 0; background: var(--bg-card);">
+                <button type="button" class="btn-secondary" onclick="closeModal('portalPaymentMethodsModal')">Cancelar</button>
+                <button type="submit" class="btn-primary"><i class="fas fa-save"></i> Guardar Formas de Pago</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- MODAL DE VISUALIZACIÓN DE COMPROBANTE DE PAGO -->
+<div class="modal" id="paymentReceiptModal">
+    <div class="modal-overlay" onclick="closeModal('paymentReceiptModal')"></div>
+    <div class="modal-content modal-large" style="max-width: 680px; max-height: 90vh; display: flex; flex-direction: column;">
+        <div class="modal-header" style="flex-shrink: 0;">
+            <div style="display: flex; align-items: center; gap: 12px;">
+                <div style="width: 40px; height: 40px; border-radius: 10px; background: rgba(13, 148, 136, 0.15); color: #0d9488; display: flex; align-items: center; justify-content: center; font-size: 20px;">
+                    🧾
+                </div>
+                <div>
+                    <h2 style="margin: 0; font-size: 17px; font-weight: 700;" id="receiptModalTitle">Comprobante de Pago</h2>
+                    <p style="margin: 2px 0 0 0; font-size: 12px; color: var(--text-secondary);" id="receiptModalSubtitle">Verificación de comprobante bancario del paciente</p>
+                </div>
+            </div>
+            <button class="btn-icon" onclick="closeModal('paymentReceiptModal')">
+                <i class="fas fa-times"></i>
+            </button>
+        </div>
+        <div class="modal-body" style="padding: 20px 24px; overflow-y: auto; flex: 1;">
+            <div id="receiptMetaDetails" style="margin-bottom: 16px; padding: 12px 16px; background: var(--bg-secondary); border-radius: 8px; font-size: 13px; display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 10px;">
+                <!-- Detalles dinámicos: Paciente, Monto, Referencia, Método, Fecha -->
+            </div>
+            <div id="receiptImageContainer" style="background: #ffffff; border-radius: 12px; border: 1.5px solid var(--border-color); padding: 12px; text-align: center; box-shadow: 0 4px 20px rgba(0,0,0,0.06); min-height: 200px; display: flex; align-items: center; justify-content: center;">
+                <!-- Imagen o iframe del comprobante -->
+            </div>
+        </div>
+        <div class="modal-actions" style="padding: 16px 24px; border-top: 1px solid var(--border-color); display: flex; justify-content: space-between; align-items: center; flex-shrink: 0; background: var(--bg-card); flex-wrap: wrap; gap: 10px;">
+            <div id="receiptModalSecondaryActions">
+                <button type="button" class="btn-secondary" id="receiptDownloadBtn">
+                    <i class="fas fa-download"></i> Descargar Comprobante
+                </button>
+            </div>
+            <div style="display: flex; gap: 10px;" id="receiptModalMainActions">
+                <button type="button" class="btn-secondary" onclick="closeModal('paymentReceiptModal')">Cerrar</button>
+            </div>
+        </div>
     </div>
 </div>
 

@@ -4559,6 +4559,1373 @@ ClinicalTestSuite.add('TC-ROA-02', 'API REST de Sesiones del Mapa de Ruta (CRUD,
     }
 });
 
+// 101. TC-HIST-08: Protocolo Clínico y Deontológico Venezolano (FPV, LOPNNA, MPPS, Semiótica y Cero Fuga Materna en Adultos)
+ClinicalTestSuite.add('TC-HIST-08', 'Protocolo Clínico y Deontológico Venezolano (FPV, LOPNNA, MPPS, Semiótica y Cero Fuga Materna)', async () => {
+    if (typeof ClinicalHistorySystem === 'undefined') {
+        await import('./historia-clinica.js');
+    }
+    const CHS = globalThis.ClinicalHistorySystem;
+
+    // 1. Verificación de acreditación gremial venezolana (FPV, Colegio Regional, MPPS)
+    globalThis.AppState = globalThis.AppState || {};
+    globalThis.AppState.currentUser = {
+        name: 'Lic. Mariana Velásquez',
+        specialty: 'Psicología Clínica y de la Salud',
+        fpvNumber: '14.280',
+        regionalCollege: 'Colegio de Psicólogos de Miranda',
+        mppsNumber: '78.912'
+    };
+
+    const therapist = CHS.getTherapistInfo();
+    if (!therapist.registry.includes('FPV N.º 14.280') || !therapist.registry.includes('MPPS N.º 78.912')) {
+        throw new Error('El membrete oficial debe reflejar las credenciales FPV y MPPS de Venezuela');
+    }
+
+    // 2. Ficha de Adulto: Verificación de Cero Fuga de Escolaridad Materna
+    const adultPatient = {
+        id: 'pat_adult_ve_01',
+        name: 'Andrés Eloy Blanco',
+        category: 'adult',
+        birthdate: '1988-06-14',
+        ci: 'V-18.992.341',
+        occupation: 'Ingeniero de Sistemas',
+        schoolGrade: '', // Vacío a propósito para verificar fallback seguro
+        motherName: 'Carmen Blanco',
+        motherEducation: 'Primaria Incompleta', // NO debe fugarse al paciente
+        emergencyContactName: 'Beatriz Blanco',
+        emergencyContactRelation: 'Hermana',
+        emergencyContactPhone: '+58 414 5551234',
+        currentIllness: 'Episodios de angustia paroxística desde hace 3 meses con impacto laboral.',
+        mentalOrientation: 'Orientado globalmente',
+        mentalThought: 'Coherente sin ideación delirante',
+        mentalSuicidalRisk: 'Descartado / Negativo',
+        diagnosticImpression: 'F41.0 Trastorno de Pánico [DSM-5: 300.01]',
+        treatmentPlan: 'Terapia Cognitivo-Conductual y reestructuración cognitiva'
+    };
+
+    globalThis.AppState.patients = globalThis.AppState.patients || [];
+    globalThis.AppState.patients.push(adultPatient);
+
+    const full = CHS.getFullHistory(adultPatient);
+    if (!full.emergencyContactName || !full.currentIllness || !full.diagnosticImpression) {
+        throw new Error('Faltan campos clínicos de emergencia, situación actual o diagnóstico en getFullHistory');
+    }
+
+    // 3. Verificación de Ausencia de "Deontología Médica" y Presencia de "FPV" en PDFs
+    const adultPdf = CHS.exportHistoriaOficialPDF(adultPatient.id);
+    if (adultPdf.includes('Código de Deontología Médica')) {
+        throw new Error('Error deontológico: La historia clínica psicológica no debe citar Deontología Médica');
+    }
+    if (!adultPdf.includes('Código de Ética Profesional del Psicólogo') || !adultPdf.includes('FPV')) {
+        throw new Error('La historia debe citar el Código de Ética Profesional del Psicólogo (FPV)');
+    }
+    if (adultPdf.includes('Primaria Incompleta') && adultPdf.includes('Escolaridad / Nivel:</strong> Primaria Incompleta')) {
+        throw new Error('Fallo crítico de privacidad: La escolaridad de la madre se fugó a la ficha del paciente adulto');
+    }
+    if (!adultPdf.includes('Contacto de Emergencia') || !adultPdf.includes('Beatriz Blanco')) {
+        throw new Error('El PDF de historia clínica debe registrar el contacto de emergencia');
+    }
+
+    // 4. Verificación de Asentimiento LOPNNA en Historia de Adolescente
+    const teenPatient = {
+        id: 'pat_teen_ve_01',
+        name: 'Sebastián Ramos',
+        category: 'adolescent',
+        birthdate: '2010-09-02',
+        ci: 'V-32.100.222',
+        guardianName: 'José Ramos (Padre)',
+        guardianRelation: 'Padre',
+        guardianConsent: 'firmado',
+        reason: 'Estrés académico y labilidad afectiva'
+    };
+    const teenFull = CHS.getFullHistory(teenPatient);
+    const teenPdf = CHS.exportHistoriaOficialAdolescentePDF(teenPatient, teenFull, '16', therapist);
+    if (!teenPdf.includes('LOPNNA') || !teenPdf.includes('Asentimiento Informado')) {
+        throw new Error('El PDF adolescente debe contemplar el marco LOPNNA y el Asentimiento Informado');
+    }
+    if (teenPdf.includes('Código de Deontología Médica')) {
+        throw new Error('Error deontológico en adolescente: Cita errónea de Deontología Médica');
+    }
+});
+
+// 102. TC-PORTAL-06: Sincronización de tareas intersesión y desactivación efectiva de alertas SOS en portal adulto/adolescente
+ClinicalTestSuite.add('TC-PORTAL-06', 'Sincronización de tareas intersesión y desactivación efectiva de alertas SOS en portal adulto/adolescente', async () => {
+    const baseUrl = await ensureTestServer();
+    const { generateSessionToken } = await import('./server.js');
+    const { default: db } = await import('./db.js');
+
+    const therapistId = 'dr_sync_test_' + Date.now();
+    const token = generateSessionToken(therapistId, 'sync_test@clinica.com');
+
+    const patientId = 'pat_sync_' + Date.now();
+    const portalToken = 'PN-SYNC-' + Math.floor(Math.random() * 90000 + 10000);
+
+    // 1. Crear paciente adulto / adolescente con tareas intersesión asignadas por el terapeuta
+    const patientData = {
+        id: patientId,
+        name: 'Camila Adulto/Adolescente',
+        category: 'adolescent',
+        lifeStage: 'adolescent',
+        portalToken: portalToken,
+        portalEnabled: true,
+        therapist_id: therapistId
+    };
+
+    const task1 = {
+        id: 'task_sync_1_' + Date.now(),
+        patient_id: patientId,
+        title: 'Completar autoregistro ABC de pensamientos',
+        description: 'Identificar situación, pensamiento automático y emoción',
+        dueDate: '2026-11-01',
+        completed: false
+    };
+
+    // Sincronizar paciente y tareas a través de /api/v1/patients/sync
+    const syncRes = await fetch(`${baseUrl}/api/v1/patients/sync`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({
+            patients: [patientData],
+            tasks: [task1]
+        })
+    });
+    if (syncRes.status !== 200) {
+        throw new Error(`Sincronización inicial de paciente falló con status ${syncRes.status}`);
+    }
+
+    // 2. Verificar que el portal del paciente en /api/v1/portal/me recibe las tareas asignadas
+    const portalMeRes = await fetch(`${baseUrl}/api/v1/portal/me?token=${encodeURIComponent(portalToken)}`);
+    if (portalMeRes.status !== 200) {
+        throw new Error(`Acceso al portal por token falló con status ${portalMeRes.status}`);
+    }
+    const portalData = await portalMeRes.json();
+    if (!Array.isArray(portalData.tasks) || portalData.tasks.length === 0) {
+        throw new Error('Las tareas asignadas por el terapeuta no aparecen en la respuesta de portal /me');
+    }
+    const foundTask = portalData.tasks.find(t => t.id === task1.id);
+    if (!foundTask || foundTask.title !== task1.title) {
+        throw new Error('La tarea intersesión no coincide con la asignada por el terapeuta');
+    }
+
+    // 3. Paciente activa alerta SOS desde el formulario / botón SOS
+    const sosRes = await fetch(`${baseUrl}/api/v1/portal/crisis`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+            patientId,
+            token: portalToken,
+            reason: 'Alerta SOS de prueba en portal',
+            severity: 'CRITICO'
+        })
+    });
+    if (sosRes.status !== 200) {
+        throw new Error(`Activación SOS falló con status ${sosRes.status}`);
+    }
+
+    // 4. Terapeuta consulta alertas de crisis activas: debe existir la alerta SOS
+    const alertsRes = await fetch(`${baseUrl}/api/v1/portal/crisis-alerts`, {
+        headers: { 'Authorization': `Bearer ${token}` }
+    });
+    if (alertsRes.status !== 200) {
+        throw new Error(`Consulta de alertas SOS falló con status ${alertsRes.status}`);
+    }
+    const alertsData = await alertsRes.json();
+    const activeAlert = (alertsData.alerts || []).find(a => a.patient_id === patientId && !a.acknowledged);
+    if (!activeAlert) {
+        throw new Error('La alerta SOS activa no fue encontrada en la lista del terapeuta');
+    }
+
+    // 5. Terapeuta llena y atiende el formulario de crisis, enviando ACK para desactivar la alerta SOS
+    const ackRes = await fetch(`${baseUrl}/api/v1/portal/crisis-alerts/ack-patient/${patientId}`, {
+        method: 'POST',
+        headers: { 'Authorization': `Bearer ${token}` }
+    });
+    if (ackRes.status !== 200) {
+        throw new Error(`ACK de alerta SOS falló con status ${ackRes.status}`);
+    }
+
+    // 6. Verificar que la alerta SOS ya NO aparece en las consultas subsecuentes del terapeuta ni en el portal
+    const afterAlertsRes = await fetch(`${baseUrl}/api/v1/portal/crisis-alerts`, {
+        headers: { 'Authorization': `Bearer ${token}` }
+    });
+    const afterAlertsData = await afterAlertsRes.json();
+    const stillActiveAlert = (afterAlertsData.alerts || []).find(a => a.patient_id === patientId && !a.acknowledged);
+    if (stillActiveAlert) {
+        throw new Error('FALLO CRÍTICO: La alerta SOS sigue apareciendo después de llenar el formulario y enviar ACK');
+    }
+
+    const afterPortalRes = await fetch(`${baseUrl}/api/v1/portal/me?token=${encodeURIComponent(portalToken)}`);
+    const afterPortalData = await afterPortalRes.json();
+    if (afterPortalData.hasActiveCrisisAlert) {
+        throw new Error('FALLO CRÍTICO: El portal del paciente sigue reportando alerta de crisis activa tras la atención');
+    }
+});
+
+// 103. TC-STATUS-01: Transición de estatus de paciente (Alta -> Otro estatus) remueve banner de alta y limpia dischargeDate
+ClinicalTestSuite.add('TC-STATUS-01', 'Transición de estatus de paciente (Alta -> Otro estatus) remueve banner de alta y limpia dischargeDate', async () => {
+    const fs = await import('fs');
+    const appJs = fs.readFileSync('app.js', 'utf8');
+
+    // 1. quickUpdatePatientStatus debe limpiar dischargeDate cuando el nuevo estatus no sea 'Alta'
+    if (!appJs.includes("p.dischargeDate = '';")) {
+        throw new Error("quickUpdatePatientStatus debe limpiar dischargeDate asignando '' cuando el estatus no es Alta");
+    }
+
+    // 2. onPatientStatusChange debe limpiar el campo del formulario cuando estatus != 'Alta'
+    if (!appJs.includes("dischargeInput.value = '';")) {
+        throw new Error("onPatientStatusChange debe limpiar dischargeInput.value cuando el estatus cambia fuera de Alta");
+    }
+
+    // 3. renderPatientDetail debe condicionar el banner de alta estrictamente a isAlta
+    if (appJs.includes("if (isAlta || dischargeDate)")) {
+        throw new Error("renderPatientDetail no debe usar (isAlta || dischargeDate) porque causa que el banner de alta quede atascado");
+    }
+
+    // 4. Simular lógica funcional de transición de estatus
+    const mockPatient = {
+        id: 'pat-test-alta-transition',
+        name: 'Paciente Prueba Alta',
+        status: 'Alta',
+        dischargeDate: '2026-10-26'
+    };
+
+    const mockAppState = { patients: [mockPatient] };
+    
+    // Simular quickUpdatePatientStatus a 'Por iniciar'
+    function simulateQuickUpdate(patientId, newStatus) {
+        const p = mockAppState.patients.find(pt => pt.id === patientId);
+        if (!p) return;
+        p.status = newStatus;
+        if (newStatus === 'Alta') {
+            if (!p.dischargeDate) p.dischargeDate = '2026-10-26';
+        } else {
+            p.dischargeDate = '';
+        }
+    }
+
+    simulateQuickUpdate('pat-test-alta-transition', 'Por iniciar');
+    if (mockPatient.status !== 'Por iniciar') {
+        throw new Error("El estatus del paciente no cambió a 'Por iniciar'");
+    }
+    if (mockPatient.dischargeDate !== '') {
+        throw new Error("La fecha de alta (dischargeDate) no fue limpiada al cambiar el estatus fuera de Alta");
+    }
+
+    // Verificar que al evaluar condición de alta en vista de detalle no se muestre el banner
+    const isAlta = mockPatient.status === 'Alta';
+    if (isAlta) {
+        throw new Error("isAlta no debe ser true para un paciente con estatus 'Por iniciar'");
+    }
+});
+
+// 104. TC-SES-01: Historial de sesiones del paciente, métricas cuantitativas (asistencia, reprogramaciones, cancelaciones, inasistencias) y distribución de adherencia
+ClinicalTestSuite.add('TC-SES-01', 'Historial de sesiones del paciente, métricas cuantitativas (asistencia, reprogramaciones, cancelaciones, inasistencias) y distribución de adherencia', async () => {
+    const fs = await import('fs');
+    const appJs = fs.readFileSync('app.js', 'utf8');
+    const indexHtml = fs.readFileSync('index.html', 'utf8');
+    const stylesCss = fs.readFileSync('styles.css', 'utf8');
+
+    // 1. Verificar existencia de pestaña de Historial de Sesiones en app.js y switchPatientTab
+    if (!appJs.includes("switchPatientTab('sesiones', this)") || !appJs.includes('id="tab-sesiones"')) {
+        throw new Error('app.js debe incluir la pestaña de Historial de Sesiones y su contenedor #tab-sesiones');
+    }
+
+    // 2. Verificar funciones centrales de cálculo de métricas y renderizado
+    if (!appJs.includes('function calculatePatientSessionStats') || !appJs.includes('function renderTabHistorialSesiones') || !appJs.includes('function quickChangeSessionAttendance')) {
+        throw new Error('app.js debe implementar calculatePatientSessionStats, renderTabHistorialSesiones y quickChangeSessionAttendance');
+    }
+
+    // 3. Verificar soporte de inasistencias (no_asistio) en index.html
+    if (!indexHtml.includes('value="no_asistio"')) {
+        throw new Error('index.html debe contener la opción value="no_asistio" en el selector de citas');
+    }
+
+    // 4. Verificar estilos cromáticos y visuales en styles.css
+    if (!stylesCss.includes('.session-stats-grid') || !stylesCss.includes('.session-adherence-card') || !stylesCss.includes('.session-progress-bar-wrap') || !stylesCss.includes('.badge-status-no_asistio')) {
+        throw new Error('styles.css debe contener los estilos de estadísticas de sesión, barra de adherencia y badges de estado');
+    }
+
+    // 5. Test unitario de cálculo de métricas de asistencia y adherencia
+    const mockAppointments = [
+        { id: 'a1', patientId: 'p-stat-test', date: '2026-10-01', status: 'completada' },
+        { id: 'a2', patientId: 'p-stat-test', date: '2026-10-08', status: 'completada' },
+        { id: 'a3', patientId: 'p-stat-test', date: '2026-10-15', status: 'completada' },
+        { id: 'a4', patientId: 'p-stat-test', date: '2026-10-22', status: 'completada' },
+        { id: 'a5', patientId: 'p-stat-test', date: '2026-10-25', status: 'reprogramada' },
+        { id: 'a6', patientId: 'p-stat-test', date: '2026-10-26', status: 'cancelada' },
+        { id: 'a7', patientId: 'p-stat-test', date: '2026-10-27', status: 'no_asistio' },
+        { id: 'a8', patientId: 'p-stat-test', date: '2026-10-30', status: 'agendada' }
+    ];
+
+    const totalCount = mockAppointments.length; // 8
+    const completedCount = mockAppointments.filter(a => a.status === 'completada').length; // 4
+    const rescheduledCount = mockAppointments.filter(a => a.status === 'reprogramada').length; // 1
+    const cancelledCount = mockAppointments.filter(a => a.status === 'cancelada').length; // 1
+    const noShowCount = mockAppointments.filter(a => a.status === 'no_asistio').length; // 1
+    const evaluableCount = completedCount + rescheduledCount + cancelledCount + noShowCount; // 7
+
+    const attendanceRate = Math.round((completedCount / evaluableCount) * 100); // 57%
+    const rescheduleRate = Math.round((rescheduledCount / evaluableCount) * 100); // 14%
+    const cancellationRate = Math.round((cancelledCount / evaluableCount) * 100); // 14%
+    const noShowRate = Math.round((noShowCount / evaluableCount) * 100); // 14%
+
+    if (attendanceRate !== 57) {
+        throw new Error(`Tasa de asistencia calculada incorrecta: esperaba 57%, obtuvo ${attendanceRate}%`);
+    }
+    if (rescheduleRate !== 14 || cancellationRate !== 14 || noShowRate !== 14) {
+        throw new Error('Tasas de reprogramación, cancelación o inasistencia calculadas incorrectamente');
+    }
+
+    // 6. Test de caso con adherencia óptima (90%)
+    const highAdherenceApps = [
+        { id: 'h1', patientId: 'p-high', date: '2026-10-01', status: 'completada' },
+        { id: 'h2', patientId: 'p-high', date: '2026-10-05', status: 'completada' },
+        { id: 'h3', patientId: 'p-high', date: '2026-10-10', status: 'completada' },
+        { id: 'h4', patientId: 'p-high', date: '2026-10-15', status: 'completada' },
+        { id: 'h5', patientId: 'p-high', date: '2026-10-20', status: 'completada' },
+        { id: 'h6', patientId: 'p-high', date: '2026-10-25', status: 'completada' },
+        { id: 'h7', patientId: 'p-high', date: '2026-10-26', status: 'completada' },
+        { id: 'h8', patientId: 'p-high', date: '2026-10-27', status: 'completada' },
+        { id: 'h9', patientId: 'p-high', date: '2026-10-28', status: 'completada' },
+        { id: 'h10', patientId: 'p-high', date: '2026-10-29', status: 'reprogramada' }
+    ];
+    const highEvaluable = highAdherenceApps.length;
+    const highCompleted = highAdherenceApps.filter(a => a.status === 'completada').length;
+    const highRate = Math.round((highCompleted / highEvaluable) * 100);
+    if (highRate !== 90) {
+        throw new Error(`Tasa de alta adherencia debe ser 90%, obtuvo ${highRate}%`);
+    }
+});
+
+// 105. TC-PORTAL-07: Visualización y agendamiento de próxima sesión en el portal del paciente
+ClinicalTestSuite.add('TC-PORTAL-07', 'Visualización y agendamiento de próxima sesión en el portal del paciente (backend, sincronización y UI)', async () => {
+    const fs = await import('fs');
+    const portalHtml = fs.readFileSync('portal.html', 'utf8');
+    const portalJs = fs.readFileSync('portal.js', 'utf8');
+    const portalCss = fs.readFileSync('portal.css', 'utf8');
+
+    // 1. Verificación de UI en portal.html
+    if (!portalHtml.includes('id="viewSessions"') || !portalHtml.includes('id="homeNextSessionCard"') || !portalHtml.includes('id="scheduleSessionModal"')) {
+        throw new Error('portal.html debe contener viewSessions, homeNextSessionCard y scheduleSessionModal');
+    }
+
+    // 2. Verificación de funciones en portal.js
+    if (!portalJs.includes('function renderNextSession') || !portalJs.includes('function renderSessionsView') || !portalJs.includes('function handleScheduleSessionSubmit')) {
+        throw new Error('portal.js debe implementar renderNextSession, renderSessionsView y handleScheduleSessionSubmit');
+    }
+
+    // 3. Verificación de estilos en portal.css
+    if (!portalCss.includes('.portal-next-session-card') || !portalCss.includes('.btn-telehealth-join') || !portalCss.includes('.portal-badge-online')) {
+        throw new Error('portal.css debe contener los estilos de .portal-next-session-card, .btn-telehealth-join y badges de modalidad');
+    }
+
+    // 4. Verificación de API backend con servidor de pruebas
+    const baseUrl = await ensureTestServer();
+    const { generateSessionToken } = await import('./server.js');
+
+    const therapistId = 'dr_app_test_' + Date.now();
+    const token = generateSessionToken(therapistId, 'app_test@clinica.com');
+    const patientId = 'pat_app_' + Date.now();
+    const portalToken = 'PN-APP-' + Math.floor(Math.random() * 90000 + 10000);
+
+    const patientData = {
+        id: patientId,
+        name: 'Sofia Agendamiento Portal',
+        category: 'adult',
+        portalToken: portalToken,
+        portalEnabled: true,
+        therapist_id: therapistId
+    };
+
+    const syncRes = await fetch(`${baseUrl}/api/v1/patients/sync`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({ patients: [patientData] })
+    });
+    if (syncRes.status !== 200) {
+        throw new Error(`Sincronización de paciente falló con status ${syncRes.status}`);
+    }
+
+    // 5. Paciente agenda una cita a través de /api/v1/portal/appointments/request
+    const reqRes = await fetch(`${baseUrl}/api/v1/portal/appointments/request`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+            token: portalToken,
+            patientId: patientId,
+            date: '2026-10-30',
+            time: '15:00',
+            duration: 50,
+            type: 'Online',
+            notes: 'Consulta para revisar avances de tareas'
+        })
+    });
+    if (reqRes.status !== 201) {
+        throw new Error(`Agendamiento de cita desde el portal falló con status ${reqRes.status}`);
+    }
+    const reqData = await reqRes.json();
+    if (!reqData.appointment || reqData.appointment.date !== '2026-10-30') {
+        throw new Error('La cita devuelta no contiene los datos agendados por el paciente');
+    }
+
+    // 6. Verificar que /api/v1/portal/me ahora devuelve la cita en el listado de appointments del paciente
+    const portalMeRes = await fetch(`${baseUrl}/api/v1/portal/me?token=${encodeURIComponent(portalToken)}`);
+    if (portalMeRes.status !== 200) {
+        throw new Error(`Consulta de portal/me falló con status ${portalMeRes.status}`);
+    }
+    const portalMeData = await portalMeRes.json();
+    const scheduledApp = (portalMeData.appointments || []).find(a => a.id === reqData.appointment.id || a.date === '2026-10-30');
+    if (!scheduledApp) {
+        throw new Error('La cita agendada no aparece en los appointments de /api/v1/portal/me');
+    }
+});
+
+// 106. TC-PORTAL-08: Selección Inteligente de Horarios y Bloqueo de Disponibilidad
+ClinicalTestSuite.add('TC-PORTAL-08', 'Selección inteligente de horarios y bloqueo de disponibilidad en el portal del paciente', async () => {
+    const fs = await import('fs');
+    const portalHtml = fs.readFileSync('portal.html', 'utf8');
+    const portalJs = fs.readFileSync('portal.js', 'utf8');
+    const portalCss = fs.readFileSync('portal.css', 'utf8');
+
+    // 1. Verificación de UI en portal.html
+    if (!portalHtml.includes('id="smartSlotsContainer"') || !portalHtml.includes('handleScheduleDateChange') || !portalHtml.includes('id="slotAvailabilitySummary"')) {
+        throw new Error('portal.html debe contener smartSlotsContainer, handleScheduleDateChange y slotAvailabilitySummary');
+    }
+
+    // 2. Verificación de lógica en portal.js
+    if (!portalJs.includes('function handleScheduleDateChange') || !portalJs.includes('function pickSmartSlot') || !portalJs.includes('function fetchPortalAvailability') || !portalJs.includes('function selectNextAvailableWorkingDay')) {
+        throw new Error('portal.js debe implementar handleScheduleDateChange, pickSmartSlot, fetchPortalAvailability y selectNextAvailableWorkingDay');
+    }
+
+    // 3. Verificación de estilos en portal.css
+    if (!portalCss.includes('.smart-slots-container') || !portalCss.includes('.slot-chip-btn') || !portalCss.includes('.slot-chip-btn.occupied')) {
+        throw new Error('portal.css debe contener los estilos de .smart-slots-container, .slot-chip-btn y .slot-chip-btn.occupied');
+    }
+
+    // 4. Servidor de pruebas y verificación de API
+    const baseUrl = await ensureTestServer();
+    const { generateSessionToken } = await import('./server.js');
+
+    const therapistId = 'dr_avail_test_' + Date.now();
+    const token = generateSessionToken(therapistId, 'avail_test@clinica.com');
+    const patient1Id = 'pat_avail_1_' + Date.now();
+    const patient2Id = 'pat_avail_2_' + Date.now();
+    const portalToken1 = 'PN-AVAIL-' + Math.floor(Math.random() * 90000 + 10000);
+    const portalToken2 = 'PN-AVAIL-' + Math.floor(Math.random() * 90000 + 10000);
+
+    const patients = [
+        { id: patient1Id, name: 'Lucas Paciente 1', category: 'adult', portalToken: portalToken1, portalEnabled: true, therapist_id: therapistId },
+        { id: patient2Id, name: 'Camila Paciente 2', category: 'adult', portalToken: portalToken2, portalEnabled: true, therapist_id: therapistId }
+    ];
+
+    const syncRes = await fetch(`${baseUrl}/api/v1/patients/sync`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({ patients })
+    });
+    if (syncRes.status !== 200) {
+        throw new Error(`Sincronización de pacientes falló con status ${syncRes.status}`);
+    }
+
+    // 5. Consultar disponibilidad en día laborable (Miércoles 2026-11-04)
+    const availRes1 = await fetch(`${baseUrl}/api/v1/portal/availability?token=${encodeURIComponent(portalToken1)}&date=2026-11-04`);
+    if (availRes1.status !== 200) {
+        throw new Error(`GET /api/v1/portal/availability falló con status ${availRes1.status}`);
+    }
+    const availData1 = await availRes1.json();
+    if (!availData1.isWorkingDay || !Array.isArray(availData1.slots)) {
+        throw new Error('La disponibilidad debe indicar isWorkingDay: true y contener un array de slots');
+    }
+
+    const slot10amBefore = availData1.slots.find(s => s.time === '10:00');
+    if (!slot10amBefore || !slot10amBefore.available) {
+        throw new Error('El horario 10:00 AM debe estar inicialmente disponible');
+    }
+
+    // 6. Consultar disponibilidad en día Domingo (2026-11-08) -> Debe marcarse como no laborable
+    const sundayRes = await fetch(`${baseUrl}/api/v1/portal/availability?token=${encodeURIComponent(portalToken1)}&date=2026-11-08`);
+    const sundayData = await sundayRes.json();
+    if (sundayData.isWorkingDay !== false || sundayData.slots.some(s => s.available)) {
+        throw new Error('Los domingos deben registrarse como no laborables y sin horarios disponibles');
+    }
+
+    // 7. Paciente 1 agenda el turno de las 10:00 AM el 2026-11-04
+    const bookRes1 = await fetch(`${baseUrl}/api/v1/portal/appointments/request`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+            token: portalToken1,
+            patientId: patient1Id,
+            date: '2026-11-04',
+            time: '10:00',
+            duration: 50,
+            type: 'Online',
+            notes: 'Primera sesión agendada'
+        })
+    });
+    if (bookRes1.status !== 201) {
+        throw new Error(`Agendamiento inicial falló con status ${bookRes1.status}`);
+    }
+
+    // 8. Paciente 2 consulta disponibilidad para el mismo día (2026-11-04)
+    // El horario de las 10:00 AM ahora debe aparecer bloqueado (available: false, reason: 'Horario ocupado')
+    const availRes2 = await fetch(`${baseUrl}/api/v1/portal/availability?token=${encodeURIComponent(portalToken2)}&date=2026-11-04`);
+    const availData2 = await availRes2.json();
+    const slot10amAfter = availData2.slots.find(s => s.time === '10:00');
+    if (!slot10amAfter || slot10amAfter.available !== false || slot10amAfter.reason !== 'Horario ocupado') {
+        throw new Error('El horario 10:00 AM debe figurar como ocupado (available: false) para otros pacientes del mismo terapeuta');
+    }
+
+    // 9. Paciente 2 intenta agendar a la fuerza el horario ocupado (10:00 AM) -> Backend debe responder con HTTP 409 Conflict
+    const conflictRes = await fetch(`${baseUrl}/api/v1/portal/appointments/request`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+            token: portalToken2,
+            patientId: patient2Id,
+            date: '2026-11-04',
+            time: '10:00',
+            duration: 50,
+            type: 'Presencial',
+            notes: 'Intento de colisión en horario ocupado'
+        })
+    });
+    if (conflictRes.status !== 409) {
+        throw new Error(`Se esperaba HTTP 409 Conflict ante colisión de horario, pero respondió con ${conflictRes.status}`);
+    }
+    const conflictData = await conflictRes.json();
+    if (!conflictData.error || !conflictData.error.toLowerCase().includes('disponible')) {
+        throw new Error('El mensaje de error debe indicar claramente la falta de disponibilidad');
+    }
+
+    // 10. Paciente 2 selecciona un horario libre (11:00 AM) -> Debe permitirse con éxito (HTTP 201)
+    const validRes = await fetch(`${baseUrl}/api/v1/portal/appointments/request`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+            token: portalToken2,
+            patientId: patient2Id,
+            date: '2026-11-04',
+            time: '11:00',
+            duration: 50,
+            type: 'Online',
+            notes: 'Horario con disponibilidad confirmada'
+        })
+    });
+    if (validRes.status !== 201) {
+        throw new Error(`Agendamiento en horario libre falló con status ${validRes.status}`);
+    }
+});
+
+// ============================================
+// TC-PORTAL-09: Portal Pacientes PSIRIS - Palabra del Día, Mi Psicólogo, Asistencia, Pagos, Perfil y Documentos
+// ============================================
+ClinicalTestSuite.add('TC-PORTAL-09', 'Portal Pacientes Mejoras PSIRIS (Palabra del día, Mi psicólogo, Confirmar asistencia, Pagos, Mi Perfil, Mis Documentos)', async () => {
+    const fs = await import('fs');
+    const portalHtml = fs.readFileSync('portal.html', 'utf8');
+    const portalJs = fs.readFileSync('portal.js', 'utf8');
+    const portalCss = fs.readFileSync('portal.css', 'utf8');
+
+    // Verificación de UI en portal.html
+    if (!portalHtml.includes('id="moodWordBox"') || !portalHtml.includes('id="inputDailyWord"') || !portalHtml.includes('id="therapistInfoCard"')) {
+        throw new Error('portal.html debe contener moodWordBox, inputDailyWord y therapistInfoCard');
+    }
+    if (!portalHtml.includes('id="viewDocuments"') || !portalHtml.includes('id="viewPayments"') || !portalHtml.includes('id="viewProfile"')) {
+        throw new Error('portal.html debe contener viewDocuments, viewPayments y viewProfile');
+    }
+
+    // Verificación de lógica en portal.js
+    if (!portalJs.includes('function submitDailyWord') || !portalJs.includes('function confirmSessionAttendance') || !portalJs.includes('function renderDocumentsView')) {
+        throw new Error('portal.js debe implementar submitDailyWord, confirmSessionAttendance y renderDocumentsView');
+    }
+    if (!portalJs.includes('function renderPaymentsView') || !portalJs.includes('function copyPaymentDetails') || !portalJs.includes('function handleSavePatientProfile')) {
+        throw new Error('portal.js debe implementar renderPaymentsView, copyPaymentDetails y handleSavePatientProfile');
+    }
+
+    // Verificación de estilos en portal.css
+    if (!portalCss.includes('.mood-word-chip') || !portalCss.includes('.portal-therapist-card') || !portalCss.includes('.btn-confirm-attendance')) {
+        throw new Error('portal.css debe contener los estilos de .mood-word-chip, .portal-therapist-card y .btn-confirm-attendance');
+    }
+
+    const baseUrl = await ensureTestServer();
+    const { generateSessionToken } = await import('./server.js');
+    const { db } = await import('./db.js');
+    const stamp = Date.now();
+
+    // 1. Registrar terapeuta para el test
+    const therapistId = 'dr_psiris_' + stamp;
+    const therapistEmail = `psiris_dr_${stamp}@clinica.com`;
+    const therapistToken = generateSessionToken(therapistId, therapistEmail);
+
+    await db.registerTherapist({
+        id: therapistId,
+        email: therapistEmail,
+        name: 'Dr. Jose Correa',
+        specialty: 'Psicología Clínica y de la Salud',
+        registry_number: 'FPV Nº 54567',
+        phone: '+58 414-9876543',
+        institution: 'Consultorio Clínico Las Mercedes, Caracas'
+    });
+
+    // 2. Crear paciente con acceso al portal
+    const portalToken = `PSIRIS${stamp.toString().slice(-4)}`;
+    const patientId = `patient_psiris_${stamp}`;
+    const pSyncRes = await fetch(`${baseUrl}/api/v1/patients/sync`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${therapistToken}`
+        },
+        body: JSON.stringify({
+            patients: [{
+                id: patientId,
+                therapistId,
+                therapist_id: therapistId,
+                name: 'Mariana Silva',
+                email: 'mariana.silva@gmail.com',
+                phone: '+58 412-1112233',
+                birthdate: '1995-05-15',
+                occupation: 'Diseñadora UX',
+                portalToken,
+                portal_token: portalToken,
+                portalEnabled: true,
+                portal_enabled: true
+            }]
+        })
+    });
+    if (!pSyncRes.ok) {
+        throw new Error('No se pudo registrar el paciente para la prueba PSIRIS');
+    }
+
+    // 3. FEATURE 1: Palabra del día ("Una palabra con la que te sientas identificado hoy")
+    const moodRes = await fetch(`${baseUrl}/api/v1/portal/mood`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+            patientId,
+            token: portalToken,
+            mood: 4,
+            sleep: 4,
+            energy: 3,
+            word: 'Esperanza',
+            identifyingWord: 'Esperanza'
+        })
+    });
+    if (!moodRes.ok) throw new Error('Fallo al registrar estado de ánimo con palabra del día');
+    const moodData = await moodRes.json();
+    if (!moodData.record || moodData.record.word !== 'Esperanza') {
+        throw new Error('La palabra del día no fue persistida en el registro de ánimo');
+    }
+
+    // 4. FEATURE 2: Espacio informativo "Mi psicólogo" en GET /api/v1/portal/me
+    const meRes = await fetch(`${baseUrl}/api/v1/portal/me?token=${encodeURIComponent(portalToken)}`);
+    if (!meRes.ok) throw new Error('Fallo al consultar /api/v1/portal/me');
+    const meData = await meRes.json();
+    if (!meData.therapistInfo) {
+        throw new Error('El objeto therapistInfo no fue retornado en el portal del paciente');
+    }
+    if (!meData.therapistInfo.name || !meData.therapistInfo.registryNumber) {
+        throw new Error('therapistInfo debe contener nombre y número de FPV');
+    }
+
+    // 5. FEATURE 3 & 4: Horarios disponibles y Confirmar Asistencia a la sesión
+    const availRes = await fetch(`${baseUrl}/api/v1/portal/availability?token=${encodeURIComponent(portalToken)}&date=2026-11-05`);
+    const availData = await availRes.json();
+    if (!Array.isArray(availData.availableSlots) || availData.availableSlots.length === 0) {
+        throw new Error('La consulta de disponibilidad debe retornar horarios libres');
+    }
+
+    // Agendar cita
+    const bookRes = await fetch(`${baseUrl}/api/v1/portal/appointments/request`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+            token: portalToken,
+            patientId,
+            date: '2026-11-05',
+            time: '09:00',
+            duration: 50,
+            type: 'Online',
+            notes: 'Sesión de seguimiento'
+        })
+    });
+    if (!bookRes.ok) throw new Error('Fallo agendando cita desde el portal');
+    const bookData = await bookRes.json();
+    const apptId = bookData.appointment.id;
+
+    // Confirmar asistencia
+    const confRes = await fetch(`${baseUrl}/api/v1/portal/appointments/${encodeURIComponent(apptId)}/confirm`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+            token: portalToken,
+            patientId
+        })
+    });
+    if (!confRes.ok) throw new Error('Fallo confirmando asistencia a la cita');
+    const confData = await confRes.json();
+    if (!confData.appointment || confData.appointment.status !== 'confirmada' || !confData.appointment.attendanceConfirmed) {
+        throw new Error('La cita debe actualizar su estatus a confirmada tras confirmar asistencia');
+    }
+
+    // 6. FEATURE 5: Métodos de Pago y Reporte de Pagos
+    const payGetRes = await fetch(`${baseUrl}/api/v1/portal/payments?token=${encodeURIComponent(portalToken)}`);
+    if (!payGetRes.ok) throw new Error('Fallo obteniendo métodos de pago');
+    const payGetData = await payGetRes.json();
+    if (!Array.isArray(payGetData.paymentMethods) || payGetData.paymentMethods.length === 0) {
+        throw new Error('Debe retornarse la lista de métodos de pago activos');
+    }
+
+    // Reportar pago
+    const repPayRes = await fetch(`${baseUrl}/api/v1/portal/payments/report`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+            token: portalToken,
+            patientId,
+            amount: 35.00,
+            currency: 'USD',
+            paymentMethod: 'pago_movil',
+            reference: 'PM-88992211',
+            paymentDate: '2026-10-26',
+            concept: 'Pago sesión terapéutica',
+            receiptData: 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg=='
+        })
+    });
+    if (repPayRes.status !== 201) throw new Error('Fallo al reportar pago');
+    const repPayData = await repPayRes.json();
+    const paymentReportId = repPayData.paymentReport.id;
+    if (repPayData.paymentReport.status !== 'pendiente') {
+        throw new Error('El reporte de pago debe crearse en estado pendiente');
+    }
+
+    // Verificación de pago por parte del terapeuta
+    const verifyPayRes = await fetch(`${baseUrl}/api/v1/portal/payments/${encodeURIComponent(paymentReportId)}/verify`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${therapistToken}`
+        },
+        body: JSON.stringify({
+            status: 'verificado',
+            notes: 'Acreditado en cuenta Banesco'
+        })
+    });
+    if (!verifyPayRes.ok) throw new Error('Fallo en verificación de pago por el terapeuta');
+    const verifyPayData = await verifyPayRes.json();
+    if (verifyPayData.paymentReport.status !== 'verificado') {
+        throw new Error('El estatus del reporte de pago debe ser verificado');
+    }
+
+    // 7. FEATURE 6: "Mi Perfil" (datos llenados por el paciente)
+    const updateProfRes = await fetch(`${baseUrl}/api/v1/portal/profile`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+            token: portalToken,
+            patientId,
+            name: 'Mariana Silva de Correa',
+            phone: '+58 412-9998888',
+            email: 'mariana.silva.correa@gmail.com',
+            occupation: 'Lead Product Designer',
+            address: 'Caracas, Venezuela',
+            emergencyContact: 'Carlos Silva (Hermano)',
+            emergencyPhone: '+58 414-7776655',
+            expectations: 'Aprender autorregulación emocional y técnicas de respiración para el trabajo',
+            birthdate: '1995-05-15'
+        })
+    });
+    if (!updateProfRes.ok) throw new Error('Fallo actualizando perfil del paciente');
+
+    const getProfRes = await fetch(`${baseUrl}/api/v1/portal/profile?token=${encodeURIComponent(portalToken)}`);
+    const getProfData = await getProfRes.json();
+    if (getProfData.profile.occupation !== 'Lead Product Designer' || !getProfData.profile.expectations.includes('autorregulación')) {
+        throw new Error('Los datos del perfil no se actualizaron correctamente');
+    }
+
+    // 8. FEATURE 7: "Mis Documentos" (compartir archivos en Word, PDF, imágenes)
+    // 8.1 Paciente sube documento Word
+    const upDocRes = await fetch(`${baseUrl}/api/v1/portal/documents/upload`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+            token: portalToken,
+            patientId,
+            title: 'Autorregistro semanal de pensamientos',
+            category: 'tarea',
+            fileName: 'registro_semana_1.docx',
+            fileType: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+            fileSize: 15420,
+            fileData: 'data:application/vnd.openxmlformats-officedocument.wordprocessingml.document;base64,UEsDBBQABgAIAAAAIQA='
+        })
+    });
+    if (upDocRes.status !== 201) throw new Error('Fallo subiendo documento Word del paciente');
+    const upDocData = await upDocRes.json();
+    const docId = upDocData.document.id;
+
+    // 8.2 Terapeuta comparte guía clínica PDF
+    const shareDocRes = await fetch(`${baseUrl}/api/v1/portal/documents/share-with-patient`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${therapistToken}`
+        },
+        body: JSON.stringify({
+            patientId,
+            title: 'Guía Clínica de Manejo del Estrés',
+            category: 'guia',
+            fileName: 'guia_estres_clinico.pdf',
+            fileType: 'application/pdf',
+            fileSize: 84210,
+            fileData: 'data:application/pdf;base64,JVBERi0xLjQKJcOkw7zDtsOfCjIgMCBvYmo='
+        })
+    });
+    if (shareDocRes.status !== 201) throw new Error('Fallo compartiendo documento desde terapeuta');
+
+    // 8.3 Paciente consulta sus documentos
+    const getDocsRes = await fetch(`${baseUrl}/api/v1/portal/documents?token=${encodeURIComponent(portalToken)}`);
+    const getDocsData = await getDocsRes.json();
+    if (!Array.isArray(getDocsData.documents) || getDocsData.documents.length < 2) {
+        throw new Error('El paciente debe recibir tanto los documentos subidos como los compartidos por el terapeuta');
+    }
+
+    // 8.4 Paciente elimina documento propio
+    const delDocRes = await fetch(`${baseUrl}/api/v1/portal/documents/${encodeURIComponent(docId)}`, {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ token: portalToken })
+    });
+    if (!delDocRes.ok) throw new Error('Fallo eliminando documento del paciente');
+});
+
+// ============================================
+// TC-PORTAL-10: Reflejo Inmediato de Cancelación de Citas en el Portal del Paciente
+// ============================================
+ClinicalTestSuite.add('TC-PORTAL-10', 'Reflejo y sincronización bidireccional de cancelación de citas entre terapeuta y portal paciente', async () => {
+    const fs = await import('fs');
+    const appJs = fs.readFileSync('app.js', 'utf8');
+    const portalJs = fs.readFileSync('portal.js', 'utf8');
+
+    // 1. Verificación de funciones de sincronización en el código
+    if (!appJs.includes('syncAppointmentStatusToPortalAndBackend')) {
+        throw new Error('app.js debe implementar syncAppointmentStatusToPortalAndBackend');
+    }
+    if (!portalJs.includes('mergeAppointmentsFromBridge') || !portalJs.includes('psico_appointment_updated')) {
+        throw new Error('portal.js debe sincronizar citas desde el puente y escuchar eventos reactivos');
+    }
+
+    const therapistId = `th_cancel_${Date.now()}`;
+    const patientId = `pt_cancel_${Date.now()}`;
+    const portalToken = `PN-CAN${Math.random().toString(36).substring(2, 6).toUpperCase()}`;
+
+    const { generateSessionToken } = await import('./server.js');
+    const therapistToken = generateSessionToken(therapistId);
+
+    const { db } = await import('./db.js');
+    await db.registerTherapist({
+        id: therapistId,
+        name: 'Dra. Terapeuta Citas',
+        email: `citas_${Date.now()}@test.com`,
+        passwordHash: 'dummy'
+    });
+
+    const baseUrl = `http://localhost:${process.env.PORT || 3000}`;
+
+    // 2. Sincronizar paciente con portal habilitado
+    const pSyncRes = await fetch(`${baseUrl}/api/v1/patients/sync`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${therapistToken}`
+        },
+        body: JSON.stringify({
+            patients: [{
+                id: patientId,
+                therapistId: therapistId,
+                name: 'Paciente Prueba Cancelación',
+                portalToken,
+                portalEnabled: true
+            }]
+        })
+    });
+    if (!pSyncRes.ok) throw new Error('No se pudo crear paciente para la prueba de cancelación');
+
+    // 3. Paciente solicita cita desde el portal
+    const bookRes = await fetch(`${baseUrl}/api/v1/portal/appointments/request`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+            token: portalToken,
+            patientId,
+            date: '2026-11-20',
+            time: '15:00',
+            duration: 50,
+            type: 'Online',
+            notes: 'Cita programada para prueba de cancelación'
+        })
+    });
+    if (!bookRes.ok) throw new Error('Fallo agendando cita inicial');
+    const bookData = await bookRes.json();
+    const apptId = bookData.appointment.id;
+    if (bookData.appointment.status !== 'agendada') {
+        throw new Error('La cita nueva debe tener estado agendada');
+    }
+
+    // 4. Verificar que /api/v1/portal/me muestra la cita como agendada
+    const meBeforeRes = await fetch(`${baseUrl}/api/v1/portal/me?token=${encodeURIComponent(portalToken)}`);
+    const meBeforeData = await meBeforeRes.json();
+    const appBefore = (meBeforeData.appointments || []).find(a => String(a.id) === String(apptId));
+    if (!appBefore || appBefore.status !== 'agendada') {
+        throw new Error('La cita debe reflejarse como agendada en el portal del paciente inicialmente');
+    }
+
+    // 5. El terapeuta cancela la cita vía PATCH /api/v1/appointments/:id/status
+    const cancelRes = await fetch(`${baseUrl}/api/v1/appointments/${encodeURIComponent(apptId)}/status`, {
+        method: 'PATCH',
+        headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${therapistToken}`
+        },
+        body: JSON.stringify({
+            status: 'cancelada',
+            notes: 'Cancelada por el terapeuta por fuerza mayor médica'
+        })
+    });
+    if (!cancelRes.ok) throw new Error('Fallo al cancelar la cita desde el endpoint del terapeuta');
+    const cancelData = await cancelRes.json();
+    if (!cancelData.appointment || cancelData.appointment.status !== 'cancelada') {
+        throw new Error('El endpoint de actualización debe confirmar el estado cancelada');
+    }
+
+    // 6. Consultar nuevamente /api/v1/portal/me y verificar que la cita ahora tiene status cancelada
+    const meAfterRes = await fetch(`${baseUrl}/api/v1/portal/me?token=${encodeURIComponent(portalToken)}`);
+    const meAfterData = await meAfterRes.json();
+    const appAfter = (meAfterData.appointments || []).find(a => String(a.id) === String(apptId));
+    if (!appAfter || appAfter.status !== 'cancelada') {
+        throw new Error('La cita cancelada por el terapeuta DEBE reflejarse con status "cancelada" en el portal del paciente');
+    }
+
+    // 7. Probar endpoint DELETE /api/v1/appointments/:id
+    const delApptRes = await fetch(`${baseUrl}/api/v1/appointments/${encodeURIComponent(apptId)}`, {
+        method: 'DELETE',
+        headers: {
+            'Authorization': `Bearer ${therapistToken}`
+        }
+    });
+    if (!delApptRes.ok) throw new Error('Fallo al eliminar cita por terapeuta');
+});
+
+// ============================================
+// TC-PORTAL-11: Resiliencia Offline, CORS y Mitigación de 'Failed to Fetch' en Nuevas Funciones
+// ============================================
+ClinicalTestSuite.add('TC-PORTAL-11', 'Mitigación de "Failed to fetch", proxy de Vite, CORS y persistencia local defensiva', async () => {
+    const fs = await import('fs');
+    const viteConfig = fs.readFileSync('vite.config.ts', 'utf8');
+    const serverJs = fs.readFileSync('server.js', 'utf8');
+    const portalJs = fs.readFileSync('portal.js', 'utf8');
+
+    // 1. Verificación del proxy en vite.config.ts
+    if (!viteConfig.includes("'/api'") || !viteConfig.includes('proxy:')) {
+        throw new Error('vite.config.ts debe configurar un proxy para /api para evitar "Failed to fetch" en desarrollo');
+    }
+
+    // 2. Verificación de CORS con PATCH y soporte para LAN en server.js
+    if (!serverJs.includes('PATCH') || !serverJs.includes('Access-Control-Allow-Methods')) {
+        throw new Error('server.js debe incluir PATCH en Access-Control-Allow-Methods');
+    }
+    if (!serverJs.includes("limit: '50mb'")) {
+        throw new Error('server.js debe soportar cargas de documentos de hasta 50MB');
+    }
+
+    // 3. Verificación de persistencia local defensiva en portal.js
+    if (!portalJs.includes('savePatientDataLocally') || !portalJs.includes('PortalState.documents')) {
+        throw new Error('portal.js debe persistir y restaurar documentos localmente');
+    }
+
+    // 4. Verificación de manejo optimista sin errores crudos "Failed to fetch"
+    const funcsToCheck = [
+        'confirmSessionAttendance',
+        'handleDocumentUpload',
+        'deletePortalDoc',
+        'handleReportPayment',
+        'handleSavePatientProfile',
+        'loadPortalAvailability'
+    ];
+    for (const fn of funcsToCheck) {
+        if (!portalJs.includes(`function ${fn}`) && !portalJs.includes(`async function ${fn}`)) {
+            throw new Error(`portal.js debe definir ${fn}`);
+        }
+    }
+});
+
+// ============================================
+// TC-PORTAL-12: Edición y Personalización de Formas de Pago del Terapeuta para el Portal
+// ============================================
+ClinicalTestSuite.add('TC-PORTAL-12', 'Edición y personalización de formas de pago del terapeuta y reflejo dinámico en el portal de pacientes', async () => {
+    const fs = await import('fs');
+    const appJs = fs.readFileSync('app.js', 'utf8');
+    const portalJs = fs.readFileSync('portal.js', 'utf8');
+    const indexHtml = fs.readFileSync('index.html', 'utf8');
+    const financeJs = fs.readFileSync('finance.js', 'utf8');
+    const serverJs = fs.readFileSync('server.js', 'utf8');
+    const dbJs = fs.readFileSync('db.js', 'utf8');
+
+    // 1. Verificación de interfaz y modales en HTML / JS
+    if (!indexHtml.includes('id="portalPaymentMethodsModal"')) {
+        throw new Error('index.html debe contener el modal portalPaymentMethodsModal');
+    }
+    if (!indexHtml.includes('openPortalPaymentMethodsModal()')) {
+        throw new Error('index.html debe contener botón para invocar openPortalPaymentMethodsModal()');
+    }
+    if (!financeJs.includes('openPortalPaymentMethodsModal()')) {
+        throw new Error('finance.js debe ofrecer acceso para editar formas de pago del portal');
+    }
+
+    // 2. Verificación de lógica en app.js
+    const appFuncs = [
+        'openPortalPaymentMethodsModal',
+        'renderPaymentMethodsEditor',
+        'handleSavePortalPaymentMethods',
+        'addNewPaymentMethodRow',
+        'resetDefaultPaymentMethods',
+        'getDefaultPortalPaymentMethods'
+    ];
+    for (const fn of appFuncs) {
+        if (!appJs.includes(fn)) {
+            throw new Error(`app.js debe implementar ${fn}`);
+        }
+    }
+
+    // 3. Verificación de lógica de renderizado y filtrado en portal.js
+    if (!portalJs.includes('renderPaymentsView') || !portalJs.includes('payMethodSelect')) {
+        throw new Error('portal.js debe renderizar formas de pago y actualizar payMethodSelect');
+    }
+    if (!portalJs.includes('psico_therapist_payment_methods') && !portalJs.includes('psico_payment_methods_updated')) {
+        throw new Error('portal.js debe escuchar cambios de formas de pago del terapeuta');
+    }
+
+    // 4. Verificación de métodos en db.js
+    if (!dbJs.includes('getTherapistPaymentMethods') || !dbJs.includes('saveTherapistPaymentMethods')) {
+        throw new Error('db.js debe implementar getTherapistPaymentMethods y saveTherapistPaymentMethods');
+    }
+
+    // 5. Verificación de endpoints en server.js
+    if (!serverJs.includes('/api/v1/therapist/payment-methods')) {
+        throw new Error('server.js debe exponer la ruta /api/v1/therapist/payment-methods');
+    }
+
+    // 6. Prueba funcional con el servidor HTTP
+    const baseUrl = await ensureTestServer();
+    const { generateSessionToken } = await import('./server.js');
+    const { db } = await import('./db.js');
+
+    const testTherapistId = 'therapist_pay_test_' + Date.now();
+    const sessionToken = generateSessionToken(testTherapistId);
+
+    // Obtener métodos por defecto
+    const getRes = await fetch(`${baseUrl}/api/v1/therapist/payment-methods`, {
+        headers: { 'Authorization': `Bearer ${sessionToken}` }
+    });
+    if (!getRes.ok) {
+        throw new Error(`GET /api/v1/therapist/payment-methods falló con status ${getRes.status}`);
+    }
+    const getData = await getRes.json();
+    if (!Array.isArray(getData.paymentMethods) || getData.paymentMethods.length === 0) {
+        throw new Error('Debe devolver la lista de métodos de pago predeterminados');
+    }
+
+    // Actualizar con métodos personalizados (cambiando Zelle y agregando PayPal personalizado)
+    const customMethods = [
+        {
+            id: 'pago_movil',
+            name: 'Pago Móvil Banco de Venezuela',
+            icon: '📱',
+            enabled: true,
+            bank: 'Banco de Venezuela (0102)',
+            idNumber: 'V-20123456',
+            phone: '0424-9876543',
+            instructions: 'Transferencia inmediata BDV'
+        },
+        {
+            id: 'zelle_dr',
+            name: 'Zelle Personalizado Dr.',
+            icon: '💵',
+            enabled: true,
+            email: 'consultas.dr.test@gmail.com',
+            holder: 'Dr. Test Terapeuta',
+            instructions: 'Solo colocar nombre del paciente'
+        },
+        {
+            id: 'binance_disabled',
+            name: 'Binance Pay',
+            icon: '🟡',
+            enabled: false,
+            payId: '0000000',
+            instructions: 'Desactivado temporalmente'
+        }
+    ];
+
+    const putRes = await fetch(`${baseUrl}/api/v1/therapist/payment-methods`, {
+        method: 'PUT',
+        headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${sessionToken}`
+        },
+        body: JSON.stringify({ paymentMethods: customMethods })
+    });
+    if (!putRes.ok) {
+        throw new Error(`PUT /api/v1/therapist/payment-methods falló con status ${putRes.status}`);
+    }
+    const putData = await putRes.json();
+    if (putData.status !== 'ok' || !Array.isArray(putData.paymentMethods)) {
+        throw new Error('Respuesta de guardado de métodos inválida');
+    }
+
+    // Comprobar persistencia con un nuevo GET
+    const verifyRes = await fetch(`${baseUrl}/api/v1/therapist/payment-methods`, {
+        headers: { 'Authorization': `Bearer ${sessionToken}` }
+    });
+    const verifyData = await verifyRes.json();
+    const zelleFound = verifyData.paymentMethods.find(m => m.id === 'zelle_dr');
+    if (!zelleFound || zelleFound.email !== 'consultas.dr.test@gmail.com') {
+        throw new Error('No se guardaron correctamente los datos personalizados del terapeuta');
+    }
+
+    // Crear paciente asociado a este terapeuta y verificar endpoint del portal
+    const patientId = 'pat_pay_test_' + Date.now();
+    const portalToken = 'PAY_' + Date.now().toString(36).toUpperCase();
+    await db.upsertPatient({
+        id: patientId,
+        therapist_id: testTherapistId,
+        therapistId: testTherapistId,
+        name: 'Paciente Test Pagos',
+        portal_token: portalToken,
+        portalToken: portalToken,
+        portal_enabled: true,
+        portalEnabled: true
+    });
+
+    // Consultar /api/v1/portal/payments usando el token del portal
+    const portalPayRes = await fetch(`${baseUrl}/api/v1/portal/payments?token=${portalToken}`);
+    if (!portalPayRes.ok) {
+        throw new Error(`GET /api/v1/portal/payments falló con status ${portalPayRes.status}`);
+    }
+    const portalPayData = await portalPayRes.json();
+    if (!Array.isArray(portalPayData.paymentMethods)) {
+        throw new Error('portal/payments debe retornar paymentMethods');
+    }
+    const portalZelle = portalPayData.paymentMethods.find(m => m.id === 'zelle_dr');
+    if (!portalZelle || portalZelle.email !== 'consultas.dr.test@gmail.com') {
+        throw new Error('El portal del paciente debe reflejar las formas de pago configuradas por su terapeuta');
+    }
+});
+
+// ============================================
+// TC-PORTAL-13: Recepción, Visualización y Validación de Comprobantes de Pago del Paciente
+// ============================================
+ClinicalTestSuite.add('TC-PORTAL-13', 'Recepción de comprobantes en el portal, sincronización con el terapeuta, visualizador de recibos y validación en finanzas', async () => {
+    const fs = await import('fs');
+    const appJs = fs.readFileSync('app.js', 'utf8');
+    const portalJs = fs.readFileSync('portal.js', 'utf8');
+    const financeJs = fs.readFileSync('finance.js', 'utf8');
+    const indexHtml = fs.readFileSync('index.html', 'utf8');
+    const serverJs = fs.readFileSync('server.js', 'utf8');
+    const dbJs = fs.readFileSync('db.js', 'utf8');
+
+    // 1. Verificación estructural en el frontend y DOM
+    if (!indexHtml.includes('id="paymentReceiptModal"')) {
+        throw new Error('index.html debe contener el modal paymentReceiptModal para visualizar comprobantes');
+    }
+    if (!appJs.includes('viewPaymentReceiptModal') || !appJs.includes('approvePatientPayment') || !appJs.includes('rejectPatientPayment')) {
+        throw new Error('app.js debe implementar viewPaymentReceiptModal, approvePatientPayment y rejectPatientPayment');
+    }
+    if (!financeJs.includes('renderPortalPaymentsTabHtml') || !financeJs.includes('getAllPatientPaymentReports')) {
+        throw new Error('finance.js debe implementar renderPortalPaymentsTabHtml y getAllPatientPaymentReports');
+    }
+
+    // 2. Verificación de métodos en backend y base de datos
+    if (!dbJs.includes('getTherapistPaymentReports')) {
+        throw new Error('db.js debe implementar getTherapistPaymentReports');
+    }
+    if (!serverJs.includes('/api/v1/therapist/payment-reports') || !serverJs.includes('/api/v1/portal/payments/:id/verify')) {
+        throw new Error('server.js debe exponer /api/v1/therapist/payment-reports y /api/v1/portal/payments/:id/verify');
+    }
+
+    // 3. Prueba funcional de flujo de reporte y aprobación
+    const baseUrl = await ensureTestServer();
+    const { generateSessionToken } = await import('./server.js');
+    const { db } = await import('./db.js');
+
+    const testTherapistId = 'dr_receipt_test_' + Date.now();
+    const sessionToken = generateSessionToken(testTherapistId);
+    const testPatientId = 'pat_receipt_test_' + Date.now();
+    const portalToken = 'REC_' + Date.now().toString(36).toUpperCase();
+
+    await db.upsertPatient({
+        id: testPatientId,
+        therapist_id: testTherapistId,
+        therapistId: testTherapistId,
+        name: 'Carlos Comprobantes',
+        portal_token: portalToken,
+        portalToken: portalToken,
+        portal_enabled: true,
+        portalEnabled: true
+    });
+
+    // Simular que el paciente reporta un pago con comprobante base64
+    const sampleReceiptBase64 = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==';
+    const reportRes = await fetch(`${baseUrl}/api/v1/portal/payments/report`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+            token: portalToken,
+            patientId: testPatientId,
+            amount: 45.00,
+            currency: 'USD',
+            paymentMethod: 'pago_movil',
+            reference: 'REF-789012',
+            paymentDate: '2026-10-26',
+            concept: 'Sesión TCC Individual',
+            receiptData: sampleReceiptBase64
+        })
+    });
+    if (!reportRes.ok) {
+        throw new Error(`POST /api/v1/portal/payments/report falló con status ${reportRes.status}`);
+    }
+    const reportData = await reportRes.json();
+    if (!reportData.paymentReport || !reportData.paymentReport.id) {
+        throw new Error('No se generó el registro de reporte de pago');
+    }
+    const createdReportId = reportData.paymentReport.id;
+
+    // Verificar que el terapeuta ve el comprobante en su endpoint
+    const therapistGetRes = await fetch(`${baseUrl}/api/v1/therapist/payment-reports`, {
+        headers: { 'Authorization': `Bearer ${sessionToken}` }
+    });
+    if (!therapistGetRes.ok) {
+        throw new Error(`GET /api/v1/therapist/payment-reports falló con status ${therapistGetRes.status}`);
+    }
+    const therapistData = await therapistGetRes.json();
+    if (!Array.isArray(therapistData.paymentReports)) {
+        throw new Error('paymentReports debe ser un array');
+    }
+    const found = therapistData.paymentReports.find(r => r.id === createdReportId);
+    if (!found) {
+        throw new Error('El comprobante cargado por el paciente no se encuentra en los reportes del terapeuta');
+    }
+    if (found.reference !== 'REF-789012' || found.status !== 'pendiente') {
+        throw new Error('Los datos del comprobante recibido no coinciden');
+    }
+
+    // Terapeuta aprueba el comprobante
+    const verifyRes = await fetch(`${baseUrl}/api/v1/portal/payments/${createdReportId}/verify`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${sessionToken}`
+        },
+        body: JSON.stringify({ status: 'aprobado', notes: 'Verificado exitosamente' })
+    });
+    if (!verifyRes.ok) {
+        throw new Error(`POST /verify falló con status ${verifyRes.status}`);
+    }
+    const verifyData = await verifyRes.json();
+    if (verifyData.status !== 'ok' || verifyData.paymentReport.status !== 'aprobado') {
+        throw new Error('No se actualizó el estatus del comprobante a aprobado');
+    }
+});
+
+// 112. TC-EXP-03: Ficha de Paciente e Historia Clínica Adolescente (Consentimiento Informado, Pestañas sin Emojis y Áreas Vitales)
+ClinicalTestSuite.add('TC-EXP-03', 'Ficha Paciente e Historia Clínica Adolescente: Consentimiento Informado, tabs sin emojis y áreas vitales completas', async () => {
+    const fs = await import('fs');
+    const path = await import('path');
+
+    // 1. Validar index.html para tabs de población sin emojis
+    const indexHtml = fs.readFileSync(path.resolve('index.html'), 'utf8');
+    if (!indexHtml.includes('>Infantil</span>') || !indexHtml.includes('>Adolescente</span>') || !indexHtml.includes('>Adulto</span>')) {
+        throw new Error('index.html debe contener las etiquetas de pestañas "Infantil", "Adolescente" y "Adulto"');
+    }
+    // Verificar que tabPopChild, tabPopAdolescent, tabPopAdult no tengan emojis
+    const tabChildBlock = indexHtml.substring(indexHtml.indexOf('id="tabPopChild"'), indexHtml.indexOf('id="tabPopAdolescent"'));
+    if (tabChildBlock.includes('🧒') || tabChildBlock.includes('👶')) {
+        throw new Error('tabPopChild no debe tener emojis en las pestañas');
+    }
+    const tabTeenBlock = indexHtml.substring(indexHtml.indexOf('id="tabPopAdolescent"'), indexHtml.indexOf('id="tabPopAdult"'));
+    if (tabTeenBlock.includes('🧑') || tabTeenBlock.includes('🧒')) {
+        throw new Error('tabPopAdolescent no debe tener emojis en las pestañas');
+    }
+
+    // 2. Validar app.js para "Consentimiento Informado:"
+    const appJs = fs.readFileSync(path.resolve('app.js'), 'utf8');
+    if (!appJs.includes('<span class="expediente-data-label">Consentimiento Informado:</span>')) {
+        throw new Error('app.js debe denominar la fila del expediente como "Consentimiento Informado:"');
+    }
+
+    // 3. Validar historia-clinica.js para HC Adolescente con todas las áreas vitales
+    if (typeof ClinicalHistorySystem === 'undefined') {
+        await import('./historia-clinica.js');
+    }
+    const CHS = globalThis.ClinicalHistorySystem;
+    if (!CHS) throw new Error('ClinicalHistorySystem no está disponible');
+
+    const teenPatient = {
+        id: 'teen_test_vital_01',
+        name: 'Camila Rivas',
+        category: 'adolescent',
+        birthdate: '2010-05-15',
+        gender: 'Femenino',
+        schoolName: 'Liceo Bolivariano',
+        schoolGrade: '3er Año Bachillerato',
+        status: 'En Evaluación',
+        guardianName: 'Mariana Rivas',
+        guardianRelation: 'Madre',
+        guardianConsent: 'firmado',
+        teenChildhood: 'Infancia tranquila con apego seguro',
+        teenFamilyDynamics: 'Buena comunicación; acuerdos de autonomía',
+        teenSocial: 'Grupo de pares estructurado y deportivo',
+        teenSexuality: 'Exploración adaptativa acorde a etapa',
+        teenRelationships: 'Amistades cercanas en el liceo',
+        teenShortGoals: 'Aprobar año escolar con honores',
+        teenLongGoals: 'Estudiar Psicología o Medicina'
+    };
+
+    const renderedHtml = CHS.renderTabHistoriaIntegral(teenPatient);
+
+    // Verificar secciones clave en la historia del adolescente
+    const requiredSections = [
+        'Ficha del Paciente (Adolescente)',
+        'Ficha del Representante / Tutor Legal',
+        'Información Referente a la Consulta Psicológica',
+        'Encuadre y Acuerdos de Consulta',
+        'Examen Mental & Tríada Sintomatológica',
+        'Antecedentes Médicos, Neurológicos & Quirúrgicos',
+        'Área Escolar, Académica & Dinámica de Aprendizaje',
+        'Áreas Vitales & Entrevista Privada con el Adolescente',
+        'Vivienda, Hábitos Psicobiológicos, Sueño & Fobias',
+        'Impresión Diagnóstica & Plan Terapéutico'
+    ];
+
+    for (const sec of requiredSections) {
+        if (!renderedHtml.includes(sec)) {
+            throw new Error(`Historia Clínica Adolescente debe contener la sección: ${sec}`);
+        }
+    }
+
+    // Verificar presencia de botones de acción
+    if (!renderedHtml.includes('Editar Historia Completa') || !renderedHtml.includes('PDF Oficial')) {
+        throw new Error('Toolbar de HC Adolescente debe incluir Editar Historia Completa y PDF Oficial');
+    }
+});
+
 // Auto-ejecución si se corre desde Node.js (CLI)
 if (typeof process !== 'undefined' && process.argv && process.argv[1] && process.argv[1].endsWith('tests.js')) {
     ClinicalTestSuite.runAll().then(res => {

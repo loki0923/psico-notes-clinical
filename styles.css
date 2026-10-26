@@ -6401,5 +6401,397 @@ body.screen-locked .sidebar {
     transform: translateY(0);
 }
 
+/* ============================================
+   HISTORIAL Y ESTADÍSTICAS DE SESIONES DEL PACIENTE
+   ============================================ */
+.session-history-container {
+    display: flex;
+    flex-direction: column;
+    gap: 18px;
+    padding: 6px 0 20px 0;
+}
+
+.session-history-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 12px;
+}
+
+.session-history-header-title {
+    margin: 0;
+    font-size: 16px;
+    font-weight: 700;
+    color: var(--text-primary);
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.session-history-header-sub {
+    margin: 3px 0 0 0;
+    font-size: 12.5px;
+    color: var(--text-tertiary);
+}
+
+/* Panel de KPIs y Estadísticas de Sesiones */
+.session-stats-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
+    gap: 12px;
+}
+
+.session-stat-card {
+    background: var(--bg-secondary);
+    border: 1px solid var(--border-secondary);
+    border-radius: 12px;
+    padding: 13px 15px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    position: relative;
+    overflow: hidden;
+    transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+
+.session-stat-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.04);
+}
+
+.session-stat-icon {
+    width: 40px;
+    height: 40px;
+    border-radius: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 18px;
+    flex-shrink: 0;
+}
+
+.session-stat-icon.stat-attendance { background: rgba(16, 185, 129, 0.15); color: #059669; }
+.session-stat-icon.stat-completed { background: rgba(59, 130, 246, 0.15); color: #2563eb; }
+.session-stat-icon.stat-rescheduled { background: rgba(245, 158, 11, 0.15); color: #d97706; }
+.session-stat-icon.stat-cancelled { background: rgba(239, 68, 68, 0.15); color: #dc2626; }
+.session-stat-icon.stat-noshow { background: rgba(139, 92, 246, 0.15); color: #7c3aed; }
+.session-stat-icon.stat-scheduled { background: rgba(14, 165, 233, 0.15); color: #0284c7; }
+
+.session-stat-info {
+    flex: 1;
+    min-width: 0;
+}
+
+.session-stat-label {
+    font-size: 11px;
+    font-weight: 700;
+    text-transform: uppercase;
+    color: var(--text-tertiary);
+    letter-spacing: 0.3px;
+    margin-bottom: 2px;
+}
+
+.session-stat-value {
+    font-size: 19px;
+    font-weight: 800;
+    color: var(--text-primary);
+    line-height: 1.1;
+    display: flex;
+    align-items: baseline;
+    gap: 6px;
+}
+
+.session-stat-sub {
+    font-size: 11px;
+    color: var(--text-secondary);
+    margin-top: 3px;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+}
+
+/* Barra de Adherencia Terapéutica y Distribución */
+.session-adherence-card {
+    background: var(--bg-card);
+    border: 1px solid var(--border-secondary);
+    border-radius: 14px;
+    padding: 16px 18px;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.session-adherence-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 8px;
+}
+
+.session-adherence-title {
+    font-size: 13.5px;
+    font-weight: 700;
+    color: var(--text-primary);
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.session-adherence-badge {
+    font-size: 11.5px;
+    font-weight: 700;
+    padding: 3px 10px;
+    border-radius: 20px;
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+}
+
+.session-adherence-badge.badge-success { background: rgba(16, 185, 129, 0.15); color: #059669; }
+.session-adherence-badge.badge-warning { background: rgba(245, 158, 11, 0.15); color: #d97706; }
+.session-adherence-badge.badge-danger { background: rgba(239, 68, 68, 0.15); color: #dc2626; }
+.session-adherence-badge.badge-neutral { background: rgba(107, 114, 128, 0.15); color: #6b7280; }
+
+.session-progress-bar-wrap {
+    width: 100%;
+    height: 12px;
+    background: var(--bg-secondary);
+    border-radius: 10px;
+    overflow: hidden;
+    display: flex;
+    box-shadow: inset 0 1px 2px rgba(0,0,0,0.06);
+}
+
+.session-progress-segment {
+    height: 100%;
+    transition: width 0.3s ease;
+    position: relative;
+}
+
+.segment-completed { background: #10b981; }
+.segment-rescheduled { background: #f59e0b; }
+.segment-cancelled { background: #ef4444; }
+.segment-noshow { background: #8b5cf6; }
+.segment-scheduled { background: #3b82f6; }
+
+.session-progress-legend {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 14px;
+    font-size: 11.5px;
+    color: var(--text-secondary);
+    margin-top: 2px;
+}
+
+.session-legend-item {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.session-legend-dot {
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    flex-shrink: 0;
+}
+
+.session-adherence-insight {
+    font-size: 12px;
+    color: var(--text-secondary);
+    background: var(--bg-secondary);
+    padding: 10px 14px;
+    border-radius: 8px;
+    border-left: 3px solid #3b82f6;
+    margin-top: 2px;
+    line-height: 1.45;
+}
+
+/* Filtros y Controles del Historial */
+.session-history-controls {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 10px;
+    margin-top: 2px;
+}
+
+.session-filter-pills {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+}
+
+.session-filter-pill {
+    padding: 6px 12px;
+    border-radius: 20px;
+    border: 1px solid var(--border-secondary);
+    background: var(--bg-secondary);
+    color: var(--text-secondary);
+    font-size: 12px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.15s ease;
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+}
+
+.session-filter-pill:hover {
+    background: var(--bg-card);
+    border-color: var(--text-tertiary);
+    color: var(--text-primary);
+}
+
+.session-filter-pill.active {
+    background: var(--accent-primary);
+    border-color: var(--accent-primary);
+    color: #fff;
+}
+
+/* Lista / Filas de Sesiones */
+.session-history-list {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.session-history-card {
+    background: var(--bg-card);
+    border: 1px solid var(--border-secondary);
+    border-radius: 12px;
+    padding: 14px 16px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 14px;
+    flex-wrap: wrap;
+    transition: transform 0.12s ease, box-shadow 0.12s ease, border-color 0.12s ease;
+}
+
+.session-history-card:hover {
+    border-color: var(--accent-primary);
+    box-shadow: 0 3px 10px rgba(0, 0, 0, 0.04);
+}
+
+.session-history-main {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    flex: 1;
+    min-width: 250px;
+}
+
+.session-history-date-box {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    min-width: 56px;
+    padding: 6px 8px;
+    background: var(--bg-secondary);
+    border-radius: 8px;
+    border: 1px solid var(--border-secondary);
+    text-align: center;
+}
+
+.session-history-date-day {
+    font-size: 17px;
+    font-weight: 800;
+    color: var(--text-primary);
+    line-height: 1;
+}
+
+.session-history-date-month {
+    font-size: 10px;
+    font-weight: 700;
+    text-transform: uppercase;
+    color: var(--text-tertiary);
+    margin-top: 2px;
+}
+
+.session-history-date-year {
+    font-size: 9px;
+    color: var(--text-tertiary);
+}
+
+.session-history-details {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    flex: 1;
+    min-width: 0;
+}
+
+.session-history-title-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+}
+
+.session-history-time {
+    font-size: 13.5px;
+    font-weight: 700;
+    color: var(--text-primary);
+}
+
+.session-type-chip {
+    font-size: 11px;
+    padding: 2px 8px;
+    border-radius: 6px;
+    background: var(--bg-secondary);
+    color: var(--text-secondary);
+    border: 1px solid var(--border-secondary);
+}
+
+.session-history-notes {
+    font-size: 12px;
+    color: var(--text-secondary);
+    line-height: 1.4;
+}
+
+.session-history-actions-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex-wrap: wrap;
+}
+
+.session-status-badge {
+    font-size: 11px;
+    font-weight: 700;
+    padding: 4px 10px;
+    border-radius: 20px;
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+}
+
+.badge-status-completada { background: rgba(16, 185, 129, 0.15); color: #059669; }
+.badge-status-reprogramada { background: rgba(245, 158, 11, 0.15); color: #d97706; }
+.badge-status-cancelada { background: rgba(239, 68, 68, 0.15); color: #dc2626; }
+.badge-status-no_asistio { background: rgba(139, 92, 246, 0.15); color: #7c3aed; }
+.badge-status-agendada { background: rgba(59, 130, 246, 0.15); color: #2563eb; }
+
+.session-quick-status-select {
+    padding: 5px 9px;
+    border-radius: 8px;
+    font-size: 11.5px;
+    font-weight: 600;
+    border: 1px solid var(--border-secondary);
+    background: var(--bg-secondary);
+    color: var(--text-primary);
+    cursor: pointer;
+    outline: none;
+}
+
+.session-quick-status-select:hover {
+    border-color: var(--accent-primary);
+}
+
 
 

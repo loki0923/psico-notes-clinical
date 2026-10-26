@@ -12,11 +12,17 @@ const ClinicalHistorySystem = {
         let name = '';
         let specialty = '';
         let registry = '';
+        let fpvNumber = '';
+        let regionalCollege = '';
+        let mppsNumber = '';
 
         if (typeof AppState !== 'undefined' && AppState.currentUser) {
             name = AppState.currentUser.name || '';
             specialty = AppState.currentUser.specialty || '';
             registry = AppState.currentUser.registryNumber || '';
+            fpvNumber = AppState.currentUser.fpvNumber || '';
+            regionalCollege = AppState.currentUser.regionalCollege || '';
+            mppsNumber = AppState.currentUser.mppsNumber || '';
         }
 
         if (!name && typeof localStorage !== 'undefined') {
@@ -28,11 +34,33 @@ const ClinicalHistorySystem = {
         if (!registry && typeof localStorage !== 'undefined') {
             registry = localStorage.getItem('psico_therapist_registry') || '';
         }
+        if (!fpvNumber && typeof localStorage !== 'undefined') {
+            fpvNumber = localStorage.getItem('psico_therapist_fpv') || '';
+        }
+        if (!regionalCollege && typeof localStorage !== 'undefined') {
+            regionalCollege = localStorage.getItem('psico_therapist_college') || '';
+        }
+        if (!mppsNumber && typeof localStorage !== 'undefined') {
+            mppsNumber = localStorage.getItem('psico_therapist_mpps') || '';
+        }
+
+        // Formato compuesto protocolizado para Venezuela
+        let formattedRegistry = registry;
+        if (fpvNumber || regionalCollege || mppsNumber) {
+            const parts = [];
+            if (fpvNumber) parts.push(`FPV N.º ${fpvNumber}`);
+            if (regionalCollege) parts.push(regionalCollege);
+            if (mppsNumber) parts.push(`MPPS N.º ${mppsNumber}`);
+            formattedRegistry = parts.join(' · ');
+        }
 
         return {
             name: name || 'Dr(a). / Lic. Profesional Clínico',
             specialty: specialty || 'Psicología Clínica / Salud Mental',
-            registry: registry || 'Colegiatura Médica / Psicológica N.º Reg.'
+            registry: formattedRegistry || registry || 'Colegiatura Psicológica FPV / MPPS N.º Reg.',
+            fpv: fpvNumber,
+            college: regionalCollege,
+            mpps: mppsNumber
         };
     },
 
@@ -61,7 +89,15 @@ const ClinicalHistorySystem = {
             consultationInitiative: patient.consultationInitiative || '',
             processExpectations: patient.processExpectations || '',
 
-            // Ficha Representante / Tutor Legal
+            // Contacto de Emergencia
+            emergencyContactName: patient.emergencyContactName || '',
+            emergencyContactRelation: patient.emergencyContactRelation || '',
+            emergencyContactPhone: patient.emergencyContactPhone || '',
+
+            // Situación / Enfermedad Actual (Historia del Problema y Evolución)
+            currentIllness: patient.currentIllness || patient.illnessHistory || '',
+
+            // Ficha Representante / Tutor Legal (LOPNNA)
             guardianName: patient.guardianName || '',
             guardianRelation: patient.guardianRelation || '',
             guardianAge: patient.guardianAge || '',
@@ -117,6 +153,12 @@ const ClinicalHistorySystem = {
 
             // C. Examen Mental & Tríada Sintomatológica
             mentalExam: patient.mentalExam || '',
+            mentalOrientation: patient.mentalOrientation || '',
+            mentalAttention: patient.mentalAttention || '',
+            mentalThought: patient.mentalThought || '',
+            mentalAffect: patient.mentalAffect || '',
+            mentalJudgment: patient.mentalJudgment || '',
+            mentalSuicidalRisk: patient.mentalSuicidalRisk || 'Descartado / Negativo',
             symptomsBehavioral: patient.symptomsBehavioral || '',
             symptomsEmotional: patient.symptomsEmotional || '',
             symptomsOrganic: patient.symptomsOrganic || '',
@@ -234,7 +276,11 @@ const ClinicalHistorySystem = {
             recreationArea: patient.recreationArea || '',
             dailyRoutine: patient.dailyRoutine || '',
             shortTermGoals: patient.shortTermGoals || '',
-            longTermGoals: patient.longTermGoals || ''
+            longTermGoals: patient.longTermGoals || '',
+
+            // L. Impresión Diagnóstica y Plan Terapéutico
+            diagnosticImpression: patient.diagnosticImpression || patient.diagnosis || '',
+            treatmentPlan: patient.treatmentPlan || ''
         };
     },
 
@@ -255,8 +301,14 @@ const ClinicalHistorySystem = {
                     <small>Modelo Oficial Protocolizado · ${therapist.name} (${therapist.specialty}${regInfo})</small>
                 </div>
                 <div class="cht-actions">
-                    <button class="btn-primary" onclick="if(typeof editPatient==='function'){editPatient('${patient.id}'); closeModal('patientDetailModal');}">
-                        <i class="fas fa-edit"></i> Editar Ficha Adolescente
+                    <button class="btn-primary" onclick="ClinicalHistorySystem.openFullHistoryEditor('${patient.id}')">
+                        <i class="fas fa-edit"></i> Editar Historia Completa
+                    </button>
+                    <button class="btn-secondary" onclick="if(typeof editPatient==='function'){editPatient('${patient.id}'); closeModal('patientDetailModal');}">
+                        <i class="fas fa-user-edit"></i> Ficha Básica
+                    </button>
+                    <button class="btn-secondary" onclick="ClinicalHistorySystem.openGenogramModal('${patient.id}')">
+                        <i class="fas fa-sitemap"></i> Genograma
                     </button>
                     <button class="btn-secondary" onclick="ClinicalHistorySystem.exportHistoriaOficialPDF('${patient.id}')">
                         <i class="fas fa-print"></i> PDF Oficial
@@ -300,6 +352,9 @@ const ClinicalHistorySystem = {
                             <div><strong>Vive con:</strong> ${h.livesWith || 'No especificado'}</div>
                             <div><strong>Correo Electrónico:</strong> ${patient.email ? `<a href="mailto:${patient.email}">${patient.email}</a>` : 'Sin registrar'}</div>
                             <div style="grid-column: span 2;">
+                                <strong>Contacto de Emergencia:</strong> ${h.emergencyContactName ? `${h.emergencyContactName} (${h.emergencyContactRelation || 'Familiar'}) · Tel: ${h.emergencyContactPhone || '—'}` : 'No registrado'}
+                            </div>
+                            <div style="grid-column: span 2;">
                                 <strong>Referido por:</strong> ${referralChips}
                             </div>
                         </div>
@@ -327,7 +382,10 @@ const ClinicalHistorySystem = {
                             <div><strong>Correo Electrónico:</strong> ${h.guardianEmail ? `<a href="mailto:${h.guardianEmail}">${h.guardianEmail}</a>` : 'Sin registrar'}</div>
                             <div style="grid-column: span 2; padding: 10px 14px; background: rgba(45, 212, 191, 0.08); border-radius: 8px; border: 1px solid rgba(45, 212, 191, 0.25);">
                                 <strong>Consentimiento Informado:</strong> 
-                                ${h.guardianConsent === 'firmado' ? '<span style="color:#059669; font-weight:600;"><i class="fas fa-check-circle"></i> Firmado y en custodia clínica</span>' : '<span style="color:#d97706; font-weight:600;"><i class="fas fa-clock"></i> Pendiente de firma y ratificación</span>'}
+                                ${h.guardianConsent === 'firmado' ? '<span style="color:#059669; font-weight:600;"><i class="fas fa-check-circle"></i> Firmado por Representante Legal y en custodia clínica</span>' : '<span style="color:#d97706; font-weight:600;"><i class="fas fa-clock"></i> Pendiente de firma y ratificación</span>'}
+                                <div style="margin-top:6px;font-size:12px;color:var(--text-secondary);">
+                                    <i class="fas fa-hand-holding-heart" style="color:var(--accent-primary);"></i> <strong>Asentimiento Informado del Adolescente (LOPNNA Art. 80):</strong> Consignado en alianza terapéutica y proceso de escucha activa.
+                                </div>
                             </div>
                         </div>
                     </div>
@@ -356,6 +414,12 @@ const ClinicalHistorySystem = {
                             <label><i class="fas fa-comment-medical"></i> Motivo de Consulta:</label>
                             <p style="white-space:pre-line;">${patient.reason || 'Sin motivo explicitado aún.'}</p>
                         </div>
+
+                        ${h.currentIllness ? `
+                        <div class="hist-field-block">
+                            <label><i class="fas fa-notes-medical"></i> Situación / Enfermedad Actual (Evolución y Curso):</label>
+                            <p style="white-space:pre-line;">${h.currentIllness}</p>
+                        </div>` : ''}
 
                         <div class="hist-field-block">
                             <label><i class="fas fa-bullseye"></i> Objetivos del Paciente:</label>
@@ -410,6 +474,209 @@ const ClinicalHistorySystem = {
                             <div><strong>Frecuencia Acordada:</strong> ${h.frequency || 'Por acordar'}</div>
                             <div><strong>Modalidad de Atención:</strong> ${h.modality || 'No definida'}</div>
                             <div><strong>Turno Preferente:</strong> ${h.shift || 'No definido'}</div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- SECCIÓN 5: EXAMEN MENTAL & TRÍADA SINTOMATOLÓGICA -->
+                <div class="hist-acc-item active" id="acc_teen_5">
+                    <div class="hist-acc-header" onclick="ClinicalHistorySystem.toggleAccordion('acc_teen_5')">
+                        <div class="hist-acc-title">
+                            <span class="acc-num">5</span>
+                            <strong>🧠 Examen Mental & Tríada Sintomatológica</strong>
+                        </div>
+                        <i class="fas fa-chevron-down acc-arrow"></i>
+                    </div>
+                    <div class="hist-acc-body">
+                        <div class="hist-field-block">
+                            <label>Examen Mental Semiología del Adolescente (Porte, Conciencia, Afecto, Pensamiento, Sensopercepción, Juicio):</label>
+                            <p>${h.mentalExam || 'Adolescente orientado témporo-espacialmente. Adecuado contacto ocular, lenguaje fluido y coherente, afecto modulado. Juicio de realidad conservado, introspección acorde a su edad cronológica.'}</p>
+                        </div>
+                        <div class="hist-field-block" style="margin: 10px 0; background: var(--bg-secondary); padding: 10px 14px; border-radius: 8px; border: 1px solid var(--border-secondary);">
+                            <label style="font-weight:700; color:var(--text-primary);"><i class="fas fa-stethoscope"></i> Ejes Semiológicos del Examen Mental:</label>
+                            <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(210px, 1fr)); gap:8px; font-size:12.5px; margin-top:6px;">
+                                <div><strong>Orientación / Conciencia:</strong> ${h.mentalOrientation || 'Orientado en las tres esferas'}</div>
+                                <div><strong>Atención y Memoria:</strong> ${h.mentalAttention || 'Euprosexia y fijación conservada'}</div>
+                                <div><strong>Pensamiento:</strong> ${h.mentalThought || 'Curso lógico, coherente, sin delirios'}</div>
+                                <div><strong>Afecto / Ánimo:</strong> ${h.mentalAffect || 'Eutimia, resonancia afectiva modulada'}</div>
+                                <div><strong>Juicio e Insight:</strong> ${h.mentalJudgment || 'Juicio de realidad conservado'}</div>
+                                <div><strong>Riesgo Autolítico:</strong> <span class="tag tag-sm ${h.mentalSuicidalRisk && h.mentalSuicidalRisk.includes('Descartado') ? 'tag-success' : 'tag-neutral'}">${h.mentalSuicidalRisk || 'Descartado / Negativo en exploración'}</span></div>
+                            </div>
+                        </div>
+                        <div class="symptom-triad-grid">
+                            <div class="triad-card">
+                                <h6>🏃 Características Conductuales</h6>
+                                <p>${h.symptomsBehavioral || 'Sin reporte conductual adverso'}</p>
+                            </div>
+                            <div class="triad-card">
+                                <h6>🎭 Características Emocionales</h6>
+                                <p>${h.symptomsEmotional || 'Sin desborde emocional'}</p>
+                            </div>
+                            <div class="triad-card">
+                                <h6>🫀 Características Orgánicas / Somáticas</h6>
+                                <p>${h.symptomsOrganic || 'Sin quejas somáticas agudas'}</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- SECCIÓN 6: ANTECEDENTES MÉDICOS Y NEUROLÓGICOS -->
+                <div class="hist-acc-item active" id="acc_teen_6">
+                    <div class="hist-acc-header" onclick="ClinicalHistorySystem.toggleAccordion('acc_teen_6')">
+                        <div class="hist-acc-title">
+                            <span class="acc-num">6</span>
+                            <strong>🩺 Antecedentes Médicos, Neurológicos & Quirúrgicos</strong>
+                        </div>
+                        <i class="fas fa-chevron-down acc-arrow"></i>
+                    </div>
+                    <div class="hist-acc-body">
+                        <table class="hist-table-medical">
+                            <tr><th>Indicador Clínico</th><th>Registro / Hallazgo</th></tr>
+                            <tr><td>Evaluación Neurológica Previa</td><td>${h.neuroEvaluation || 'No referida / Negativa'}</td></tr>
+                            <tr><td>Golpes, Caídas o Traumatismos Craneales</td><td>${h.traumaInjuries || 'Sin antecedentes traumáticos encefálicos'}</td></tr>
+                            <tr><td>Operaciones / Cirugías</td><td>${h.surgeries || 'Ninguna'}</td></tr>
+                            <tr><td>Convulsiones o Eventos Paroxísticos</td><td>${h.seizures || 'Negativo'}</td></tr>
+                            <tr><td>Alergias</td><td>${h.allergies || 'No refiere'}</td></tr>
+                            <tr><td>Tratamiento Médico Actual y Medicación</td><td>${h.medicalTreatment || patient.medication || 'Sin medicación prescrita'}</td></tr>
+                            <tr><td>Antecedentes Médicos Familiares</td><td>${h.familyMedicalHistory || patient.familyHistory || 'No especificados'}</td></tr>
+                            <tr><td>Antecedentes Psiquiátricos Personales</td><td>${h.patientPsychiatricHistory || 'Sin diagnósticos previos'}</td></tr>
+                            <tr><td>Antecedentes Psiquiátricos Familiares</td><td>${h.familyPsychiatricHistory || 'No refiere'}</td></tr>
+                            <tr><td>Evaluación Pedagógica Previa</td><td>${h.pedagogicalHistory || 'Sin tratamiento pedagógico previo'}</td></tr>
+                        </table>
+                    </div>
+                </div>
+
+                <!-- SECCIÓN 7: ÁREA ESCOLAR, ACADÉMICA & APRENDIZAJE -->
+                <div class="hist-acc-item active" id="acc_teen_7">
+                    <div class="hist-acc-header" onclick="ClinicalHistorySystem.toggleAccordion('acc_teen_7')">
+                        <div class="hist-acc-title">
+                            <span class="acc-num">7</span>
+                            <strong>🏫 Área Escolar, Académica & Dinámica de Aprendizaje</strong>
+                        </div>
+                        <i class="fas fa-chevron-down acc-arrow"></i>
+                    </div>
+                    <div class="hist-acc-body">
+                        <div class="hist-grid-data">
+                            <div><strong>Institución Educativa:</strong> ${patient.schoolName || 'Sin registrar'}</div>
+                            <div><strong>Grado / Año Cursado:</strong> ${patient.schoolGrade || 'Sin registrar'}</div>
+                            <div><strong>Adaptación al Entorno Escolar:</strong> ${h.schoolAdaptation || 'Favorable'}</div>
+                            <div><strong>Relación con Docentes / Autoridad:</strong> ${h.teacherRelation || 'Adecuada / Respetuosa'}</div>
+                            <div><strong>Interacción con Compañeros / Pares:</strong> ${h.schoolFriends || 'Sociable / Integrado'}</div>
+                            <div><strong>Conducta en el Aula:</strong> ${h.schoolBehavior || 'Acorde al encuadre escolar'}</div>
+                        </div>
+                        <div class="hist-field-block" style="margin-top:10px;">
+                            <label>Dificultades y Fortalezas en el Rendimiento Académico:</label>
+                            <p><strong>Mayor dificultad reportada:</strong> ${h.learningDifficulties || 'Ninguna dificultad marcada'}<br>
+                               <strong>Mayor facilidad / Fortaleza:</strong> ${h.learningStrengths || 'Creatividad, participación y razonamiento'}</p>
+                        </div>
+                        ${h.homeworkSupport ? `
+                        <div class="hist-field-block">
+                            <label>Supervisión o Apoyo en Tareas:</label>
+                            <p>${h.homeworkSupport}</p>
+                        </div>` : ''}
+                    </div>
+                </div>
+
+                <!-- SECCIÓN 8: ÁREAS VITALES & ENTREVISTA PRIVADA CON EL ADOLESCENTE -->
+                <div class="hist-acc-item active" id="acc_teen_8">
+                    <div class="hist-acc-header" onclick="ClinicalHistorySystem.toggleAccordion('acc_teen_8')">
+                        <div class="hist-acc-title">
+                            <span class="acc-num">8</span>
+                            <strong>🧑‍🎤 Áreas Vitales & Entrevista Privada con el Adolescente</strong>
+                        </div>
+                        <i class="fas fa-chevron-down acc-arrow"></i>
+                    </div>
+                    <div class="hist-acc-body">
+                        <div class="teen-confidential-banner" style="margin-bottom:14px;padding:12px 14px;background:rgba(99, 102, 241, 0.08);border:1px solid rgba(99, 102, 241, 0.25);border-radius:8px;font-size:12.5px;color:var(--text-secondary);">
+                            🔒 <strong>Espacio Reservado Confidencial:</strong> Declaraciones directas de la persona joven en el marco de la alianza terapéutica, el secreto profesional y el respeto a la autonomía progresiva (LOPNNA Arts. 65 y 80).
+                        </div>
+
+                        <div class="hist-grid-data" style="margin-bottom:14px;">
+                            <div style="grid-column: span 2;">
+                                <strong>🧸 Vivencia de su Infancia y Autoconcepto:</strong>
+                                <p style="margin:4px 0 0 0;white-space:pre-line;color:var(--text-secondary);">${h.teenChildhood || 'Refiere recuerdos positivos y de juego acordes al desarrollo.'}</p>
+                            </div>
+                            <div style="grid-column: span 2;">
+                                <strong>👨‍👩‍👧 Dinámica Familiar y Convivencia Hogareña (Perspectiva del Adolescente):</strong>
+                                <p style="margin:4px 0 0 0;white-space:pre-line;color:var(--text-secondary);">${h.teenFamilyDynamics || 'Reporta buena comunicación en el hogar; adaptación a límites parentales con búsqueda natural de autonomía.'}</p>
+                            </div>
+                            <div style="grid-column: span 2;">
+                                <strong>👥 Área Social, Amistades y Red de Pares:</strong>
+                                <p style="margin:4px 0 0 0;white-space:pre-line;color:var(--text-secondary);">${h.teenRelationships || h.teenSocial || 'Grupo de pares estructurado, vínculos de confianza y sentido de pertenencia.'}</p>
+                            </div>
+                            <div style="grid-column: span 2;">
+                                <strong>💖 Área Afectiva, Sexualidad e Identidad de Género:</strong>
+                                <p style="margin:4px 0 0 0;white-space:pre-line;color:var(--text-secondary);">${h.teenSexuality || 'En exploración saludable y adaptativa acorde a su ciclo vital / Sin conflictos ni disfunciones reportadas.'}</p>
+                            </div>
+                            <div style="grid-column: span 2;">
+                                <strong>🎨 Área Recreativa, Ocio y Uso de Tecnología / Redes:</strong>
+                                <p style="margin:4px 0 0 0;white-space:pre-line;color:var(--text-secondary);">${h.dailyRoutine || h.recreationArea || 'Actividades de esparcimiento, pasatiempos e interacción digital supervisada.'}</p>
+                            </div>
+                            <div style="grid-column: span 2;">
+                                <strong>🎯 Metas Personales, Proyecto de Vida y Orientación Vocacional:</strong>
+                                <p style="margin:4px 0 0 0;white-space:pre-line;color:var(--text-secondary);">
+                                    <strong>Corto / Mediano Plazo:</strong> ${h.teenShortGoals || 'Rendimiento académico favorable y consolidación de autonomía personal.'}<br>
+                                    <strong>Largo Plazo:</strong> ${h.teenLongGoals || 'Elección vocacional y proyecto de vida independiente.'}
+                                </p>
+                            </div>
+                            <div style="grid-column: span 2;">
+                                <strong>🕊️ Área Espiritual, Valores y Creencias:</strong>
+                                <p style="margin:4px 0 0 0;white-space:pre-line;color:var(--text-secondary);">${h.teenSpirituality || h.religion || 'Valores éticos, humanistas y personales en proceso de consolidación.'}</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- SECCIÓN 9: VIVIENDA, HÁBITOS PSICOBIOLÓGICOS, SUEÑO & FOBIAS -->
+                <div class="hist-acc-item active" id="acc_teen_9">
+                    <div class="hist-acc-header" onclick="ClinicalHistorySystem.toggleAccordion('acc_teen_9')">
+                        <div class="hist-acc-title">
+                            <span class="acc-num">9</span>
+                            <strong>🏠 Vivienda, Hábitos Psicobiológicos, Sueño & Fobias</strong>
+                        </div>
+                        <i class="fas fa-chevron-down acc-arrow"></i>
+                    </div>
+                    <div class="hist-acc-body">
+                        <div class="hist-grid-data">
+                            <div><strong>Tipo de Vivienda:</strong> ${h.housingType || 'Casa'}</div>
+                            <div><strong>Servicios Básicos:</strong> ${h.housingServices || 'Completos'}</div>
+                            <div><strong>Comparte Habitación:</strong> ${h.housingSharesRoom || 'No'} ${h.housingSharesRoomDesc ? `(${h.housingSharesRoomDesc})` : ''}</div>
+                            <div><strong>Convivientes en Hogar:</strong> Adultos: ${h.occupantsAdultsM || '0'}M/${h.occupantsAdultsF || '0'}F · Jóvenes: ${h.occupantsTeensM || '0'}M/${h.occupantsTeensF || '0'}F · Niños: ${h.occupantsChildrenM || '0'}M/${h.occupantsChildrenF || '0'}F</div>
+                        </div>
+
+                        <div class="hist-sub-heading" style="margin-top:14px;">🌿 Hábitos Psicobiológicos y Patrones Conductuales</div>
+                        <table class="hist-table-medical">
+                            <tr><th>Indicador</th><th>Observación Clínica</th></tr>
+                            <tr><td>Consumos / Adicciones (Alcohol, Nicotina, Pantallas, Sustancias)</td><td>${h.addictions || 'Negativo / Sin consumo problemático'}</td></tr>
+                            <tr><td>Manías Sociales, Tics o Rutinas Espaciales</td><td>${h.socialManias || 'No manifiesta tics ni rituales compulsivos'}</td></tr>
+                            <tr><td>Fobias o Miedo Intenso</td><td>${h.phobias || 'Sin fobias específicas'}</td></tr>
+                            <tr><td>Miedos Nocturnos / Pesadillas</td><td>${h.nightTerrors || 'Negativo'}</td></tr>
+                            <tr><td>Onicofagia (Comerse las uñas)</td><td>${h.onychophagy || 'No presenta'}</td></tr>
+                            <tr><td>Patrón de Sueño</td><td>${h.sleepPattern || 'Sueño reparador (7-8 hrs)'}</td></tr>
+                            <tr><td>Alimentación y Apetito</td><td>${h.eatingPattern || 'Apetito normal, hábitos nutricionales equilibrados'}</td></tr>
+                            <tr><td>Higiene y Cuidado Personal</td><td>${h.hygienePattern || 'Adecuada presentación e higiene personal'}</td></tr>
+                            <tr><td>Rutina Diaria y Ocio</td><td>${h.dailyRoutine || 'Estructurada con tiempos de descanso y estudio'}</td></tr>
+                        </table>
+                    </div>
+                </div>
+
+                <!-- SECCIÓN 10: IMPRESIÓN DIAGNÓSTICA Y PLAN TERAPÉUTICO -->
+                <div class="hist-acc-item active" id="acc_teen_10">
+                    <div class="hist-acc-header" onclick="ClinicalHistorySystem.toggleAccordion('acc_teen_10')">
+                        <div class="hist-acc-title">
+                            <span class="acc-num">10</span>
+                            <strong>📑 Impresión Diagnóstica & Plan Terapéutico (CIE-10/11 & DSM-5-TR)</strong>
+                        </div>
+                        <i class="fas fa-chevron-down acc-arrow"></i>
+                    </div>
+                    <div class="hist-acc-body">
+                        <div class="hist-field-block">
+                            <label>Impresión Diagnóstica Clínica:</label>
+                            <p>${h.diagnosticImpression || patient.diagnosis || '<em>En proceso de evaluación diagnóstica integral y seguimiento.</em>'}</p>
+                        </div>
+                        <div class="hist-field-block" style="margin-top:10px;">
+                            <label>Plan Terapéutico y Metas de Intervención:</label>
+                            <p>${h.treatmentPlan || patient.treatmentPlan || patient.goals || '<em>Objetivos clínicos de fortalecimiento cognitivo-conductual, regulación emocional, consolidación de la autonomía y acompañamiento familiar psicoeducativo.</em>'}</p>
                         </div>
                     </div>
                 </div>
@@ -473,6 +740,7 @@ const ClinicalHistorySystem = {
                             <div><strong>Lugar de Nacimiento:</strong> ${h.birthPlace || 'No registrado'}</div>
                             <div><strong>Religión:</strong> ${h.religion || 'No profesa / No especificada'}</div>
                             <div><strong>Con quién vive:</strong> ${h.livesWith || patient.livesWith || 'No especificado'}</div>
+                            <div><strong>Contacto Emergencia:</strong> ${h.emergencyContactName ? `${h.emergencyContactName} (${h.emergencyContactRelation || 'Familiar'}) · Tel: ${h.emergencyContactPhone || '—'}` : 'Sin registrar'}</div>
                             <div style="grid-column:span 2;"><strong>Dirección Domiciliaria:</strong> ${h.address || patient.address || 'Sin registrar'}</div>
                             <div><strong>Referido por:</strong> ${h.referredBy || 'Deseabilidad propia'}</div>
                             <div><strong>Consulta previa:</strong> ${h.hasAttendedBefore === 'SI' ? `Sí (${h.previousAttendanceDate || 'Fecha no esp.'})` : 'Primera vez'}</div>
@@ -508,14 +776,18 @@ const ClinicalHistorySystem = {
                     <div class="hist-acc-header" onclick="ClinicalHistorySystem.toggleAccordion('acc_sec_2')">
                         <div class="hist-acc-title">
                             <span class="acc-num">2</span>
-                            <strong>👁️ Motivo de Consulta & Semiología Gestual</strong>
+                            <strong>👁️ Motivo de Consulta & Situación Actual</strong>
                         </div>
                         <i class="fas fa-chevron-down acc-arrow"></i>
                     </div>
                     <div class="hist-acc-body">
                         <div class="hist-field-block">
-                            <label>Motivo de Consulta (Explícito):</label>
+                            <label>Motivo de Consulta (Manifiesto):</label>
                             <p>${patient.reason || 'Sin motivo explicitado aún.'}</p>
+                        </div>
+                        <div class="hist-field-block">
+                            <label>🩺 Situación / Enfermedad Actual (Historia del Problema y Evolución):</label>
+                            <p>${h.currentIllness || '<em>En proceso de indagación semiológica inicial.</em>'}</p>
                         </div>
                         <div class="hist-field-block highlight-semiology">
                             <label>🔍 Gestualidad Observada al Explicitar el Motivo de Consulta:</label>
@@ -542,6 +814,17 @@ const ClinicalHistorySystem = {
                         <div class="hist-field-block">
                             <label>Examen Mental (Porte, Conciencia, Afecto, Pensamiento, Sensopercepción, Juicio):</label>
                             <p>${h.mentalExam || 'En evaluación psicopatológica clínica.'}</p>
+                        </div>
+                        <div class="hist-field-block" style="margin: 10px 0; background: var(--bg-secondary); padding: 10px 14px; border-radius: 8px; border: 1px solid var(--border-secondary);">
+                            <label style="font-weight:700; color:var(--text-primary);"><i class="fas fa-stethoscope"></i> Ejes Semiológicos del Examen Mental:</label>
+                            <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(210px, 1fr)); gap:8px; font-size:12.5px; margin-top:6px;">
+                                <div><strong>Orientación / Conciencia:</strong> ${h.mentalOrientation || 'Orientado en tiempo, espacio y persona'}</div>
+                                <div><strong>Atención y Memoria:</strong> ${h.mentalAttention || 'Euprosexia y fijación conservada'}</div>
+                                <div><strong>Pensamiento:</strong> ${h.mentalThought || 'Curso lógico, fluido, sin delirios'}</div>
+                                <div><strong>Afecto / Ánimo:</strong> ${h.mentalAffect || 'Eutimia, adecuada resonancia afectiva'}</div>
+                                <div><strong>Juicio e Insight:</strong> ${h.mentalJudgment || 'Juicio de realidad conservado'}</div>
+                                <div><strong>Riesgo Autolítico:</strong> <span class="tag tag-sm ${h.mentalSuicidalRisk && h.mentalSuicidalRisk.includes('Descartado') ? 'tag-success' : 'tag-neutral'}">${h.mentalSuicidalRisk || 'Descartado / Negativo'}</span></div>
+                            </div>
                         </div>
                         <div class="symptom-triad-grid">
                             <div class="triad-card">
@@ -748,6 +1031,27 @@ const ClinicalHistorySystem = {
                         </table>
                     </div>
                 </div>
+
+                <!-- BLOQUE 9: IMPRESIÓN DIAGNÓSTICA Y PLAN TERAPÉUTICO -->
+                <div class="hist-acc-item" id="acc_sec_9">
+                    <div class="hist-acc-header" onclick="ClinicalHistorySystem.toggleAccordion('acc_sec_9')">
+                        <div class="hist-acc-title">
+                            <span class="acc-num">9</span>
+                            <strong>📑 Impresión Diagnóstica & Plan Terapéutico (CIE-10/11 & DSM-5-TR)</strong>
+                        </div>
+                        <i class="fas fa-chevron-down acc-arrow"></i>
+                    </div>
+                    <div class="hist-acc-body">
+                        <div class="hist-field-block">
+                            <label>Impresión Diagnóstica:</label>
+                            <p>${h.diagnosticImpression || patient.diagnosis || '<em>En proceso de evaluación diagnóstica integral.</em>'}</p>
+                        </div>
+                        <div class="hist-field-block" style="margin-top:10px;">
+                            <label>Plan Terapéutico y Metas de Intervención:</label>
+                            <p>${h.treatmentPlan || patient.treatmentPlan || patient.goals || '<em>Objetivos clínicos de fortalecimiento cognitivo, autorregulación y psicoeducación.</em>'}</p>
+                        </div>
+                    </div>
+                </div>
             </div>
         `;
     },
@@ -886,13 +1190,14 @@ const ClinicalHistorySystem = {
                 
                 <div class="history-editor-nav">
                     <button type="button" class="hist-nav-tab active" onclick="ClinicalHistorySystem.switchEditorTab('filiacion', this)">1. Filiación & Genograma</button>
-                    <button type="button" class="hist-nav-tab" onclick="ClinicalHistorySystem.switchEditorTab('motivo', this)">2. Motivo & Semiología</button>
+                    <button type="button" class="hist-nav-tab" onclick="ClinicalHistorySystem.switchEditorTab('motivo', this)">2. Motivo & Situación Actual</button>
                     <button type="button" class="hist-nav-tab" onclick="ClinicalHistorySystem.switchEditorTab('mental', this)">3. Examen Mental</button>
                     <button type="button" class="hist-nav-tab" onclick="ClinicalHistorySystem.switchEditorTab('medico', this)">4. Médicos & Neuro</button>
                     ${cat !== 'adult' ? '<button type="button" class="hist-nav-tab" onclick="ClinicalHistorySystem.switchEditorTab(\'perinatal\', this)">5. Perinatal & Hitos</button>' : ''}
                     ${cat !== 'adult' ? '<button type="button" class="hist-nav-tab" onclick="ClinicalHistorySystem.switchEditorTab(\'escolar\', this)">6. Escolaridad</button>' : ''}
                     <button type="button" class="hist-nav-tab" onclick="ClinicalHistorySystem.switchEditorTab('etapa', this)">${cat === 'adolescent' ? '7. Entrevista Menor' : '7. Áreas Vitales'}</button>
                     <button type="button" class="hist-nav-tab" onclick="ClinicalHistorySystem.switchEditorTab('habitos', this)">8. Vivienda & Hábitos</button>
+                    <button type="button" class="hist-nav-tab" onclick="ClinicalHistorySystem.switchEditorTab('diagnostico', this)">9. Diagnóstico & Plan</button>
                 </div>
 
                 <form id="fullHistoryForm" style="flex:1;overflow-y:auto;padding:20px;" onsubmit="ClinicalHistorySystem.handleSaveFullHistory(event, '${patientId}')">
@@ -908,6 +1213,13 @@ const ClinicalHistorySystem = {
                             <div class="form-group"><label>Personas con las que vive:</label><input type="text" id="fh_livesWith" value="${h.livesWith}"></div>
                         </div>
                         <div class="form-group"><label>Dirección / Domicilio:</label><input type="text" id="fh_address" value="${h.address}"></div>
+
+                        <h4 style="margin-top:16px;">Contacto de Emergencia</h4>
+                        <div class="form-row">
+                            <div class="form-group"><label>Nombre del Contacto:</label><input type="text" id="fh_emergencyContactName" value="${h.emergencyContactName || ''}" placeholder="Ej: Carmen Gómez"></div>
+                            <div class="form-group"><label>Parentesco / Vínculo:</label><input type="text" id="fh_emergencyContactRelation" value="${h.emergencyContactRelation || ''}" placeholder="Ej: Hermana / Cónyuge"></div>
+                            <div class="form-group"><label>Teléfono de Emergencia:</label><input type="text" id="fh_emergencyContactPhone" value="${h.emergencyContactPhone || ''}" placeholder="Ej: +58 414 1234567"></div>
+                        </div>
                         
                         <h4 style="margin-top:20px;">Datos de los Padres</h4>
                         <div class="form-row">
@@ -937,12 +1249,16 @@ const ClinicalHistorySystem = {
                     <!-- TAB 2: MOTIVO & GESTUALIDAD -->
                     <div id="htab-motivo" class="hist-tab-pane">
                         <div class="form-group">
-                            <label>Motivo de Consulta Explicitado:</label>
+                            <label>Motivo de Consulta Manifiesto (Textual del paciente/tutor):</label>
                             <textarea id="fh_reason" rows="3">${patient.reason || ''}</textarea>
                         </div>
                         <div class="form-group">
+                            <label>🩺 Situación / Enfermedad Actual (Cronología, desencadenantes e impacto funcional):</label>
+                            <textarea id="fh_currentIllness" rows="3" placeholder="Fecha aproximada de inicio, curso continuo/episódico, factores disparadores, tratamientos previos e interferencia en la vida diaria...">${h.currentIllness || ''}</textarea>
+                        </div>
+                        <div class="form-group">
                             <label>🔍 Gestualidad Observada al Explicitar el Motivo (Tensión, postura, llanto, evitación de mirada):</label>
-                            <textarea id="fh_observedGestures" rows="4" placeholder="Describa la gestualidad y microexpresiones registradas...">${h.observedGestures}</textarea>
+                            <textarea id="fh_observedGestures" rows="3" placeholder="Describa la gestualidad y microexpresiones registradas...">${h.observedGestures}</textarea>
                         </div>
                         <div class="form-group">
                             <label>Expectativas del Proceso Terapéutico:</label>
@@ -953,10 +1269,28 @@ const ClinicalHistorySystem = {
                     <!-- TAB 3: EXAMEN MENTAL -->
                     <div id="htab-mental" class="hist-tab-pane">
                         <div class="form-group">
-                            <label>Examen Mental Completo:</label>
-                            <textarea id="fh_mentalExam" rows="4" placeholder="Porte, actitud, orientación témporo-espacial, atención, afecto, curso del pensamiento, juicio e introspección...">${h.mentalExam}</textarea>
+                            <label>Examen Mental General (Porte, Conciencia, Afecto, Pensamiento, Sensopercepción, Juicio):</label>
+                            <textarea id="fh_mentalExam" rows="3" placeholder="Porte, actitud, orientación témporo-espacial, atención, afecto, curso del pensamiento, juicio e introspección...">${h.mentalExam}</textarea>
                         </div>
-                        <h4>Tríada Sintomatológica</h4>
+                        <h4 style="margin-top:14px;">Ejes Semiológicos del Examen Mental</h4>
+                        <div class="form-row">
+                            <div class="form-group"><label>Orientación & Conciencia:</label><input type="text" id="fh_mentalOrientation" value="${h.mentalOrientation || ''}" placeholder="Ej: Lúcido, orientado en tiempo, espacio y persona"></div>
+                            <div class="form-group"><label>Atención & Memoria:</label><input type="text" id="fh_mentalAttention" value="${h.mentalAttention || ''}" placeholder="Ej: Euprosexia, memoria episódica conservada"></div>
+                        </div>
+                        <div class="form-row">
+                            <div class="form-group"><label>Pensamiento (Curso y Contenido):</label><input type="text" id="fh_mentalThought" value="${h.mentalThought || ''}" placeholder="Ej: Coherente, lógico, sin delirios"></div>
+                            <div class="form-group"><label>Afecto & Estado de Ánimo:</label><input type="text" id="fh_mentalAffect" value="${h.mentalAffect || ''}" placeholder="Ej: Eutimia, resonancia adecuada con el discurso"></div>
+                        </div>
+                        <div class="form-row">
+                            <div class="form-group"><label>Juicio & Raciocinio:</label><input type="text" id="fh_mentalJudgment" value="${h.mentalJudgment || ''}" placeholder="Ej: Juicio de realidad conservado, introspección adecuada"></div>
+                            <div class="form-group"><label>Descarte de Riesgo Autolítico / Suicida:</label><select id="fh_mentalSuicidalRisk">
+                                <option ${h.mentalSuicidalRisk==='Descartado / Negativo'?'selected':''}>Descartado / Negativo</option>
+                                <option ${h.mentalSuicidalRisk==='Ideación Pasiva sin Plan'?'selected':''}>Ideación Pasiva sin Plan</option>
+                                <option ${h.mentalSuicidalRisk==='Ideación Activa / Alerta'?'selected':''}>Ideación Activa / Alerta</option>
+                                <option ${h.mentalSuicidalRisk==='Antecedente Previo sin Riesgo Actual'?'selected':''}>Antecedente Previo sin Riesgo Actual</option>
+                            </select></div>
+                        </div>
+                        <h4 style="margin-top:14px;">Tríada Sintomatológica</h4>
                         <div class="form-group"><label>Características Conductuales:</label><textarea id="fh_symptomsBehavioral" rows="2">${h.symptomsBehavioral}</textarea></div>
                         <div class="form-group"><label>Características Emocionales:</label><textarea id="fh_symptomsEmotional" rows="2">${h.symptomsEmotional}</textarea></div>
                         <div class="form-group"><label>Características Orgánicas / Somáticas:</label><textarea id="fh_symptomsOrganic" rows="2">${h.symptomsOrganic}</textarea></div>
@@ -1017,11 +1351,15 @@ const ClinicalHistorySystem = {
                     <!-- TAB 7: DIFERENCIADO ADOLESCENTE O ADULTO -->
                     <div id="htab-etapa" class="hist-tab-pane">
                         ${cat === 'adolescent' ? `
-                        <h4>Entrevista Privada con el Adolescente</h4>
-                        <div class="form-group"><label>Vivencia de su Infancia:</label><textarea id="fh_teenChildhood" rows="2">${h.teenChildhood}</textarea></div>
-                        <div class="form-group"><label>Área Sexual e Identidad de Género:</label><textarea id="fh_teenSexuality" rows="2">${h.teenSexuality}</textarea></div>
+                        <h4>Entrevista Privada y Áreas Vitales del Adolescente</h4>
+                        <div class="form-group"><label>Vivencia de su Infancia y Autoconcepto:</label><textarea id="fh_teenChildhood" rows="2">${h.teenChildhood}</textarea></div>
+                        <div class="form-group"><label>Dinámica Familiar (según la mirada del adolescente):</label><textarea id="fh_teenFamilyDynamics" rows="2">${h.teenFamilyDynamics}</textarea></div>
+                        <div class="form-group"><label>Área Social y Red de Amistades / Pares:</label><textarea id="fh_teenSocial" rows="2">${h.teenSocial}</textarea></div>
+                        <div class="form-group"><label>Área Sexual, Afectiva e Identidad de Género:</label><textarea id="fh_teenSexuality" rows="2">${h.teenSexuality}</textarea></div>
                         <div class="form-group"><label>Amistades y Relaciones de Pareja:</label><textarea id="fh_teenRelationships" rows="2">${h.teenRelationships}</textarea></div>
-                        <div class="form-group"><label>Metas Personales a Corto y Largo Plazo:</label><textarea id="fh_teenShortGoals" rows="2">${h.teenShortGoals}</textarea></div>
+                        <div class="form-group"><label>Área Espiritual, Valores y Creencias:</label><textarea id="fh_teenSpirituality" rows="2">${h.teenSpirituality}</textarea></div>
+                        <div class="form-group"><label>Metas Personales a Corto y Mediano Plazo:</label><textarea id="fh_teenShortGoals" rows="2">${h.teenShortGoals}</textarea></div>
+                        <div class="form-group"><label>Metas Personales a Largo Plazo y Proyecto Vocacional:</label><textarea id="fh_teenLongGoals" rows="2">${h.teenLongGoals}</textarea></div>
                         ` : `
                         <h4>Áreas de Vida Adulta</h4>
                         <div class="form-group"><label>Área Laboral y Desempeño:</label><textarea id="fh_adultWork" rows="2">${h.adultWork}</textarea></div>
@@ -1047,6 +1385,19 @@ const ClinicalHistorySystem = {
                             <div class="form-group"><label>Onicofagia (Comerse uñas):</label><input type="text" id="fh_onychophagy" value="${h.onychophagy}"></div>
                         </div>
                         <div class="form-group"><label>Rutina Diaria y Ocio:</label><textarea id="fh_dailyRoutine" rows="2">${h.dailyRoutine}</textarea></div>
+                    </div>
+
+                    <!-- TAB 9: DIAGNÓSTICO Y PLAN -->
+                    <div id="htab-diagnostico" class="hist-tab-pane">
+                        <h4>Juicio Diagnóstico & Plan Terapéutico (Protocolo Clínico)</h4>
+                        <div class="form-group">
+                            <label>Impresión Diagnóstica (CIE-10 / CIE-11 & DSM-5-TR):</label>
+                            <textarea id="fh_diagnosticImpression" rows="3" placeholder="Ej: F41.1 Trastorno de Ansiedad Generalizada [DSM-5: 300.02]">${h.diagnosticImpression || patient.diagnosis || ''}</textarea>
+                        </div>
+                        <div class="form-group">
+                            <label>Plan Terapéutico y Objetivos de Intervención:</label>
+                            <textarea id="fh_treatmentPlan" rows="4" placeholder="Metas terapéuticas consensuadas a corto y mediano plazo, modelo psicoterapéutico e interconsultas...">${h.treatmentPlan || patient.treatmentPlan || patient.goals || ''}</textarea>
+                        </div>
                     </div>
 
                     <div class="modal-actions" style="margin-top:20px;">
@@ -1084,6 +1435,12 @@ const ClinicalHistorySystem = {
         p.religion = getVal('fh_religion');
         p.livesWith = getVal('fh_livesWith');
         p.address = getVal('fh_address');
+
+        // Contacto de Emergencia
+        p.emergencyContactName = getVal('fh_emergencyContactName');
+        p.emergencyContactRelation = getVal('fh_emergencyContactRelation');
+        p.emergencyContactPhone = getVal('fh_emergencyContactPhone');
+
         p.motherName = getVal('fh_motherName');
         p.motherCI = getVal('fh_motherCI');
         p.motherJob = getVal('fh_motherJob');
@@ -1097,10 +1454,18 @@ const ClinicalHistorySystem = {
         p.halfSiblingsCount = getVal('fh_halfSiblingsCount');
 
         p.reason = getVal('fh_reason') || p.reason;
+        p.currentIllness = getVal('fh_currentIllness');
         p.observedGestures = getVal('fh_observedGestures');
         p.processExpectations = getVal('fh_processExpectations');
 
         p.mentalExam = getVal('fh_mentalExam');
+        p.mentalOrientation = getVal('fh_mentalOrientation');
+        p.mentalAttention = getVal('fh_mentalAttention');
+        p.mentalThought = getVal('fh_mentalThought');
+        p.mentalAffect = getVal('fh_mentalAffect');
+        p.mentalJudgment = getVal('fh_mentalJudgment');
+        p.mentalSuicidalRisk = getVal('fh_mentalSuicidalRisk');
+
         p.symptomsBehavioral = getVal('fh_symptomsBehavioral');
         p.symptomsEmotional = getVal('fh_symptomsEmotional');
         p.symptomsOrganic = getVal('fh_symptomsOrganic');
@@ -1132,9 +1497,13 @@ const ClinicalHistorySystem = {
         p.schoolBehavior = getVal('fh_schoolBehavior');
 
         p.teenChildhood = getVal('fh_teenChildhood');
+        p.teenFamilyDynamics = getVal('fh_teenFamilyDynamics');
+        p.teenSocial = getVal('fh_teenSocial');
         p.teenSexuality = getVal('fh_teenSexuality');
         p.teenRelationships = getVal('fh_teenRelationships');
+        p.teenSpirituality = getVal('fh_teenSpirituality');
         p.teenShortGoals = getVal('fh_teenShortGoals');
+        p.teenLongGoals = getVal('fh_teenLongGoals');
 
         p.adultWork = getVal('fh_adultWork');
         p.adultSexual = getVal('fh_adultSexual');
@@ -1148,6 +1517,8 @@ const ClinicalHistorySystem = {
         p.sleepPattern = getVal('fh_sleepPattern');
         p.onychophagy = getVal('fh_onychophagy');
         p.dailyRoutine = getVal('fh_dailyRoutine');
+        p.diagnosticImpression = getVal('fh_diagnosticImpression');
+        p.treatmentPlan = getVal('fh_treatmentPlan');
 
         saveData();
         closeModal('fullHistoryModal');
@@ -1293,8 +1664,9 @@ const ClinicalHistorySystem = {
             <td><strong>Vive con:</strong> ${h.livesWith || '—'}</td>
         </tr>
         <tr>
-            <td colspan="2"><strong>Referido por:</strong> ${referralText}</td>
+            <td><strong>Referido por:</strong> ${referralText}</td>
             <td><strong>Correo Electrónico:</strong> ${patient.email || '—'}</td>
+            <td><strong>Contacto Emergencia:</strong> ${h.emergencyContactName ? `${h.emergencyContactName} (${h.emergencyContactRelation || 'Familiar'}) - Tel: ${h.emergencyContactPhone || '—'}` : 'Sin registrar'}</td>
         </tr>
     </table>
 
@@ -1315,7 +1687,10 @@ const ClinicalHistorySystem = {
             <td><strong>Correo Electrónico:</strong> ${h.guardianEmail || '—'}</td>
         </tr>
         <tr>
-            <td colspan="3"><strong>Consentimiento Informado:</strong> ${h.guardianConsent === 'firmado' ? 'SI [X]  FIRMADO Y EN CUSTODIA CLÍNICA' : 'PENDIENTE DE FIRMA'}</td>
+            <td colspan="3">
+                <strong>Consentimiento Informado:</strong> ${h.guardianConsent === 'firmado' ? 'SI [X]  FIRMADO POR REPRESENTANTE LEGAL Y EN CUSTODIA CLÍNICA' : 'PENDIENTE DE FIRMA'}<br>
+                <strong>Asentimiento Informado del Adolescente (LOPNNA Art. 80):</strong> CONSIGNADO EN PROCESO DE EVALUACIÓN Y ALIANZA TERAPÉUTICA
+            </td>
         </tr>
     </table>
 
@@ -1330,8 +1705,12 @@ const ClinicalHistorySystem = {
         </tr>
     </table>
 
-    <div style="font-weight:bold; font-size:9.5pt; margin-top:6px;">Motivo de Consulta:</div>
+    <div style="font-weight:bold; font-size:9.5pt; margin-top:6px;">Motivo de Consulta (Manifiesto):</div>
     <div class="box-container">${patient.reason || 'Sin motivo explicitado aún.'}</div>
+
+    ${h.currentIllness ? `
+    <div style="font-weight:bold; font-size:9.5pt; margin-top:6px;">Situación / Enfermedad Actual (Evolución y Desencadenantes):</div>
+    <div class="box-container">${h.currentIllness}</div>` : ''}
 
     <div style="font-weight:bold; font-size:9.5pt; margin-top:6px;">Objetivos del Paciente:</div>
     <div class="box-container">${patient.goals || 'Sin objetivos explicitados aún.'}</div>
@@ -1361,13 +1740,64 @@ const ClinicalHistorySystem = {
         </tr>
     </table>
 
+    <div class="page-break"></div>
+
+    <!-- PÁGINA 2 ADOLESCENTE: EXAMEN MENTAL, ANTECEDENTES Y ÁREA CONFIDENCIAL -->
+    <div class="official-header">
+        <div class="psi-symbol">Ψ</div>
+        <div class="therapist-badge">${therapist.specialty}<br><strong>${therapist.name}</strong> · ${therapist.registry}</div>
+    </div>
+
+    <div class="section-header">EXAMEN MENTAL (SEMIOLOGÍA DEL ADOLESCENTE):</div>
+    <div class="box-container">${h.mentalExam || 'Adolescente orientado témporo-espacialmente. Adecuado contacto ocular, lenguaje coherente, afecto modulado. Juicio conservado, introspección en desarrollo acorde a edad.'}</div>
+    <table class="clinical-table">
+        <tr>
+            <td><strong>Orientación / Conciencia:</strong> ${h.mentalOrientation || 'Orientado en las 3 esferas'}</td>
+            <td><strong>Atención y Memoria:</strong> ${h.mentalAttention || 'Euprosexia, memoria conservada'}</td>
+        </tr>
+        <tr>
+            <td><strong>Pensamiento (Curso y Contenido):</strong> ${h.mentalThought || 'Curso lógico, coherente, sin alteraciones delirantes'}</td>
+            <td><strong>Descarte Riesgo Autolítico:</strong> ${h.mentalSuicidalRisk || 'Descartado / Negativo en la exploración'}</td>
+        </tr>
+    </table>
+
+    <div class="section-header">ANTECEDENTES MÉDICOS Y NEUROLÓGICOS:</div>
+    <table class="clinical-table">
+        <tr><td><strong>Evaluación Neurológica:</strong> ${h.neuroEvaluation || 'No referida / Negativa'}</td><td><strong>Traumatismos/Caídas:</strong> ${h.traumaInjuries || 'Sin antecedentes'}</td></tr>
+        <tr><td><strong>Cirugías:</strong> ${h.surgeries || 'Ninguna'}</td><td><strong>Alergias / Tratamiento Actual:</strong> ${h.allergies || 'Ninguna'} · ${h.medicalTreatment || 'Sin medicación'}</td></tr>
+        <tr><td colspan="2"><strong>Antecedentes Psiquiátricos Familiares:</strong> ${h.familyPsychiatricHistory || 'No refiere'}</td></tr>
+    </table>
+
+    <div class="section-header">ÁREA ESCOLAR Y ACADÉMICA:</div>
+    <table class="clinical-table">
+        <tr><td><strong>Institución / Nivel:</strong> ${patient.schoolName || patient.schoolGrade || '—'}</td><td><strong>Adaptación Escolar:</strong> ${h.schoolAdaptation || 'Favorable'}</td></tr>
+        <tr><td colspan="2"><strong>Dificultades / Fortalezas de Aprendizaje:</strong> ${h.learningDifficulties ? 'Dificultades: ' + h.learningDifficulties : 'Sin dificultades'} ${h.learningStrengths ? '· Fortalezas: ' + h.learningStrengths : ''}</td></tr>
+    </table>
+
+    <div class="section-header">ESPACIO DE ENTREVISTA PRIVADA Y ÁREAS VITALES DEL ADOLESCENTE:</div>
+    <table class="clinical-table">
+        <tr><td style="width:35%;"><strong>Vivencia de la Infancia:</strong></td><td>${h.teenChildhood || 'Recuerdos acordes al desarrollo.'}</td></tr>
+        <tr><td><strong>Dinámica Familiar (Mirada Adolescente):</strong></td><td>${h.teenFamilyDynamics || 'Comunicación adecuada en el hogar; manejo adaptativo de normas y límites parentales.'}</td></tr>
+        <tr><td><strong>Área Afectiva, Sexual e Identidad:</strong></td><td>${h.teenSexuality || 'En exploración saludable / Sin conflictos reportados.'}</td></tr>
+        <tr><td><strong>Relaciones con Pares y Vínculos:</strong></td><td>${h.teenRelationships || h.teenSocial || 'Red social acorde a su grupo etario.'}</td></tr>
+        <tr><td><strong>Proyecto de Vida y Metas Propias:</strong></td><td>${h.teenShortGoals ? `Corto plazo: ${h.teenShortGoals}` : 'Rendimiento académico y autonomía'} ${h.teenLongGoals ? `· Largo plazo: ${h.teenLongGoals}` : ''}</td></tr>
+        <tr><td><strong>Área de Valores / Espiritualidad:</strong></td><td>${h.teenSpirituality || h.religion || 'Valores éticos y personales en formación.'}</td></tr>
+        <tr><td><strong>Hábitos, Sueño y Rutina Diaria:</strong></td><td>${h.sleepPattern || 'Sueño reparador'} · ${h.dailyRoutine || 'Rutina estructurada'} · Adicciones: ${h.addictions || 'Negativo'}</td></tr>
+    </table>
+
+    <div class="section-header">IMPRESIÓN DIAGNÓSTICA Y PLAN TERAPÉUTICO (CIE-10 / DSM-5-TR):</div>
+    <table class="clinical-table">
+        <tr><td style="width:35%;"><strong>Impresión Diagnóstica:</strong></td><td>${h.diagnosticImpression || patient.diagnosis || 'En proceso de evaluación diagnóstica.'}</td></tr>
+        <tr><td><strong>Plan de Abordaje Consensuado:</strong></td><td>${h.treatmentPlan || patient.treatmentPlan || patient.goals || 'Acompañamiento psicoterapéutico, psicoeducación y desarrollo de estrategias de autorregulación.'}</td></tr>
+    </table>
+
     <div class="footer-seal">
         <br><br>
         <div class="seal-line">
             ${therapist.name}<br>
             <span style="font-size:9pt; font-weight:normal;">${therapist.specialty}${therapistRegistry}</span>
         </div>
-        <p style="font-size:8pt; color:#555; margin-top:6px;">Documento confidencial bajo secreto profesional. Ley de Ejercicio de la Psicología y Código de Deontología Médica.</p>
+        <p style="font-size:8pt; color:#555; margin-top:6px;">Documento confidencial bajo secreto profesional. Ley de Ejercicio de la Psicología (Gaceta Nº 2.306 Extraordinario) y Código de Ética Profesional del Psicólogo (FPV). Conforme a la LOPNNA (Arts. 65 y 80).</p>
     </div>
 </body>
 </html>`;
@@ -1398,6 +1828,7 @@ const ClinicalHistorySystem = {
             return this.exportHistoriaOficialAdolescentePDF(patient, h, age, therapist);
         }
 
+        const isAdult = cat === 'adult';
         const docTitle = cat === 'child' ? 'HISTORIA CLÍNICA INFANTIL' : 'HISTORIA CLÍNICA ADULTO';
 
         const html = `<!DOCTYPE html>
@@ -1453,8 +1884,8 @@ const ClinicalHistorySystem = {
             <td><strong>Sexo / Género:</strong> ${patient.gender || '—'}</td>
         </tr>
         <tr>
-            <td><strong>Escolaridad / Nivel:</strong> ${patient.schoolGrade || h.motherEducation || 'Bachiller / Superior'}</td>
-            <td><strong>Ocupación:</strong> ${patient.occupation || 'Estudiante'}</td>
+            <td><strong>Escolaridad / Nivel:</strong> ${patient.schoolGrade || patient.education || (isAdult ? 'Universitaria / Técnico / Superior' : 'Educación Básica')}</td>
+            <td><strong>Ocupación:</strong> ${patient.occupation || (isAdult ? 'Profesional / Empleado' : 'Estudiante')}</td>
             <td><strong>Estado Civil:</strong> ${patient.maritalStatus || 'Soltero(a)'}</td>
         </tr>
         <tr>
@@ -1464,6 +1895,9 @@ const ClinicalHistorySystem = {
         <tr>
             <td colspan="2"><strong>Dirección / Domicilio:</strong> ${h.address || patient.address || '—'}</td>
             <td><strong>Teléfono:</strong> ${patient.phone || '—'}</td>
+        </tr>
+        <tr>
+            <td colspan="3"><strong>Contacto de Emergencia:</strong> ${h.emergencyContactName ? `${h.emergencyContactName} (${h.emergencyContactRelation || 'Familiar'}) · Tel: ${h.emergencyContactPhone || '—'}` : 'No registrado'}</td>
         </tr>
         <tr>
             <td colspan="3"><strong>Referido por:</strong> ${h.referredBy || 'Deseabilidad propia'}</td>
@@ -1493,8 +1927,12 @@ const ClinicalHistorySystem = {
         </tr>
     </table>
 
-    <div class="section-header">MOTIVO DE CONSULTA:</div>
+    <div class="section-header">MOTIVO DE CONSULTA (MANIFIESTO):</div>
     <div class="box-container">${patient.reason || 'Sin motivo registrado.'}</div>
+
+    ${h.currentIllness ? `
+    <div class="section-header">SITUACIÓN / ENFERMEDAD ACTUAL (CRONOLOGÍA E IMPACTO):</div>
+    <div class="box-container">${h.currentIllness}</div>` : ''}
 
     <div class="section-header">GESTUALIDAD OBSERVADA AL MOMENTO DE EXPLICITAR MOTIVO DE CONSULTA:</div>
     <div class="box-container">${h.observedGestures || 'Paciente colaborador, tono de voz adecuado, congruente con el afecto.'}</div>
@@ -1507,8 +1945,22 @@ const ClinicalHistorySystem = {
         <div class="therapist-badge">${therapist.specialty}<br><strong>${therapist.name}</strong> · ${therapist.registry}</div>
     </div>
 
-    <div class="section-header">EXAMEN MENTAL:</div>
-    <div class="box-container">${h.mentalExam || 'Paciente orientado en tiempo, espacio y persona. Memoria conservada, discurso coherente y fluido.'}</div>
+    <div class="section-header">EXAMEN MENTAL (SEMIOLOGÍA PSICOPATOLÓGICA):</div>
+    <div class="box-container">${h.mentalExam || 'Paciente orientado en tiempo, espacio y persona. Memoria y juicio conservados, discurso coherente, afecto modulado. Sin alteraciones sensoperceptivas agudas.'}</div>
+    <table class="clinical-table">
+        <tr>
+            <td><strong>Orientación / Conciencia:</strong> ${h.mentalOrientation || 'Orientado en las 3 esferas (tiempo, espacio, persona)'}</td>
+            <td><strong>Atención y Memoria:</strong> ${h.mentalAttention || 'Euprosexia y memoria de fijación/evocación conservada'}</td>
+        </tr>
+        <tr>
+            <td><strong>Pensamiento (Curso y Contenido):</strong> ${h.mentalThought || 'Curso fluido, coherente, sin ideación delirante'}</td>
+            <td><strong>Descarte Riesgo Autolítico:</strong> ${h.mentalSuicidalRisk || 'Descartado / Negativo en la exploración'}</td>
+        </tr>
+        <tr>
+            <td><strong>Afectividad / Humor:</strong> ${h.mentalAffect || 'Eutimia / Resonancia afectiva adecuada'}</td>
+            <td><strong>Juicio e Insight:</strong> ${h.mentalJudgment || 'Juicio de realidad conservado, introspección adecuada'}</td>
+        </tr>
+    </table>
 
     <div class="section-header">SINTOMATOLOGÍA PRESENTADA:</div>
     <table class="clinical-table">
@@ -1534,7 +1986,7 @@ const ClinicalHistorySystem = {
 
     ${!isAdult ? `
     <div class="page-break"></div>
-    <!-- PÁGINA 3 (INFANTIL / ADOLESCENTE): PERINATAL Y PARTO -->
+    <!-- PÁGINA 3 (INFANTIL): PERINATAL, PARTO Y ESCOLARIDAD -->
     <div class="official-header"><div class="psi-symbol">Ψ</div><div class="therapist-badge">${therapist.specialty}<br><strong>${therapist.name}</strong> · ${therapist.registry}</div></div>
     <div class="section-header">DESARROLLO PRENATAL:</div>
     <table class="clinical-table">
@@ -1549,9 +2001,24 @@ const ClinicalHistorySystem = {
         <tr><td><strong>Peso:</strong> ${h.birthWeight || '3.200 kg'}</td><td><strong>Talla:</strong> ${h.birthLength || '50 cm'}</td><td><strong>Incubadora:</strong> ${h.incubator}</td></tr>
         <tr><td colspan="3"><strong>Hitos Primeros Años:</strong> Sostén cefálico (${h.headControl || '3m'}), Sentado (${h.sittingAge || '6m'}), Gateo (${h.crawlingAge || '8m'}), Primeros pasos (${h.firstStepsAge || '12m'}), Control esfínteres (${h.sphincterControl || '2.5 años'}).</td></tr>
     </table>
-    ` : ''}
 
-    <div class="section-header" style="margin-top:20px;">HÁBITOS PSICOBIOLÓGICOS Y SUEÑO:</div>
+    <div class="section-header">ESCOLARIDAD, RENDIMIENTO Y ADAPTACIÓN (ÁREA PEDAGÓGICA):</div>
+    <table class="clinical-table">
+        <tr><td><strong>Institución Educativa:</strong> ${patient.schoolName || 'No registrada'}</td><td><strong>Grado / Nivel:</strong> ${patient.schoolGrade || h.schoolGrade || 'No registrado'}</td></tr>
+        <tr><td colspan="2"><strong>Adaptación y Conducta Escolar:</strong> ${h.schoolAdaptation || 'Adaptación favorable'} · ${h.schoolBehavior || 'Conducta acorde al encuadre escolar'}</td></tr>
+        <tr><td><strong>Dificultades de Aprendizaje:</strong> ${h.learningDifficulties || 'Ninguna referida'}</td><td><strong>Facilidades / Fortalezas:</strong> ${h.learningStrengths || 'Lenguaje y creatividad'}</td></tr>
+        <tr><td colspan="2"><strong>Apoyo en Tareas en el Hogar:</strong> ${h.homeworkSupport || 'Madre / Familia'}</td></tr>
+    </table>
+    ` : `
+    <div class="section-header">ÁREAS DE DESEMPEÑO EN LA VIDA ADULTA:</div>
+    <table class="clinical-table">
+        <tr><td><strong>Área Laboral / Ocupacional:</strong> ${h.adultWork || patient.occupation || 'Activo laboralmente'}</td><td><strong>Área Afectiva y Pareja:</strong> ${h.adultSexual || 'Sin disfunciones reportadas'}</td></tr>
+        <tr><td><strong>Dinámica Familiar y Convivencia:</strong> ${h.adultFamilyDynamics || 'Convivencia armónica'}</td><td><strong>Red de Apoyo Social:</strong> ${h.adultSocial || 'Red social activa'}</td></tr>
+        <tr><td><strong>Área Espiritual / Valores:</strong> ${h.adultSpirituality || 'Valores personales integrados'}</td><td><strong>Aspectos Legales:</strong> ${h.adultLegal || 'Sin antecedentes ni litigios judiciales'}</td></tr>
+    </table>
+    `}
+
+    <div class="section-header" style="margin-top:16px;">HÁBITOS PSICOBIOLÓGICOS Y SUEÑO:</div>
     <table class="clinical-table">
         <tr><td><strong>Adicciones / Consumos:</strong> ${h.addictions || 'Negativo'}</td><td><strong>Manías / Tics:</strong> ${h.socialManias || 'Ninguno'}</td></tr>
         <tr><td><strong>Fobias / Miedos intensos:</strong> ${h.phobias || 'No refiere'}</td><td><strong>Miedos Nocturnos:</strong> ${h.nightTerrors || 'No presenta'}</td></tr>
@@ -1559,25 +2026,36 @@ const ClinicalHistorySystem = {
         <tr><td><strong>Alimentación:</strong> ${h.eatingPattern || 'Regular'}</td><td><strong>Higiene:</strong> ${h.hygienePattern || 'Adecuada'}</td></tr>
     </table>
 
+    <div class="section-header">IMPRESIÓN DIAGNÓSTICA (CIE-10 / CIE-11 & DSM-5-TR):</div>
+    <div class="box-container">${h.diagnosticImpression || patient.diagnosis || 'En proceso de evaluación diagnóstica integral.'}</div>
+
+    <div class="section-header">PLAN TERAPÉUTICO Y METAS DE INTERVENCIÓN:</div>
+    <div class="box-container">${h.treatmentPlan || patient.treatmentPlan || patient.goals || 'Objetivos clínicos de fortalecimiento cognitivo, autorregulación y psicoeducación.'}</div>
+
     <div class="footer-seal">
         <br><br>
         <div class="seal-line">
-            FIRMA Y SELLO<br>
-            ${therapist.name} · ${therapist.registry}
+            FIRMA Y SELLO PROFESIONAL<br>
+            ${therapist.name}<br>
+            <span style="font-size:9pt; font-weight:normal;">${therapist.specialty} · ${therapist.registry}</span>
         </div>
+        <p style="font-size:8pt; color:#555; margin-top:8px;">Documento confidencial bajo secreto profesional. Ley de Ejercicio de la Psicología (Gaceta Nº 2.306 Extraordinario) y Código de Ética Profesional del Psicólogo de la Federación de Psicólogos de Venezuela (FPV). Conforme a la LOPNNA en personas menores de 18 años.</p>
     </div>
 
     <script>window.onload = () => window.print();</script>
 </body>
 </html>`;
 
-        const w = window.open('', '_blank');
-        if (w) {
-            w.document.write(html);
-            w.document.close();
-        } else {
-            showToast('Permita las ventanas emergentes para ver el PDF oficial', 'warning');
+        if (typeof window !== 'undefined' && typeof window.open === 'function') {
+            const w = window.open('', '_blank');
+            if (w) {
+                w.document.write(html);
+                w.document.close();
+            } else if (typeof showToast === 'function') {
+                showToast('Permita las ventanas emergentes para ver el PDF oficial', 'warning');
+            }
         }
+        return html;
     },
 
     // -------------------------------------------------------------
@@ -1681,9 +2159,10 @@ const ClinicalHistorySystem = {
 
     <div class="footer-seal">
         <div class="seal-line">
-            FIRMA Y SELLO<br>
+            FIRMA Y SELLO PROFESIONAL<br>
             ${therapist.name} · ${therapist.registry}
         </div>
+        <p style="font-size:7.5pt; color:#666; margin-top:6px;">Reporte de atención confidencial bajo secreto profesional. Ley de Ejercicio de la Psicología y Código de Ética Profesional del Psicólogo (FPV).</p>
     </div>
 
     <script>window.onload = () => window.print();</script>

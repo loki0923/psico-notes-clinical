@@ -342,11 +342,36 @@ function renderFinanceView() {
         const pendingDebts = getPendingPatientDebts();
         const pendingCount = Array.isArray(pendingDebts) ? pendingDebts.length : 0;
 
+        const allReports = (typeof getAllPatientPaymentReports === 'function') ? getAllPatientPaymentReports() : [];
+        const pendingReports = allReports.filter(r => (r.status || 'pendiente').toLowerCase() === 'pendiente');
+        const pendingReportsCount = pendingReports.length;
+
+        // Intentar consultar al servidor en segundo plano si hay sesión activa
+        if (typeof window !== 'undefined' && window.location && window.location.protocol !== 'file:') {
+            const token = localStorage.getItem('psico_session_token');
+            if (token && !_scope._fetchingReports) {
+                _scope._fetchingReports = true;
+                fetch('/api/v1/therapist/payment-reports', {
+                    headers: { 'Authorization': `Bearer ${token}` }
+                }).then(r => r.json()).then(data => {
+                    _scope._fetchingReports = false;
+                    if (Array.isArray(data.paymentReports)) {
+                        window._therapistRemotePaymentReports = data.paymentReports;
+                        if (_scope._financeActiveTab === 'portal_payments') {
+                            renderFinanceView();
+                        }
+                    }
+                }).catch(() => { _scope._fetchingReports = false; });
+            }
+        }
+
         let tabHtml = '';
         if (currentTab === 'transactions') {
             tabHtml = renderTransactionsTabHtml(txs, totalIncome, totalExpense, netBalance);
         } else if (currentTab === 'debts') {
             tabHtml = renderDebtsTabHtml();
+        } else if (currentTab === 'portal_payments') {
+            tabHtml = renderPortalPaymentsTabHtml(allReports);
         } else if (currentTab === 'goals') {
             tabHtml = renderGoalsTabHtml(txs, netBalance);
         } else {
@@ -360,6 +385,9 @@ function renderFinanceView() {
                     <p class="page-subtitle">Control de ingresos, egresos, tarifas por tiempo y metas de facturación</p>
                 </div>
                 <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;">
+                    <button class="btn-secondary" onclick="openPortalPaymentMethodsModal()" title="Configurar métodos y datos bancarios para pagos de pacientes en el portal">
+                        <i class="fas fa-credit-card"></i> Formas de Pago Portal
+                    </button>
                     ${currentTab === 'transactions' ? `
                         <button class="btn-secondary" onclick="openRateModal()" title="Configurar tarifas por tiempo de sesión">
                             <i class="fas fa-stopwatch"></i> Tarifas
@@ -385,6 +413,10 @@ function renderFinanceView() {
                         <button class="btn-primary" onclick="settleAllPatientDebtsGlobal()" style="background:#4dab87;border:none;">
                             <i class="fas fa-check-double"></i> Saldar Todas las Deudas
                         </button>
+                    ` : currentTab === 'portal_payments' ? `
+                        <button class="btn-primary" onclick="renderFinanceView()">
+                            <i class="fas fa-arrows-rotate"></i> Actualizar Comprobantes
+                        </button>
                     ` : currentTab === 'goals' ? `
                         <button class="btn-primary" onclick="openGoalModal()">
                             <i class="fas fa-bullseye"></i> Nueva Meta Financiera
@@ -404,6 +436,10 @@ function renderFinanceView() {
                 <button class="finance-tab-btn ${currentTab === 'debts' ? 'active' : ''}" onclick="switchFinanceTab('debts')">
                     <i class="fas fa-hand-holding-usd"></i> Cuentas por Cobrar
                     ${pendingCount > 0 ? `<span class="nav-badge" style="background:#e16259;color:white;margin-left:6px;">${pendingCount}</span>` : ''}
+                </button>
+                <button class="finance-tab-btn ${currentTab === 'portal_payments' ? 'active' : ''}" onclick="switchFinanceTab('portal_payments')">
+                    <i class="fas fa-file-invoice-dollar"></i> Comprobantes Pacientes
+                    ${pendingReportsCount > 0 ? `<span class="nav-badge" style="background:#0d9488;color:white;margin-left:6px;">${pendingReportsCount}</span>` : ''}
                 </button>
                 <button class="finance-tab-btn ${currentTab === 'goals' ? 'active' : ''}" onclick="switchFinanceTab('goals')">
                     <i class="fas fa-bullseye"></i> Metas Financieras
@@ -1292,6 +1328,20 @@ function renderDebtsTabHtml() {
                                 `).join('')}
                             </div>
 
+                            ${(() => {
+                                const pReports = allReports.filter(r => String(r.patient_id || r.patientId) === String(d.patientId) && (r.status || 'pendiente').toLowerCase() === 'pendiente');
+                                if (pReports.length === 0) return '';
+                                const latestRep = pReports[0];
+                                return `
+                                    <div style="background:rgba(13,148,136,0.1);border:1px solid #0d9488;padding:8px 12px;border-radius:6px;font-size:12.5px;color:#0f766e;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;">
+                                        <span><i class="fas fa-file-invoice-dollar"></i> El paciente reportó un pago de <strong>${latestRep.currency || 'USD'} ${Number(latestRep.amount).toFixed(2)}</strong> (Ref: ${latestRep.reference}).</span>
+                                        <button type="button" class="btn-primary btn-sm" onclick="viewPaymentReceiptModal('${latestRep.id}', '${d.patientId}')" style="background:#0d9488;border-color:#0d9488;font-size:11px;padding:4px 10px;cursor:pointer;">
+                                            <i class="fas fa-eye"></i> Revisar Comprobante
+                                        </button>
+                                    </div>
+                                `;
+                            })()}
+
                             <!-- ACCIONES DE RECORDATORIO -->
                             <div style="display:flex;gap:8px;flex-wrap:wrap;justify-content:flex-end;">
                                 <button class="btn-secondary btn-sm" onclick="copyPaymentReminderText('${d.patientId}')">
@@ -1306,6 +1356,182 @@ function renderDebtsTabHtml() {
                             </div>
                         </div>
                     `).join('')}
+                </div>
+            `}
+        </div>
+    `;
+}
+
+// -------------------------------------------------------------
+// PESTAÑA 5: COMPROBANTES Y PAGOS REPORTADOS POR PACIENTES
+// -------------------------------------------------------------
+
+function getAllPatientPaymentReports() {
+    let all = [];
+    try {
+        // 1. De AppState.patients leyendo psico_portal_payments_ o psico_portal_data_
+        if (typeof AppState !== 'undefined' && Array.isArray(AppState.patients)) {
+            AppState.patients.forEach(p => {
+                try {
+                    let reports = [];
+                    const keyPay = `psico_portal_payments_${p.id}`;
+                    const rawPay = localStorage.getItem(keyPay);
+                    if (rawPay) {
+                        const parsed = JSON.parse(rawPay);
+                        if (Array.isArray(parsed)) reports = parsed;
+                    }
+                    if (reports.length === 0) {
+                        const keyData = `psico_portal_data_${p.id}`;
+                        const rawData = localStorage.getItem(keyData);
+                        if (rawData) {
+                            const parsedData = JSON.parse(rawData);
+                            if (Array.isArray(parsedData.paymentReports)) reports = parsedData.paymentReports;
+                        }
+                    }
+                    reports.forEach(r => {
+                        all.push({
+                            ...r,
+                            patientId: p.id,
+                            patient_id: p.id,
+                            patientName: p.name || 'Paciente'
+                        });
+                    });
+                } catch (err) {}
+            });
+        }
+
+        // 2. Del puente global psico_therapist_payment_reports_bridge si existe
+        try {
+            const bridge = JSON.parse(localStorage.getItem('psico_therapist_payment_reports_bridge') || '[]');
+            if (Array.isArray(bridge)) {
+                bridge.forEach(br => {
+                    if (!all.some(x => String(x.id) === String(br.id))) {
+                        all.push(br);
+                    }
+                });
+            }
+        } catch (err) {}
+
+        // 3. Del caché remoto del servidor si está disponible
+        if (typeof window !== 'undefined' && window._therapistRemotePaymentReports && Array.isArray(window._therapistRemotePaymentReports)) {
+            window._therapistRemotePaymentReports.forEach(rr => {
+                if (!all.some(x => String(x.id) === String(rr.id))) {
+                    all.push(rr);
+                }
+            });
+        }
+    } catch (e) {
+        console.warn('Error obteniendo reportes de pago de pacientes:', e);
+    }
+
+    return all.sort((a, b) => new Date(b.created_at || b.payment_date || b.paymentDate || 0) - new Date(a.created_at || a.payment_date || a.paymentDate || 0));
+}
+
+function renderPortalPaymentsTabHtml(reports = []) {
+    const safeReports = Array.isArray(reports) ? reports : [];
+    const pending = safeReports.filter(r => (r.status || 'pendiente').toLowerCase() === 'pendiente');
+    const approved = safeReports.filter(r => {
+        const s = (r.status || '').toLowerCase();
+        return s === 'aprobado' || s === 'verificado';
+    });
+
+    const totalApprovedAmount = roundCurrency(approved.reduce((acc, r) => roundCurrency(acc + (Number(r.amount) || 0)), 0));
+    const totalPendingAmount = roundCurrency(pending.reduce((acc, r) => roundCurrency(acc + (Number(r.amount) || 0)), 0));
+
+    const _esc = (s) => (s ? String(s).replace(/[&<>"']/g, m => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#039;' })[m]) : '');
+
+    return `
+        <div class="summary-cards">
+            <div class="summary-card priority">
+                <div class="summary-icon">⏳</div>
+                <div class="summary-info">
+                    <h3>Por Validar</h3>
+                    <div class="summary-value" style="color:#d97706;">${pending.length}</div>
+                    <div class="summary-label">$${totalPendingAmount.toFixed(2)} en espera de confirmación</div>
+                </div>
+            </div>
+            <div class="summary-card">
+                <div class="summary-icon">✅</div>
+                <div class="summary-info">
+                    <h3>Pagos Aprobados</h3>
+                    <div class="summary-value" style="color:#059669;">${approved.length}</div>
+                    <div class="summary-label">$${totalApprovedAmount.toFixed(2)} validados</div>
+                </div>
+            </div>
+            <div class="summary-card">
+                <div class="summary-icon">📑</div>
+                <div class="summary-info">
+                    <h3>Total Comprobantes</h3>
+                    <div class="summary-value">${safeReports.length}</div>
+                    <div class="summary-label">Recibidos desde el portal</div>
+                </div>
+            </div>
+        </div>
+
+        <div class="section-block" style="margin-top:24px;">
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;flex-wrap:wrap;gap:10px;">
+                <h2 class="section-title" style="margin:0;"><i class="fas fa-file-invoice-dollar" style="color:#0d9488;"></i> Comprobantes y Pagos Reportados por Pacientes</h2>
+                <div style="font-size:12.5px;color:var(--text-secondary);">
+                    Los pagos aprobados se integran automáticamente en tus ingresos contables.
+                </div>
+            </div>
+
+            ${safeReports.length === 0 ? `
+                <div class="empty-state">
+                    <div class="empty-icon">🧾</div>
+                    <p>No hay comprobantes de pago reportados por tus pacientes aún.</p>
+                </div>
+            ` : `
+                <div style="display:flex;flex-direction:column;gap:12px;">
+                    ${safeReports.map(pay => {
+                        const status = (pay.status || 'pendiente').toLowerCase();
+                        const isPending = status === 'pendiente';
+                        const isApproved = status === 'aprobado' || status === 'verificado';
+                        const badgeColor = isApproved ? 'background:#d1fae5; color:#065f46;' : (isPending ? 'background:#fef3c7; color:#92400e;' : 'background:#fee2e2; color:#991b1b;');
+                        const statusLabel = isApproved ? 'Aprobado ✓' : (isPending ? 'Pendiente ⏳' : 'Rechazado ✕');
+                        const pName = pay.patientName || pay.patient_name || 'Paciente';
+                        const pId = pay.patientId || pay.patient_id || '';
+
+                        return `
+                            <div class="finance-goal-card" style="padding:16px 20px; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:14px; border-left:4px solid ${isApproved ? '#059669' : (isPending ? '#f59e0b' : '#ef4444')};">
+                                <div style="display:flex; flex-direction:column; gap:4px; min-width:240px; flex:1;">
+                                    <div style="display:flex; align-items:center; gap:10px; flex-wrap:wrap;">
+                                        <h3 style="margin:0; font-size:16px; font-weight:700; color:var(--text-primary); cursor:pointer;" onclick="viewPatientDetail('${pId}')" title="Ver expediente del paciente">
+                                            👤 ${_esc(pName)}
+                                        </h3>
+                                        <span style="font-size:11px; padding:2px 8px; border-radius:10px; font-weight:700; ${badgeColor}">
+                                            ${statusLabel}
+                                        </span>
+                                    </div>
+                                    <div style="font-size:13px; color:var(--text-secondary); display:flex; align-items:center; gap:12px; flex-wrap:wrap; margin-top:2px;">
+                                        <span><strong>Monto:</strong> <span style="font-weight:700; color:var(--text-primary);">${pay.currency || 'USD'} ${Number(pay.amount).toFixed(2)}</span></span>
+                                        <span><strong>Método:</strong> ${_esc(pay.payment_method || pay.paymentMethod || 'Pago')}</span>
+                                        <span><strong>Ref:</strong> <span style="font-family:monospace; font-weight:700;">${_esc(pay.reference || '—')}</span></span>
+                                        <span><strong>Fecha:</strong> ${_localFormatDate(pay.payment_date || pay.paymentDate)}</span>
+                                    </div>
+                                    ${pay.concept ? `<div style="font-size:12px; color:var(--text-tertiary); font-style:italic;">${_esc(pay.concept)}</div>` : ''}
+                                </div>
+
+                                <div style="display:flex; gap:8px; align-items:center; flex-wrap:wrap;">
+                                    ${(pay.receipt_data || pay.receiptData) ? `
+                                        <button type="button" class="btn-secondary btn-sm" onclick="viewPaymentReceiptModal('${pay.id}', '${pId}')" style="font-weight:600;">
+                                            <i class="fas fa-eye"></i> Ver Comprobante
+                                        </button>
+                                    ` : `
+                                        <span style="font-size:11.5px; color:var(--text-tertiary); font-style:italic;">(Sin archivo adjunto)</span>
+                                    `}
+                                    ${isPending ? `
+                                        <button type="button" class="btn-primary btn-sm" onclick="approvePatientPayment('${pay.id}', '${pId}')" style="background:#059669; border-color:#059669; color:white; font-weight:600;">
+                                            <i class="fas fa-check"></i> Aprobar y Registrar
+                                        </button>
+                                        <button type="button" class="btn-secondary btn-sm" onclick="rejectPatientPayment('${pay.id}', '${pId}')" style="color:#ef4444; border-color:rgba(239, 68, 68, 0.3);">
+                                            <i class="fas fa-times"></i> Rechazar
+                                        </button>
+                                    ` : ''}
+                                </div>
+                            </div>
+                        `;
+                    }).join('')}
                 </div>
             `}
         </div>
@@ -1451,6 +1677,8 @@ if (_financeTargetScope) {
     _financeTargetScope.addFinanceCategory = addFinanceCategory;
     _financeTargetScope.removeFinanceCategory = removeFinanceCategory;
     _financeTargetScope.getPendingPatientDebts = getPendingPatientDebts;
+    _financeTargetScope.getAllPatientPaymentReports = getAllPatientPaymentReports;
+    _financeTargetScope.renderPortalPaymentsTabHtml = renderPortalPaymentsTabHtml;
     _financeTargetScope.sendPaymentReminderWhatsApp = sendPaymentReminderWhatsApp;
     _financeTargetScope.copyPaymentReminderText = copyPaymentReminderText;
     _financeTargetScope.settlePatientDebt = settlePatientDebt;
@@ -1477,6 +1705,8 @@ if (typeof module !== 'undefined' && module.exports) {
         renderGoalsTabHtml,
         renderRatesTabHtml,
         renderDebtsTabHtml,
+        getAllPatientPaymentReports,
+        renderPortalPaymentsTabHtml,
         openGoalModal,
         handleGoalSubmit,
         deleteGoal,

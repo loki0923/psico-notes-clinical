@@ -88,6 +88,7 @@ CREATE TABLE IF NOT EXISTS mood_logs (
     sleep_score INTEGER CHECK (sleep_score BETWEEN 1 AND 5),
     energy_score INTEGER CHECK (energy_score BETWEEN 1 AND 5),
     note TEXT,
+    word VARCHAR(100),
     created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );
 
@@ -162,6 +163,7 @@ CREATE TABLE IF NOT EXISTS appointments (
     appointment_time TIME NOT NULL,
     duration INTEGER DEFAULT 50,
     status VARCHAR(30) DEFAULT 'programada',
+    attendance_confirmed BOOLEAN DEFAULT FALSE,
     notes TEXT,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );
@@ -277,4 +279,48 @@ CREATE TABLE IF NOT EXISTS therapy_roadmap_sessions (
 
 CREATE INDEX IF NOT EXISTS idx_roadmap_patient ON therapy_roadmap_sessions(patient_id);
 CREATE INDEX IF NOT EXISTS idx_roadmap_order ON therapy_roadmap_sessions(patient_id, display_order ASC);
+
+-- 18. Documentos Compartidos en Portal (Word, PDF, Imágenes)
+CREATE TABLE IF NOT EXISTS patient_documents (
+    id VARCHAR(64) PRIMARY KEY,
+    patient_id VARCHAR(64) NOT NULL REFERENCES patients(id) ON DELETE CASCADE,
+    therapist_id VARCHAR(64) REFERENCES therapists(id) ON DELETE CASCADE,
+    title VARCHAR(255) NOT NULL,
+    category VARCHAR(50) DEFAULT 'general',
+    file_name VARCHAR(255) NOT NULL,
+    file_type VARCHAR(100) NOT NULL,
+    file_size INTEGER DEFAULT 0,
+    file_data TEXT,
+    uploaded_by VARCHAR(30) DEFAULT 'patient',
+    notes TEXT,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE INDEX IF NOT EXISTS idx_docs_patient ON patient_documents(patient_id);
+CREATE INDEX IF NOT EXISTS idx_docs_created ON patient_documents(created_at DESC);
+
+-- 19. Reportes de Pago y Comprobantes del Paciente
+CREATE TABLE IF NOT EXISTS patient_payment_reports (
+    id VARCHAR(64) PRIMARY KEY,
+    patient_id VARCHAR(64) NOT NULL REFERENCES patients(id) ON DELETE CASCADE,
+    therapist_id VARCHAR(64) REFERENCES therapists(id) ON DELETE CASCADE,
+    amount NUMERIC NOT NULL,
+    currency VARCHAR(10) DEFAULT 'USD',
+    payment_method VARCHAR(50) NOT NULL,
+    reference VARCHAR(100) NOT NULL,
+    payment_date DATE NOT NULL,
+    concept VARCHAR(255) DEFAULT 'Sesión de psicoterapia',
+    receipt_data TEXT,
+    status VARCHAR(30) DEFAULT 'pendiente',
+    therapist_notes TEXT,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE INDEX IF NOT EXISTS idx_payments_patient ON patient_payment_reports(patient_id);
+CREATE INDEX IF NOT EXISTS idx_payments_created ON patient_payment_reports(created_at DESC);
+
+-- 20. Configuración de Formas de Pago Personalizadas por Terapeuta para el Portal
+ALTER TABLE therapists ADD COLUMN IF NOT EXISTS payment_methods JSONB DEFAULT '[]';
+
 

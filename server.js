@@ -197,11 +197,19 @@ app.use((req, res, next) => {
         return next();
     }
 
-    const isLocalhostDev = !isProd && (origin.startsWith('http://localhost:') || origin.startsWith('http://127.0.0.1:'));
+    const isLocalhostDev = !isProd && (
+        !origin ||
+        origin === 'null' ||
+        origin.startsWith('http://localhost:') || 
+        origin.startsWith('http://127.0.0.1:') ||
+        origin.startsWith('http://192.168.') ||
+        origin.startsWith('http://10.') ||
+        origin.startsWith('http://172.')
+    );
 
     if (ALLOWED_ORIGINS.has(origin) || isLocalhostDev) {
-        res.header('Access-Control-Allow-Origin', origin);
-        res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
+        res.header('Access-Control-Allow-Origin', origin || '*');
+        res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, PATCH, DELETE, OPTIONS');
         res.header('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept, Authorization, X-Therapist-Id, X-Session-Token');
         res.header('Access-Control-Allow-Credentials', 'true');
         if (req.method === 'OPTIONS') {
@@ -385,7 +393,8 @@ app.use((req, res, next) => {
     });
 });
 
-app.use(express.json({ limit: '10mb' }));
+app.use(express.json({ limit: '50mb' }));
+app.use(express.urlencoded({ limit: '50mb', extended: true }));
 
 // Inicializar capa de base de datos
 await db.initialize();
@@ -473,10 +482,10 @@ app.get('/api/v1/portal/me', async (req, res) => {
     }
 });
 
-// Registro diario de estado de ánimo
+// Registro diario de estado de ánimo y palabra del día
 app.post('/api/v1/portal/mood', async (req, res) => {
     try {
-        const { patientId, token, mood, sleep, energy, note } = req.body;
+        const { patientId, token, mood, sleep, energy, note, word, identifyingWord } = req.body;
         if (!patientId || !token) {
             return res.status(401).json({ error: 'Credenciales incompletas' });
         }
@@ -486,7 +495,13 @@ app.post('/api/v1/portal/mood', async (req, res) => {
             return res.status(403).json({ error: 'Token no autorizado para este paciente' });
         }
 
-        const record = await db.addMoodLog(patientId, { mood, sleep, energy, note });
+        const record = await db.addMoodLog(patientId, { 
+            mood, 
+            sleep, 
+            energy, 
+            note, 
+            word: (word || identifyingWord || '').trim() 
+        });
         res.json({ status: 'saved', record });
     } catch (err) {
         handleClinicalError(res, err, 'Error guardando mood log');
@@ -648,6 +663,324 @@ app.get('/api/v1/portal/kid/activity', async (req, res) => {
     }
 });
 
+// Consulta inteligente de disponibilidad de horarios para el portal del paciente
+app.get('/api/v1/portal/availability', async (req, res) => {
+    try {
+        const token = (req.query.token || '').trim();
+        const date = (req.query.date || '').trim() || new Date(Date.now() + 86400000).toISOString().split('T')[0];
+        if (!token) {
+            return res.status(401).json({ error: 'Token de acceso requerido' });
+        }
+
+        const patient = await db.findPatientByToken(token);
+        if (!patient) {
+            return res.status(401).json({ error: 'Token no autorizado o expirado' });
+        }
+
+        const availability = await db.getTherapistAvailability(patient.therapist_id, date, patient.id);
+        res.json({
+            status: 'ok',
+            therapistName: patient.therapist_name || 'Licenciado(a) en Psicología',
+            ...availability
+        });
+    } catch (err) {
+        handleClinicalError(res, err, 'Error obteniendo disponibilidad del terapeuta');
+    }
+});
+
+// Solicitar o agendar cita desde el portal del paciente
+app.post('/api/v1/portal/appointments/request', rateLimitMiddleware('portal_appointment', 10, 60 * 1000), async (req, res) => {
+    try {
+        const { token, patientId, date, time, duration, type, notes } = req.body;
+        if (!token || !patientId || !date || !time) {
+            return res.status(400).json({ error: 'Token, paciente, fecha y hora requeridos' });
+        }
+
+        const patient = await db.findPatientByToken(token);
+        if (!patient || String(patient.id) !== String(patientId)) {
+            return res.status(401).json({ error: 'Token inválido o no autorizado para este paciente' });
+        }
+
+        // Validación inteligente de disponibilidad para evitar colisiones y citas en días cerrados
+        const isAvailable = await db.isSlotAvailable(patient.therapist_id, date, time, patient.id);
+        if (!isAvailable) {
+            return res.status(409).json({
+                error: 'El horario seleccionado ya no se encuentra disponible. Por favor elige otro horario disponible.'
+            });
+        }
+
+        const appointment = await db.createPortalAppointment(patient.id, {
+            date,
+            time,
+            duration: Number(duration) || 50,
+            type: type || 'Online',
+            notes: notes || 'Sesión agendada desde el Portal del Paciente'
+        });
+
+        res.status(201).json({
+            status: 'ok',
+            message: 'Cita agendada correctamente',
+            appointment
+        });
+    } catch (err) {
+        handleClinicalError(res, err, 'Error agendando cita desde el portal');
+    }
+});
+
+// Confirmar asistencia a una sesión desde el portal del paciente
+app.post('/api/v1/portal/appointments/:id/confirm', rateLimitMiddleware('portal_confirm_appt', 20, 60 * 1000), async (req, res) => {
+    try {
+        const appointmentId = req.params.id;
+        const token = (req.body.token || req.query.token || '').trim();
+        const patientId = req.body.patientId || req.query.patientId;
+
+        if (!token) {
+            return res.status(401).json({ error: 'Token de acceso requerido' });
+        }
+
+        const patient = await db.findPatientByToken(token);
+        if (!patient || (patientId && String(patient.id) !== String(patientId))) {
+            return res.status(401).json({ error: 'Token no autorizado o expirado' });
+        }
+
+        const updated = await db.confirmAppointmentAttendance(appointmentId, patient.id);
+        if (!updated) {
+            return res.status(404).json({ error: 'Cita no encontrada o no pertenece a este paciente' });
+        }
+
+        await recordAuditLog(patient.therapist_id, patient.id, 'APPOINTMENT_ATTENDANCE_CONFIRMED', 'PORTAL', req);
+
+        res.json({
+            status: 'ok',
+            message: 'Asistencia confirmada exitosamente',
+            appointment: updated
+        });
+    } catch (err) {
+        handleClinicalError(res, err, 'Error confirmando asistencia a la cita');
+    }
+});
+
+// Documentos del paciente: Obtener documentos (subidos por paciente y compartidos por terapeuta)
+app.get('/api/v1/portal/documents', async (req, res) => {
+    try {
+        const token = (req.query.token || '').trim();
+        if (!token) {
+            return res.status(401).json({ error: 'Token de acceso requerido' });
+        }
+
+        const patient = await db.findPatientByToken(token);
+        if (!patient) {
+            return res.status(401).json({ error: 'Token no autorizado o expirado' });
+        }
+
+        const documents = await db.getPatientDocuments(patient.id);
+        res.json({
+            status: 'ok',
+            patientId: patient.id,
+            documents
+        });
+    } catch (err) {
+        handleClinicalError(res, err, 'Error obteniendo documentos');
+    }
+});
+
+// Subir documento desde el portal del paciente (Word, PDF, imagen)
+app.post('/api/v1/portal/documents/upload', rateLimitMiddleware('portal_doc_upload', 15, 60 * 1000), async (req, res) => {
+    try {
+        const { token, patientId, title, category, fileName, fileType, fileSize, fileData, notes } = req.body;
+        if (!token || !fileName || !fileData) {
+            return res.status(400).json({ error: 'Token, nombre de archivo y contenido del archivo son requeridos' });
+        }
+
+        const patient = await db.findPatientByToken(token);
+        if (!patient || (patientId && String(patient.id) !== String(patientId))) {
+            return res.status(401).json({ error: 'Token no autorizado o paciente no coincide' });
+        }
+
+        const doc = await db.savePatientDocument(patient.id, patient.therapist_id, {
+            title: title || fileName,
+            category: category || 'general',
+            fileName,
+            fileType: fileType || 'application/octet-stream',
+            fileSize: Number(fileSize) || 0,
+            fileData,
+            uploadedBy: 'patient',
+            notes: notes || ''
+        });
+
+        await recordAuditLog(patient.therapist_id, patient.id, 'PORTAL_DOCUMENT_UPLOADED', 'PORTAL', req);
+
+        res.status(201).json({
+            status: 'ok',
+            message: 'Documento cargado correctamente y compartido con su terapeuta',
+            document: doc
+        });
+    } catch (err) {
+        handleClinicalError(res, err, 'Error subiendo documento desde portal');
+    }
+});
+
+// Eliminar documento subido por el paciente
+app.delete('/api/v1/portal/documents/:id', async (req, res) => {
+    try {
+        const documentId = req.params.id;
+        const token = (req.body.token || req.query.token || '').trim();
+
+        if (!token) {
+            return res.status(401).json({ error: 'Token de acceso requerido' });
+        }
+
+        const patient = await db.findPatientByToken(token);
+        if (!patient) {
+            return res.status(401).json({ error: 'Token no autorizado o expirado' });
+        }
+
+        const deleted = await db.deletePatientDocument(documentId, patient.id);
+        if (!deleted) {
+            return res.status(404).json({ error: 'Documento no encontrado o no pertenece a este paciente' });
+        }
+
+        res.json({
+            status: 'ok',
+            message: 'Documento eliminado'
+        });
+    } catch (err) {
+        handleClinicalError(res, err, 'Error eliminando documento');
+    }
+});
+
+// Pagos del paciente: Obtener historial de reportes y métodos de pago
+app.get('/api/v1/portal/payments', async (req, res) => {
+    try {
+        const token = (req.query.token || '').trim();
+        if (!token) {
+            return res.status(401).json({ error: 'Token de acceso requerido' });
+        }
+
+        const patient = await db.findPatientByToken(token);
+        if (!patient) {
+            return res.status(401).json({ error: 'Token no autorizado o expirado' });
+        }
+
+        const paymentMethods = await db.getTherapistPaymentMethods(patient.therapist_id);
+        const paymentReports = await db.getPatientPaymentReports(patient.id);
+
+        res.json({
+            status: 'ok',
+            paymentMethods,
+            paymentReports
+        });
+    } catch (err) {
+        handleClinicalError(res, err, 'Error obteniendo información de pagos');
+    }
+});
+
+// Reportar pago realizado por el paciente
+app.post('/api/v1/portal/payments/report', rateLimitMiddleware('portal_pay_report', 10, 60 * 1000), async (req, res) => {
+    try {
+        const { token, patientId, amount, currency, paymentMethod, reference, paymentDate, concept, receiptData } = req.body;
+        if (!token || !amount || !reference) {
+            return res.status(400).json({ error: 'Token, monto y número de referencia son requeridos' });
+        }
+
+        const patient = await db.findPatientByToken(token);
+        if (!patient || (patientId && String(patient.id) !== String(patientId))) {
+            return res.status(401).json({ error: 'Token no autorizado o paciente no coincide' });
+        }
+
+        const report = await db.savePaymentReport(patient.id, patient.therapist_id, {
+            amount,
+            currency: currency || 'USD',
+            paymentMethod: paymentMethod || 'pago_movil',
+            reference,
+            paymentDate: paymentDate || new Date().toISOString().split('T')[0],
+            concept: concept || 'Sesión de psicoterapia',
+            receiptData: receiptData || ''
+        });
+
+        await recordAuditLog(patient.therapist_id, patient.id, 'PORTAL_PAYMENT_REPORTED', 'PORTAL', req);
+
+        res.status(201).json({
+            status: 'ok',
+            message: 'Pago reportado exitosamente. Tu terapeuta verificará el comprobante.',
+            paymentReport: report
+        });
+    } catch (err) {
+        handleClinicalError(res, err, 'Error reportando pago');
+    }
+});
+
+// Perfil del paciente: Consultar perfil propio
+app.get('/api/v1/portal/profile', async (req, res) => {
+    try {
+        const token = (req.query.token || '').trim();
+        if (!token) {
+            return res.status(401).json({ error: 'Token de acceso requerido' });
+        }
+
+        const patient = await db.findPatientByToken(token);
+        if (!patient) {
+            return res.status(401).json({ error: 'Token no autorizado o expirado' });
+        }
+
+        res.json({
+            status: 'ok',
+            profile: {
+                id: patient.id,
+                name: patient.name,
+                email: patient.email || '',
+                phone: patient.phone || '',
+                birthdate: patient.birthdate || '',
+                occupation: patient.occupation || '',
+                address: patient.address || '',
+                emergencyContact: patient.emergency_contact || patient.emergencyContact || '',
+                emergencyPhone: patient.emergency_phone || patient.emergencyPhone || '',
+                expectations: patient.expectations || patient.preconsulta_data?.expectations || '',
+                consultationReason: patient.preconsulta_data?.consultationReason || patient.diagnosis || ''
+            }
+        });
+    } catch (err) {
+        handleClinicalError(res, err, 'Error obteniendo perfil del paciente');
+    }
+});
+
+// Perfil del paciente: Actualizar información por parte del paciente
+app.post('/api/v1/portal/profile', rateLimitMiddleware('portal_profile_update', 10, 60 * 1000), async (req, res) => {
+    try {
+        const { token, patientId, name, phone, email, occupation, emergencyContact, emergencyPhone, address, expectations, birthdate } = req.body;
+        if (!token) {
+            return res.status(401).json({ error: 'Token de acceso requerido' });
+        }
+
+        const patient = await db.findPatientByToken(token);
+        if (!patient || (patientId && String(patient.id) !== String(patientId))) {
+            return res.status(401).json({ error: 'Token no autorizado o paciente no coincide' });
+        }
+
+        const updated = await db.updatePatientProfile(patient.id, {
+            name,
+            phone,
+            email,
+            occupation,
+            emergencyContact,
+            emergencyPhone,
+            address,
+            expectations,
+            birthdate
+        });
+
+        await recordAuditLog(patient.therapist_id, patient.id, 'PORTAL_PROFILE_UPDATED', 'PORTAL', req);
+
+        res.json({
+            status: 'ok',
+            message: 'Perfil actualizado exitosamente',
+            patient: updated
+        });
+    } catch (err) {
+        handleClinicalError(res, err, 'Error actualizando perfil del paciente');
+    }
+});
+
 // Consulta del terapeuta para ver actividades del portal kid con aislamiento BOLA/IDOR
 app.get('/api/v1/patients/:id/kid-activity', requireTherapistAuth, async (req, res) => {
     try {
@@ -707,6 +1040,117 @@ app.get('/api/v1/portal/data/:patientId', requireTherapistAuth, async (req, res)
     }
 });
 
+// Compartir documento desde el terapeuta hacia el paciente
+app.post('/api/v1/portal/documents/share-with-patient', requireTherapistAuth, async (req, res) => {
+    try {
+        const { patientId, title, category, fileName, fileType, fileSize, fileData, notes } = req.body;
+        if (!patientId || !fileName || !fileData) {
+            return res.status(400).json({ error: 'patientId, fileName y fileData requeridos' });
+        }
+
+        let patient = null;
+        if (db.isPostgresConnected && db.pgPool) {
+            const check = await db.pgPool.query('SELECT * FROM patients WHERE id = $1', [patientId]);
+            patient = check.rows[0];
+        } else {
+            patient = (db.localStore.patients || []).find(p => p.id === patientId);
+        }
+
+        if (!patient || patient.therapist_id !== req.therapistId) {
+            return res.status(403).json({ error: 'Paciente no encontrado o no pertenece a este terapeuta' });
+        }
+
+        const doc = await db.savePatientDocument(patientId, req.therapistId, {
+            title: title || fileName,
+            category: category || 'guia',
+            fileName,
+            fileType: fileType || 'application/octet-stream',
+            fileSize: Number(fileSize) || 0,
+            fileData,
+            uploadedBy: 'therapist',
+            notes: notes || ''
+        });
+
+        await recordAuditLog(req.therapistId, patientId, 'THERAPIST_DOCUMENT_SHARED', 'PORTAL_DOCS', req);
+        res.status(201).json({ status: 'ok', document: doc });
+    } catch (err) {
+        handleClinicalError(res, err, 'Error compartiendo documento con paciente');
+    }
+});
+
+// Obtener todos los reportes de pago de los pacientes del terapeuta
+app.get('/api/v1/therapist/payment-reports', requireTherapistAuth, async (req, res) => {
+    try {
+        const therapistId = req.therapistId;
+        const reports = await db.getTherapistPaymentReports(therapistId);
+        res.json({ status: 'ok', paymentReports: reports });
+    } catch (err) {
+        handleClinicalError(res, err, 'Error obteniendo reportes de pago');
+    }
+});
+
+// Verificar o cambiar estatus de un reporte de pago por parte del terapeuta
+app.post('/api/v1/portal/payments/:id/verify', requireTherapistAuth, async (req, res) => {
+    try {
+        const reportId = req.params.id;
+        const { status, notes } = req.body;
+        if (!status) {
+            return res.status(400).json({ error: 'status es requerido' });
+        }
+
+        const updated = await db.updatePaymentReportStatus(reportId, req.therapistId, status, notes || '');
+        if (!updated) {
+            return res.status(404).json({ error: 'Reporte de pago no encontrado o no autorizado' });
+        }
+
+        await recordAuditLog(req.therapistId, updated.patient_id, 'PAYMENT_REPORT_STATUS_UPDATED', 'FINANCES', req);
+        res.json({ status: 'ok', paymentReport: updated });
+    } catch (err) {
+        handleClinicalError(res, err, 'Error actualizando estatus de pago');
+    }
+});
+
+// Configuración de Formas de Pago del Terapeuta para el Portal de Pacientes
+app.get('/api/v1/therapist/payment-methods', requireTherapistAuth, async (req, res) => {
+    try {
+        const therapistId = req.therapistId;
+        const methods = await db.getTherapistPaymentMethods(therapistId);
+        res.json({ status: 'ok', paymentMethods: methods });
+    } catch (err) {
+        handleClinicalError(res, err, 'Error obteniendo formas de pago');
+    }
+});
+
+app.put('/api/v1/therapist/payment-methods', requireTherapistAuth, async (req, res) => {
+    try {
+        const therapistId = req.therapistId;
+        const { paymentMethods } = req.body;
+        if (!Array.isArray(paymentMethods)) {
+            return res.status(400).json({ error: 'paymentMethods debe ser un arreglo' });
+        }
+        const saved = await db.saveTherapistPaymentMethods(therapistId, paymentMethods);
+        recordAuditLog(therapistId, 'UPDATE_PAYMENT_METHODS', `Actualizadas ${saved.length} formas de pago para el portal`);
+        res.json({ status: 'ok', message: 'Formas de pago actualizadas exitosamente', paymentMethods: saved });
+    } catch (err) {
+        handleClinicalError(res, err, 'Error guardando formas de pago');
+    }
+});
+
+app.post('/api/v1/therapist/payment-methods', requireTherapistAuth, async (req, res) => {
+    try {
+        const therapistId = req.therapistId;
+        const { paymentMethods } = req.body;
+        if (!Array.isArray(paymentMethods)) {
+            return res.status(400).json({ error: 'paymentMethods debe ser un arreglo' });
+        }
+        const saved = await db.saveTherapistPaymentMethods(therapistId, paymentMethods);
+        recordAuditLog(therapistId, 'UPDATE_PAYMENT_METHODS', `Actualizadas ${saved.length} formas de pago para el portal`);
+        res.json({ status: 'ok', message: 'Formas de pago actualizadas exitosamente', paymentMethods: saved });
+    } catch (err) {
+        handleClinicalError(res, err, 'Error guardando formas de pago');
+    }
+});
+
 // Alertas de crisis activas para el terapeuta (Aislamiento por terapeuta autenticado)
 app.get('/api/v1/portal/crisis-alerts', requireTherapistAuth, async (req, res) => {
     try {
@@ -714,7 +1158,7 @@ app.get('/api/v1/portal/crisis-alerts', requireTherapistAuth, async (req, res) =
             const result = await db.pgPool.query(
                 `SELECT ca.* FROM crisis_alerts ca
                  JOIN patients p ON ca.patient_id = p.id
-                 WHERE p.therapist_id = $1
+                 WHERE p.therapist_id = $1 AND ca.acknowledged = FALSE
                  ORDER BY ca.created_at DESC LIMIT 50`,
                 [req.therapistId]
             );
@@ -723,7 +1167,7 @@ app.get('/api/v1/portal/crisis-alerts', requireTherapistAuth, async (req, res) =
 
         const therapistPatients = (db.localStore.patients || []).filter(p => p.therapist_id === req.therapistId);
         const patientIdSet = new Set(therapistPatients.map(p => p.id));
-        const alerts = (db.localStore.crisis_alerts || []).filter(a => patientIdSet.has(a.patient_id));
+        const alerts = (db.localStore.crisis_alerts || []).filter(a => patientIdSet.has(a.patient_id) && !a.acknowledged);
         res.json({ alerts });
     } catch (err) {
         handleClinicalError(res, err, 'Error consultando alertas de crisis');
@@ -767,6 +1211,48 @@ app.post('/api/v1/portal/crisis-alerts/ack/:id', requireTherapistAuth, async (re
         res.json({ status: 'ok', alert });
     } catch (err) {
         handleClinicalError(res, err, 'Error reconociendo alerta de crisis');
+    }
+});
+
+// Reconocer todas las alertas de crisis activas para un paciente
+app.post('/api/v1/portal/crisis-alerts/ack-patient/:patientId', requireTherapistAuth, async (req, res) => {
+    try {
+        const patientId = req.params.patientId;
+        if (db.isPostgresConnected && db.pgPool) {
+            const check = await db.pgPool.query(
+                'SELECT * FROM patients WHERE id = $1',
+                [patientId]
+            );
+            if (check.rowCount === 0) {
+                return res.status(404).json({ error: 'Paciente no encontrado' });
+            }
+            if (check.rows[0].therapist_id && check.rows[0].therapist_id !== req.therapistId) {
+                return res.status(403).json({ error: 'Acceso denegado: El paciente pertenece a otro profesional.' });
+            }
+            await db.pgPool.query(
+                'UPDATE crisis_alerts SET acknowledged = TRUE, acknowledged_at = CURRENT_TIMESTAMP WHERE patient_id = $1 AND acknowledged = FALSE',
+                [patientId]
+            );
+            return res.json({ status: 'ok', patientId });
+        }
+
+        const patient = (db.localStore.patients || []).find(p => p.id === patientId);
+        if (!patient) {
+            return res.status(404).json({ error: 'Paciente no encontrado' });
+        }
+        if (patient.therapist_id && patient.therapist_id !== req.therapistId) {
+            return res.status(403).json({ error: 'Acceso denegado: El paciente pertenece a otro profesional.' });
+        }
+        (db.localStore.crisis_alerts || []).forEach(a => {
+            if (a.patient_id === patientId && !a.acknowledged) {
+                a.acknowledged = true;
+                a.acknowledged_at = new Date().toISOString();
+            }
+        });
+        db._persistLocalStore();
+        res.json({ status: 'ok', patientId });
+    } catch (err) {
+        handleClinicalError(res, err, 'Error reconociendo alertas de crisis del paciente');
     }
 });
 
@@ -825,6 +1311,93 @@ app.get('/api/v1/patients', requireTherapistAuth, async (req, res) => {
         res.json({ patients });
     } catch (err) {
         handleClinicalError(res, err, 'Error consultando lista de pacientes');
+    }
+});
+
+// Listado de citas de los pacientes del terapeuta (Sincronización bidireccional portal/terapeuta)
+app.get('/api/v1/appointments', requireTherapistAuth, async (req, res) => {
+    try {
+        const therapistId = req.therapistId;
+        const appointments = await db.getTherapistAppointments(therapistId);
+        res.json({ status: 'ok', appointments });
+    } catch (err) {
+        handleClinicalError(res, err, 'Error consultando citas del terapeuta');
+    }
+});
+
+// Actualizar estado de una cita (cancelada, completada, reprogramada, etc.) por el terapeuta
+app.patch('/api/v1/appointments/:id/status', requireTherapistAuth, async (req, res) => {
+    try {
+        const appointmentId = req.params.id;
+        const { status, notes, date, time, duration } = req.body;
+        if (!status && notes === undefined && !date && !time && !duration) {
+            return res.status(400).json({ error: 'Se requiere al menos un campo a actualizar' });
+        }
+        const updated = await db.updateAppointmentStatus(appointmentId, {
+            status,
+            notes,
+            date,
+            time,
+            duration,
+            therapistId: req.therapistId
+        });
+        if (!updated) {
+            return res.status(404).json({ error: 'Cita no encontrada' });
+        }
+        recordAuditLog(req.therapistId, 'APPOINTMENT_STATUS_UPDATE', `Cita ${appointmentId} actualizada a estado: ${status || 'modificada'}`);
+        res.json({ status: 'ok', appointment: updated });
+    } catch (err) {
+        handleClinicalError(res, err, 'Error actualizando estado de la cita');
+    }
+});
+
+// Soporte PUT alternativo para clientes o pasarelas que prefieran PUT
+app.put('/api/v1/appointments/:id/status', requireTherapistAuth, async (req, res) => {
+    try {
+        const appointmentId = req.params.id;
+        const { status, notes, date, time, duration } = req.body;
+        const updated = await db.updateAppointmentStatus(appointmentId, {
+            status,
+            notes,
+            date,
+            time,
+            duration,
+            therapistId: req.therapistId
+        });
+        if (!updated) {
+            return res.status(404).json({ error: 'Cita no encontrada' });
+        }
+        recordAuditLog(req.therapistId, 'APPOINTMENT_STATUS_UPDATE', `Cita ${appointmentId} actualizada a estado: ${status || 'modificada'}`);
+        res.json({ status: 'ok', appointment: updated });
+    } catch (err) {
+        handleClinicalError(res, err, 'Error actualizando estado de la cita');
+    }
+});
+
+// Eliminar / Cancelar cita por el terapeuta
+app.delete('/api/v1/appointments/:id', requireTherapistAuth, async (req, res) => {
+    try {
+        const appointmentId = req.params.id;
+        const success = await db.deleteAppointment(appointmentId, req.therapistId);
+        if (!success) {
+            return res.status(404).json({ error: 'Cita no encontrada' });
+        }
+        recordAuditLog(req.therapistId, 'APPOINTMENT_CANCEL_DELETE', `Cita ${appointmentId} eliminada/cancelada por terapeuta`);
+        res.json({ status: 'ok', message: 'Cita cancelada/eliminada exitosamente' });
+    } catch (err) {
+        handleClinicalError(res, err, 'Error eliminando cita');
+    }
+});
+
+// Sincronización en lote de citas del terapeuta hacia el backend
+app.post('/api/v1/appointments/sync', requireTherapistAuth, async (req, res) => {
+    try {
+        const therapistId = req.therapistId;
+        const appointments = req.body.appointments || [];
+        const synced = await db.syncTherapistAppointments(therapistId, appointments);
+        res.json({ status: 'ok', count: synced.length, appointments: synced });
+    } catch (err) {
+        handleClinicalError(res, err, 'Error sincronizando citas del terapeuta');
     }
 });
 
