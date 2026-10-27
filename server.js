@@ -309,6 +309,8 @@ const ALLOWED_STATIC_FILES = new Set([
     'favicon.ico',
     'favicon.svg',
     'serena-logo.svg',
+    'serena-symbol.svg',
+    'serena-avatar.jpg',
     'app.js',
     'portal.js',
     'ai-clinical.js',
@@ -358,14 +360,20 @@ app.use((req, res, next) => {
 
     // 4. Directorio público de assets gráficos y fuentes
     if (normalized.startsWith('/assets/')) {
-        const safeRel = path.relative('/assets', normalized);
-        if (safeRel.startsWith('..') || path.isAbsolute(safeRel)) {
+        const cleanRel = normalized.replace(/^\/assets\//, '');
+        if (cleanRel.includes('..') || path.isAbsolute(cleanRel)) {
             return res.status(403).json({ error: 'Acceso no autorizado: Archivo o recurso protegido por políticas de seguridad clínica.' });
         }
-        const fullAssetPath = path.join(__dirname, 'assets', safeRel);
-        if (fs.existsSync(fullAssetPath) && !fs.statSync(fullAssetPath).isDirectory()) {
-            res.setHeader('Cache-Control', 'public, max-age=3600');
-            return res.sendFile(fullAssetPath);
+        const candidatePaths = [
+            path.join(__dirname, 'assets', cleanRel),
+            path.join(__dirname, 'public', 'assets', cleanRel),
+            path.join(__dirname, 'dist', 'assets', cleanRel)
+        ];
+        for (const candidate of candidatePaths) {
+            if (fs.existsSync(candidate) && !fs.statSync(candidate).isDirectory()) {
+                res.setHeader('Cache-Control', 'public, max-age=3600');
+                return res.sendFile(candidate);
+            }
         }
         return res.status(404).json({ error: 'Recurso de assets no encontrado.' });
     }

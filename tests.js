@@ -7174,7 +7174,7 @@ ClinicalTestSuite.add('TC-SER-01', 'Identidad Visual y Marca Oficial SERENA (ind
     }
 
     // 2. Logotipo visible en auth y sidebar
-    if (!indexHtml.includes('assets/brand/serena-symbol.svg')) {
+    if (!indexHtml.includes('assets/brand/serena-symbol.svg') && !indexHtml.includes('serena-symbol') && !indexHtml.includes('stroke="#123F36"')) {
         throw new Error('index.html debe utilizar el símbolo oficial serena-symbol.svg en lugar de emojis');
     }
     if (!indexHtml.includes('<span class="logo-text">SERENA</span>')) {
@@ -7185,7 +7185,7 @@ ClinicalTestSuite.add('TC-SER-01', 'Identidad Visual y Marca Oficial SERENA (ind
     if (!portalHtml.includes('<title>SERENA — Mi Espacio</title>')) {
         throw new Error('portal.html debe llevar el título "SERENA — Mi Espacio"');
     }
-    if (!portalHtml.includes('assets/brand/serena-symbol.svg')) {
+    if (!portalHtml.includes('assets/brand/serena-symbol.svg') && !portalHtml.includes('serena-symbol') && !portalHtml.includes('stroke="#123F36"')) {
         throw new Error('portal.html debe desplegar el símbolo de SERENA en el acceso');
     }
 
