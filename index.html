@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, viewport-fit=cover">
-    <title>Psico Notes - Gestión Clínica Avanzada</title>
+    <title>SERENA — Tu práctica, en equilibrio | Gestión Clínica</title>
     <script>
         if (window.location.protocol === 'http:' || window.location.protocol === 'https:') {
             var manifestLink = document.createElement('link');
@@ -12,28 +12,30 @@
             document.head.appendChild(manifestLink);
         }
     </script>
-    <meta name="theme-color" content="#1e5a52">
+    <meta name="theme-color" content="#123F36">
     <meta name="mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="default">
+    <link rel="icon" type="image/svg+xml" href="favicon.svg">
+    <link rel="alternate icon" href="favicon.ico">
     <link rel="apple-touch-icon" href="icon-192.png">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Playfair+Display:wght@500;600;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Montserrat:wght@400;500;600;700;800&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <link rel="stylesheet" href="styles.css?v=6.8.5">
+    <link rel="stylesheet" href="styles.css?v=7.1.0-serena">
 </head>
 <body>
 
 <!-- FILE PROTOCOL ADVISORY BANNER -->
-<div id="fileProtocolNotice" style="display:none; background: linear-gradient(135deg, #0f766e 0%, #1e3a8a 100%); color: #ffffff; padding: 10px 16px; font-size: 13px; line-height: 1.4; border-bottom: 2px solid #38bdf8; position: sticky; top: 0; z-index: 99999;">
+<div id="fileProtocolNotice" style="display:none; background: linear-gradient(135deg, #123F36 0%, #285C50 100%); color: #ffffff; padding: 10px 16px; font-size: 13px; line-height: 1.4; border-bottom: 2px solid #7FA38F; position: sticky; top: 0; z-index: 99999;">
     <div style="max-width: 1200px; margin: 0 auto; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 8px;">
         <div style="display: flex; align-items: center; gap: 8px;">
             <span style="font-size: 18px;">💡</span>
             <span><strong>Modo Local Activo (file:///):</strong> Para habilitar el Service Worker offline y la sincronización multi-dispositivo en la nube, abre la versión en línea en Render o inicia el servidor local (<code>npm start</code>).</span>
         </div>
         <div style="display: flex; align-items: center; gap: 8px;">
-            <a href="https://psico-notes-clinical.onrender.com/" target="_blank" rel="noopener" style="background: #38bdf8; color: #0f172a; font-weight: 700; padding: 5px 12px; border-radius: 6px; text-decoration: none; font-size: 12px; display: inline-flex; align-items: center; gap: 5px;">
+            <a href="https://psico-notes-clinical.onrender.com/" target="_blank" rel="noopener" style="background: #7FA38F; color: #123F36; font-weight: 700; padding: 5px 12px; border-radius: 6px; text-decoration: none; font-size: 12px; display: inline-flex; align-items: center; gap: 5px;">
                 <i class="fas fa-external-link-alt"></i> Ir a la Nube Oficial
             </a>
             <button onclick="document.getElementById('fileProtocolNotice').style.display='none'" style="background: rgba(255,255,255,0.25); border: none; color: white; border-radius: 4px; padding: 4px 8px; cursor: pointer; font-size: 13px;">✕</button>
@@ -53,10 +55,10 @@
 <div class="auth-screen hidden" id="authScreen">
     <div class="auth-card">
         <div class="auth-logo">
-            <span class="logo-icon">🧠</span>
-            <span class="logo-text">Psico Notes Clinical</span>
+            <span class="logo-icon"><img src="assets/brand/serena-symbol.svg" alt="SERENA" width="40" height="40"></span>
+            <span class="logo-text">SERENA</span>
         </div>
-        <p class="auth-subtitle">Espacio clínico privado para profesionales de la salud mental</p>
+        <p class="auth-subtitle">Tu práctica, en equilibrio · Gestión clínica para psicólogos</p>
         <form id="loginForm">
             <h3 class="auth-title">Iniciar sesión</h3>
             <div class="form-group">
@@ -218,8 +220,8 @@
 <aside class="sidebar" id="sidebar">
     <div class="sidebar-header">
         <div class="logo">
-            <span class="logo-icon">🧠</span>
-            <span class="logo-text">Psico Notes</span>
+            <span class="logo-icon"><img src="assets/brand/serena-symbol.svg" alt="SERENA" width="28" height="28"></span>
+            <span class="logo-text">SERENA</span>
         </div>
         <button class="sidebar-toggle" id="sidebarToggle" title="Plegar menú">
             <i class="fas fa-chevron-left"></i>
@@ -309,7 +311,7 @@
             </button>
         </div>
         <div class="user-info" onclick="openTherapistProfileModal()" style="cursor:pointer;" title="Click para editar nombre, especialidad y colegiatura">
-            <div class="user-avatar" id="sidebarUserAvatar">🩺</div>
+            <div class="user-avatar" id="sidebarUserAvatar" style="width:38px;height:38px;min-width:38px;max-width:38px;border-radius:50%;overflow:hidden;flex-shrink:0;"><img src="assets/avatar/serena-avatar.jpg?v=7.2.0" alt="Terapeuta" style="width:38px;height:38px;border-radius:50%;object-fit:cover;display:block;"></div>
             <div class="user-details">
                 <div class="user-name" id="sidebarUserName">Terapeuta</div>
                 <div class="user-role" id="sidebarUserEmail">Psicología Clínica</div>
@@ -351,6 +353,9 @@
                 <i class="fas fa-bell"></i>
                 <span class="reminder-badge" id="sessionReminderBadge" style="display:none;">0</span>
             </button>
+            <button class="btn-icon" id="serenaAssistantToggleBtn" onclick="toggleSerenaAssistant()" title="Asistente Serena" style="display:inline-flex;align-items:center;justify-content:center;padding:3px;">
+                <img src="assets/avatar/serena-avatar.jpg?v=7.2.0" alt="Serena" style="width:24px;height:24px;border-radius:50%;object-fit:cover;">
+            </button>
             <button class="btn-icon" id="themeToggle" title="Cambiar tema">
                 <i class="fas fa-moon"></i>
             </button>
@@ -380,6 +385,22 @@
                     <div class="date-day" id="currentDay"></div>
                     <div class="date-full" id="currentDate"></div>
                 </div>
+            </div>
+            <!-- ASISTENTE VISUAL SERENA -->
+            <div id="serenaAssistantBanner" class="serena-assistant-card" role="region" aria-label="Asistente Serena">
+                <div class="serena-assistant-avatar">
+                    <img src="assets/avatar/serena-avatar.jpg?v=7.2.0" alt="Serena" width="52" height="52" style="width:52px;height:52px;border-radius:50%;object-fit:cover;">
+                </div>
+                <div class="serena-assistant-body">
+                    <div class="serena-assistant-title">
+                        <span>Serena</span>
+                        <span style="font-size:11px;font-weight:600;color:var(--brand-sage);background:var(--bg-secondary);padding:2px 8px;border-radius:10px;">Tu práctica, en equilibrio</span>
+                    </div>
+                    <p class="serena-assistant-text" id="serenaContextualTip">¡Bienvenido a SERENA! Organiza tu consulta, documenta sesiones con notas SOAP protocolizadas y gestiona la evolución de tus pacientes con tranquilidad.</p>
+                </div>
+                <button type="button" class="serena-assistant-dismiss" onclick="dismissSerenaBanner()" aria-label="Ocultar asistente Serena" title="Cerrar">
+                    <i class="fas fa-times"></i>
+                </button>
             </div>
             <div class="summary-cards">
                 <div class="summary-card">
@@ -847,8 +868,22 @@
                 </div>
             </div>
 
-            <!-- Datos Específicos de Adulto: Ocupación, Estado Civil, Deseabilidad Social, Motivación Propia y Domicilio -->
+            <!-- Datos Específicos de Adulto: C.I., Nacimiento, Religión, Ocupación, Estado Civil, Deseabilidad Social, Motivación Propia y Domicilio -->
             <div id="adultSpecificSection">
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>Cédula de Identidad (C.I.)</label>
+                        <input type="text" id="patientCI" placeholder="Ej: V-12.345.678">
+                    </div>
+                    <div class="form-group">
+                        <label>Lugar de Nacimiento</label>
+                        <input type="text" id="patientBirthPlace" placeholder="Ej: Caracas, Dto. Capital">
+                    </div>
+                    <div class="form-group">
+                        <label>Religión</label>
+                        <input type="text" id="patientReligion" placeholder="Ej: Católica, Cristiana, Ninguna...">
+                    </div>
+                </div>
                 <div class="form-row">
                     <div class="form-group">
                         <label>Ocupación Actual</label>
@@ -910,6 +945,18 @@
                 <div class="form-group" id="patientPhoneWrapper">
                     <label>Teléfono de Contacto</label>
                     <input type="tel" id="patientPhone" placeholder="Teléfono de contacto">
+                </div>
+            </div>
+
+            <!-- Contacto de Emergencia (Adulto y Adolescente) -->
+            <div class="form-row" id="patientEmergencyRow">
+                <div class="form-group" style="flex: 2;">
+                    <label><i class="fas fa-phone-square-alt"></i> Contacto de Emergencia</label>
+                    <input type="text" id="patientEmergency" placeholder="Nombre y teléfono de contacto de emergencia">
+                </div>
+                <div class="form-group" style="flex: 1;">
+                    <label>Parentesco / Vínculo</label>
+                    <input type="text" id="patientEmergencyRelation" placeholder="Ej: Cónyuge, Madre, Amigo">
                 </div>
             </div>
 
@@ -990,6 +1037,17 @@
                         </select>
                     </div>
                 </div>
+
+                <div class="form-row">
+                    <div class="form-group" style="flex:1;">
+                        <label>Nombre de la Escuela / Colegio</label>
+                        <input type="text" id="patientSchoolName" placeholder="Nombre de la institución educativa">
+                    </div>
+                    <div class="form-group" style="flex:1;">
+                        <label>Hitos del Neurodesarrollo / Observaciones</label>
+                        <input type="text" id="patientDevelopmentalMilestones" placeholder="Marcha, lenguaje, esfínteres...">
+                    </div>
+                </div>
             </div>
 
             <!-- 4. INFORMACIÓN REFERENTE A LA CONSULTA PSICOLÓGICA -->
@@ -1037,6 +1095,42 @@
                     <label id="patientGoalsLabel">Objetivos del Paciente *</label>
                     <textarea id="patientGoals" rows="2" placeholder="Expectativas y metas expresadas para el proceso terapéutico..."></textarea>
                 </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>Metas a Mediano Plazo</label>
+                        <textarea id="patientMediumTermGoals" rows="2" placeholder="Objetivos y cambios esperados a mediano plazo..."></textarea>
+                    </div>
+                    <div class="form-group">
+                        <label>Metas a Largo Plazo</label>
+                        <textarea id="patientLongTermGoals" rows="2" placeholder="Proyecto de vida y metas a largo plazo..."></textarea>
+                    </div>
+                </div>
+
+                <!-- Diagnóstico y Tratamiento Farmacológico / Clínico -->
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>Diagnóstico Principal (DSM-5 / CIE-11)</label>
+                        <input type="text" id="patientDiagnosis" placeholder="Ej: F41.1 Trastorno de Ansiedad Generalizada">
+                    </div>
+                    <div class="form-group">
+                        <label>Diagnóstico Secundario / Comorbilidad</label>
+                        <input type="text" id="patientDiagnosis2" placeholder="Ej: F32.1 Episodio Depresivo Moderado">
+                    </div>
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>Tratamiento Farmacológico / Medicación</label>
+                        <input type="text" id="patientMedication" placeholder="Fármacos, dosis y médico tratante si aplica">
+                    </div>
+                    <div class="form-group">
+                        <label>Antecedentes Médicos / Orgánicos</label>
+                        <input type="text" id="patientMedical" placeholder="Enfermedades crónicas, intervenciones, alergias...">
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label>Antecedentes Familiares Psiquiátricos / Psicológicos</label>
+                    <input type="text" id="patientFamilyHistory" placeholder="Historial familiar relevante...">
+                </div>
 
                 <!-- Hipótesis Biopsicosociales y Factores Clínicos (Universal para Niño, Adolescente y Adulto) -->
                 <div id="clinicalHypothesisSection">
@@ -1063,6 +1157,10 @@
                     <div class="form-group">
                         <label>Factores de Protección</label>
                         <textarea id="patientProtectiveFactors" rows="2" placeholder="Fortalezas personales, recursos adaptativos, vínculos seguros y factores de resiliencia..."></textarea>
+                    </div>
+                    <div class="form-group">
+                        <label>Notas Clínicas Adicionales / Observaciones Generales</label>
+                        <textarea id="patientNotes" rows="2" placeholder="Observaciones generales o notas privadas del terapeuta..."></textarea>
                     </div>
                 </div>
             </div>
@@ -1197,6 +1295,7 @@
                 <label>Estado de la Cita *</label>
                 <select id="appointmentStatus">
                     <option value="agendada" selected>📅 Agendada / Programada</option>
+                    <option value="confirmada">✔️ Confirmada (Asistencia validada)</option>
                     <option value="completada">✅ Completada / Asistió</option>
                     <option value="reprogramada">🔄 Reprogramada</option>
                     <option value="cancelada">❌ Cancelada</option>
@@ -1875,7 +1974,7 @@
             <div id="receiptMetaDetails" style="margin-bottom: 16px; padding: 12px 16px; background: var(--bg-secondary); border-radius: 8px; font-size: 13px; display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 10px;">
                 <!-- Detalles dinámicos: Paciente, Monto, Referencia, Método, Fecha -->
             </div>
-            <div id="receiptImageContainer" style="background: #ffffff; border-radius: 12px; border: 1.5px solid var(--border-color); padding: 12px; text-align: center; box-shadow: 0 4px 20px rgba(0,0,0,0.06); min-height: 200px; display: flex; align-items: center; justify-content: center;">
+            <div id="receiptImageContainer" style="background: var(--bg-card); border-radius: 12px; border: 1.5px solid var(--border-color); padding: 12px; text-align: center; box-shadow: 0 4px 20px rgba(0,0,0,0.06); min-height: 200px; display: flex; align-items: center; justify-content: center;">
                 <!-- Imagen o iframe del comprobante -->
             </div>
         </div>
@@ -1935,7 +2034,7 @@
             </button>
         </div>
         <div class="modal-body" style="padding: 20px 24px; text-align: center;">
-            <div style="background: #ffffff; border-radius: 12px; border: 1.5px solid var(--border-color); padding: 12px; display: inline-block; max-width: 100%; box-shadow: 0 4px 20px rgba(0,0,0,0.06);">
+            <div style="background: var(--bg-card); border-radius: 12px; border: 1.5px solid var(--border-color); padding: 12px; display: inline-block; max-width: 100%; box-shadow: 0 4px 20px rgba(0,0,0,0.06);">
                 <img id="kidDrawingPreviewImage" src="" alt="Dibujo del menor" style="max-width: 100%; max-height: 60vh; object-fit: contain; border-radius: 8px; display: block; margin: 0 auto;" />
             </div>
             <div style="margin-top: 18px; display: flex; justify-content: flex-end; gap: 10px;">
@@ -2211,24 +2310,36 @@
 
 <script src="phi-anonymizer.js"></script>
 <script src="voice-dictation.js"></script>
-<script src="session-recorder.js?v=7.0.0"></script>
-<script src="ai-clinical.js?v=7.0.0"></script>
-<script src="psychoed.js"></script>
-<script src="reports.js"></script>
-<script src="vademecum.js"></script>
-<script src="app.js?v=7.0.0"></script>
-<script src="scales.js?v=7.0.0"></script>
-<script src="finance.js?v=7.0.0"></script>
-<script src="adm.js?v=7.0.0"></script>
-<script src="session-reminders.js?v=7.0.0"></script>
-<script src="backup.js?v=7.0.0"></script>
-<script src="crisis-protocol.js?v=7.0.0"></script>
-<script src="consentimiento.js?v=7.0.0"></script>
-<script src="historia-clinica.js?v=7.0.0"></script>
+<script src="session-recorder.js?v=7.1.0-serena"></script>
+<script src="ai-clinical.js?v=7.1.0-serena"></script>
+<script src="psychoed.js?v=7.1.0-serena"></script>
+<script src="reports.js?v=7.1.0-serena"></script>
+<script src="vademecum.js?v=7.1.0-serena"></script>
+<script src="app.js?v=7.1.0-serena"></script>
+<script src="scales.js?v=7.1.0-serena"></script>
+<script src="finance.js?v=7.1.0-serena"></script>
+<script src="adm.js?v=7.1.0-serena"></script>
+<script src="session-reminders.js?v=7.1.0-serena"></script>
+<script src="backup.js?v=7.1.0-serena"></script>
+<script src="crisis-protocol.js?v=7.1.0-serena"></script>
+<script src="consentimiento.js?v=7.1.0-serena"></script>
+<script src="historia-clinica.js?v=7.1.0-serena"></script>
 <script>
+if ('caches' in window) {
+    caches.keys().then(names => {
+        names.forEach(name => {
+            if (name.includes('psico') || (name.startsWith('serena-') && name !== 'serena-v7.1.0')) {
+                caches.delete(name);
+            }
+        });
+    });
+}
 if ('serviceWorker' in navigator && (window.location.protocol === 'http:' || window.location.protocol === 'https:')) {
-    navigator.serviceWorker.register('/sw.js?v=7.0.0')
-        .then(() => console.log('✅ ServiceWorker registrado'))
+    navigator.serviceWorker.register('/sw.js?v=7.1.0-serena')
+        .then(reg => {
+            console.log('✅ ServiceWorker SERENA registrado');
+            reg.update();
+        })
         .catch(err => console.log('SW Error:', err));
 }
 </script>

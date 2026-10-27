@@ -3685,11 +3685,81 @@ graph TD
     API -->|Reflejo inmediato| EXP["Expediente Clínico del Terapeuta<br/>(Bento Pediátrico en app.js)"]
 ```
 
-### 37.2. Contratos y Validación
-- **Economía de Recompensas Ética**: Asignación de ⭐ Estrellas y 🪙 Monedas asociada a la participación y exploración libre, nunca premiando emociones alegres sobre emociones difíciles.
-- **Compatibilidad Test Suite**: Cobertura al 100% en `TC-KID-01`, `TC-KID-02`, `TC-KID-03` y `TC-KID-04`.
-- **Privacidad y Aislamiento**: `#btnKidModeToggle` estrictamente oculto en adultos (`display: none !important;`).
-- **Estado de Pruebas**: 100/100 superadas exitosamente (100% éxito) y compilación Vite limpia.
+
+---
+
+## 38. PLAN MAESTRO DE PERFECCIONAMIENTO INTEGRAL: PULIDO FUNCIONAL Y ESTÉTICO (v7.0)
+
+**Documento de Dirección Técnica — Fase 1 (Agente 1: Arquitecto & Project Manager)**
+
+### 38.1. Diagnóstico de Causa Raíz y Hallazgos de Auditoría
+
+Tras una exhaustiva auditoría integral del código, estilos y componentes de la plataforma (Frontend Terapeuta, Portal del Paciente, Modales y Servidor Express), se han clasificado los fallos en dos vectores críticos:
+
+#### A. Fallos Estéticos y de UI/UX
+1. **Tokens CSS Huérfanos y Desconexión de Variables**:
+   - En `app.js`, `index.html` y `styles.css` se utilizaban referencias a `var(--border-color)` y `var(--color-primary)`, las cuales no estaban declaradas en `:root` ni en `[data-theme="dark"]`, ocasionando que bordes y fondos de contenedores de pago, comprobantes y modales se renderizaran transparentes o con estilos por defecto del navegador.
+   - En el Portal del Paciente (`portal.css` y `portal.html`), existían llamadas a `var(--accent-gradient)` y `var(--radius-full)` sin definición en `:root`, afectando la estética de pills, insignias circulares y banners.
+2. **Ausencia de Modo Oscuro Completo en el Portal del Paciente**:
+   - Mientras la aplicación del terapeuta cuenta con un sistema de Modo Oscuro de alta fidelidad, el Portal del Paciente carecía de variables para `[data-theme="dark"]`, botón de alternancia de tema y detección automática de `prefers-color-scheme`. Esto causaba deslumbramiento a pacientes en sesiones nocturnas o dispositivos móviles con modo oscuro activado.
+3. **Hardcoded Backgrounds y Contraste Roto**:
+   - Contenedores de firmas, visualizadores de recibos de pago y comprobantes poseían estilos en línea `background: #ffffff` o `background: white` sin adaptación al tema activo.
+4. **Acabado Visual Glassmorphic y Elevaciones**:
+   - Inconsistencia en sombras y blur de backdrops entre el drawer lateral de recordatorios y los modales desacoplados de finanzas y expedientes.
+
+#### B. Fallos Funcionales y de Accesibilidad
+1. **Gestión Deficiente de Tecla Escape y Cierre de Overlays**:
+   - En la aplicación del terapeuta, presionar `Escape` eliminaba la clase `.active` de los modales pero omitía ejecutar las funciones de limpieza de `closeModal(id)` (como reseteo de formularios y cancelación de borradores). Además, no cerraba el drawer lateral `#sessionReminderDrawer`.
+   - En el Portal del Paciente, la tecla `Escape` no estaba interceptada, obligando a los usuarios a pulsar manualmente la "X" o el overlay en cada modal.
+2. **Bloqueo de Scroll y Foco**:
+   - Al cerrar modales en cascada, la clase `has-active-modal` o el estilo `overflow: hidden` en `body` podía quedar desfasado si se cerraba mediante atajos de teclado.
+3. **Responsividad en Dispositivos Móviles (<640px)**:
+   - Modales de facturación, transacciones financieras y recordatorios requerían mayor ergonomía de bottom-sheet en pantallas reducidas con `safe-area-inset-bottom`.
+
+### 38.2. Diagrama de Flujo y Orquestación de Perfeccionamiento (Mermaid)
+
+```mermaid
+sequenceDiagram
+    autonumber
+    actor User as Usuario / Psicoterapeuta
+    participant A1 as Agente 1 (Arquitecto / PM)
+    participant A4 as Agente 4 (QA & DevOps)
+    participant A2 as Agente 2 (Backend)
+    participant A3 as Agente 3 (Frontend / Mobile)
+
+    User->>A1: Solicitud de perfeccionamiento estético y funcional
+    Note over A1: Fase 1: Diagnóstico Integral & Arquitectura v7.0
+    A1->>A1: Define Arquitectura v7.0 en arquitectura.md
+    A1-->>A4: Emite especificación técnica para plan_pruebas.md
+    A1-->>A2: Emite especificación para endpoints y resiliencia
+    A1-->>A3: Emite especificación de UI/UX, tokens y Dark Mode
+
+    Note over A4,A3: Fase 2: Desarrollo Paralelo
+    par Implementación Coordinada
+        A4->>A4: Escribe nuevos casos de prueba (TC-EST-01 a TC-EST-04) en plan_pruebas.md y tests.js
+        A2->>A2: Optimiza validaciones en endpoints y persistencia
+        A3->>A3: Implementa tokens en styles.css/portal.css, Dark Mode en Portal y Escape Handler global
+    end
+
+    Note over A4,A3: Fase 3: Pruebas Automatizadas & Corrección
+    A4->>A4: Ejecuta node tests.js y tsc --noEmit
+    A4-->>A1: 100% pruebas aprobadas sin regresión
+
+    Note over A1,User: Fase 4: Entrega y Verificación Final
+    A1->>User: Presenta informe detallado y aplicación perfeccionada
+```
+
+### 38.3. Matriz de Asignaciones por Agente Especializado
+
+| Agente | Responsabilidad Principal | Entregable Concreto |
+|---|---|---|
+| **Agente 1 (Arquitecto/PM)** | Orquestación general, diagnóstico y diseño de tokens | `arquitectura.md` (Sección 38) |
+| **Agente 2 (Backend)** | Robustez de API, validación de esquemas y tipos | `server.js`, `db.js` |
+| **Agente 3 (Frontend/Mobile)** | Tokens unificados, Dark Mode Portal, Escape hooks, responsive polish | `styles.css`, `portal.css`, `app.js`, `portal.js`, `portal.html` |
+| **Agente 4 (QA/DevOps)** | Ampliación de tests automatizados, verificación y build | `plan_pruebas.md`, `tests.js`, `npm test`, `vite build` |
+
+---
+
 
 
 

@@ -26,8 +26,62 @@ PORTAL DEL PACIENTE - ESTILOS
     --radius-md: 12px;
     --radius-lg: 16px;
     --radius-xl: 20px;
+    --radius-full: 9999px;
+    --accent-gradient: linear-gradient(135deg, #285C50 0%, #3e8171 100%);
+    --border-color: #E5E9E5;
+    --color-primary: #285C50;
+    --brand-forest: #123F36;
+    --brand-petroleum: #285C50;
+    --brand-sage: #7FA38F;
+    --brand-ivory: #F7F8F6;
+    --brand-text: #202923;
+    --brand-text-muted: #69736D;
+    --brand-border: #E5E9E5;
+    --brand-white: #FFFFFF;
+    --font-display: 'Montserrat', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
     --font-sans: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-    --font-serif: 'Inter', -apple-system, sans-serif;
+    --font-serif: var(--font-display);
+}
+
+/* ============================================
+   MODO OSCURO - PORTAL DEL PACIENTE (SERENO Y TERAPÉUTICO)
+   ============================================ */
+[data-theme="dark"] {
+    --bg-primary: #111815;
+    --bg-secondary: #18221e;
+    --bg-tertiary: #202d28;
+    --bg-card: #16201b;
+    --text-primary: #f0f5f2;
+    --text-secondary: #9db1a5;
+    --text-tertiary: #71877a;
+    --accent-primary: #4e9a86;
+    --accent-hover: #63b39e;
+    --accent-light: rgba(78, 154, 134, 0.22);
+    --accent-focus: rgba(78, 154, 134, 0.35);
+    --accent-success: #34d399;
+    --accent-warning: #f59e0b;
+    --accent-danger: #ef4444;
+    --border-primary: rgba(157, 177, 165, 0.18);
+    --border-secondary: rgba(157, 177, 165, 0.28);
+    --border-hover: #4e9a86;
+    --border-color: rgba(157, 177, 165, 0.18);
+    --color-primary: #4e9a86;
+    --accent-gradient: linear-gradient(135deg, #387363 0%, #4e9a86 100%);
+    --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.35);
+    --shadow-md: 0 6px 18px rgba(0, 0, 0, 0.45);
+    --shadow-lg: 0 16px 40px rgba(0, 0, 0, 0.60);
+}
+
+[data-theme="dark"] .access-screen {
+    background: radial-gradient(circle at 50% 20%, #16201b 0%, #0d1310 100%) !important;
+}
+
+[data-theme="dark"] input,
+[data-theme="dark"] select,
+[data-theme="dark"] textarea {
+    background: var(--bg-secondary) !important;
+    color: var(--text-primary) !important;
+    border-color: var(--border-secondary) !important;
 }
 
 * { margin: 0; padding: 0; box-sizing: border-box; }
@@ -1168,6 +1222,152 @@ BANNER PWA INSTALABLE
     font-size: 14px;
     cursor: pointer;
     padding: 4px;
+}
+
+/* ============================================
+BANNER DE ALERTA DE CONFIRMACIÓN DE CITA
+============================================ */
+.appointment-confirm-alert-banner {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    background: linear-gradient(135deg, rgba(245, 158, 11, 0.16) 0%, rgba(16, 185, 129, 0.16) 100%);
+    border: 1.5px solid rgba(245, 158, 11, 0.4);
+    border-radius: var(--radius-md);
+    margin: 12px 16px 4px 16px;
+    padding: 12px 18px;
+    box-shadow: 0 4px 12px rgba(245, 158, 11, 0.12);
+    gap: 14px;
+    animation: alertSlideDown 0.3s ease-out;
+}
+[data-theme="dark"] .appointment-confirm-alert-banner {
+    background: linear-gradient(135deg, rgba(245, 158, 11, 0.22) 0%, rgba(16, 185, 129, 0.22) 100%);
+    border-color: rgba(245, 158, 11, 0.5);
+    box-shadow: 0 4px 14px rgba(0, 0, 0, 0.3);
+}
+
+.confirm-alert-content {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    flex: 1;
+    min-width: 200px;
+}
+.confirm-alert-icon-pulse {
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    background: rgba(245, 158, 11, 0.2);
+    color: #d97706;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 16px;
+    flex-shrink: 0;
+    animation: bellShake 2.5s infinite;
+}
+[data-theme="dark"] .confirm-alert-icon-pulse {
+    background: rgba(245, 158, 11, 0.3);
+    color: #fbbf24;
+}
+
+.confirm-alert-text strong {
+    display: block;
+    font-size: 13.5px;
+    font-weight: 700;
+    color: var(--text-primary);
+    line-height: 1.3;
+}
+.confirm-alert-text span {
+    display: block;
+    font-size: 11.5px;
+    color: var(--text-secondary);
+    margin-top: 2px;
+    line-height: 1.35;
+}
+
+.confirm-alert-actions {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-shrink: 0;
+}
+.btn-confirm-alert-action {
+    background: #059669;
+    color: white;
+    font-weight: 700;
+    border: none;
+    border-radius: 20px;
+    padding: 7px 16px;
+    font-size: 12px;
+    cursor: pointer;
+    box-shadow: 0 2px 6px rgba(5, 150, 105, 0.3);
+    transition: all 0.2s ease;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    white-space: nowrap;
+}
+.btn-confirm-alert-action:hover {
+    background: #047857;
+    transform: translateY(-1px);
+    box-shadow: 0 4px 10px rgba(5, 150, 105, 0.4);
+}
+.btn-confirm-alert-dismiss {
+    background: transparent;
+    border: none;
+    color: var(--text-tertiary);
+    font-size: 16px;
+    cursor: pointer;
+    padding: 4px;
+    line-height: 1;
+    transition: color 0.15s;
+}
+.btn-confirm-alert-dismiss:hover {
+    color: var(--text-primary);
+}
+
+.nav-badge-pill {
+    position: absolute;
+    top: 4px;
+    right: calc(50% - 18px);
+    background: #f59e0b;
+    color: white;
+    font-size: 9.5px;
+    font-weight: 800;
+    border-radius: 10px;
+    min-width: 16px;
+    height: 16px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0 4px;
+    box-shadow: 0 0 0 2px var(--bg-card);
+    animation: navBadgePulse 2s infinite;
+}
+
+@keyframes alertSlideDown {
+    from {
+        opacity: 0;
+        transform: translateY(-8px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+@keyframes bellShake {
+    0%, 100% { transform: rotate(0); }
+    10%, 30% { transform: rotate(-12deg); }
+    20%, 40% { transform: rotate(12deg); }
+    50% { transform: rotate(0); }
+}
+
+@keyframes navBadgePulse {
+    0% { transform: scale(1); box-shadow: 0 0 0 2px var(--bg-card); }
+    50% { transform: scale(1.15); box-shadow: 0 0 0 3px rgba(245, 158, 11, 0.5); }
+    100% { transform: scale(1); box-shadow: 0 0 0 2px var(--bg-card); }
 }
 
 /* ============================================

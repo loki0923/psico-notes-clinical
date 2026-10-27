@@ -1,11 +1,11 @@
 {
-  "name": "Psico Notes Clinical - Gestión Avanzada",
-  "short_name": "Psico Notes",
-  "description": "Espacio clínico privado e inteligente para profesionales de la salud mental",
+  "name": "SERENA — Tu práctica, en equilibrio",
+  "short_name": "SERENA",
+  "description": "Plataforma de gestión clínica privada e inteligente para psicólogos",
   "start_url": "index.html",
   "display": "standalone",
-  "background_color": "#090d16",
-  "theme_color": "#0d9488",
+  "background_color": "#F7F8F6",
+  "theme_color": "#123F36",
   "orientation": "any",
   "icons": [
     {

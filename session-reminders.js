@@ -185,7 +185,8 @@ function evaluateSessionReminders() {
                 timeStr: `${isToday ? 'Hoy' : 'Mañana'} · ${app.time}`,
                 priorityScore: isToday ? 4 : 5,
                 actions: [
-                    { label: '📲 Recordatorio WhatsApp', type: 'whatsapp', primary: true },
+                    { label: '🔔 Solicitar en Portal', type: 'request_portal_confirm', primary: true },
+                    { label: '📲 Recordatorio WhatsApp', type: 'whatsapp' },
                     { label: '✅ Marcar Confirmada', type: 'confirm' },
                     { label: '⏰ Posponer', type: 'snooze' }
                 ]
@@ -394,6 +395,15 @@ function handleReminderAction(reminderId, actionType, patientId, appointmentId) 
             startNoteFromReminder(patientId, appointmentId);
             break;
 
+        case 'request_portal_confirm':
+            // Notificar al portal del paciente para que confirme la cita
+            if (typeof requestPortalConfirmation === 'function') {
+                requestPortalConfirmation(appointmentId);
+            } else if (typeof window !== 'undefined' && typeof window.requestPortalConfirmation === 'function') {
+                window.requestPortalConfirmation(appointmentId);
+            }
+            break;
+
         case 'whatsapp':
             // Enviar mensaje de confirmación/recordatorio vía WhatsApp
             sendWhatsAppSessionReminder(patientId, appointmentId);
@@ -494,13 +504,23 @@ function sendWhatsAppSessionReminder(patientId, appointmentId) {
 
 // 3. Confirmar cita directamente
 function confirmAppointmentFromReminder(appointmentId) {
-    const app = AppState.appointments.find(a => a.id === appointmentId);
-    if (app) {
-        app.status = 'confirmada';
-        saveData();
-        renderAppointments();
-        renderCalendar();
-        showToast('✅ Cita marcada como confirmada', 'success');
+    if (typeof setAppointmentStatus === 'function') {
+        setAppointmentStatus(appointmentId, 'confirmada');
+    } else {
+        const app = AppState.appointments.find(a => a.id === appointmentId);
+        if (app) {
+            app.status = 'confirmada';
+            app.attendanceConfirmed = true;
+            app.attendance_confirmed = true;
+            app.confirmedAt = new Date().toISOString();
+            saveData();
+            if (typeof syncAppointmentStatusToPortalAndBackend === 'function') {
+                syncAppointmentStatusToPortalAndBackend(appointmentId, 'confirmada', { patientId: app.patientId });
+            }
+            renderAppointments();
+            renderCalendar();
+            showToast('✅ Cita marcada como confirmada', 'success');
+        }
     }
 }
 

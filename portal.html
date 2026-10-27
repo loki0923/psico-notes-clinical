@@ -3,12 +3,14 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Mi Espacio - Psico Notes</title>
-    <meta name="theme-color" content="#6b9080">
+    <title>SERENA — Mi Espacio</title>
+    <meta name="theme-color" content="#123F36">
+    <link rel="icon" type="image/svg+xml" href="favicon.svg">
+    <link rel="alternate icon" href="favicon.ico">
     <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@400;500;600;700;800&family=Inter:wght@400;500;600;700&family=Playfair+Display:wght@500;600;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@400;500;600;700;800&family=Inter:wght@400;500;600;700&family=Montserrat:wght@400;500;600;700;800&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <link rel="stylesheet" href="portal.css">
+    <link rel="stylesheet" href="portal.css?v=7.1.0-serena">
 </head>
 <body>
 
@@ -19,8 +21,11 @@
 <div id="accessScreen" class="access-screen">
     <div class="access-card">
         <div class="access-logo">
-            <span class="logo-icon">🌱</span>
-            <span class="logo-text">Mi Espacio</span>
+            <span class="logo-icon"><img src="assets/brand/serena-symbol.svg" alt="SERENA" width="36" height="36"></span>
+            <div style="display:flex;flex-direction:column;align-items:flex-start;">
+                <span class="logo-text">Mi Espacio</span>
+                <span style="font-size:10px;font-weight:700;letter-spacing:0.12em;color:var(--brand-sage);text-transform:uppercase;">SERENA</span>
+            </div>
         </div>
         <p class="access-subtitle">Tu espacio personal de acompañamiento terapéutico</p>
         
@@ -82,6 +87,9 @@
             <span id="offlineSyncBadge" class="offline-sync-badge" style="display: none;" title="Registros pendientes de sincronizar con el terapeuta. Clic para sincronizar ahora." onclick="PortalOfflineQueue.flush()">
                 <i class="fas fa-cloud-arrow-up"></i> <span id="offlineSyncCount">0</span>
             </span>
+            <button id="btnPortalThemeToggle" class="btn-icon" onclick="togglePortalTheme()" title="Cambiar a Modo Oscuro / Claro">
+                <i class="fas fa-moon"></i>
+            </button>
             <button class="btn-sos" onclick="triggerPortalEmergencyHelp()" title="Obtener ayuda inmediata en crisis">
                 <i class="fas fa-life-ring"></i> SOS
             </button>
@@ -103,6 +111,25 @@
         <div class="pwa-banner-actions">
             <button class="btn-sm btn-pwa-install" onclick="promptPwaInstall()">Instalar</button>
             <button class="btn-sm btn-pwa-dismiss" onclick="dismissPwaBanner()">✕</button>
+        </div>
+    </div>
+
+    <!-- BANNER DE ALERTA: CONFIRMAR ASISTENCIA A LA CITA -->
+    <div id="appointmentConfirmationAlertBanner" class="appointment-confirm-alert-banner" style="display: none;">
+        <div class="confirm-alert-content">
+            <div class="confirm-alert-icon-pulse">
+                <i class="fas fa-bell"></i>
+            </div>
+            <div class="confirm-alert-text">
+                <strong id="confirmAlertTitle">¡Tienes una sesión pendiente de confirmar!</strong>
+                <span id="confirmAlertDetails">Por favor confirma tu asistencia para asegurar tu horario con tu terapeuta.</span>
+            </div>
+        </div>
+        <div class="confirm-alert-actions">
+            <button class="btn-confirm-alert-action" id="btnConfirmAlertAction" onclick="confirmAppointmentFromAlertBanner()">
+                <i class="fas fa-check-circle"></i> Confirmar Asistencia
+            </button>
+            <button class="btn-confirm-alert-dismiss" onclick="dismissAppointmentConfirmBanner()" title="Recordarme más tarde">✕</button>
         </div>
     </div>
 
@@ -239,7 +266,7 @@
                         <i class="fas fa-envelope"></i>
                         <div>
                             <small>Correo electrónico</small>
-                            <span id="therapistCardEmail">contacto@psiconotes.com</span>
+                            <span id="therapistCardEmail">contacto@serenaclinical.com</span>
                         </div>
                     </div>
                     <div class="therapist-detail-item">
@@ -1434,9 +1461,10 @@
             <i class="fas fa-home"></i>
             <span>Inicio</span>
         </button>
-        <button class="nav-btn" data-view="sessions" onclick="switchView('sessions')">
+        <button class="nav-btn" data-view="sessions" onclick="switchView('sessions')" style="position: relative;">
             <i class="fas fa-calendar-check"></i>
             <span>Sesiones</span>
+            <span id="sessionsNavBadge" class="nav-badge-pill" style="display: none;">1</span>
         </button>
         <button class="nav-btn" data-view="documents" onclick="switchView('documents')">
             <i class="fas fa-folder-open"></i>
@@ -1854,6 +1882,6 @@
 <!-- TOAST CONTAINER -->
 <div id="toastContainer" class="toast-container"></div>
 
-<script src="portal.js"></script>
+<script src="portal.js?v=7.1.0-serena"></script>
 </body>
 </html>

@@ -442,17 +442,21 @@ const SessionRecorder = {
         if (typeof window.openNoteModal === 'function') {
             window.openNoteModal(patientId);
             setTimeout(() => {
-                if (content.subjetivo && document.getElementById('noteSubjective')) {
-                    document.getElementById('noteSubjective').value = content.subjetivo;
+                const noteSubj = document.getElementById('noteSubjetivo') || document.getElementById('noteSubjective');
+                if (content.subjetivo && noteSubj) {
+                    noteSubj.value = content.subjetivo;
                 }
-                if (content.objetivo && document.getElementById('noteObjective')) {
-                    document.getElementById('noteObjective').value = content.objetivo;
+                const noteObj = document.getElementById('noteObjetivo') || document.getElementById('noteObjective');
+                if (content.objetivo && noteObj) {
+                    noteObj.value = content.objetivo;
                 }
-                if (content.analisis && document.getElementById('noteAssessment')) {
-                    document.getElementById('noteAssessment').value = content.analisis;
+                const noteAnal = document.getElementById('noteAnalisis') || document.getElementById('noteAssessment');
+                if (content.analisis && noteAnal) {
+                    noteAnal.value = content.analisis;
                 }
-                if (content.plan && document.getElementById('notePlan')) {
-                    document.getElementById('notePlan').value = content.plan;
+                const notePl = document.getElementById('notePlan');
+                if (content.plan && notePl) {
+                    notePl.value = content.plan;
                 }
             }, 300);
         }

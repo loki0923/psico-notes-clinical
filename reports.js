@@ -166,8 +166,9 @@ const ClinicalReports = {
 </head>
 <body>
     <div class="header">
-        <div class="logo-box">
-            <span>🧠</span> Psico Notes Clinical
+        <div class="logo-box" style="font-family:'Montserrat',sans-serif;font-weight:700;letter-spacing:0.08em;color:#123F36;">
+            <span style="display:inline-block;width:10px;height:10px;border-radius:50%;background:#7FA38F;margin-right:6px;"></span>SERENA
+            <div style="font-size:9px;font-weight:500;letter-spacing:0.12em;color:#7FA38F;margin-top:2px;">TU PRÁCTICA, EN EQUILIBRIO</div>
         </div>
         <div class="doc-info">
             <strong>${therapistName}</strong><br>

@@ -307,6 +307,8 @@ const ALLOWED_STATIC_FILES = new Set([
     'icon-192.png',
     'icon-512.png',
     'favicon.ico',
+    'favicon.svg',
+    'serena-logo.svg',
     'app.js',
     'portal.js',
     'ai-clinical.js',
@@ -1351,6 +1353,17 @@ app.patch('/api/v1/appointments/:id/status', requireTherapistAuth, async (req, r
     }
 });
 
+// Solicitar confirmación de asistencia a una cita desde la agenda del terapeuta hacia el portal
+app.post('/api/v1/appointments/:id/request-confirmation', requireTherapistAuth, async (req, res) => {
+    try {
+        const appointmentId = req.params.id;
+        recordAuditLog(req.therapistId, 'APPOINTMENT_CONFIRMATION_REQUESTED', `Recordatorio de confirmación enviado para cita ${appointmentId}`);
+        res.json({ status: 'ok', message: 'Recordatorio de confirmación registrado exitosamente' });
+    } catch (err) {
+        handleClinicalError(res, err, 'Error solicitando confirmación de cita');
+    }
+});
+
 // Soporte PUT alternativo para clientes o pasarelas que prefieran PUT
 app.put('/api/v1/appointments/:id/status', requireTherapistAuth, async (req, res) => {
     try {
@@ -2196,7 +2209,7 @@ app.post('/api/v1/clinical/sync', requireTherapistAuth, async (req, res) => {
 const isDirectRun = Boolean(process.argv[1] && fileURLToPath(import.meta.url) === path.resolve(process.argv[1]));
 if (isDirectRun && process.env.NODE_ENV !== 'test') {
     app.listen(PORT, '0.0.0.0', () => {
-        console.log(`🧠 Psico Notes Clinical v6.0 activo en http://localhost:${PORT}`);
+        console.log(`🌿 SERENA — Tu práctica, en equilibrio (v7.0.0) activo en http://localhost:${PORT}`);
         console.log(`📱 Portal de Pacientes disponible en http://localhost:${PORT}/portal.html`);
     });
 }

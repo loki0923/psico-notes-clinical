@@ -1,9 +1,18 @@
-const CACHE_VERSION = 'psico-v7.0.0';
+const CACHE_VERSION = 'serena-v7.2.0';
 const PRECACHE_ASSETS = [
   './',
   './index.html',
   './styles.css',
   './app.js',
+  './assets/brand/serena-symbol.svg',
+  './assets/brand/serena-logo-horizontal.svg',
+  './assets/brand/serena-logo.svg',
+  './assets/avatar/serena-avatar.jpg',
+  './assets/avatar/serena-avatar-main.svg',
+  './assets/avatar/serena-avatar-welcome.svg',
+  './assets/avatar/serena-avatar-header.svg',
+  './assets/avatar/serena-avatar-badge.svg',
+  './favicon.svg',
   './historia-clinica.js',
   './scales.js',
   './voice-dictation.js',
@@ -35,11 +44,14 @@ self.addEventListener('install', (e) => {
   self.skipWaiting();
 });
 
-// Activate: limpiar cachés viejas
+// Activate: limpiar cachés viejas agresivamente
 self.addEventListener('activate', (e) => {
   e.waitUntil(
     caches.keys().then((keys) =>
-      Promise.all(keys.filter((k) => k !== CACHE_VERSION).map((k) => caches.delete(k)))
+      Promise.all(keys.filter((k) => k !== CACHE_VERSION).map((k) => {
+        console.log('[SW] Purgando caché obsoleta:', k);
+        return caches.delete(k);
+      }))
     )
   );
   self.clients.claim();

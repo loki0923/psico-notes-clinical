@@ -710,7 +710,7 @@ class DatabaseManager {
             try {
                 const res = await this.pgPool.query(
                     `SELECT a.id, a.patient_id, a.appointment_date, a.appointment_time,
-                            a.duration, a.status, a.notes, a.created_at
+                            a.duration, a.status, a.notes, a.created_at, a.attendance_confirmed
                      FROM appointments a
                      JOIN patients p ON a.patient_id = p.id
                      WHERE p.therapist_id = $1
@@ -725,6 +725,8 @@ class DatabaseManager {
                     time: String(r.appointment_time || '').substring(0, 5),
                     duration: Number(r.duration) || 50,
                     status: r.status || 'agendada',
+                    attendanceConfirmed: Boolean(r.attendance_confirmed || r.status === 'confirmada'),
+                    attendance_confirmed: Boolean(r.attendance_confirmed || r.status === 'confirmada'),
                     type: r.type || 'Online',
                     notes: r.notes || '',
                     createdAt: r.created_at
@@ -751,6 +753,8 @@ class DatabaseManager {
                 time: String(a.time || a.appointment_time || '').substring(0, 5),
                 duration: Number(a.duration) || 50,
                 status: a.status || 'agendada',
+                attendanceConfirmed: Boolean(a.attendanceConfirmed || a.attendance_confirmed || a.status === 'confirmada'),
+                attendance_confirmed: Boolean(a.attendanceConfirmed || a.attendance_confirmed || a.status === 'confirmada'),
                 type: a.type || 'Online',
                 notes: a.notes || '',
                 createdAt: a.createdAt || a.created_at || new Date().toISOString()
@@ -1072,19 +1076,21 @@ class DatabaseManager {
             const aDuration = Number(app.duration) || 50;
             const aStatus = app.status || 'agendada';
             const aNotes = app.notes || '';
+            const aConfirmed = Boolean(app.attendanceConfirmed || app.attendance_confirmed || aStatus === 'confirmada');
 
             if (this.isPostgresConnected && this.pgPool) {
                 const res = await this.pgPool.query(
-                    `INSERT INTO appointments (id, patient_id, appointment_date, appointment_time, duration, status, notes)
-                     VALUES ($1, $2, $3, $4, $5, $6, $7)
+                    `INSERT INTO appointments (id, patient_id, appointment_date, appointment_time, duration, status, notes, attendance_confirmed)
+                     VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
                      ON CONFLICT (id) DO UPDATE SET
                         appointment_date = EXCLUDED.appointment_date,
                         appointment_time = EXCLUDED.appointment_time,
                         duration = EXCLUDED.duration,
                         status = EXCLUDED.status,
-                        notes = EXCLUDED.notes
+                        notes = EXCLUDED.notes,
+                        attendance_confirmed = EXCLUDED.attendance_confirmed
                      RETURNING *`,
-                    [app.id, pId, aDate, aTime, aDuration, aStatus, aNotes]
+                    [app.id, pId, aDate, aTime, aDuration, aStatus, aNotes, aConfirmed]
                 ).catch(() => null);
                 if (res && res.rows[0]) results.push(res.rows[0]);
             } else {
@@ -1100,6 +1106,8 @@ class DatabaseManager {
                     appointment_time: aTime,
                     duration: aDuration,
                     status: aStatus,
+                    attendanceConfirmed: aConfirmed,
+                    attendance_confirmed: aConfirmed,
                     notes: aNotes,
                     updatedAt: new Date().toISOString()
                 };

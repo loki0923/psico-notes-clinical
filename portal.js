@@ -214,7 +214,89 @@ const MOOD_QUESTIONS = [
     }
 ];
 
+// ============================================
+// SISTEMA DE MODO OSCURO & TEMA TERAPÉUTICO (PORTAL)
+// ============================================
+function initPortalTheme() {
+    try {
+        const saved = typeof localStorage !== 'undefined' ? localStorage.getItem('portal_theme') : null;
+        const prefersDark = (typeof window !== 'undefined' && window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches);
+        const isDark = saved ? saved === 'dark' : prefersDark;
+        PortalState.darkMode = !!isDark;
+        if (typeof document !== 'undefined' && document.documentElement) {
+            document.documentElement.setAttribute('data-theme', isDark ? 'dark' : 'light');
+        }
+        updatePortalThemeIcon();
+    } catch (e) {}
+}
+
+function togglePortalTheme() {
+    PortalState.darkMode = !PortalState.darkMode;
+    const theme = PortalState.darkMode ? 'dark' : 'light';
+    if (typeof document !== 'undefined' && document.documentElement) {
+        document.documentElement.setAttribute('data-theme', theme);
+    }
+    try {
+        if (typeof localStorage !== 'undefined') {
+            localStorage.setItem('portal_theme', theme);
+        }
+    } catch (e) {}
+    updatePortalThemeIcon();
+}
+
+function updatePortalThemeIcon() {
+    if (typeof document === 'undefined') return;
+    const btn = document.getElementById('btnPortalThemeToggle');
+    if (!btn) return;
+    const icon = btn.querySelector('i');
+    if (icon) {
+        icon.className = PortalState.darkMode ? 'fas fa-sun' : 'fas fa-moon';
+    }
+}
+
+function closeAllPortalModals() {
+    if (typeof document === 'undefined') return false;
+    const modalIds = [
+        'testModal', 'crisisHelpModal', 'breathingModal', 'groundingModal',
+        'consentModalPortal', 'kidCrisisModal', 'kidCustomBubbleModal', 'scheduleSessionModal'
+    ];
+    let closed = false;
+    modalIds.forEach(id => {
+        const el = document.getElementById(id);
+        if (el && (el.style.display === 'flex' || el.style.display === 'block' || el.classList.contains('active'))) {
+            el.style.display = 'none';
+            el.classList.remove('active');
+            closed = true;
+        }
+    });
+    document.querySelectorAll('.portal-app .modal.active, .portal-modal.active').forEach(m => {
+        m.classList.remove('active');
+        m.style.display = 'none';
+        closed = true;
+    });
+    if (closed && document.body) {
+        document.body.style.overflow = '';
+    }
+    return closed;
+}
+
+if (typeof document !== 'undefined') {
+    document.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape') {
+            closeAllPortalModals();
+        }
+    });
+}
+
+if (typeof window !== 'undefined') {
+    window.initPortalTheme = initPortalTheme;
+    window.togglePortalTheme = togglePortalTheme;
+    window.updatePortalThemeIcon = updatePortalThemeIcon;
+    window.closeAllPortalModals = closeAllPortalModals;
+}
+
 document.addEventListener('DOMContentLoaded', async () => {
+    initPortalTheme();
     // Soporte para acceso directo por parámetro de URL (?token=PN-XXXXX o ?code=PN-XXXXX)
     try {
         const urlParams = new URLSearchParams(window.location.search);
@@ -401,6 +483,9 @@ async function enterPortal() {
     updateProgress();
     checkConsentCard();
     initKidModeState();
+    if (typeof checkAppointmentConfirmationAlert === 'function') {
+        checkAppointmentConfirmationAlert(true);
+    }
     PortalOfflineQueue.updateBadge();
     PortalOfflineQueue.flush();
     showToast(`Bienvenido/a, ${(PortalState.patientName || 'Paciente').split(' ')[0]}`, 'success');
@@ -2264,7 +2349,7 @@ function updateKidAvatarDisplays() {
     if (stageName) stageName.textContent = avatar.name || 'Zorrito Valiente';
 
     // Campo de texto de nombre editable si existe
-    const customNameInput = document.getElementById('kidAvatarCustomName');
+    const customNameInput = document.getElementById('kidAvatarDisplayNameInput') || document.getElementById('kidAvatarCustomName');
     if (customNameInput && !customNameInput.value) {
         customNameInput.value = avatar.name || '';
     }
@@ -2362,7 +2447,7 @@ function selectKidWeather(weatherKey) {
 }
 
 function selectKidThoughtChip(chipText) {
-    const input = document.getElementById('kidWeatherStory');
+    const input = document.getElementById('kidWeatherOptionalNote') || document.getElementById('kidWeatherStory');
     if (input) {
         input.value = chipText;
     }
@@ -2434,7 +2519,7 @@ async function submitKidWeatherAndBody(e) {
         feet: 'En los pies 👟'
     };
 
-    const storyInput = document.getElementById('kidWeatherStory');
+    const storyInput = document.getElementById('kidWeatherOptionalNote') || document.getElementById('kidWeatherStory');
     const reflectionStory = storyInput ? storyInput.value.trim() : '';
 
     const payloadData = {
@@ -2490,16 +2575,19 @@ function pickAvatarChar(charKey, emoji, name) {
     });
 
     const stageChar = document.getElementById('kidStageChar');
-    const stageName = document.getElementById('kidAvatarDisplayName');
+    const stageName = document.getElementById('kidAvatarDisplayNameInput') || document.getElementById('kidAvatarDisplayName');
     if (stageChar) {
         stageChar.textContent = emoji;
         stageChar.classList.remove('kid-hop');
         void stageChar.offsetWidth;
         stageChar.classList.add('kid-hop');
     }
-    if (stageName) stageName.textContent = name;
+    if (stageName) {
+        if ('value' in stageName) stageName.value = name;
+        else stageName.textContent = name;
+    }
 
-    const customNameInput = document.getElementById('kidAvatarCustomName');
+    const customNameInput = document.getElementById('kidAvatarDisplayNameInput') || document.getElementById('kidAvatarCustomName');
     if (customNameInput) {
         customNameInput.value = name;
     }
@@ -2550,10 +2638,13 @@ function generateRandomKidAvatarName() {
     if (!PortalState.kidAvatar) PortalState.kidAvatar = {};
     PortalState.kidAvatar.name = randomTitle;
 
-    const nameEl = document.getElementById('kidAvatarDisplayName');
-    if (nameEl) nameEl.textContent = randomTitle;
+    const nameEl = document.getElementById('kidAvatarDisplayNameInput') || document.getElementById('kidAvatarDisplayName');
+    if (nameEl) {
+        if ('value' in nameEl) nameEl.value = randomTitle;
+        else nameEl.textContent = randomTitle;
+    }
 
-    const customNameInput = document.getElementById('kidAvatarCustomName');
+    const customNameInput = document.getElementById('kidAvatarDisplayNameInput') || document.getElementById('kidAvatarCustomName');
     if (customNameInput) customNameInput.value = randomTitle;
 
     const charEl = document.getElementById('kidStageChar');
@@ -2568,7 +2659,7 @@ function generateRandomKidAvatarName() {
 }
 
 async function saveKidAvatar() {
-    const customNameInput = document.getElementById('kidAvatarCustomName');
+    const customNameInput = document.getElementById('kidAvatarDisplayNameInput') || document.getElementById('kidAvatarCustomName');
     if (customNameInput && customNameInput.value.trim()) {
         PortalState.kidAvatar.name = customNameInput.value.trim();
     }
@@ -3437,6 +3528,9 @@ function renderNextSession() {
             </div>
         `;
     }
+    if (typeof checkAppointmentConfirmationAlert === 'function') {
+        checkAppointmentConfirmationAlert();
+    }
 }
 
 function renderSessionsView() {
@@ -4121,13 +4215,60 @@ async function confirmSessionAttendance(appointmentId) {
     const app = (PortalState.appointments || []).find(a => String(a.id) === String(appointmentId));
     if (app) {
         app.attendanceConfirmed = true;
+        app.attendance_confirmed = true;
         app.status = 'confirmada';
+        app.confirmedAt = new Date().toISOString();
     }
     savePatientDataLocally();
     renderNextSession();
     renderSessionsView();
 
-    // 2. Sincronización defensiva con backend
+    // 2. Sincronizar en el puente local (psico_portal_appointments_bridge) para reflejo inmediato en la pantalla del terapeuta
+    try {
+        const bridge = JSON.parse(localStorage.getItem('psico_portal_appointments_bridge') || '{}');
+        if (!bridge[appointmentId]) {
+            if (app) {
+                bridge[appointmentId] = {
+                    id: app.id,
+                    patientId: PortalState.patientId,
+                    patient_id: PortalState.patientId,
+                    date: app.date,
+                    time: app.time,
+                    duration: app.duration || 50,
+                    type: app.type || 'Online',
+                    status: 'confirmada',
+                    attendanceConfirmed: true,
+                    attendance_confirmed: true,
+                    confirmedAt: new Date().toISOString(),
+                    notes: app.notes || '',
+                    updatedAt: new Date().toISOString()
+                };
+            }
+        } else {
+            bridge[appointmentId].status = 'confirmada';
+            bridge[appointmentId].attendanceConfirmed = true;
+            bridge[appointmentId].attendance_confirmed = true;
+            bridge[appointmentId].confirmedAt = new Date().toISOString();
+            bridge[appointmentId].updatedAt = new Date().toISOString();
+        }
+        localStorage.setItem('psico_portal_appointments_bridge', JSON.stringify(bridge));
+        localStorage.setItem('psico_portal_appointments_last_update', Date.now().toString());
+
+        // Evento de confirmación en tiempo real para despertar listeners en la ventana del terapeuta
+        const patientName = PortalState.patientProfile?.name || 'El paciente';
+        localStorage.setItem('psico_portal_appointment_confirmed_event', JSON.stringify({
+            appointmentId: appointmentId,
+            patientId: PortalState.patientId,
+            patientName: patientName,
+            date: app?.date,
+            time: app?.time,
+            confirmedAt: new Date().toISOString()
+        }));
+    } catch (bridgeErr) {
+        console.warn('[Portal] Error actualizando puente local de cita confirmada:', bridgeErr);
+    }
+
+    // 3. Sincronización defensiva con backend
     if (PortalState.portalToken && typeof window !== 'undefined' && window.location && window.location.protocol !== 'file:') {
         try {
             const res = await fetch(`/api/v1/portal/appointments/${encodeURIComponent(appointmentId)}/confirm`, {
@@ -4148,7 +4289,97 @@ async function confirmSessionAttendance(appointmentId) {
     }
 
     showToast('¡Asistencia confirmada! Tu terapeuta ha sido notificado.', 'success');
+    if (typeof checkAppointmentConfirmationAlert === 'function') {
+        checkAppointmentConfirmationAlert();
+    }
 }
+
+// ============================================
+// SISTEMA DE NOTIFICACIONES Y ALERTAS DE CONFIRMACIÓN DE SESIÓN AL PACIENTE
+// ============================================
+function checkAppointmentConfirmationAlert(forceShowToast = false) {
+    const banner = document.getElementById('appointmentConfirmationAlertBanner');
+    const titleEl = document.getElementById('confirmAlertTitle');
+    const detailsEl = document.getElementById('confirmAlertDetails');
+    const navBadge = document.getElementById('sessionsNavBadge');
+
+    const todayStr = new Date().toISOString().split('T')[0];
+    const upcoming = (PortalState.appointments || [])
+        .filter(a => a.status !== 'cancelada' && a.status !== 'completada' && (a.date >= todayStr || a.status === 'agendada'))
+        .sort((a, b) => new Date(a.date + 'T' + (a.time || '00:00')) - new Date(b.date + 'T' + (b.time || '00:00')));
+
+    const unconfirmed = upcoming.find(a => !a.attendanceConfirmed && a.status !== 'confirmada');
+
+    if (!unconfirmed) {
+        PortalState.activeUnconfirmedAppId = null;
+        if (banner) banner.style.display = 'none';
+        if (navBadge) navBadge.style.display = 'none';
+        return;
+    }
+
+    PortalState.activeUnconfirmedAppId = unconfirmed.id;
+    const formattedDate = formatDateSafe(unconfirmed.date);
+    const timeStr = unconfirmed.time ? unconfirmed.time.substring(0, 5) : '10:00';
+    const therapist = PortalState.therapistName || PortalState.therapistInfo?.name || 'tu psicólogo';
+    const isRequested = Boolean(unconfirmed.confirmationRequested);
+
+    if (banner) {
+        banner.style.display = 'flex';
+        if (titleEl) {
+            titleEl.innerHTML = isRequested 
+                ? '<i class="fas fa-bell" style="color:#d97706;margin-right:6px;"></i> ¡Tu terapeuta solicita confirmar tu asistencia!' 
+                : '<i class="fas fa-calendar-check" style="color:#d97706;margin-right:6px;"></i> ¡Tienes una sesión pendiente de confirmar!';
+        }
+        if (detailsEl) {
+            detailsEl.textContent = `Sesión programada con ${therapist} para el ${formattedDate} a las ${timeStr} (${unconfirmed.type || 'Online'}). Por favor confirma tu asistencia para asegurar tu horario.`;
+        }
+    }
+
+    if (navBadge) {
+        navBadge.style.display = 'inline-flex';
+        navBadge.textContent = '1';
+    }
+
+    if (forceShowToast || !PortalState.hasShownConfirmationToast) {
+        PortalState.hasShownConfirmationToast = true;
+        showToast(`🔔 Recuerda confirmar tu asistencia a la sesión del ${formattedDate} (${timeStr})`, 'info');
+        showSystemNotification('SERENA: Confirmar Cita', `Tienes una sesión programada para el ${formattedDate} a las ${timeStr}. Por favor confirma tu asistencia.`);
+    }
+}
+
+function confirmAppointmentFromAlertBanner() {
+    if (PortalState.activeUnconfirmedAppId) {
+        confirmSessionAttendance(PortalState.activeUnconfirmedAppId);
+    }
+}
+
+function dismissAppointmentConfirmBanner() {
+    const banner = document.getElementById('appointmentConfirmationAlertBanner');
+    if (banner) banner.style.display = 'none';
+}
+
+function showSystemNotification(title, body) {
+    if (typeof window !== 'undefined' && 'Notification' in window) {
+        if (Notification.permission === 'granted') {
+            try {
+                new Notification(title, { body: body, icon: '/favicon.ico' });
+            } catch (e) {}
+        } else if (Notification.permission === 'default') {
+            Notification.requestPermission().then(perm => {
+                if (perm === 'granted') {
+                    try {
+                        new Notification(title, { body: body, icon: '/favicon.ico' });
+                    } catch (e) {}
+                }
+            }).catch(() => {});
+        }
+    }
+}
+
+window.checkAppointmentConfirmationAlert = checkAppointmentConfirmationAlert;
+window.confirmAppointmentFromAlertBanner = confirmAppointmentFromAlertBanner;
+window.dismissAppointmentConfirmBanner = dismissAppointmentConfirmBanner;
+window.showSystemNotification = showSystemNotification;
 
 async function loadPortalAvailability(dateStr) {
     const container = document.getElementById('availableSlotsChipsContainer');
@@ -4216,8 +4447,8 @@ async function loadPortalAvailability(dateStr) {
 function pickAvailableSlot(dateStr, timeStr) {
     if (typeof openScheduleSessionModal === 'function') {
         openScheduleSessionModal();
-        const dateInput = document.getElementById('scheduleSessionDate');
-        const timeInput = document.getElementById('scheduleSessionTime');
+        const dateInput = document.getElementById('scheduleDate') || document.getElementById('scheduleSessionDate');
+        const timeInput = document.getElementById('scheduleTime') || document.getElementById('scheduleSessionTime');
         if (dateInput) {
             dateInput.value = dateStr;
             dateInput.dispatchEvent(new Event('change'));
@@ -4806,6 +5037,7 @@ if (typeof window !== 'undefined') {
     window.addEventListener('storage', (e) => {
         if (!e.key || e.key === 'psico_portal_appointments_bridge' || 
             e.key === 'psico_portal_appointments_last_update' || 
+            e.key === 'psico_portal_confirmation_requested_event' ||
             e.key === 'psico_therapist_payment_methods' ||
             e.key === 'psico_payment_methods_updated' ||
             (PortalState.patientId && e.key === `psico_portal_data_${PortalState.patientId}`)) {
@@ -4822,6 +5054,12 @@ if (typeof window !== 'undefined') {
             if (typeof renderSessionsView === 'function') renderSessionsView();
             if (typeof renderTherapistCard === 'function') renderTherapistCard();
             if (typeof renderPaymentsView === 'function') renderPaymentsView();
+
+            if (e.key === 'psico_portal_confirmation_requested_event') {
+                if (typeof checkAppointmentConfirmationAlert === 'function') {
+                    checkAppointmentConfirmationAlert(true);
+                }
+            }
         }
     });
 
@@ -4830,6 +5068,14 @@ if (typeof window !== 'undefined') {
         if (typeof mergeAppointmentsFromBridge === 'function') mergeAppointmentsFromBridge();
         if (typeof renderNextSession === 'function') renderNextSession();
         if (typeof renderSessionsView === 'function') renderSessionsView();
+        if (typeof checkAppointmentConfirmationAlert === 'function') checkAppointmentConfirmationAlert();
+    });
+
+    window.addEventListener('psico_portal_confirmation_requested', () => {
+        if (typeof mergeAppointmentsFromBridge === 'function') mergeAppointmentsFromBridge();
+        if (typeof renderNextSession === 'function') renderNextSession();
+        if (typeof renderSessionsView === 'function') renderSessionsView();
+        if (typeof checkAppointmentConfirmationAlert === 'function') checkAppointmentConfirmationAlert(true);
     });
 
     window.addEventListener('psico_payment_methods_updated', (e) => {

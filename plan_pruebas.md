@@ -143,5 +143,28 @@ flowchart TD
 | **TC-FIN-04** | Cobros | Tarificación Dinámica y Cobro de Citas Clínicas | Ingesta de honorarios pactados, prevención de duplicación (idempotencia) |
 | **TC-FIN-05** | Global Scope | Disponibilidad y Exposición Global de Controladores | 100% de controladores expuestos en `window` sin `SyntaxError` en scripts clásicos |
 
-**Total de Pruebas Automatizadas Activas**: 76 de 76 superadas exitosamente (100% Pass Rate).
+---
+
+## 7. Casos de Prueba — Perfeccionamiento Estético y Funcional (v7.0)
+
+| ID | Módulo | Nombre de la Prueba | Criterio de Aprobación |
+|---|---|---|---|
+| **TC-EST-01** | Tokens CSS | Consistencia de Variables CSS en Terapeuta y Portal | 0 variables CSS huérfanas en ambos sistemas (`--border-color`, `--color-primary`, `--radius-full`, `--accent-gradient`) |
+| **TC-EST-02** | UI / UX | Modo Oscuro en Portal de Pacientes | Conmutador `togglePortalTheme()`, sincronización con `[data-theme="dark"]` y persistencia en `localStorage` |
+| **TC-EST-03** | Accesibilidad | Cierre de Overlays y Modales con Tecla Escape | Tecla `Escape` cierra drawers y modales invocando sus destructores/resets sin fugar bloqueos de scroll |
+| **TC-EST-04** | Adaptabilidad | Resiliencia Temática de Contenedores y Recibos | Contenedores adaptativos con `var(--bg-card)` y bordes coherentes en modo claro y oscuro |
+| **TC-EST-05** | UI / Contención | Ergonomía de Tarjetas KPI y Selector de Estatus | Cero desbordamiento (`overflow: hidden`, `width: 100%`), eliminación de chips redundantes y vinculación íntegra de IDs |
+| **TC-NOTIF-01** | UX / Anti-Spam | Deduplicación de Notificaciones y Control de Toasts | `isConfirmationAlreadyNotified`, prevención anti-duplicados y límite estricto de máximo 3 toasts simultáneos |
+
+---
+
+## 8. Casos de Prueba — Auditoría Exhaustiva de Controladores, Portal y Grabación (v7.1)
+
+| ID | Módulo | Nombre de la Prueba | Criterio de Aprobación |
+|---|---|---|---|
+| **TC-POR-16** | Portal Pacientes & Kid | Agendamiento, Notas Reflexivas y Personalización Infantil | `pickAvailableSlot` resuelve dualmente `scheduleDate`/`scheduleSessionDate`; notas infantiles y nombres de avatar se vinculan y persisten correctamente |
+| **TC-REC-02** | Grabación & Copiloto | Mapeo Defensivo SOAP en SessionRecorder | Transcripción ambient y síntesis aplican con éxito sobre `noteSubjetivo`, `noteObjetivo`, `noteAnalisis` y `notePlan` sin campos mudos |
+
+**Total de Pruebas Automatizadas Activas**: 123 de 123 superadas exitosamente (100% Pass Rate).
+
 

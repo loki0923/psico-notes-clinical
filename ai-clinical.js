@@ -381,7 +381,7 @@ Cuando experimentamos dificultades relacionadas con ${topic.toLowerCase()}, nues
      * Chat Copiloto Clínico
      */
     async chatWithCopilot(userQuery, conversationHistory = []) {
-        const sysPrompt = `Eres el Copiloto Clínico de Psico Notes, una IA entrenada para asistir a psicoterapeutas y profesionales de la salud mental.
+        const sysPrompt = `Eres el Copiloto Clínico de SERENA, una IA supervisada diseñada para asistir a psicoterapeutas y profesionales de la salud mental.
 Proporcionas orientación basada en evidencia (TCC, ACT, DBT, Terapia Sistémica, etc.), sugerencias de formulación, metáforas terapéuticas y técnicas de intervención.
 Responde de manera concisa, estructurada, ética y empática con el profesional.`;
 

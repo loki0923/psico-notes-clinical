@@ -4648,6 +4648,901 @@ ClinicalTestSuite.add('TC-HIST-08', 'Protocolo Clínico y Deontológico Venezola
     }
 });
 
+// 101.1 TC-HIST-09: Historia Clínica Adulto (Paridad Estricta con PDF de 5 Páginas y Cero Campos Foráneos)
+ClinicalTestSuite.add('TC-HIST-09', 'Historia Clínica Adulto (Paridad Estricta con PDF de 5 Páginas y Cero Campos Foráneos)', async () => {
+    if (typeof ClinicalHistorySystem === 'undefined') {
+        await import('./historia-clinica.js');
+    }
+    const CHS = globalThis.ClinicalHistorySystem;
+
+    const testAdult = {
+        id: 'pat_adult_pdf_strict_01',
+        name: 'Carlos Mendoza',
+        category: 'adult',
+        birthdate: '1985-04-12',
+        gender: 'Masculino',
+        maritalStatus: 'Casado(a)',
+        ci: 'V-17.892.400',
+        schoolGrade: 'Universitaria Completa',
+        occupation: 'Contador Público',
+        religion: 'Católica',
+        livesWith: 'Esposa y dos hijos',
+        address: 'Av. Libertador, Edif. Los Samanes, Apt 4-B',
+        phone: '+58 412 5558899',
+        referral: ['Médico/Especialista'],
+        hasAttendedBefore: 'SI',
+        previousAttendanceDate: '15/01/2024',
+        siblingsCount: 2,
+        stepSiblingsCount: 1,
+        halfSiblingsCount: 0,
+        genogramNotes: 'Familia nuclear reconstituida, adecuada alianza conyugal.',
+        reason: 'Estrés laboral crónico y dificultades para conciliar el sueño.',
+        observedGestures: 'Tensión mandibular, postura erguida, contacto visual sostenido.',
+        mentalExam: 'Orientado en tiempo, espacio y persona. Discurso fluido y coherente.',
+        symptomsBehavioral: 'Inquietud psicomotriz leve en horario nocturno.',
+        symptomsEmotional: 'Preocupación anticipatoria y leve irritabilidad.',
+        symptomsOrganic: 'Tensión cervical y cefalea tensional vespertina.',
+        neuroEvaluation: 'Evaluación neurológica previa normal (EEG sin alteraciones).',
+        traumaInjuries: 'Esguince de tobillo derecho hace 3 años en actividad deportiva.',
+        surgeries: 'Apendicectomía a los 18 años sin complicaciones.',
+        seizures: 'Negadas.',
+        immuneDiseases: 'Negadas.',
+        allergies: 'Rinitis alérgica estacional.',
+        medicalTreatment: 'Ningún tratamiento farmacológico prescrito actualmente.',
+        familyMedicalHistory: 'Padre hipertenso, madre con diabetes mellitus tipo 2.',
+        patientPsychiatricHistory: 'Niega hospitalizaciones ni tratamientos psiquiátricos previos.',
+        familyPsychiatricHistory: 'Tía materna con antecedentes de trastorno depresivo.',
+        adultInfancyHistory: 'Crianza en hogar estable, hitos normales, sin pérdidas tempranas.',
+        adultAdolescenceHistory: 'Socialización adecuada, rendimiento escolar destacado.',
+        adultSocial: 'Red de amistades cercana, reuniones familiares de fin de semana.',
+        adultFamilyDynamics: 'Convivencia armónica, comunicación asertiva con cónyuge.',
+        adultSpirituality: 'Valores católicos practicantes.',
+        adultSexual: 'Vida de pareja estable y satisfactoria.',
+        adultWork: 'Jornadas de 9 horas, sobrecarga de tareas en cierres mensuales.',
+        adultLegal: 'Sin litigios, juicios ni antecedentes penales.',
+        housingType: 'Apartamento',
+        housingServices: 'Sí',
+        housingSharesRoom: 'Sí',
+        housingSharesRoomDesc: 'Comparte habitación con su cónyuge.',
+        occupantsAdultsF: 1,
+        occupantsAdultsM: 1,
+        occupantsTeensF: 0,
+        occupantsTeensM: 0,
+        occupantsChildrenF: 1,
+        occupantsChildrenM: 1,
+        addictions: 'Café (3 tazas al día). Niega tabaco, alcohol u otras sustancias.',
+        socialManias: 'Rutina estricta de orden en escritorio antes de iniciar el trabajo.',
+        phobias: 'Temor leve a las alturas (acrofobia leve no incapacitante).',
+        nightTerrors: 'Negados.',
+        onychophagy: 'Negada.',
+        sleepPattern: 'Insomnio de conciliación (demora 45 min en dormir).',
+        eatingPattern: 'Alimentación regular, 3 comidas al día.',
+        hygienePattern: 'Adecuada presentación y cuidado personal.',
+        recreationArea: 'Lectura los fines de semana y caminatas al aire libre.',
+        dailyRoutine: 'Despierta 6:30am, jornada laboral 8am-5pm, cena en familia, duerme 11:30pm.',
+        mediumTermGoals: 'Consolidación de técnicas de autorregulación emocional y disminución de tensión.',
+        longTermGoals: 'Equilibrio trabajo-familia y prevención de recaídas a largo plazo.'
+    };
+
+    globalThis.AppState.patients = globalThis.AppState.patients || [];
+    globalThis.AppState.patients.push(testAdult);
+
+    const h = CHS.getFullHistory(testAdult);
+    const therapist = CHS.getTherapistInfo();
+    const pdfHtml = CHS.exportHistoriaOficialAdultoPDF(testAdult, h, '39', therapist);
+
+    // 1. Verificación de los Títulos y Secciones Estrictas de las 5 Páginas del PDF
+    const requiredSections = [
+        'HISTORIA CLÍNICA ADULTO',
+        'Ha asistido antes a Consulta Psicológica: NO',
+        'IDENTIFICACIÓN DEL PACIENTE:',
+        'DATOS FILIATORIOS:',
+        'GENOGRAMA',
+        'MOTIVO DE CONSULTA',
+        'GESTUALIDAD OBSERVADA AL MOMENTO DE EXPLICITAR MOTIVO DE CONSULTA',
+        'EXAMEN MENTAL',
+        'SINTOMATOLOGÍA PRESENTADA',
+        'Características Conductuales',
+        'Características Emocionales',
+        'Características Orgánicas',
+        'ANTECEDENTES DEL PACIENTE',
+        'Evaluación Neurológica previa',
+        'Golpes, caídas, lesiones, esguinces o fracturas.',
+        'Operaciones',
+        'Convulsiones',
+        'Enfermedades que afectan el Sistema Inmunológico (Hepatitis, Viruela, etc.)',
+        'Alergias',
+        'Tratamiento Médico y otras patologías',
+        'Antecedentes Médicos Familiares',
+        'Antecedentes Psiquiátricos o psicológicos del Paciente',
+        'Antecedentes Psiquiátricos o psicológicos Familiares',
+        'Infancia',
+        'Adolescencia',
+        'SITUACIÓN ACTUAL',
+        'Área Social y Relaciones Interpersonales',
+        'Dinámica Familiar',
+        'Área Espiritual',
+        'Área Sexual',
+        'Área Laboral',
+        'Aspectos Legales',
+        'ÁREA DE VIVIENDA',
+        'Apartamento',
+        'Servicios Básicos',
+        'Comparte Habitación',
+        'Personas que Habitan en la Vivienda',
+        'HÁBITOS PSICOBIOLÓGICOS:',
+        'Adicciones (Drogas, alcohol, tecnología, cigarrillos, etc.):',
+        'Manías Sociales (Tics, rutinas que maneje en un determinado espacio)',
+        'Fobias o Miedo Intenso',
+        'Miedos Nocturnos',
+        'Ornicofagia',
+        'Sueño',
+        'Alimentación',
+        'Higiene',
+        'Área Recreacional',
+        'Rutina Diaria',
+        'FIRMA Y SELLO'
+    ];
+
+    for (const sec of requiredSections) {
+        if (!pdfHtml.includes(sec)) {
+            throw new Error(`Falta campo o sección oficial del PDF en Historia Clínica Adulto: "${sec}"`);
+        }
+    }
+
+    // 2. Verificación de CERO campos foráneos no presentes en el PDF de adultos
+    const forbiddenInAdults = [
+        'DATOS FILIATORIOS DE LOS PADRES: Madre:',
+        'DATOS FILIATORIOS DE LOS PADRES: Padre:',
+        'DATOS DEL PARTO Y ESTADO AL NACER',
+        'ESCOLARIDAD, RENDIMIENTO Y ADAPTACIÓN (ÁREA PEDAGÓGICA)',
+        'Hitos Primeros Años: Sostén cefálico',
+        'IMPRESIÓN DIAGNÓSTICA (CIE-10 / CIE-11 & DSM-5-TR):',
+        'PLAN TERAPÉUTICO Y METAS DE INTERVENCIÓN:'
+    ];
+
+    for (const forb of forbiddenInAdults) {
+        if (pdfHtml.includes(forb)) {
+            throw new Error(`Error: Se detectó campo foráneo no permitido en Historia Clínica Adulto: "${forb}"`);
+        }
+    }
+
+    // 3. Verificación de que el editor de adultos HTML exclusivo genera las 6 pestañas organizadas por temática
+    const editorHtml = CHS.renderAdultHistoryEditorHTML(testAdult, h, therapist.registry);
+    if (!editorHtml.includes('htab-adult-1') || !editorHtml.includes('htab-adult-5') || !editorHtml.includes('htab-adult-6')) {
+        throw new Error('El editor de historia de adulto debe contener las 6 pestañas organizadas');
+    }
+    const requiredTabNames = [
+        'Identificación del Paciente',
+        'Motivo de Consulta y Examen Mental',
+        'Antecedentes',
+        'Situación Actual y Áreas Vitales',
+        'Hábitos Psicobiológicos',
+        'Metas y Proyecto de Vida'
+    ];
+    for (const tabName of requiredTabNames) {
+        if (!editorHtml.includes(tabName)) {
+            throw new Error(`El editor de historia de adulto debe contener la pestaña: "${tabName}"`);
+        }
+    }
+    if (!editorHtml.includes('fh_ornicofagia') && !editorHtml.includes('fh_onychophagy')) {
+        throw new Error('El editor de historia de adulto debe contener el campo Ornicofagia');
+    }
+    if (!editorHtml.includes('fh_mediumTermGoals') || !editorHtml.includes('fh_longTermGoals')) {
+        throw new Error('El editor de historia de adulto debe incluir los campos separados de metas a mediano y largo plazo');
+    }
+
+    // 4. Verificación de metas a mediano y largo plazo por separado
+    if (!h.mediumTermGoals || !h.longTermGoals) {
+        throw new Error('getFullHistory debe recuperar las metas a mediano y largo plazo por separado');
+    }
+    const adultViewHtml = CHS.renderAdultHistoryIntegral(testAdult, h, therapist, therapist.registry);
+    if (!adultViewHtml.includes('Metas a Mediano Plazo') || !adultViewHtml.includes('Metas a Largo Plazo')) {
+        throw new Error('El visor de historia de adulto debe renderizar las metas a mediano y largo plazo por separado');
+    }
+    if (!pdfHtml.includes('Metas a Mediano Plazo') || !pdfHtml.includes('Metas a Largo Plazo')) {
+        throw new Error('El PDF de historia de adulto debe reflejar las metas a mediano y largo plazo por separado');
+    }
+});
+
+// 101.2 TC-HIST-10: Historia Clínica Adolescente (Paridad Estricta con PDF de 7 Páginas y Cero Campos Foráneos)
+ClinicalTestSuite.add('TC-HIST-10', 'Historia Clínica Adolescente (Paridad Estricta con PDF de 7 Páginas y Cero Campos Foráneos)', async () => {
+    if (typeof ClinicalHistorySystem === 'undefined') {
+        await import('./historia-clinica.js');
+    }
+    const CHS = globalThis.ClinicalHistorySystem;
+
+    const testTeen = {
+        id: 'pat_teen_pdf_strict_01',
+        name: 'Valentina Rodríguez',
+        category: 'adolescent',
+        birthdate: '2010-05-18',
+        birthPlace: 'Caracas, Distrito Capital',
+        gender: 'Femenino',
+        schoolGrade: '3er Año de Bachillerato',
+        livesWith: 'Madre, padrastro y hermano menor',
+        address: 'Urb. El Marqués, Calle Araguaney, Qta. Villa Sol',
+        referral: ['Orientador Escolar'],
+        hasAttendedBefore: 'SI',
+        previousAttendanceDate: '10/03/2023',
+        motherName: 'Carmen Elena Morales',
+        motherAge: 42,
+        motherCi: 'V-15.448.910',
+        motherEducation: 'Universitaria Completa (Lic. en Administración)',
+        motherOccupation: 'Administradora de Empresas',
+        motherAddress: 'Urb. El Marqués, Qta. Villa Sol, Caracas',
+        fatherName: 'Roberto José Rodríguez',
+        fatherAge: 45,
+        fatherCi: 'V-14.230.119',
+        fatherEducation: 'Universitaria Completa (Ingeniero Mecánico)',
+        fatherOccupation: 'Ingeniero Consultor',
+        fatherAddress: 'Los Palos Grandes, Av. Andrés Bello, Caracas',
+        siblingsCount: 1,
+        stepSiblingsCount: 1,
+        halfSiblingsCount: 0,
+        genogramNotes: 'Estructura nuclear con padres divorciados hace 5 años; buena relación filial.',
+        reason: 'Episodios de ansiedad ante exámenes escolares y dificultad para poner límites a sus pares.',
+        observedGestures: 'Contacto visual intermitente, manos inquietas sobre regazo, tono de voz pausado.',
+        symptomsBehavioral: 'Aislamiento en su habitación al regresar de clases y postergación de deberes.',
+        symptomsEmotional: 'Temor al fracaso académico, frustración rápida y llanto ocasional sin causa aparente.',
+        symptomsOrganic: 'Cefalea frontal recurrente post-escolar y sensación de nudo en la garganta.',
+        mentalExam: 'Adolescente orientada en las tres esferas, aliñada, lenguaje fluido con adecuada coherencia.',
+        neuroEvaluation: 'Sin alteraciones reportadas en control pediátrico habitual.',
+        traumaInjuries: 'Caída de patineta a los 11 años con traumatismo en muñeca izquierda (sin fractura).',
+        surgeries: 'Amigdalectomía a los 6 años bajo anestesia general sin complicaciones.',
+        seizures: 'Negadas categóricamente.',
+        immuneDiseases: 'Negadas.',
+        allergies: 'Rinitis alérgica estacional controlada con antihistamínicos ocasionales.',
+        medicalTreatment: 'Ningún fármaco administrado de forma continua.',
+        otherMedicalHistory: 'Control odontológico con ortodoncia correctiva activa.',
+        familyMedicalHistory: 'Abuela materna con hipertensión arterial; abuelo paterno con diabetes mellitus.',
+        patientPsychiatricHistory: 'Asistió a 3 sesiones de orientación escolar a los 12 años por adaptación a bachillerato.',
+        familyPsychiatricHistory: 'Madre con antecedentes de ansiedad postparto superada.',
+        pedagogicalHistory: 'Evaluación psicopedagógica a los 8 años por ortografía; cociente intelectual promedio-alto.',
+        desiredPregnancy: 'SI',
+        plannedPregnancy: 'SI',
+        fetalDevelopment: 'Embarazo normoevolutivo controlado mensualmente con ecografías regulares.',
+        motherEmotionalState: 'Tranquila, buen apoyo de la pareja y red familiar.',
+        pregnancyMedications: 'Ácido fólico, hierro y complejo polivitamínico prenatal.',
+        motherPregnancyIllnesses: 'Hiperémesis gravídica leve durante el primer trimestre, sin deshidratación.',
+        pregnancyNumber: 1,
+        pregnancyDuration: '39 semanas',
+        laborDuration: '8 horas',
+        deliveryType: 'Cesárea',
+        birthCry: 'SI',
+        birthPosition: 'Cefálica',
+        birthWeight: '3.250 gr',
+        birthLength: '50 cm',
+        resuscitation: 'NO',
+        incubator: 'NO',
+        firstFeeding: 'Lactancia materna exclusiva durante los primeros 6 meses.',
+        birthOtherObs: 'Apgar 9/10 al primer y quinto minuto. Sin complicaciones neonatales.',
+        earlyFeeding: 'Lactancia materna complementada con ablactación progresiva a partir de los 6 meses.',
+        weaningAge: '14 meses',
+        headControlAge: '3 meses',
+        sittingAge: '6 meses',
+        crawlingAge: '8 meses',
+        firstStepsAge: '11 meses',
+        firstWordsAge: '10 meses',
+        firstTeethAge: '7 meses',
+        sphincterControlAge: 'Diurno a los 2 años, nocturno a los 2 años y medio.',
+        daycareOrCaregivers: 'Guardería maternal desde el año y medio, cuidada en las tardes por abuela.',
+        schoolStartAge: '3 años (Educación Inicial)',
+        schoolAdaptation: 'Adaptación rápida, sin llanto prolongado, sociable con sus compañeros.',
+        teacherRelationship: 'Excelente; descrita como colaboradora y atenta en clase.',
+        friendsInteraction: 'Comparte juegos de roles, mantiene amistades estables y empáticas.',
+        readingAge: '5 años',
+        writingAge: '5 años y medio',
+        countingAge: '4 años',
+        primarySchoolDevelopment: 'Desempeño sobresaliente en la primaria, cuadro de honor en varios grados.',
+        learningDifficulties: 'Matemáticas y física (razonamiento abstracto complejo bajo presión).',
+        learningStrengths: 'Literatura, redacción, idiomas extranjeros y expresión plástica.',
+        schoolBehavior: 'Comportamiento respetuoso con profesores y adecuada disciplina en aula.',
+        schoolAttitude: 'Responsable y comprometida, con alta autoexigencia hacia sus notas.',
+        homeworkSupport: 'Madre supervisa; realiza las tareas con alto grado de autonomía.',
+        homeBehavior: 'Colaboradora en tareas del hogar; ocasional introversión en momentos de estrés.',
+        outdoorsBehavior: 'Sociable, atenta y respetuosa con las normas del entorno público.',
+        likesActivities: 'Dibujar, escuchar música pop/indie, leer novelas juveniles y pasear en bicicleta.',
+        dislikesActivities: 'Discusiones ruidosas, tareas mecánicas repetitivas y llamadas de atención en público.',
+        familyDynamicsDesc: 'Comunicación fluida y afectuosa con la madre; límites claros y respetuosos.',
+        teenChildhood: 'Recuerda una infancia feliz, rodeada de primos y actividades al aire libre.',
+        teenSocial: 'Mantiene un grupo pequeño de 4 amigas íntimas con quienes comparte salidas regulares.',
+        teenSexuality: 'Identidad femenina cisgénero congruente; sin inicio de vida sexual activa.',
+        teenSpirituality: 'Participa ocasionalmente en actividades comunitarias de valores éticos.',
+        teenFamilyDynamics: 'Siente que su madre la apoya pero desearía más espacio para tomar decisiones propias.',
+        teenRelationships: 'No tiene pareja actualmente; da prioridad a sus metas académicas y a sus amigas.',
+        housingType: 'Casa',
+        housingServices: 'Sí',
+        housingSharesRoom: 'No',
+        housingSharesRoomDesc: 'Habitación individual propia con escritorio de estudio.',
+        occupantsAdultsM: 1,
+        occupantsAdultsF: 1,
+        occupantsTeensM: 0,
+        occupantsTeensF: 1,
+        occupantsChildrenM: 1,
+        occupantsChildrenF: 0,
+        addictions: 'Niega consumo de tabaco, alcohol y drogas; uso diario de smartphone 3-4 hrs (redes sociales).',
+        socialManias: 'Acomodar sus útiles escolares por colores antes de comenzar a estudiar.',
+        phobias: 'Aracnofobia moderada (miedo intenso e irracional a las arañas).',
+        nightTerrors: 'Negados actualmente (presentó pesadillas esporádicas a los 7 años).',
+        onychophagy: 'Negada.',
+        sleepPattern: 'Sueño de 7 horas en promedio; dificultad para conciliar en víspera de exámenes.',
+        eatingPattern: 'Dieta balanceada, 3 comidas principales y merienda matutina.',
+        hygienePattern: 'Impecable cuidado e higiene personal.',
+        recreationArea: 'Club deportivo los sábados, clases de dibujo artístico y paseos al parque.',
+        dailyRoutine: 'Despierta 6:00am, colegio de 7:00am a 2:30pm, tareas y dibujo 4:00pm-7:00pm, cena 8:00pm, duerme 10:30pm.',
+        teenShortGoals: 'Aprobar el año escolar con promedio superior a 18 puntos y mejorar gestión de la ansiedad.',
+        teenLongGoals: 'Estudiar Diseño Gráfico o Arquitectura en la universidad e independizarse con éxito.'
+    };
+
+    globalThis.AppState = globalThis.AppState || {};
+    globalThis.AppState.patients = globalThis.AppState.patients || [];
+    globalThis.AppState.patients.push(testTeen);
+
+    const h = CHS.getFullHistory(testTeen);
+    const therapist = CHS.getTherapistInfo();
+    const pdfHtml = CHS.exportHistoriaOficialAdolescentePDF(testTeen, h, '15', therapist);
+
+    // 1. Verificación de la estructura exacta de 7 páginas
+    const pageMatches = pdfHtml.match(/<div class="pdf-page">/g) || [];
+    if (pageMatches.length !== 7) {
+        throw new Error(`El PDF de historia adolescente debe contener exactamente 7 páginas (encontradas: ${pageMatches.length})`);
+    }
+
+    for (let i = 1; i <= 7; i++) {
+        if (!pdfHtml.includes(`<div class="page-footer">${i}</div>`)) {
+            throw new Error(`Falta el pie de página numerado oficial "${i}" en el PDF de adolescente`);
+        }
+    }
+
+    // 2. Verificación de todos los Títulos y Secciones Estrictas de las 7 Páginas del PDF
+    const requiredSections = [
+        // Pág 1
+        'HISTORIA CLÍNICA ADOLESCENTE',
+        'Ha asistido antes a Consulta Psicológica: NO',
+        'IDENTIFICACIÓN DEL PACIENTE:',
+        'DATOS FILIATORIOS:',
+        'Nombre Completo de la Madre:',
+        'Nombre Completo del Padre:',
+        'Nº Hermanos:',
+        'Nº Hermanastros',
+        'Nº Medio Hermanos:',
+        'GENOGRAMA',
+        'MOTIVO DE CONSULTA:',
+        'GESTUALIDAD OBSERVADA AL MOMENTO DE EXPLICAR EL MOTIVO DE CONSULTA',
+        'SINTOMATOLOGÍA PRESENTADA:',
+        'Características Conductuales:',
+        // Pág 2
+        'Características Emocionales:',
+        'Características Orgánicas:',
+        'EXAMEN MENTAL:',
+        'ANTECEDENTES',
+        'Antecedentes Médicos del Paciente',
+        'Evaluación Neurológica',
+        'Golpes, caídas, lesiones, esguinces o fracturas.',
+        'Operaciones',
+        'Convulsiones',
+        'Enfermedades que afectan el Sistema Inmunológico',
+        'Alergias',
+        'Tratamiento Actual',
+        'Otros antecedentes',
+        'Antecedentes Médicos Familiares',
+        // Pág 3
+        'Antecedentes Psiquiátricos o psicológicos del Paciente',
+        'Antecedentes Psiquiátricos o psicológicos Familiares',
+        'Evaluación o tratamiento Pedagógico Previo del Paciente',
+        'DESARROLLO PRENATAL',
+        'Embarazo Deseado: SI',
+        'Embarazo Planificado: SI',
+        'Desarrollo del feto durante el embarazo',
+        'Estado emocional de la madre durante el embarazo',
+        'Medicación Durante el Embarazo',
+        'Enfermedades de la Madre Durante el Embarazo',
+        'Número de Embarazo de la Madre',
+        'DATOS DEL PARTO',
+        'Duración del Embarazo:',
+        'Duración del Parto:',
+        'Tipo de Parto:',
+        'Espontáneo:',
+        'Inducido:',
+        'Cesárea:',
+        'Natural:',
+        'ESTADO DEL NIÑO AL NACER',
+        'Llanto al nacer:',
+        'Posición del Bebé:',
+        'Peso:',
+        'Medida:',
+        'Reanimación:',
+        'Incubadora:',
+        'Primera alimentación:',
+        'Otras Observaciones:',
+        'DESARROLLO SOCIAL Y PSICOMOTOR DEL NIÑO ALREDEDOR DE LOS',
+        // Pág 4
+        'PRIMEROS AÑOS DE VIDA',
+        'Descripción de la alimentación durante los primeros meses de vida',
+        'Descripción del proceso de destete',
+        'Control o dureza cefálica',
+        'Edad a la que se sentó por primera vez',
+        'Gatear',
+        'Primeros pasos',
+        'Primeras palabras',
+        'Primero dientes',
+        'Control de esfínteres vesical y anal',
+        'ESCOLARIDAD',
+        'Guardería o cuidadores',
+        'Edad a la que comenzó la escolaridad',
+        'Proceso de adaptación a la escolaridad',
+        'Relación con las maestras',
+        'Amigos e interacción en la escuela',
+        'Edad a la que aprendió a leer',
+        'Edad a la que aprendió a escribir',
+        'Edad a la que aprendió a contar',
+        'Desarrollo en la primaria',
+        // Pág 5
+        'Áreas con mayor dificultad para su aprendizaje',
+        'Áreas con mayor facilidad para su aprendizaje',
+        'Conducta en el colegio',
+        'Actitud al realizar actividades',
+        'Personas con quien realizar actividades escolares en el hogar',
+        'DINÁMICA FAMILIAR Y SOCIAL',
+        'Conducta en el Hogar',
+        'Conducta al Salir de Casa',
+        'Cosas que le gusta',
+        'Cosas que le disgusta',
+        'Descripción de la Dinámica Familiar',
+        'DESCRIPCIÓN DE ACUERDO A LA ENTEVISTA CON EL ADOLESCENTE',
+        'Infancia',
+        'Área Social',
+        'Área Sexual (Interés por Sexualidad o identificación de género)',
+        // Pág 6
+        'Área Espiritual',
+        'Descripción de la Dinámica Familiar',
+        'Relaciones Interpersonales (amistades y pareja)',
+        'ÁREA DE VIVIENDA',
+        'Apartamento',
+        'Casa',
+        'Otro',
+        'Servicios Básicos',
+        'Comparte Habitación',
+        'Personas que Habitan en la Vivienda',
+        'HÁBITOS PSICOBIOLÓGICOS:',
+        'Adicciones (Drogas, alcohol, tecnología, cigarrillos, etc.):',
+        'Manías Sociales (Tics, rutinas que maneje en un determinado espacio)',
+        'Fobias o miedo intenso',
+        'Miedos nocturnos',
+        'Ornicofagia',
+        'Sueño',
+        // Pág 7
+        'Alimentación',
+        'Higiene',
+        'Área Recreacional',
+        'Rutina Diaria',
+        'Metas a Corto y Mediano Plazo',
+        'Metas a Largo Plazo',
+        'FIRMA Y SELLO',
+        'LOPNNA',
+        'Asentimiento Informado'
+    ];
+
+    for (const sec of requiredSections) {
+        if (!pdfHtml.includes(sec)) {
+            throw new Error(`Falta campo o sección oficial del PDF en Historia Clínica Adolescente: "${sec}"`);
+        }
+    }
+
+    // 3. Verificación de CERO campos foráneos no pertenecientes al PDF oficial del adolescente
+    const forbiddenInTeens = [
+        'HISTORIA CLÍNICA ADULTO',
+        'Área Laboral:',
+        'Aspectos Legales:',
+        'IMPRESIÓN DIAGNÓSTICA (CIE-10 / CIE-11 & DSM-5-TR):',
+        'PLAN TERAPÉUTICO Y METAS DE INTERVENCIÓN:'
+    ];
+
+    for (const forb of forbiddenInTeens) {
+        if (pdfHtml.includes(forb)) {
+            throw new Error(`Error: Se detectó campo foráneo no permitido en Historia Clínica Adolescente: "${forb}"`);
+        }
+    }
+
+    // 4. Verificación de que el editor de adolescente genera las 7 pestañas correspondientes a las 7 páginas del PDF
+    const editorHtml = CHS.renderTeenHistoryEditorHTML(testTeen, h, therapist.registry);
+    for (let tabNum = 1; tabNum <= 7; tabNum++) {
+        if (!editorHtml.includes(`htab-teen-${tabNum}`)) {
+            throw new Error(`El editor de historia de adolescente debe contener la pestaña htab-teen-${tabNum}`);
+        }
+    }
+
+    const requiredTeenEditorFields = [
+        'fh_birthPlace',
+        'fh_motherName',
+        'fh_fatherName',
+        'fh_siblingsCount',
+        'fh_reason',
+        'fh_mentalExam',
+        'fh_pregnancyDesired',
+        'fh_pregnancyPlanned',
+        'fh_deliveryType',
+        'fh_headControl',
+        'fh_readingAge',
+        'fh_learningDifficulties',
+        'fh_teenChildhood',
+        'fh_teenSexuality',
+        'fh_teenRelationships',
+        'fh_housingType',
+        'fh_addictions',
+        'fh_teenShortGoals',
+        'fh_teenLongGoals'
+    ];
+
+    for (const fieldId of requiredTeenEditorFields) {
+        if (!editorHtml.includes(fieldId)) {
+            throw new Error(`El editor de historia de adolescente debe contener el campo de formulario id="${fieldId}"`);
+        }
+    }
+
+    // 5. Verificación de renderizado integral en pantalla
+    const teenViewHtml = CHS.renderTeenHistoryIntegral(testTeen, h, therapist, therapist.registry);
+    if (!teenViewHtml.includes('Áreas Vitales & Entrevista Privada con el Adolescente') || !teenViewHtml.includes('Desarrollo Prenatal, Parto e Hitos')) {
+        throw new Error('El visor de historia de adolescente debe renderizar las secciones acordadas');
+    }
+});
+
+// 101.3 TC-HIST-11: Historia Clínica Infantil (Paridad Estricta con PDF de 7 Páginas y Cero Campos Foráneos)
+ClinicalTestSuite.add('TC-HIST-11', 'Historia Clínica Infantil (Paridad Estricta con PDF de 7 Páginas y Cero Campos Foráneos)', async () => {
+    if (typeof ClinicalHistorySystem === 'undefined') {
+        await import('./historia-clinica.js');
+    }
+    const CHS = globalThis.ClinicalHistorySystem;
+
+    const testChild = {
+        id: 'pat_child_pdf_strict_01',
+        name: 'Mateo Alejandro Torres',
+        category: 'child',
+        birthdate: '2018-04-12',
+        birthPlace: 'Valencia, Estado Carabobo',
+        gender: 'Masculino',
+        schoolGrade: '3er Grado de Primaria',
+        livesWith: 'Madre y abuela materna',
+        address: 'Urb. Trigal Norte, Calle Los Robles, Qta. Flor',
+        referral: ['Orientadora Escolar'],
+        hasAttendedBefore: 'SI',
+        previousAttendanceDate: '15/02/2023',
+        motherName: 'Beatriz Elena Torres',
+        motherAge: 36,
+        motherCI: 'V-18.992.104',
+        motherEducation: 'Universitaria (Lic. en Administración)',
+        motherJob: 'Administradora',
+        motherAddress: 'Urb. Trigal Norte, Qta. Flor, Valencia',
+        fatherName: 'Manuel Alejandro Silva',
+        fatherAge: 38,
+        fatherCI: 'V-17.654.321',
+        fatherEducation: 'TSU en Informática',
+        fatherJob: 'Analista de Sistemas',
+        fatherAddress: 'Urb. El Parral, Valencia',
+        siblingsCount: 0,
+        stepSiblingsCount: 0,
+        halfSiblingsCount: 1,
+        genogramNotes: 'Familia monoparental materna con figura de apoyo activa de abuela materna.',
+        reason: 'Dificultades de atención y conducta motriz inquieta en el aula de clases.',
+        observedGestures: 'Niño activo, contacto visual adecuado, colaborador durante la entrevista.',
+        symptomsBehavioral: 'Inquietud psicomotriz en tareas pasivas, distractibilidad ante estímulos irrelevantes.',
+        symptomsEmotional: 'Tolerancia baja a la frustración; afecto modulado y reactivo.',
+        symptomsOrganic: 'Negadas; sueño y apetito regulares.',
+        mentalExam: 'Orientado en tiempo, espacio y persona. Discurso coherente y vocabulario rico para su edad. Pensamiento sin alteraciones lógicas.',
+        neuroEvaluation: 'Evaluación neuropediátrica sin anomalías estructurales.',
+        traumaInjuries: 'Caída de bicicleta a los 5 años sin pérdida de conciencia ni secuelas.',
+        surgeries: 'Amigdalectomía a los 6 años sin complicaciones.',
+        seizures: 'Negadas.',
+        immuneDiseases: 'Negadas.',
+        allergies: 'Rinitis alérgica estacional leve.',
+        medicalTreatment: 'Sin medicación activa.',
+        otherMedicalHistory: 'Control pediátrico regular al día.',
+        familyMedicalHistory: 'Hipertensión arterial en abuelo materno.',
+        patientPsychiatricHistory: 'Sin antecedentes psiquiátricos previos.',
+        familyPsychiatricHistory: 'Tía materna con antecedentes de ansiedad generalizada.',
+        pedagogicalHistory: 'Evaluación psicopedagógica previa a los 5 años: fortalezas en lenguaje y destrezas visuales.',
+        pregnancyDesired: 'SI',
+        pregnancyPlanned: 'SI',
+        pregnancyNumber: 1,
+        fetalDevelopment: 'Evolución intrauterina normal y controles ecográficos mensuales regulares.',
+        motherEmotionalState: 'Embarazo tranquilo, acompañada por la familia materna.',
+        pregnancyMedication: 'Ácido fólico, hierro y multivitamínicos prenatales.',
+        pregnancyDiseases: 'Negadas.',
+        pregnancyDuration: '39 semanas',
+        deliveryDuration: '5 horas',
+        deliveryType: 'Natural',
+        birthCry: 'SI',
+        babyPosition: 'Cefálica',
+        birthWeight: '3.350 kg',
+        birthLength: '51 cm',
+        resuscitation: 'NO',
+        incubator: 'NO',
+        firstFeeding: 'Lactancia materna exclusiva hasta los 6 meses.',
+        birthObservations: 'Apgar 9/10, coloración sonrosada, sin complicaciones perinatales.',
+        earlyFeedingDesc: 'Succión vigorosa, buena tolerancia, sin episodios de cólicos severos.',
+        weaningDesc: 'Inicio de ablactación a los 6 meses con papillas y frutas; destete natural a los 14 meses.',
+        headControl: '3 meses',
+        sittingAge: '6 meses',
+        crawlingAge: '8 meses',
+        firstStepsAge: '12 meses',
+        firstWordsAge: '10 meses (mamá, papá, agua)',
+        firstTeeth: '6 meses',
+        sphincterControl: '2 años y 4 meses (diurno y nocturno)',
+        daycareOrCaregivers: 'Cuidado materno y abuela materna; no asistió a guardería.',
+        schoolStartAge: '3 años (Educación Inicial)',
+        schoolAdaptation: 'Adaptación rápida, sin llanto prolongado, alegre al integrarse al grupo.',
+        teacherRelation: 'Cariñosa y respetuosa; en primaria requiere redirección de foco.',
+        schoolFriends: 'Muchos amigos, juegos grupales compartidos en el recreo.',
+        readingAge: '5 años',
+        writingAge: '5 años y medio',
+        countingAge: '4 años',
+        elementaryDevelopment: 'Buen rendimiento global; destaca en lectura y ciencias.',
+        learningDifficulties: 'Permanecer sentado durante períodos extensos de copia mecánica.',
+        learningStrengths: 'Comprensión lectora, expresión oral, dibujo y deportes.',
+        schoolBehavior: 'Inquietud en el asiento; no es agresivo ni desafiante.',
+        taskAttitude: 'Motivado ante retos dinámicos; se frustra con planas repetitivas.',
+        homeworkSupport: 'Madre y abuela supervisan el horario de tareas.',
+        homeBehavior: 'Colaborador y cariñoso; juega con legos y figuras de acción.',
+        outdoorsBehavior: 'Sociable y extrovertido en parques y visitas familiares.',
+        likes: 'Construir con bloques, dinosaurios, bicicleta y natación.',
+        dislikes: 'Esperar turnos largos, sopas de verduras y regaños en público.',
+        autonomy: 'Se baña, se viste y come de forma totalmente autónoma.',
+        familyDynamics: 'Ambiente afectivo estable, límites claros y acuerdos dialogados.',
+        socialArea: 'Comparte con primos y vecinos de su edad con empatía.',
+        sexuality: 'Curiosidad biológica habitual acorde a su edad.',
+        spirituality: 'Participa en tradiciones familiares y valores de solidaridad.',
+        housingType: 'Casa',
+        housingServices: 'Sí',
+        housingSharesRoom: 'No',
+        housingSharesRoomDesc: 'Habitación propia decorada con motivos infantiles.',
+        occupantsAdultsM: 0,
+        occupantsAdultsF: 2,
+        occupantsTeensM: 0,
+        occupantsTeensF: 0,
+        occupantsChildrenM: 1,
+        occupantsChildrenF: 0,
+        addictions: 'Niega sustancias; videojuegos limitados a 1 hora los fines de semana.',
+        socialManias: 'Acomodar sus figuras en hilera antes de dormir.',
+        phobias: 'Temor a truenos muy fuertes durante tormentas.',
+        nightTerrors: 'Negados actualmente.',
+        ornicofagia: 'Negada.',
+        sleepPattern: 'Sueño de 9 a 10 horas continuas, descanso reparador.',
+        eatingPattern: 'Buen apetito, 3 comidas y meriendas escolares.',
+        hygienePattern: 'Hábitos de higiene consolidados y adecuados.',
+        recreationArea: 'Clases de natación dos veces por semana y paseos familiares.',
+        dailyRoutine: 'Despierta 6:30am, colegio 7:30am-1:00pm, almuerzo 1:30pm, tareas y juego 3:00pm-6:00pm, cena 7:30pm, duerme 9:00pm.',
+        shortTermGoals: 'Mejorar estrategias de autocontrol motor en el aula y mantener motivación escolar.',
+        longTermGoals: 'Desarrollo madurativo integral, autorregulación y bienestar socioemocional.'
+    };
+
+    globalThis.AppState = globalThis.AppState || {};
+    globalThis.AppState.patients = globalThis.AppState.patients || [];
+    globalThis.AppState.patients.push(testChild);
+
+    const h = CHS.getFullHistory(testChild);
+    const therapist = CHS.getTherapistInfo();
+    const pdfHtml = CHS.exportHistoriaOficialInfantilPDF(testChild, h, '8', therapist);
+
+    // 1. Verificación de la estructura exacta de 7 páginas
+    const pageMatches = pdfHtml.match(/<div class="pdf-page">/g) || [];
+    if (pageMatches.length !== 7) {
+        throw new Error(`El PDF de historia infantil debe contener exactamente 7 páginas (encontradas: ${pageMatches.length})`);
+    }
+
+    for (let i = 1; i <= 7; i++) {
+        if (!pdfHtml.includes(`<div class="page-footer">${i}</div>`)) {
+            throw new Error(`Falta el pie de página numerado oficial "${i}" en el PDF de historia infantil`);
+        }
+    }
+
+    // 2. Verificación de todos los Títulos y Secciones Estrictas de las 7 Páginas del PDF Infantil
+    const requiredSections = [
+        // Pág 1
+        'HISTORIA CLÍNICA INFANTIL',
+        'Ha asistido antes a Consulta Psicológica: NO',
+        'DATOS DE IDENTIFICACIÓN DEL PACIENTE:',
+        'DATOS FILIATORIOS DE LOS PADRES:',
+        'Nombre Completo de la Madre:',
+        'Nombre Completo del Padre:',
+        'Nº Hermanos:',
+        'Nº Hermanastros',
+        'Nº Medio Hermanos:',
+        'GENOGRAMA',
+        'MOTIVO DE CONSULTA:',
+        'GESTUALIDAD OBSERVADA AL MOMENTO DE EXPLICAR EL MOTIVO DE CONSULTA',
+        'SINTOMATOLOGÍA PRESENTADA:',
+        'Características Conductuales:',
+        // Pág 2
+        'Características Emocionales:',
+        'Características Orgánicas:',
+        'EXAMEN MENTAL:',
+        'ANTECEDENTES',
+        'Antecedentes Médicos del Paciente',
+        'Evaluación Neurológica',
+        'Golpes, caídas, lesiones, esguinces o fracturas.',
+        'Operaciones',
+        'Convulsiones',
+        'Enfermedades que afectan el Sistema Inmunológico',
+        'Alergias',
+        'Tratamiento Actual',
+        'Otros antecedentes',
+        'Antecedentes Médicos Familiares',
+        // Pág 3
+        'Antecedentes Psiquiátricos o psicológicos del Paciente',
+        'Antecedentes Psiquiátricos o psicológicos Familiares',
+        'Evaluación o tratamiento Pedagógico Previo del Paciente',
+        'DESARROLLO PRENATAL',
+        'Embarazo Deseado: SI',
+        'Embarazo Planificado: SI',
+        'Desarrollo del feto durante el embarazo',
+        'Estado emocional de la madre durante el embarazo',
+        'Medicación Durante el Embarazo',
+        'Enfermedades de la Madre Durante el Embarazo',
+        'Número de Embarazo de la Madre',
+        'DATOS DEL PARTO',
+        'Duración del Embarazo:',
+        'Duración del Parto:',
+        'Tipo de Parto:',
+        'Espontáneo:',
+        'Inducido:',
+        'Cesárea:',
+        'Natural:',
+        'ESTADO DEL NIÑO AL NACER',
+        'Llanto al nacer:',
+        'Posición del Bebé:',
+        'Peso:',
+        'Medida:',
+        'Reanimación:',
+        'Incubadora:',
+        'Primera alimentación:',
+        'Otras Observaciones:',
+        'DESARROLLO SOCIAL Y PSICOMOTOR DEL NIÑO ALREDEDOR DE LOS',
+        // Pág 4
+        'PRIMEROS AÑOS DE VIDA',
+        'Descripción de la alimentación durante los primeros meses de vida',
+        'Descripción del proceso de destete',
+        'Control o dureza cefálica',
+        'Edad a la que se sentó por primera vez',
+        'Gatear',
+        'Primeros pasos',
+        'Primeras palabras',
+        'Primero dientes',
+        'Control de esfínteres vesical y anal',
+        'ESCOLARIDAD',
+        'Guardería o cuidadores',
+        'Edad a la que comenzó la escolaridad',
+        'Proceso de adaptación a la escolaridad',
+        'Relación con las maestras',
+        'Amigos e interacción en la escuela',
+        'Edad a la que aprendió a leer',
+        'Edad a la que aprendió a escribir',
+        'Edad a la que aprendió a contar',
+        // Pág 5
+        'Desarrollo en la primaria',
+        'Áreas con mayor dificultad para su aprendizaje',
+        'Áreas con mayor facilidad para su aprendizaje',
+        'Conducta en el colegio',
+        'Actitud al realizar actividades',
+        'Personas con quien realizar actividades escolares en el hogar',
+        'DINÁMICA FAMILIAR Y SOCIAL',
+        'Conducta en el Hogar',
+        'Conducta al Salir de Casa',
+        'Cosas que le gusta',
+        'Cosas que le disgusta',
+        'Autonomía',
+        'Dinámica Familiar',
+        'Área Social',
+        // Pág 6
+        'Sexualidad',
+        'Área Espiritual',
+        'ÁREA DE VIVIENDA',
+        'Apartamento',
+        'Casa',
+        'Otro',
+        'Servicios Básicos',
+        'Comparte Habitación',
+        'Personas que Habitan en la Vivienda',
+        'HÁBITOS PSICOBIOLÓGICOS:',
+        'Adicciones (Drogas, alcohol, tecnología, cigarrillos, etc.):',
+        'Manías Sociales (Tics, rutinas que maneje en un determinado espacio)',
+        'Fobias o miedo intenso',
+        'Miedos nocturnos',
+        'Ornicofagia',
+        'Sueño',
+        'Alimentación',
+        'Higiene',
+        // Pág 7
+        'Área Recreacional',
+        'Rutina Diaria',
+        'Metas a Corto y Mediano Plazo',
+        'Metas a Largo Plazo',
+        'FIRMA Y SELLO'
+    ];
+
+    for (const sec of requiredSections) {
+        if (!pdfHtml.includes(sec)) {
+            throw new Error(`Falta campo o sección oficial del PDF en Historia Clínica Infantil: "${sec}"`);
+        }
+    }
+
+    // 3. Verificación de CERO campos foráneos no pertenecientes al PDF oficial infantil
+    const forbiddenInChild = [
+        'HISTORIA CLÍNICA ADULTO',
+        'Área Laboral:',
+        'Aspectos Legales:',
+        'IMPRESIÓN DIAGNÓSTICA (CIE-10 / CIE-11 & DSM-5-TR):',
+        'PLAN TERAPÉUTICO Y METAS DE INTERVENCIÓN:',
+        'DESCRIPCIÓN DE ACUERDO A LA ENTEVISTA CON EL ADOLESCENTE'
+    ];
+
+    for (const forb of forbiddenInChild) {
+        if (pdfHtml.includes(forb)) {
+            throw new Error(`Error: Se detectó campo foráneo no permitido en Historia Clínica Infantil: "${forb}"`);
+        }
+    }
+
+    // 4. Verificación de que el editor infantil genera las 7 pestañas correspondientes
+    const editorHtml = CHS.renderChildHistoryEditorHTML(testChild, h, therapist.registry);
+    for (let tabNum = 1; tabNum <= 7; tabNum++) {
+        if (!editorHtml.includes(`htab-child-${tabNum}`)) {
+            throw new Error(`El editor de historia infantil debe contener la pestaña htab-child-${tabNum}`);
+        }
+    }
+
+    const requiredChildTabs = [
+        'Identificación del Paciente',
+        'Motivo de Consulta y Examen Mental',
+        'Antecedentes',
+        'Desarrollo y Escolaridad',
+        'Dinámica Familiar y Vivienda',
+        'Hábitos Psicobiológicos',
+        'Metas y Proyecto de Vida'
+    ];
+
+    for (const tab of requiredChildTabs) {
+        if (!editorHtml.includes(tab)) {
+            throw new Error(`El editor de historia infantil debe contener la pestaña: "${tab}"`);
+        }
+    }
+
+    const requiredChildEditorFields = [
+        'fh_patientName',
+        'fh_birthPlace',
+        'fh_motherName',
+        'fh_fatherName',
+        'fh_siblingsCount',
+        'fh_reason',
+        'fh_mentalExam',
+        'fh_pregnancyDesired',
+        'fh_pregnancyPlanned',
+        'fh_deliveryType',
+        'fh_headControl',
+        'fh_readingAge',
+        'fh_learningDifficulties',
+        'fh_homeBehavior',
+        'fh_autonomy',
+        'fh_sexuality',
+        'fh_spirituality',
+        'fh_housingType',
+        'fh_addictions',
+        'fh_shortTermGoals',
+        'fh_longTermGoals'
+    ];
+
+    for (const fieldId of requiredChildEditorFields) {
+        if (!editorHtml.includes(fieldId)) {
+            throw new Error(`El editor de historia infantil debe contener el campo de formulario id="${fieldId}"`);
+        }
+    }
+
+    // 5. Verificación de renderizado integral en pantalla
+    const childViewHtml = CHS.renderChildHistoryIntegral(testChild, h, therapist, therapist.registry);
+    if (!childViewHtml.includes('Datos de Identificación del Paciente & Convivencia') || !childViewHtml.includes('Neurodesarrollo Prenatal, Parto, Hitos y Escolaridad')) {
+        throw new Error('El visor de historia infantil debe renderizar las secciones acordadas');
+    }
+});
+
 // 102. TC-PORTAL-06: Sincronización de tareas intersesión y desactivación efectiva de alertas SOS en portal adulto/adolescente
 ClinicalTestSuite.add('TC-PORTAL-06', 'Sincronización de tareas intersesión y desactivación efectiva de alertas SOS en portal adulto/adolescente', async () => {
     const baseUrl = await ensureTestServer();
@@ -5438,7 +6333,7 @@ ClinicalTestSuite.add('TC-PORTAL-10', 'Reflejo y sincronización bidireccional d
         passwordHash: 'dummy'
     });
 
-    const baseUrl = `http://localhost:${process.env.PORT || 3000}`;
+    const baseUrl = await ensureTestServer();
 
     // 2. Sincronizar paciente con portal habilitado
     const pSyncRes = await fetch(`${baseUrl}/api/v1/patients/sync`, {
@@ -5923,6 +6818,494 @@ ClinicalTestSuite.add('TC-EXP-03', 'Ficha Paciente e Historia Clínica Adolescen
     // Verificar presencia de botones de acción
     if (!renderedHtml.includes('Editar Historia Completa') || !renderedHtml.includes('PDF Oficial')) {
         throw new Error('Toolbar de HC Adolescente debe incluir Editar Historia Completa y PDF Oficial');
+    }
+});
+
+// 113. TC-EXP-04: Modificaciones en Historia Clínica Infantil (Eliminar Cédula del Niño y Separar Escolaridad/Ocupación de Padres)
+ClinicalTestSuite.add('TC-EXP-04', 'Historia Clínica Infantil: Sin cédula infantil, nombre completo y escolaridad/ocupación de padres separadas', async () => {
+    if (typeof ClinicalHistorySystem === 'undefined') {
+        await import('./historia-clinica.js');
+    }
+    const CHS = globalThis.ClinicalHistorySystem;
+    if (!CHS) throw new Error('ClinicalHistorySystem no está disponible');
+
+    const pediatricPatient = {
+        id: 'child_exp_04',
+        name: 'Sebastián Morales',
+        category: 'child',
+        birthdate: '2019-03-20',
+        gender: 'Masculino',
+        schoolName: 'U.E. Simón Bolívar',
+        schoolGrade: '1er Grado',
+        motherName: 'Valeria Méndez',
+        motherAge: '34',
+        motherCI: 'V-19.882.114',
+        motherEducation: 'Universitaria (Lic. en Educación)',
+        motherJob: 'Docente de Primaria',
+        fatherName: 'Carlos Morales',
+        fatherAge: '37',
+        fatherCI: 'V-18.455.901',
+        fatherEducation: 'Técnico Superior Universitario',
+        fatherJob: 'Coordinador de Logística'
+    };
+
+    globalThis.AppState = globalThis.AppState || {};
+    globalThis.AppState.patients = globalThis.AppState.patients || [];
+    globalThis.AppState.patients.push(pediatricPatient);
+
+    // 1. Renderizado en visor de acordeón
+    const childHtml = CHS.renderTabHistoriaIntegral(pediatricPatient);
+
+    // Debe mostrar Datos de Identificación y Nombre Completo
+    if (!childHtml.includes('Datos de Identificación del Paciente') || !childHtml.includes('Nombre Completo del Paciente:')) {
+        throw new Error('Debe titularse "Datos de Identificación del Paciente" e incluir "Nombre Completo del Paciente"');
+    }
+
+    // Debe eliminar la cédula del paciente en la sección de datos del niño
+    const identBlock = childHtml.substring(childHtml.indexOf('id="acc_sec_1"'), childHtml.indexOf('Datos Filiatorios'));
+    if (identBlock.includes('C.I. / Documento:')) {
+        throw new Error('La historia clínica infantil no debe mostrar campo de Cédula de Identidad para el paciente menor');
+    }
+
+    // Debe separar Escolaridad y Ocupación Actual en los datos de los padres
+    if (!childHtml.includes('<strong>Escolaridad:</strong>') || !childHtml.includes('<strong>Ocupación Actual:</strong>')) {
+        throw new Error('La sección de padres debe separar "Escolaridad" y "Ocupación Actual" como dos ítems independientes');
+    }
+
+    // 2. Exportación a PDF Oficial Infantil
+    const pdfHtml = CHS.exportHistoriaOficialPDF(pediatricPatient.id);
+    if (!pdfHtml.includes('DATOS DE IDENTIFICACIÓN DEL PACIENTE:')) {
+        throw new Error('El PDF infantil debe tener encabezado "DATOS DE IDENTIFICACIÓN DEL PACIENTE:"');
+    }
+    if (!pdfHtml.includes('DATOS FILIATORIOS DE LOS PADRES:')) {
+        throw new Error('El PDF infantil debe incluir "DATOS FILIATORIOS DE LOS PADRES:"');
+    }
+    if (!pdfHtml.includes('Escolaridad:') || !pdfHtml.includes('Ocupación Actual:')) {
+        throw new Error('El PDF infantil debe mostrar columnas separadas para Escolaridad y Ocupación Actual');
+    }
+});
+
+// ============================================
+// TC-PORTAL-14: Sincronización de Confirmación de Asistencia (Portal -> Terapeuta Check & Notificación)
+// ============================================
+ClinicalTestSuite.add('TC-PORTAL-14', 'Sincronización en tiempo real de confirmación de asistencia del paciente hacia el portal del terapeuta (Check badge, notificación y estado en agenda/calendario)', async () => {
+    const fs = await import('fs');
+    const appJs = fs.readFileSync('app.js', 'utf8');
+    const portalJs = fs.readFileSync('portal.js', 'utf8');
+    const stylesCss = fs.readFileSync('styles.css', 'utf8');
+    const indexHtml = fs.readFileSync('index.html', 'utf8');
+    const dbJs = fs.readFileSync('db.js', 'utf8');
+
+    // 1. Verificación de portal.js
+    if (!portalJs.includes('psico_portal_appointments_bridge') || !portalJs.includes('psico_portal_appointment_confirmed_event')) {
+        throw new Error('portal.js debe actualizar psico_portal_appointments_bridge y disparar psico_portal_appointment_confirmed_event al confirmar asistencia');
+    }
+    if (!portalJs.includes("bridge[appointmentId].status = 'confirmada'") || !portalJs.includes('bridge[appointmentId].attendanceConfirmed = true')) {
+        throw new Error('portal.js debe marcar status: "confirmada" y attendanceConfirmed: true en el puente de citas');
+    }
+
+    // 2. Verificación de estilos visuales de check y estados confirmados
+    if (!stylesCss.includes('.badge-attendance-check') || !stylesCss.includes('.status-confirmada')) {
+        throw new Error('styles.css debe definir las clases .badge-attendance-check y .status-confirmada');
+    }
+    if (!stylesCss.includes('.cal-event-pill.confirmada') && !stylesCss.includes('.cal-event-pill.confirmed')) {
+        throw new Error('styles.css debe estilizar las citas confirmadas en el calendario mensual');
+    }
+    if (!stylesCss.includes('.cal-week-card.confirmada') && !stylesCss.includes('.cal-week-card.confirmed')) {
+        throw new Error('styles.css debe estilizar las citas confirmadas en el calendario semanal');
+    }
+
+    // 3. Verificación de app.js (Terapeuta)
+    if (!appJs.includes('newlyConfirmedAppointments') || !appJs.includes('¡Asistencia Confirmada!')) {
+        throw new Error('app.js debe detectar newlyConfirmedAppointments y notificar al terapeuta con showToast');
+    }
+    if (!appJs.includes('badge-attendance-check')) {
+        throw new Error('app.js debe renderizar badge-attendance-check en las citas confirmadas');
+    }
+    if (!appJs.includes('psico_portal_appointment_confirmed_event')) {
+        throw new Error('app.js debe escuchar psico_portal_appointment_confirmed_event para sincronización en tiempo real');
+    }
+
+    // 4. Verificación de opciones de estado en modales y selectores
+    if (!indexHtml.includes('<option value="confirmada">')) {
+        throw new Error('index.html debe incluir la opción confirmada en el modal de citas');
+    }
+
+    // 5. Verificación de persistencia en db.js
+    if (!dbJs.includes('attendanceConfirmed') || !dbJs.includes('attendance_confirmed')) {
+        throw new Error('db.js debe mapear y persistir attendanceConfirmed y attendance_confirmed');
+    }
+});
+
+// ============================================
+// TC-PORTAL-15: Notificación y Alerta de Confirmación de Cita al Paciente
+// ============================================
+ClinicalTestSuite.add('TC-PORTAL-15', 'Notificación y banner de alerta para que el paciente confirme su asistencia (UI, Web Notifications, Badge y solicitud del terapeuta)', async () => {
+    const fs = await import('fs');
+    const portalHtml = fs.readFileSync('portal.html', 'utf8');
+    const portalJs = fs.readFileSync('portal.js', 'utf8');
+    const portalCss = fs.readFileSync('portal.css', 'utf8');
+    const appJs = fs.readFileSync('app.js', 'utf8');
+    const remindersJs = fs.readFileSync('session-reminders.js', 'utf8');
+    const serverJs = fs.readFileSync('server.js', 'utf8');
+
+    // 1. Verificación del Banner de Alerta en portal.html
+    if (!portalHtml.includes('appointmentConfirmationAlertBanner') || !portalHtml.includes('btnConfirmAlertAction') || !portalHtml.includes('sessionsNavBadge')) {
+        throw new Error('portal.html debe contener el banner appointmentConfirmationAlertBanner, el botón btnConfirmAlertAction y la insignia sessionsNavBadge');
+    }
+
+    // 2. Verificación de lógica de alerta en portal.js
+    if (!portalJs.includes('checkAppointmentConfirmationAlert') || !portalJs.includes('confirmAppointmentFromAlertBanner')) {
+        throw new Error('portal.js debe implementar checkAppointmentConfirmationAlert y confirmAppointmentFromAlertBanner');
+    }
+    if (!portalJs.includes('psico_portal_confirmation_requested_event')) {
+        throw new Error('portal.js debe escuchar psico_portal_confirmation_requested_event para reaccionar a recordatorios en tiempo real');
+    }
+
+    // 3. Verificación de estilos en portal.css
+    if (!portalCss.includes('.appointment-confirm-alert-banner') || !portalCss.includes('.btn-confirm-alert-action') || !portalCss.includes('.nav-badge-pill')) {
+        throw new Error('portal.css debe definir estilos para el banner de confirmación, botón de acción e insignia de navegación');
+    }
+
+    // 4. Verificación de solicitud desde la plataforma del terapeuta
+    if (!appJs.includes('requestPortalConfirmation')) {
+        throw new Error('app.js debe implementar requestPortalConfirmation para enviar recordatorios al portal');
+    }
+    if (!remindersJs.includes('request_portal_confirm')) {
+        throw new Error('session-reminders.js debe permitir solicitar confirmación en el portal desde los recordatorios');
+    }
+    if (!serverJs.includes('/api/v1/appointments/:id/request-confirmation')) {
+        throw new Error('server.js debe exponer el endpoint /api/v1/appointments/:id/request-confirmation con auditoría médica');
+    }
+});
+
+// ============================================
+// TC-EST-01: Consistencia de Variables CSS en Terapeuta y Portal
+// ============================================
+ClinicalTestSuite.add('TC-EST-01', 'Consistencia de Tokens CSS en Terapeuta y Portal (Cero variables huérfanas)', async () => {
+    const fs = await import('fs');
+    const stylesCss = fs.readFileSync('styles.css', 'utf8');
+    const portalCss = fs.readFileSync('portal.css', 'utf8');
+
+    // 1. Verificación en styles.css
+    if (!stylesCss.includes('--border-color:') || !stylesCss.includes('--color-primary:')) {
+        throw new Error('styles.css debe definir explícitamente --border-color y --color-primary para evitar tokens huérfanos');
+    }
+
+    // 2. Verificación en portal.css
+    if (!portalCss.includes('--radius-full:') || !portalCss.includes('--accent-gradient:') || !portalCss.includes('--border-color:') || !portalCss.includes('--color-primary:')) {
+        throw new Error('portal.css debe definir --radius-full, --accent-gradient, --border-color y --color-primary en :root');
+    }
+});
+
+// ============================================
+// TC-EST-02: Modo Oscuro Completo en Portal del Paciente
+// ============================================
+ClinicalTestSuite.add('TC-EST-02', 'Modo Oscuro en Portal de Pacientes (Paleta completa, conmutador y persistencia)', async () => {
+    const fs = await import('fs');
+    const portalCss = fs.readFileSync('portal.css', 'utf8');
+    const portalHtml = fs.readFileSync('portal.html', 'utf8');
+    const portalJs = fs.readFileSync('portal.js', 'utf8');
+
+    // 1. Paleta de Modo Oscuro en portal.css
+    if (!portalCss.includes('[data-theme="dark"]') || !portalCss.includes('--bg-primary: #111815;') || !portalCss.includes('--bg-card: #16201b;')) {
+        throw new Error('portal.css debe definir la paleta completa de [data-theme="dark"] para el portal');
+    }
+
+    // 2. Elemento de control en portal.html
+    if (!portalHtml.includes('btnPortalThemeToggle') || !portalHtml.includes('togglePortalTheme()')) {
+        throw new Error('portal.html debe contener el botón de alternancia de tema #btnPortalThemeToggle');
+    }
+
+    // 3. Funciones controladoras en portal.js
+    if (!portalJs.includes('initPortalTheme') || !portalJs.includes('togglePortalTheme') || !portalJs.includes('updatePortalThemeIcon')) {
+        throw new Error('portal.js debe implementar initPortalTheme, togglePortalTheme y updatePortalThemeIcon');
+    }
+});
+
+// ============================================
+// TC-EST-03: Cierre Accesible de Overlays con Tecla Escape
+// ============================================
+ClinicalTestSuite.add('TC-EST-03', 'Cierre Universal de Modales y Overlays mediante Tecla Escape (app.js y portal.js)', async () => {
+    const fs = await import('fs');
+    const appJs = fs.readFileSync('app.js', 'utf8');
+    const portalJs = fs.readFileSync('portal.js', 'utf8');
+
+    // 1. app.js debe cerrar drawers y llamar a destructores de modales
+    if (!appJs.includes('closeReminderDrawer()') || !appJs.includes('closeModal(m.id)')) {
+        throw new Error('app.js debe cerrar sessionReminderDrawer y ejecutar closeModal(m.id) al presionar Escape');
+    }
+
+    // 2. portal.js debe implementar cierre de modales con Escape
+    if (!portalJs.includes('closeAllPortalModals') || !portalJs.includes("e.key === 'Escape'")) {
+        throw new Error('portal.js debe escuchar la tecla Escape e invocar closeAllPortalModals');
+    }
+});
+
+// ============================================
+// TC-EST-04: Adaptabilidad Temática de Contenedores y Recibos
+// ============================================
+ClinicalTestSuite.add('TC-EST-04', 'Resiliencia Temática de Contenedores Dinámicos y Recibos de Pago (Modo Claro/Oscuro)', async () => {
+    const fs = await import('fs');
+    const indexHtml = fs.readFileSync('index.html', 'utf8');
+
+    if (!indexHtml.includes('id="receiptImageContainer"') || !indexHtml.includes('background: var(--bg-card);')) {
+        throw new Error('index.html debe utilizar variables dinámicas var(--bg-card) en los visores de recibos y previsualizadores');
+    }
+});
+
+// ============================================
+// TC-NOTIF-01: Control Anti-Spam y Deduplicación de Notificaciones Toast
+// ============================================
+ClinicalTestSuite.add('TC-NOTIF-01', 'Control Anti-Spam, Deduplicación y Límite de Toasts (Cero lluvia de notificaciones)', async () => {
+    const fs = await import('fs');
+    const appJs = fs.readFileSync('app.js', 'utf8');
+
+    // 1. Debe existir el mecanismo de deduplicación persistente
+    if (!appJs.includes('NOTIFIED_CONFIRMATIONS_KEY') || !appJs.includes('isConfirmationAlreadyNotified') || !appJs.includes('markConfirmationAsNotified')) {
+        throw new Error('app.js debe implementar NOTIFIED_CONFIRMATIONS_KEY, isConfirmationAlreadyNotified y markConfirmationAsNotified');
+    }
+
+    // 2. showToast debe limitar el máximo de toasts y evitar mensajes idénticos duplicados
+    if (!appJs.includes('c.children.length >= 3') || !appJs.includes('child.textContent.includes(cleanMsg)')) {
+        throw new Error('showToast debe descartar mensajes idénticos simultáneos y limitar a 3 toasts máximos en pantalla');
+    }
+
+    // 3. syncPortalAppointmentsToTherapist debe validar isConfirmationAlreadyNotified
+    if (!appJs.includes('!isConfirmationAlreadyNotified(')) {
+        throw new Error('syncPortalAppointmentsToTherapist debe verificar !isConfirmationAlreadyNotified antes de notificar confirmaciones');
+    }
+});
+
+// ============================================
+// TC-EST-05: Contención Visual y Ergonomía de Tarjetas KPI
+// ============================================
+ClinicalTestSuite.add('TC-EST-05', 'Contención Visual, Ergonomía de Tarjetas KPI y Vinculación de IDs en Expediente', async () => {
+    const fs = await import('fs');
+    const stylesCss = fs.readFileSync('styles.css', 'utf8');
+    const appJs = fs.readFileSync('app.js', 'utf8');
+    const indexHtml = fs.readFileSync('index.html', 'utf8');
+
+    // 1. styles.css debe prevenir desbordamiento en KPI cards y selector
+    if (!stylesCss.includes('.expediente-kpi-card') || !stylesCss.includes('overflow: hidden;') || !stylesCss.includes('.quick-status-selector')) {
+        throw new Error('styles.css debe definir overflow: hidden en .expediente-kpi-card y estilo responsivo en .quick-status-selector');
+    }
+
+    // 2. app.js debe estructurar el selector sin duplicación redundante de chips
+    if (!appJs.includes('quickUpdatePatientStatus') || !appJs.includes('class="quick-status-selector"')) {
+        throw new Error('app.js debe renderizar quick-status-selector con el controlador quickUpdatePatientStatus');
+    }
+
+    // 3. index.html debe incluir los campos de diagnóstico, antecedentes y emergencias
+    if (!indexHtml.includes('id="patientDiagnosis"') || !indexHtml.includes('id="patientMedication"') || !indexHtml.includes('id="patientEmergency"') || !indexHtml.includes('id="patientNotes"')) {
+        throw new Error('index.html debe contener patientDiagnosis, patientMedication, patientEmergency y patientNotes');
+    }
+});
+
+// ============================================
+// TC-POR-16: Sincronización de Agendamiento, Notas Reflexivas y Personalización Infantil
+// ============================================
+ClinicalTestSuite.add('TC-POR-16', 'Sincronización de Agendamiento, Notas Reflexivas y Personalización Infantil en Portal', async () => {
+    const fs = await import('fs');
+    const portalJs = fs.readFileSync('portal.js', 'utf8');
+    const portalHtml = fs.readFileSync('portal.html', 'utf8');
+
+    // 1. pickAvailableSlot debe resolver dualmente scheduleDate y scheduleSessionDate
+    if (!portalJs.includes("document.getElementById('scheduleDate') || document.getElementById('scheduleSessionDate')")) {
+        throw new Error('pickAvailableSlot debe resolver scheduleDate || scheduleSessionDate para auto-completar fecha y hora');
+    }
+
+    // 2. selectKidThoughtChip y submitKidWeatherAndBody deben vincular kidWeatherOptionalNote
+    if (!portalJs.includes("document.getElementById('kidWeatherOptionalNote') || document.getElementById('kidWeatherStory')")) {
+        throw new Error('portal.js debe resolver kidWeatherOptionalNote para notas reflexivas infantiles');
+    }
+
+    // 3. saveKidAvatar y actualización de displays debe vincular kidAvatarDisplayNameInput
+    if (!portalJs.includes("document.getElementById('kidAvatarDisplayNameInput') || document.getElementById('kidAvatarCustomName')")) {
+        throw new Error('portal.js debe resolver kidAvatarDisplayNameInput para guardar el nombre de avatar del niño');
+    }
+
+    // 4. Validar que portal.html contiene los IDs reales
+    if (!portalHtml.includes('id="kidWeatherOptionalNote"') || !portalHtml.includes('id="kidAvatarDisplayNameInput"')) {
+        throw new Error('portal.html debe contener kidWeatherOptionalNote y kidAvatarDisplayNameInput');
+    }
+});
+
+// ============================================
+// TC-REC-02: Mapeo Defensivo de Campos SOAP en SessionRecorder hacia Hoja de Evolución Oficial
+// ============================================
+ClinicalTestSuite.add('TC-REC-02', 'Mapeo Defensivo de Campos SOAP en SessionRecorder hacia Hoja de Evolución Oficial', async () => {
+    const fs = await import('fs');
+    const recJs = fs.readFileSync('session-recorder.js', 'utf8');
+    const indexHtml = fs.readFileSync('index.html', 'utf8');
+
+    // 1. SessionRecorder debe mapear a noteSubjetivo, noteObjetivo, noteAnalisis con fallback
+    if (!recJs.includes("document.getElementById('noteSubjetivo') || document.getElementById('noteSubjective')") ||
+        !recJs.includes("document.getElementById('noteObjetivo') || document.getElementById('noteObjective')") ||
+        !recJs.includes("document.getElementById('noteAnalisis') || document.getElementById('noteAssessment')")) {
+        throw new Error('session-recorder.js debe soportar los identificadores en español oficiales del formulario SOAP');
+    }
+
+    // 2. index.html debe incluir los IDs oficiales del modal SOAP
+    if (!indexHtml.includes('id="noteSubjetivo"') || !indexHtml.includes('id="noteObjetivo"') || !indexHtml.includes('id="noteAnalisis"') || !indexHtml.includes('id="notePlan"')) {
+        throw new Error('index.html debe contener noteSubjetivo, noteObjetivo, noteAnalisis y notePlan');
+    }
+});
+
+// ============================================
+// TC-SER-01: Identidad Visual y Marca Oficial SERENA
+// ============================================
+ClinicalTestSuite.add('TC-SER-01', 'Identidad Visual y Marca Oficial SERENA (index.html, portal.html, manifest, metadata)', async () => {
+    const fs = await import('fs');
+    const indexHtml = fs.readFileSync('index.html', 'utf8');
+    const portalHtml = fs.readFileSync('portal.html', 'utf8');
+    const manifestJson = JSON.parse(fs.readFileSync('manifest.json', 'utf8'));
+    const metadataJson = JSON.parse(fs.readFileSync('metadata.json', 'utf8'));
+
+    // 1. Título y meta en index.html
+    if (!indexHtml.includes('<title>SERENA') || !indexHtml.includes('Tu práctica, en equilibrio')) {
+        throw new Error('index.html debe contener el título de SERENA y el eslogan "Tu práctica, en equilibrio"');
+    }
+    if (!indexHtml.includes('content="#123F36"')) {
+        throw new Error('index.html debe usar el color de tema oficial Verde Bosque (#123F36)');
+    }
+    if (!indexHtml.includes('favicon.svg')) {
+        throw new Error('index.html debe vincular favicon.svg');
+    }
+
+    // 2. Logotipo visible en auth y sidebar
+    if (!indexHtml.includes('assets/brand/serena-symbol.svg')) {
+        throw new Error('index.html debe utilizar el símbolo oficial serena-symbol.svg en lugar de emojis');
+    }
+    if (!indexHtml.includes('<span class="logo-text">SERENA</span>')) {
+        throw new Error('index.html debe desplegar el texto de marca SERENA en la navegación');
+    }
+
+    // 3. Portal de pacientes
+    if (!portalHtml.includes('<title>SERENA — Mi Espacio</title>')) {
+        throw new Error('portal.html debe llevar el título "SERENA — Mi Espacio"');
+    }
+    if (!portalHtml.includes('assets/brand/serena-symbol.svg')) {
+        throw new Error('portal.html debe desplegar el símbolo de SERENA en el acceso');
+    }
+
+    // 4. Manifest y metadatos
+    if (manifestJson.name !== 'SERENA — Tu práctica, en equilibrio' || manifestJson.short_name !== 'SERENA') {
+        throw new Error('manifest.json debe definir name y short_name como SERENA');
+    }
+    if (manifestJson.theme_color !== '#123F36') {
+        throw new Error('manifest.json debe usar el theme_color #123F36');
+    }
+    if (metadataJson.name !== 'SERENA') {
+        throw new Error('metadata.json debe declarar name: "SERENA"');
+    }
+});
+
+// ============================================
+// TC-SER-02: Tokens de Diseño y Tipografía Oficial SERENA
+// ============================================
+ClinicalTestSuite.add('TC-SER-02', 'Tokens de Diseño y Tipografía Oficial SERENA (styles.css y portal.css)', async () => {
+    const fs = await import('fs');
+    const stylesCss = fs.readFileSync('styles.css', 'utf8');
+    const portalCss = fs.readFileSync('portal.css', 'utf8');
+
+    // 1. Paleta oficial de 8 tokens en styles.css
+    const requiredTokens = [
+        '--brand-forest: #123F36;',
+        '--brand-petroleum: #285C50;',
+        '--brand-sage: #7FA38F;',
+        '--brand-ivory: #F7F8F6;',
+        '--brand-text: #202923;',
+        '--brand-text-muted: #69736D;',
+        '--brand-border: #E5E9E5;',
+        '--brand-white: #FFFFFF;'
+    ];
+    for (const token of requiredTokens) {
+        if (!stylesCss.includes(token)) {
+            throw new Error(`styles.css carece del token requerido: ${token}`);
+        }
+    }
+
+    // 2. Tipografía oficial Montserrat para display y títulos
+    if (!stylesCss.includes('--font-display: "Montserrat"') && !stylesCss.includes("--font-display: 'Montserrat'")) {
+        throw new Error('styles.css debe definir --font-display con Montserrat');
+    }
+
+    // 3. Tokens en portal.css
+    if (!portalCss.includes('--brand-forest:') || !portalCss.includes('--brand-petroleum:') || !portalCss.includes('--brand-sage:')) {
+        throw new Error('portal.css debe incorporar los tokens fundamentales de SERENA');
+    }
+});
+
+// ============================================
+// TC-SER-03: Entregables de Recursos Gráficos, Logotipo y Avatar Serena
+// ============================================
+ClinicalTestSuite.add('TC-SER-03', 'Entregables de Recursos Gráficos, Logotipo y Avatar Serena', async () => {
+    const fs = await import('fs');
+    const path = await import('path');
+
+    const requiredFiles = [
+        // Logotipo y derivados
+        'assets/brand/serena-symbol.svg',
+        'assets/brand/serena-symbol-white.svg',
+        'assets/brand/serena-symbol-mono.svg',
+        'assets/brand/serena-logo-horizontal.svg',
+        'assets/brand/serena-logo-white.svg',
+        'assets/brand/serena-logo-mono.svg',
+        'assets/brand/serena-logo.svg',
+        'favicon.svg',
+        'icon-192.png',
+        'icon-512.png',
+        // Avatar oficial en 5 variantes
+        'assets/avatar/serena-avatar-main.svg',
+        'assets/avatar/serena-avatar-header.svg',
+        'assets/avatar/serena-avatar-welcome.svg',
+        'assets/avatar/serena-empty-state.svg',
+        'assets/avatar/serena-avatar-badge.svg'
+    ];
+
+    for (const relPath of requiredFiles) {
+        const fullPath = path.resolve(relPath);
+        if (!fs.existsSync(fullPath)) {
+            throw new Error(`Archivo gráfico requerido no encontrado: ${relPath}`);
+        }
+        const stat = fs.statSync(fullPath);
+        if (stat.size < 50) {
+            throw new Error(`Archivo gráfico truncado o vacío: ${relPath} (${stat.size} bytes)`);
+        }
+        if (relPath.endsWith('.svg')) {
+            const content = fs.readFileSync(fullPath, 'utf8');
+            if (!content.includes('<svg') || !content.includes('</svg>')) {
+                throw new Error(`SVG inválido o malformado: ${relPath}`);
+            }
+        }
+    }
+});
+
+// ============================================
+// TC-SER-04: Asistente Visual Serena e Integración Contextual
+// ============================================
+ClinicalTestSuite.add('TC-SER-04', 'Asistente Visual Serena e Integración Contextual (app.js, index.html)', async () => {
+    const fs = await import('fs');
+    const indexHtml = fs.readFileSync('index.html', 'utf8');
+    const appJs = fs.readFileSync('app.js', 'utf8');
+
+    // 1. Tarjeta asistente en index.html
+    if (!indexHtml.includes('id="serenaAssistantBanner"') || !indexHtml.includes('dismissSerenaBanner()')) {
+        throw new Error('index.html debe contener el banner del asistente Serena y el botón para descartarlo');
+    }
+    if (!indexHtml.includes('id="serenaAssistantToggleBtn"') || !indexHtml.includes('toggleSerenaAssistant()')) {
+        throw new Error('index.html debe contener el botón en la barra superior para alternar los consejos de Serena');
+    }
+
+    // 2. Controladores en app.js
+    if (!appJs.includes('dismissSerenaBanner') || !appJs.includes('toggleSerenaAssistant') || !appJs.includes('initSerenaAssistant')) {
+        throw new Error('app.js debe implementar y exponer dismissSerenaBanner, toggleSerenaAssistant e initSerenaAssistant');
+    }
+
+    // 3. Verificación de no intrusión: no bloquear notas clínicas
+    if (appJs.includes('openSoapModal') && appJs.includes('serenaAssistantBanner.style.display = "block"')) {
+        throw new Error('El asistente Serena no debe interrumpir la redacción de notas SOAP');
     }
 });
 
