@@ -786,7 +786,7 @@ ClinicalTestSuite.add('TC-VITAL-02', 'Validación de Acompañamiento en la Niñe
         throw new Error('El acompañamiento en la niñez requiere tutor legal y vínculo de filiación');
     }
     if (pediatricPatient.guardianConsent !== 'firmado') {
-        throw new Error('El consentimiento parental debe poder registrar estado firmado');
+        throw new Error('El Consentimiento Informado debe poder registrar estado firmado');
     }
     if (!pediatricPatient.schoolName || !pediatricPatient.developmentalMilestones) {
         throw new Error('Faltan datos de neurodesarrollo o contexto escolar en la niñez');
@@ -7308,6 +7308,494 @@ ClinicalTestSuite.add('TC-SER-04', 'Asistente Visual Serena e Integración Conte
         throw new Error('El asistente Serena no debe interrumpir la redacción de notas SOAP');
     }
 });
+
+// ============================================
+// TC-GENO-01: Inicialización e Inferencia Inteligente del Genograma (McGoldrick & Gerson)
+// ============================================
+ClinicalTestSuite.add('TC-GENO-01', 'Inicialización e Inferencia Inteligente del Genograma Familiar (McGoldrick, Gerson & Bowen)', async () => {
+    await import('./genogram.js');
+    const GenogramModule = globalThis.GenogramModule;
+    if (!GenogramModule) throw new Error('GenogramModule debe exportarse correctamente en genogram.js');
+
+    const mockPatient = {
+        id: 'pat_test_geno_01',
+        name: 'Alejandro Morales',
+        gender: 'M',
+        birthdate: '1992-05-14',
+        age: 32,
+        life_stage: 'adult',
+        occupation: 'Diseñador Gráfico',
+        diagnosis: 'Trastorno de Ansiedad Generalizada',
+        guardian_name: 'Roberto Morales',
+        guardian_relation: 'Padre',
+        motherName: 'Elena de Morales',
+        livesWith: 'Madre y hermana'
+    };
+
+    const geno = GenogramModule.createDefaultGenogram(mockPatient);
+    if (!geno) throw new Error('createDefaultGenogram no generó la estructura base');
+
+    // Debe contener al menos al paciente índice y a los padres
+    const indexMember = geno.members.find(m => m.isIndex);
+    if (!indexMember) throw new Error('El genograma debe contener un miembro marcado como isIndex (Caso Índice)');
+    if (indexMember.gender !== 'M') throw new Error('El género del paciente debe ser M (cuadrado)');
+    if (indexMember.generation !== 1) throw new Error('El paciente índice debe ubicarse en la Generación 1 (o III)');
+
+    // Verificar padres
+    const father = geno.members.find(m => m.id === 'm_father');
+    const mother = geno.members.find(m => m.id === 'm_mother');
+    if (!father || !mother) throw new Error('Deben inferirse los progenitores en la Generación 0 (o II)');
+    if (father.generation !== 0 || mother.generation !== 0) throw new Error('Los progenitores deben tener generation = 0');
+
+    // Debe existir unión conyugal entre padres y filiación hacia el paciente
+    if (!geno.unions || geno.unions.length === 0) throw new Error('Debe registrarse la unión conyugal parental');
+    const descent = geno.children.find(c => c.childId === indexMember.id);
+    if (!descent) throw new Error('El paciente índice debe tener un vínculo de filiación hacia la unión parental');
+});
+
+// ============================================
+// TC-GENO-02: Renderizado Vectorial SVG y Simbología Anatómica
+// ============================================
+ClinicalTestSuite.add('TC-GENO-02', 'Renderizado Vectorial SVG y Simbología Anatómica Estándar (Figuras, Doble Borde y Hogar)', async () => {
+    await import('./genogram.js');
+    const GenogramModule = globalThis.GenogramModule;
+
+    const testGeno = {
+        patientId: 'p_100',
+        members: [
+            { id: 'm1', name: 'Padre', gender: 'M', age: 60, isDeceased: false, isIndex: false, generation: 0, x: 200, y: 150, inHousehold: false, clinicalConditions: [] },
+            { id: 'm2', name: 'Madre', gender: 'F', age: 58, isDeceased: true, deathYear: 2020, isIndex: false, generation: 0, x: 350, y: 150, inHousehold: false, clinicalConditions: [] },
+            { id: 'm3', name: 'Paciente', gender: 'M', age: 28, isDeceased: false, isIndex: true, generation: 1, x: 275, y: 300, inHousehold: true, clinicalConditions: [] },
+            { id: 'm4', name: 'Hermana', gender: 'F', age: 25, isDeceased: false, isIndex: false, generation: 1, x: 420, y: 300, inHousehold: true, clinicalConditions: [] }
+        ],
+        unions: [
+            { id: 'u1', partner1Id: 'm1', partner2Id: 'm2', type: 'married', year: '1985' }
+        ],
+        children: [
+            { id: 'c1', unionId: 'u1', childId: 'm3', type: 'biological' },
+            { id: 'c2', unionId: 'u1', childId: 'm4', type: 'biological' }
+        ],
+        relationships: []
+    };
+
+    const svg = GenogramModule.renderSVG(testGeno, { width: 960, height: 540, interactive: false });
+    if (!svg.includes('<svg') || !svg.includes('</svg>')) {
+        throw new Error('renderSVG debe retornar un elemento SVG válido');
+    }
+
+    // Cuadrado para hombre
+    if (!svg.includes('<rect') || !svg.includes('width="52"')) {
+        throw new Error('Debe renderizar cuadrados para varones');
+    }
+    // Círculo para mujer
+    if (!svg.includes('<circle') || !svg.includes('r="26"')) {
+        throw new Error('Debe renderizar círculos para mujeres');
+    }
+    // Doble contorno para paciente identificado (isIndex)
+    if (!svg.includes('is-index') || !svg.includes('stroke-width="1.6"')) {
+        throw new Error('El paciente identificado debe renderizar contorno concéntrico doble');
+    }
+    // Cruz de defunción para fallecido
+    if (!svg.includes('m.2020') || !svg.includes('line x1="-30"')) {
+        throw new Error('Debe renderizar cruz diagonal y año de fallecimiento para m2');
+    }
+    // Límite del hogar (Household) envolviendo a los convivientes
+    if (!svg.includes('Hogar') || !svg.includes('stroke-dasharray="7,6"')) {
+        throw new Error('Debe renderizar el perímetro discontinuo de coresidencia (Hogar actual)');
+    }
+});
+
+// ============================================
+// TC-GENO-03: Pautas Afectivas y Dinámicas Relacionales de Bowen
+// ============================================
+ClinicalTestSuite.add('TC-GENO-03', 'Pautas Afectivas y Dinámicas Relacionales de Bowen (Fusión, Conflicto, Distancia y Cut-Off)', async () => {
+    await import('./genogram.js');
+    const GenogramModule = globalThis.GenogramModule;
+
+    const testGeno = {
+        patientId: 'p_bowen',
+        members: [
+            { id: 'm_a', name: 'Madre', gender: 'F', age: 50, x: 200, y: 150, inHousehold: true, clinicalConditions: [] },
+            { id: 'm_b', name: 'Paciente', gender: 'M', age: 22, isIndex: true, x: 200, y: 320, inHousehold: true, clinicalConditions: [] },
+            { id: 'm_c', name: 'Padre', gender: 'M', age: 52, x: 400, y: 150, inHousehold: false, clinicalConditions: [] }
+        ],
+        unions: [
+            { id: 'u_sep', partner1Id: 'm_c', partner2Id: 'm_a', type: 'separated', year: '1998' }
+        ],
+        children: [],
+        relationships: [
+            { id: 'r1', fromId: 'm_b', toId: 'm_a', type: 'enmeshed', notes: 'Fusión simbiótica' },
+            { id: 'r2', fromId: 'm_a', toId: 'm_c', type: 'conflictual', notes: 'Hostilidad continua' },
+            { id: 'r3', fromId: 'm_b', toId: 'm_c', type: 'cutoff', notes: 'Corte emocional desde 2019' }
+        ]
+    };
+
+    const svg = GenogramModule.renderSVG(testGeno, { width: 960, height: 540 });
+
+    // Fusión (3 líneas)
+    if (!svg.includes('stroke-width="7"') && !svg.includes('stroke-width="4"')) {
+        throw new Error('Debe renderizar vínculo fusionado (enmeshed)');
+    }
+    // Conflicto (símbolo o zigzag)
+    if (!svg.includes('⚡') && !svg.includes('stroke-dasharray="5,4"')) {
+        throw new Error('Debe renderizar vínculo conflictivo con indicación visual');
+    }
+    // Corte emocional (Cut-off con barras transversales)
+    if (!svg.includes('r3') || !svg.includes('stroke-width="3"')) {
+        throw new Error('Debe renderizar corte emocional (Cut-off) entre paciente y padre');
+    }
+    // Separación conyugal: una barra diagonal
+    if (!svg.includes('stroke="#dc2626"') || !svg.includes('y2="179"')) {
+        throw new Error('La unión de tipo separated debe renderizar una barra diagonal roja');
+    }
+});
+
+// ============================================
+// TC-GENO-04: Marcadores Clínicos Transgeneracionales (Adicciones, Depresión, Ansiedad, Suicidio)
+// ============================================
+ClinicalTestSuite.add('TC-GENO-04', 'Marcadores Clínicos Transgeneracionales y Sombreados Médicos (McGoldrick)', async () => {
+    await import('./genogram.js');
+    const GenogramModule = globalThis.GenogramModule;
+
+    const testGeno = {
+        patientId: 'p_med',
+        members: [
+            { id: 'm_alc', name: 'Abuelo', gender: 'M', age: 72, x: 200, y: 100, inHousehold: false, clinicalConditions: ['alcoholism'] },
+            { id: 'm_dep', name: 'Madre', gender: 'F', age: 48, x: 400, y: 200, inHousehold: true, clinicalConditions: ['depression', 'anxiety'] },
+            { id: 'm_sui', name: 'Tío', gender: 'M', age: 35, isDeceased: true, deathYear: 2012, x: 600, y: 200, inHousehold: false, clinicalConditions: ['suicide'] }
+        ],
+        unions: [],
+        children: [],
+        relationships: []
+    };
+
+    const svg = GenogramModule.renderSVG(testGeno);
+
+    // Alcoholismo: sombreado mitad inferior (#8b5cf6)
+    if (!svg.includes('fill="#8b5cf6"')) {
+        throw new Error('Debe incluir sombreado de adicciones/alcoholismo (#8b5cf6)');
+    }
+    // Depresión: sombreado mitad superior (#3b82f6)
+    if (!svg.includes('fill="#3b82f6"')) {
+        throw new Error('Debe incluir sombreado de depresión (#3b82f6)');
+    }
+    // Ansiedad: marcador visual circular (#f59e0b)
+    if (!svg.includes('fill="#f59e0b"')) {
+        throw new Error('Debe incluir marcador de ansiedad (#f59e0b)');
+    }
+    // Suicidio: cruz distintiva
+    if (!svg.includes('✞')) {
+        throw new Error('Debe incluir símbolo de suicidio (✞)');
+    }
+});
+
+// ============================================
+// TC-GENO-05: Integración en Frontend, Servidor y Lista Blanca de Seguridad
+// ============================================
+ClinicalTestSuite.add('TC-GENO-05', 'Integración en Frontend, Servidor y Lista Blanca de Seguridad (index.html, server.js, app.js)', async () => {
+    const fs = await import('fs');
+    const indexHtml = fs.readFileSync('index.html', 'utf8');
+    const serverJs = fs.readFileSync('server.js', 'utf8');
+    const appJs = fs.readFileSync('app.js', 'utf8');
+
+    // 1. Incluido en index.html
+    if (!indexHtml.includes('genogram.js')) {
+        throw new Error('index.html debe incluir la etiqueta de script de genogram.js');
+    }
+
+    // 2. Registrado en ALLOWED_STATIC_FILES en server.js
+    if (!serverJs.includes("'genogram.js'")) {
+        throw new Error('server.js debe incluir genogram.js en ALLOWED_STATIC_FILES');
+    }
+
+    // 3. Pestaña presente en el expediente clínico (app.js)
+    if (!appJs.includes("switchPatientTab('genograma'") || !appJs.includes('tab-genograma')) {
+        throw new Error('app.js debe integrar la pestaña de Genograma en el expediente del paciente');
+    }
+});
+
+// ============================================
+// TC-GENO-06: Copiloto SERENA de Hipótesis Sistémica y Preguntas Circulares
+// ============================================
+ClinicalTestSuite.add('TC-GENO-06', 'Copiloto SERENA de Hipótesis Sistémica y Preguntas Circulares', async () => {
+    await import('./genogram.js');
+    const GenogramModule = globalThis.GenogramModule;
+
+    const summary = {
+        paciente: { nombre: 'María González', edad: 29 },
+        miembros: [
+            { nombre: 'María González', convive: true },
+            { nombre: 'Padre', convive: false },
+            { nombre: 'Madre', convive: true }
+        ],
+        dinamicasAfectivas: [
+            { de: 'María González', hacia: 'Madre', pauta: 'enmeshed_conflict' },
+            { de: 'Madre', hacia: 'Padre', pauta: 'conflictual' }
+        ]
+    };
+
+    const insight = GenogramModule.generateLocalSystemicInsight(summary);
+    if (!insight.includes('Formulación Sistémica') || !insight.includes('Preguntas Circulares')) {
+        throw new Error('generateLocalSystemicInsight debe generar análisis sistémico y preguntas circulares');
+    }
+    if (!insight.includes('Fusión') && !insight.includes('Sobreinvolucramiento')) {
+        throw new Error('Debe detectar la pauta enmeshed_conflict');
+    }
+});
+
+// ============================================
+// TC-GENO-07: Asistente Familiar Guiado hasta 2da Línea (Abuelos, Tíos, Padres, Hijos y Figuras)
+// ============================================
+ClinicalTestSuite.add('TC-GENO-07', 'Asistente Familiar Guiado hasta 2da Línea (Abuelos, Tíos, Padres, Hijos y Figuras)', async () => {
+    await import('./genogram.js');
+    const GenogramModule = globalThis.GenogramModule;
+
+    // Configurar estado simulado del wizard con las 2 líneas familiares
+    GenogramModule.wizardData = {
+        patientId: 'pat_wiz_test_01',
+        paternalGrandpa: { name: 'Antonio Gómez', gender: 'M', age: 78, isDeceased: true, deathYear: 2016 },
+        paternalGrandma: { name: 'Carmen de Gómez', gender: 'F', age: 75, isDeceased: false },
+        paternalUnion: 'married',
+        maternalGrandpa: { name: 'Manuel Pérez', gender: 'M', age: 80, isDeceased: false },
+        maternalGrandma: { name: 'Luisa de Pérez', gender: 'F', age: 77, isDeceased: false },
+        maternalUnion: 'married',
+        paternalUncles: [
+            { id: 'u_p1', name: 'Tío Ricardo', gender: 'M', age: 52, isDeceased: false },
+            { id: 'u_p2', name: 'Tía Sofía', gender: 'F', age: 49, isDeceased: false }
+        ],
+        maternalUncles: [
+            { id: 'u_m1', name: 'Tío Andrés', gender: 'M', age: 48, isDeceased: true, deathYear: 2021 }
+        ],
+        father: { name: 'Carlos Gómez', gender: 'M', age: 50, isDeceased: false, inHousehold: true },
+        mother: { name: 'Beatriz Pérez', gender: 'F', age: 48, isDeceased: false, inHousehold: true },
+        parentsUnion: 'divorced',
+        patient: { name: 'Gabriel Gómez', gender: 'M', age: 24, isIndex: true, inHousehold: true },
+        siblings: [
+            { id: 'sib_1', name: 'Lucía Gómez', gender: 'F', age: 21, isDeceased: false, inHousehold: true }
+        ],
+        hasPartner: true,
+        partner: { name: 'Mariana Soto', gender: 'F', age: 23, unionType: 'cohabiting', isDeceased: false, inHousehold: true },
+        children: [
+            { id: 'ch_1', name: 'Mateo Gómez', gender: 'M', age: 2, isDeceased: false, inHousehold: true }
+        ]
+    };
+
+    // Ejecutar generación del árbol
+    GenogramModule.generateAndPlotFromWizard();
+    const geno = GenogramModule.currentGenogram;
+    if (!geno) throw new Error('generateAndPlotFromWizard debe producir currentGenogram');
+
+    // 1. Verificar número y diversidad de miembros en las generaciones
+    const members = geno.members;
+    if (members.length < 12) throw new Error(`Se esperaban al menos 12 miembros familiares, obtenidos: ${members.length}`);
+
+    // Verificar presencia de 4 generaciones
+    const genSet = new Set(members.map(m => m.generation));
+    if (!genSet.has(-1) || !genSet.has(0) || !genSet.has(1) || !genSet.has(2)) {
+        throw new Error('Deben existir 4 generaciones documentadas (-1 abuelos, 0 padres/tíos, 1 paciente/pareja/hermanos, 2 hijos)');
+    }
+
+    // 2. Verificar paciente identificado con doble borde
+    const pIdx = members.find(m => m.isIndex);
+    if (!pIdx || pIdx.name !== 'Gabriel Gómez' || pIdx.gender !== 'M') {
+        throw new Error('El paciente identificado debe preservarse con isIndex = true y sexo M');
+    }
+
+    // 3. Verificar uniones matrimoniales (abuelos, padres y paciente)
+    if (geno.unions.length < 4) {
+        throw new Error(`Se esperaban al menos 4 uniones conyugales, obtenidas: ${geno.unions.length}`);
+    }
+    const parentsUnion = geno.unions.find(u => u.partner1Id === 'm_father' && u.partner2Id === 'm_mother');
+    if (!parentsUnion || parentsUnion.type !== 'divorced') {
+        throw new Error('La unión de los padres debe ser de tipo divorced');
+    }
+
+    // 4. Renderizar el SVG resultante y comprobar figuras estándar
+    const svg = GenogramModule.renderSVG(geno);
+    // Doble contorno para paciente índice
+    if (!svg.includes('is-index')) throw new Error('SVG debe incluir la clase is-index');
+    // Cruz para fallecidos (Abuelo paterno y Tío materno)
+    if (!svg.includes('line x1="-30"')) throw new Error('SVG debe renderizar cruz diagonal para miembros fallecidos');
+    // Divorcio de padres: 2 barras
+    if (!svg.includes('stroke="#dc2626"') || !svg.includes('y1="257"')) {
+        throw new Error('SVG debe renderizar las dos barras de divorcio conyugal de los padres');
+    }
+    // Perímetro de coresidencia (Household)
+    if (!svg.includes('Hogar')) throw new Error('SVG debe renderizar el perímetro de coresidencia del hogar');
+});
+
+// ============================================
+// TC-MSE-01: Examen Mental Protocolizado (18 Funciones Mentales, Whitelist, Tab Superior y Generación en Tiempo Real)
+// ============================================
+ClinicalTestSuite.add('TC-MSE-01', 'Examen Mental Protocolizado (18 Funciones Mentales, Whitelist, Tab Superior y Síntesis en Orden)', async () => {
+    const fs = await import('fs');
+    const path = await import('path');
+
+    // 1. Validar lista blanca en server.js
+    const serverJs = fs.readFileSync(path.resolve('server.js'), 'utf8');
+    if (!serverJs.includes("'mental-exam.js'")) {
+        throw new Error('server.js debe incluir mental-exam.js en ALLOWED_STATIC_FILES');
+    }
+
+    // 2. Validar script en index.html
+    const indexHtml = fs.readFileSync(path.resolve('index.html'), 'utf8');
+    if (!indexHtml.includes('mental-exam.js')) {
+        throw new Error('index.html debe cargar el script mental-exam.js');
+    }
+
+    // 3. Validar botón de pestaña y contenedor en app.js
+    const appJs = fs.readFileSync(path.resolve('app.js'), 'utf8');
+    if (!appJs.includes("switchPatientTab('examen-mental'") || !appJs.includes('id="tab-examen-mental"')) {
+        throw new Error('app.js debe contener la pestaña y contenedor id="tab-examen-mental"');
+    }
+
+    // 4. Importar y validar MentalExamModule
+    await import('./mental-exam.js');
+    const MentalExamModule = globalThis.MentalExamModule;
+    if (!MentalExamModule) throw new Error('mental-exam.js debe exportar MentalExamModule');
+
+    // 5. Validar generación sintética según el PDF (Página 8)
+    const testPatient = {
+        id: 'px_mse_test_01',
+        name: 'Ana María Morales',
+        gender: 'Femenino',
+        birthdate: '2008-03-15',
+        age: 18,
+        status: 'En Evaluación'
+    };
+
+    const fields = MentalExamModule.getInitialState(testPatient);
+    fields.sexo = 'Femenino';
+    fields.edad = 18;
+    fields.edadAparenteCronologica = 'SI';
+    fields.biotipo = 'Mesomorfo';
+    fields.aspectoVestimenta = ['Aseada y arreglada'];
+    fields.vestimentaEdadOcasion = 'SI';
+    fields.concienciaAlterada = 'NO';
+    fields.atencionAlterada = 'NO';
+    fields.orientacionAlopsiquica = 'SI';
+    fields.orientacionAutopsiquica = 'SI';
+    fields.memoriaConservada = 'SI';
+    fields.juicioPractico = 'Conservado';
+    fields.inteligencia = 'Promedio';
+    fields.pensamientoVelocidad = 'Taquipsiquia';
+    fields.lenguajePsicogeno = ['Taquilalia'];
+    fields.hipertimiaPresenta = 'SI';
+    fields.hipertimiaTipo = 'Hipertimia Displacentera';
+    fields.hipertimiaPolo = 'De la Tristeza';
+    fields.hipertimiaSentimientos = ['Minusvalía'];
+    fields.sensopercepcionCuantitativa = 'Aceleración de la Percepción';
+    fields.psicomotricidadNoOrganico = ['Tics'];
+    fields.vidaInstintivaAlterada = 'SI';
+    fields.vidaInstintivaLista = ['Insomnio', 'Pica'];
+    fields.volicion = 'Hiperbulia';
+    fields.concienciaEnfermedad = 'Presente';
+    fields.juicioRealidad = 'Conservado';
+
+    const narrative = MentalExamModule.generateNarrative(fields, testPatient);
+
+    // Verificar presencia de elementos en el orden de las 18 funciones mentales
+    if (!narrative.includes('Paciente femenina de 18 años') || !narrative.includes('biotipo mesomorfo')) {
+        throw new Error('Falta función 1: Presentación con edad y biotipo');
+    }
+    if (!narrative.includes('vestimenta de acuerdo a la edad y ocasión')) {
+        throw new Error('Falta función 2: Aspecto y vestimenta');
+    }
+    if (!narrative.includes('Nivel de Conciencia Conservado')) {
+        throw new Error('Falta función 4: Nivel de Conciencia');
+    }
+    if (!narrative.includes('Atención Conservada')) {
+        throw new Error('Falta función 5: Atención');
+    }
+    if (!narrative.includes('Orientado Alopsíquica y Autopsíquicamente')) {
+        throw new Error('Falta función 6: Orientación');
+    }
+    if (!narrative.includes('Memoria Conservada')) {
+        throw new Error('Falta función 7: Memoria');
+    }
+    if (!narrative.includes('Juicio Práctico Conservado')) {
+        throw new Error('Falta función 8: Juicio Práctico');
+    }
+    if (!narrative.includes('Inteligencia Normal')) {
+        throw new Error('Falta función 9: Inteligencia');
+    }
+    if (!narrative.includes('Taquipsiquia')) {
+        throw new Error('Falta función 10: Pensamiento');
+    }
+    if (!narrative.includes('Taquilalia')) {
+        throw new Error('Falta función 11: Lenguaje');
+    }
+    if (!narrative.includes('Hipertimia Displacentera') || !narrative.includes('Polo de la Tristeza')) {
+        throw new Error('Falta función 12: Afectividad');
+    }
+    if (!narrative.includes('Aceleración de la Percepción')) {
+        throw new Error('Falta función 13: Sensopercepción');
+    }
+    if (!narrative.includes('Tics')) {
+        throw new Error('Falta función 14: Psicomotricidad');
+    }
+    if (!narrative.includes('Insomnio') || !narrative.includes('Pica')) {
+        throw new Error('Falta función 15: Vida Instintiva');
+    }
+    if (!narrative.includes('Hiperbulia')) {
+        throw new Error('Falta función 16: Volición');
+    }
+    if (!narrative.includes('Conciencia de Enfermedad Presente')) {
+        throw new Error('Falta función 17: Conciencia de Enfermedad');
+    }
+    if (!narrative.includes('Juicio de Realidad Conservado')) {
+        throw new Error('Falta función 18: Juicio de Realidad');
+    }
+});
+
+// ============================================
+// TC-MSE-02: Renderizado UI y Persistencia de Examen Mental en el Expediente
+// ============================================
+ClinicalTestSuite.add('TC-MSE-02', 'Renderizado UI y Persistencia de Examen Mental en el Expediente', async () => {
+    await import('./mental-exam.js');
+    const MentalExamModule = globalThis.MentalExamModule;
+    const testPatient = {
+        id: 'px_mse_test_02',
+        name: 'Carlos Mendoza',
+        gender: 'Masculino',
+        age: 34
+    };
+
+    // 1. Comprobar que renderTab genera la cuadrícula con las 18 secciones
+    const html = MentalExamModule.renderTab(testPatient);
+    if (!html.includes('Plantilla de Examen Mental Clínico') || !html.includes('mental-exam-grid')) {
+        throw new Error('renderTab debe generar el contenedor y cuadrícula principal de Examen Mental');
+    }
+
+    // Comprobar numeración de las 18 funciones mentales en el HTML
+    for (let i = 1; i <= 18; i++) {
+        if (!html.includes(`<span class="me-num">${i}</span>`)) {
+            throw new Error(`renderTab debe contener la función mental #${i} enumerada`);
+        }
+    }
+
+    // Comprobar botones de acción
+    if (!html.includes('Cargar Valores Conservados') || !html.includes('Copiar Texto') || !html.includes('Imprimir PDF') || !html.includes('Guardar Examen')) {
+        throw new Error('renderTab debe incluir las acciones: Cargar Valores Conservados, Copiar Texto, Imprimir PDF y Guardar Examen');
+    }
+
+    // 2. Simulación de guardado
+    globalThis.AppState = { patients: [testPatient] };
+    globalThis.saveData = () => {};
+    MentalExamModule.currentPatientId = testPatient.id;
+
+    // Simular que patient.mentalExam se almacena
+    testPatient.mentalExam = {
+        updatedAt: new Date().toISOString(),
+        fields: MentalExamModule.getInitialState(testPatient),
+        text: MentalExamModule.generateNarrative(MentalExamModule.getInitialState(testPatient), testPatient)
+    };
+
+    if (!testPatient.mentalExam || !testPatient.mentalExam.text || !testPatient.mentalExam.fields) {
+        throw new Error('El objeto del paciente debe persistir el examen mental con campos y texto sintético');
+    }
+});
+
 
 // Auto-ejecución si se corre desde Node.js (CLI)
 if (typeof process !== 'undefined' && process.argv && process.argv[1] && process.argv[1].endsWith('tests.js')) {

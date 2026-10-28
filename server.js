@@ -327,6 +327,8 @@ const ALLOWED_STATIC_FILES = new Set([
     'crisis-protocol.js',
     'consentimiento.js',
     'historia-clinica.js',
+    'genogram.js',
+    'mental-exam.js',
     'session-recorder.js',
     'sw.js'
 ]);

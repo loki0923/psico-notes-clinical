@@ -23,7 +23,7 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Montserrat:wght@400;500;600;700;800&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <link rel="stylesheet" href="styles.css?v=7.1.0-serena">
+    <link rel="stylesheet" href="styles.css?v=7.1.2-serena">
 </head>
 <body>
 
@@ -1050,11 +1050,8 @@
                     </div>
                 </div>
 
+                <input type="hidden" id="patientSchoolName">
                 <div class="form-row">
-                    <div class="form-group" style="flex:1;">
-                        <label>Nombre de la Escuela / Colegio</label>
-                        <input type="text" id="patientSchoolName" placeholder="Nombre de la institución educativa">
-                    </div>
                     <div class="form-group" style="flex:1;">
                         <label>Hitos del Neurodesarrollo / Observaciones</label>
                         <input type="text" id="patientDevelopmentalMilestones" placeholder="Marcha, lenguaje, esfínteres...">
@@ -1118,30 +1115,19 @@
                     </div>
                 </div>
 
-                <!-- Diagnóstico y Tratamiento Farmacológico / Clínico -->
+                <!-- Diagnóstico y Tratamiento Farmacológico omitidos en admisión inicial de ficha -->
+                <input type="hidden" id="patientDiagnosis">
+                <input type="hidden" id="patientDiagnosis2">
+                <input type="hidden" id="patientMedication">
                 <div class="form-row">
-                    <div class="form-group">
-                        <label>Diagnóstico Principal (DSM-5 / CIE-11)</label>
-                        <input type="text" id="patientDiagnosis" placeholder="Ej: F41.1 Trastorno de Ansiedad Generalizada">
-                    </div>
-                    <div class="form-group">
-                        <label>Diagnóstico Secundario / Comorbilidad</label>
-                        <input type="text" id="patientDiagnosis2" placeholder="Ej: F32.1 Episodio Depresivo Moderado">
-                    </div>
-                </div>
-                <div class="form-row">
-                    <div class="form-group">
-                        <label>Tratamiento Farmacológico / Medicación</label>
-                        <input type="text" id="patientMedication" placeholder="Fármacos, dosis y médico tratante si aplica">
-                    </div>
-                    <div class="form-group">
+                    <div class="form-group" style="flex:1;">
                         <label>Antecedentes Médicos / Orgánicos</label>
                         <input type="text" id="patientMedical" placeholder="Enfermedades crónicas, intervenciones, alergias...">
                     </div>
-                </div>
-                <div class="form-group">
-                    <label>Antecedentes Familiares Psiquiátricos / Psicológicos</label>
-                    <input type="text" id="patientFamilyHistory" placeholder="Historial familiar relevante...">
+                    <div class="form-group" style="flex:1;">
+                        <label>Antecedentes Familiares Psiquiátricos / Psicológicos</label>
+                        <input type="text" id="patientFamilyHistory" placeholder="Historial familiar relevante...">
+                    </div>
                 </div>
 
                 <!-- Hipótesis Biopsicosociales y Factores Clínicos (Universal para Niño, Adolescente y Adulto) -->
@@ -1170,10 +1156,8 @@
                         <label>Factores de Protección</label>
                         <textarea id="patientProtectiveFactors" rows="2" placeholder="Fortalezas personales, recursos adaptativos, vínculos seguros y factores de resiliencia..."></textarea>
                     </div>
-                    <div class="form-group">
-                        <label>Notas Clínicas Adicionales / Observaciones Generales</label>
-                        <textarea id="patientNotes" rows="2" placeholder="Observaciones generales o notas privadas del terapeuta..."></textarea>
-                    </div>
+                    <!-- Notas libres omitidas de la ficha en favor de Encuadre formal -->
+                    <div style="display:none;"><textarea id="patientNotes"></textarea></div>
                 </div>
             </div>
 
@@ -2327,7 +2311,8 @@
 <script src="psychoed.js?v=7.1.0-serena"></script>
 <script src="reports.js?v=7.1.0-serena"></script>
 <script src="vademecum.js?v=7.1.0-serena"></script>
-<script src="app.js?v=7.1.0-serena"></script>
+<script src="mental-exam.js?v=7.1.2-serena"></script>
+<script src="app.js?v=7.1.2-serena"></script>
 <script src="scales.js?v=7.1.0-serena"></script>
 <script src="finance.js?v=7.1.0-serena"></script>
 <script src="adm.js?v=7.1.0-serena"></script>
@@ -2336,6 +2321,7 @@
 <script src="crisis-protocol.js?v=7.1.0-serena"></script>
 <script src="consentimiento.js?v=7.1.0-serena"></script>
 <script src="historia-clinica.js?v=7.1.0-serena"></script>
+<script src="genogram.js?v=7.1.0-serena"></script>
 <script>
 if ('caches' in window) {
     caches.keys().then(names => {

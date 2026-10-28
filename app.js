@@ -3102,42 +3102,47 @@ function handlePatientSubmit(e) {
     const pId = document.getElementById('patientId').value;
     const existing = pId ? (AppState.patients.find(x => x.id === pId) || {}) : {};
 
+    const catVal = document.getElementById('patientCategory').value;
+    const isAdult = catVal === 'adult';
+    const isTeen = catVal === 'adolescent';
+    const isChild = catVal === 'child';
+
     const patient = {
         ...existing,
         id: pId || generateId(),
         status: document.getElementById('patientStatus')?.value || 'Por iniciar',
         name: document.getElementById('patientName').value.trim(),
-        category: document.getElementById('patientCategory').value,
+        category: catVal,
         birthdate: bd,
         age: finalAge,
         gender: document.getElementById('patientGender').value,
-        email: document.getElementById('patientEmail').value.trim(),
-        phone: document.getElementById('patientPhone')?.value.trim() || '',
+        email: isChild ? '' : document.getElementById('patientEmail').value.trim(),
+        phone: isAdult ? (document.getElementById('patientPhone')?.value.trim() || '') : '',
         schoolGrade: document.getElementById('patientSchoolGrade')?.value.trim() || '',
         livesWith: document.getElementById('patientLivesWith')?.value.trim() || '',
         referral: referralChecked,
-        ci: document.getElementById('patientCI')?.value.trim() || existing.ci || '',
-        birthPlace: document.getElementById('patientBirthPlace')?.value.trim() || existing.birthPlace || '',
-        religion: document.getElementById('patientReligion')?.value.trim() || existing.religion || '',
-        occupation: document.getElementById('patientOccupation')?.value.trim() || '',
-        maritalStatus: document.getElementById('patientMaritalStatus')?.value.trim() || '',
-        socialDesirability: document.getElementById('patientSocialDesirability')?.value || 'NO',
-        selfMotivation: document.getElementById('patientSelfMotivation')?.value || 'SI',
+        ci: isAdult ? (document.getElementById('patientCI')?.value.trim() || existing.ci || '') : '',
+        birthPlace: isAdult ? (document.getElementById('patientBirthPlace')?.value.trim() || existing.birthPlace || '') : '',
+        religion: isAdult ? (document.getElementById('patientReligion')?.value.trim() || existing.religion || '') : '',
+        occupation: isAdult ? (document.getElementById('patientOccupation')?.value.trim() || '') : '',
+        maritalStatus: isAdult ? (document.getElementById('patientMaritalStatus')?.value.trim() || '') : '',
+        socialDesirability: isAdult ? (document.getElementById('patientSocialDesirability')?.value || 'NO') : 'NO',
+        selfMotivation: isAdult ? (document.getElementById('patientSelfMotivation')?.value || 'SI') : 'SI',
         address: document.getElementById('patientAddress')?.value.trim() || '',
         customFee: parseFloat(document.getElementById('patientCustomFee')?.value) || null,
-        guardianName: document.getElementById('patientGuardianName')?.value.trim() || '',
-        guardianRelation: document.getElementById('patientGuardianRelation')?.value || '',
-        guardianAge: document.getElementById('patientGuardianAge')?.value || '',
-        guardianSchooling: document.getElementById('patientGuardianSchooling')?.value.trim() || '',
-        guardianOccupation: document.getElementById('patientGuardianOccupation')?.value.trim() || '',
-        guardianMaritalStatus: document.getElementById('patientGuardianMaritalStatus')?.value || '',
-        guardianPhone: document.getElementById('patientGuardianPhone')?.value.trim() || '',
-        guardianEmail: document.getElementById('patientGuardianEmail')?.value.trim() || '',
-        guardianConsent: document.getElementById('patientGuardianConsent')?.value || 'no-aplica',
-        schoolName: document.getElementById('patientSchoolName')?.value.trim() || '',
+        guardianName: (isChild || isTeen) ? (document.getElementById('patientGuardianName')?.value.trim() || '') : '',
+        guardianRelation: (isChild || isTeen) ? (document.getElementById('patientGuardianRelation')?.value || '') : '',
+        guardianAge: (isChild || isTeen) ? (document.getElementById('patientGuardianAge')?.value || '') : '',
+        guardianSchooling: (isChild || isTeen) ? (document.getElementById('patientGuardianSchooling')?.value.trim() || '') : '',
+        guardianOccupation: (isChild || isTeen) ? (document.getElementById('patientGuardianOccupation')?.value.trim() || '') : '',
+        guardianMaritalStatus: (isChild || isTeen) ? (document.getElementById('patientGuardianMaritalStatus')?.value || '') : '',
+        guardianPhone: (isChild || isTeen) ? (document.getElementById('patientGuardianPhone')?.value.trim() || '') : '',
+        guardianEmail: (isChild || isTeen) ? (document.getElementById('patientGuardianEmail')?.value.trim() || '') : '',
+        guardianConsent: (isChild || isTeen) ? (document.getElementById('patientGuardianConsent')?.value || 'no-aplica') : 'no-aplica',
+        schoolName: '',
         developmentalMilestones: document.getElementById('patientDevelopmentalMilestones')?.value.trim() || '',
-        adolescentAssent: document.getElementById('patientGuardianConsent')?.value || 'no-aplica',
-        adolescentPerspective: document.getElementById('patientGoals')?.value.trim() || '',
+        adolescentAssent: isTeen ? (document.getElementById('patientGuardianConsent')?.value || 'no-aplica') : 'no-aplica',
+        adolescentPerspective: isTeen ? (document.getElementById('patientGoals')?.value.trim() || '') : '',
         previousPsych: document.getElementById('patientPreviousPsych')?.value || 'No',
         applicantName: document.getElementById('patientApplicantName')?.value.trim() || '',
         initiative: document.getElementById('patientInitiative')?.value || '',
@@ -3152,14 +3157,14 @@ function handlePatientSubmit(e) {
         socialHypothesis: document.getElementById('patientSocialHypothesis')?.value.trim() || '',
         psychHypothesis: document.getElementById('patientPsychHypothesis')?.value.trim() || '',
         vulnerabilityFactors: document.getElementById('patientVulnerabilityFactors')?.value.trim() || '',
-        diagnosis: document.getElementById('patientDiagnosis')?.value.trim() || 'En proceso de formulación clínica',
+        diagnosis: document.getElementById('patientDiagnosis')?.value.trim() || 'En proceso de evaluación',
         diagnosis2: document.getElementById('patientDiagnosis2')?.value.trim() || '',
         medication: document.getElementById('patientMedication')?.value.trim() || '',
         medical: document.getElementById('patientMedical')?.value.trim() || '',
         familyHistory: document.getElementById('patientFamilyHistory')?.value.trim() || '',
         riskFactors: document.getElementById('patientRiskFactors')?.value.trim() || '',
         protectiveFactors: document.getElementById('patientProtectiveFactors')?.value.trim() || '',
-        notes: document.getElementById('patientNotes')?.value.trim() || '',
+        notes: '',
         frequency: document.getElementById('patientFrequency')?.value || '',
         modality: document.getElementById('patientModality')?.value || '',
         shift: document.getElementById('patientShift')?.value || '',
@@ -3200,8 +3205,8 @@ function editPatient(id) {
     document.getElementById('patientBirthdate').value = p.birthdate || '';
     if (document.getElementById('patientAge')) document.getElementById('patientAge').value = p.age || (p.birthdate ? calculateAge(p.birthdate) : '');
     document.getElementById('patientGender').value = p.gender || '';
-    document.getElementById('patientEmail').value = p.email || '';
-    if (document.getElementById('patientPhone')) document.getElementById('patientPhone').value = p.phone || '';
+    document.getElementById('patientEmail').value = cat === 'child' ? '' : (p.email || '');
+    if (document.getElementById('patientPhone')) document.getElementById('patientPhone').value = cat === 'adult' ? (p.phone || '') : '';
     if (document.getElementById('patientSchoolGrade')) document.getElementById('patientSchoolGrade').value = p.schoolGrade || '';
     if (document.getElementById('patientLivesWith')) document.getElementById('patientLivesWith').value = p.livesWith || '';
 
@@ -3212,13 +3217,13 @@ function editPatient(id) {
         cb.closest('.referral-chip')?.classList.toggle('active', cb.checked);
     });
 
-    if (document.getElementById('patientCI')) document.getElementById('patientCI').value = p.ci || '';
-    if (document.getElementById('patientBirthPlace')) document.getElementById('patientBirthPlace').value = p.birthPlace || '';
-    if (document.getElementById('patientReligion')) document.getElementById('patientReligion').value = p.religion || '';
-    if (document.getElementById('patientOccupation')) document.getElementById('patientOccupation').value = p.occupation || '';
-    if (document.getElementById('patientMaritalStatus')) document.getElementById('patientMaritalStatus').value = p.maritalStatus || '';
-    if (document.getElementById('patientSocialDesirability')) document.getElementById('patientSocialDesirability').value = p.socialDesirability || 'NO';
-    if (document.getElementById('patientSelfMotivation')) document.getElementById('patientSelfMotivation').value = p.selfMotivation || 'SI';
+    if (document.getElementById('patientCI')) document.getElementById('patientCI').value = cat === 'adult' ? (p.ci || '') : '';
+    if (document.getElementById('patientBirthPlace')) document.getElementById('patientBirthPlace').value = cat === 'adult' ? (p.birthPlace || '') : '';
+    if (document.getElementById('patientReligion')) document.getElementById('patientReligion').value = cat === 'adult' ? (p.religion || '') : '';
+    if (document.getElementById('patientOccupation')) document.getElementById('patientOccupation').value = cat === 'adult' ? (p.occupation || '') : '';
+    if (document.getElementById('patientMaritalStatus')) document.getElementById('patientMaritalStatus').value = cat === 'adult' ? (p.maritalStatus || '') : '';
+    if (document.getElementById('patientSocialDesirability')) document.getElementById('patientSocialDesirability').value = cat === 'adult' ? (p.socialDesirability || 'NO') : 'NO';
+    if (document.getElementById('patientSelfMotivation')) document.getElementById('patientSelfMotivation').value = cat === 'adult' ? (p.selfMotivation || 'SI') : 'SI';
     if (document.getElementById('patientAddress')) document.getElementById('patientAddress').value = p.address || '';
     if (document.getElementById('patientCustomFee')) document.getElementById('patientCustomFee').value = (p.customFee !== null && p.customFee !== undefined) ? p.customFee : '';
     if (document.getElementById('patientGuardianName')) document.getElementById('patientGuardianName').value = p.guardianName || '';
@@ -3384,9 +3389,11 @@ function viewPatient(id) {
             <button class="patient-tab" onclick="switchPatientTab('notas', this)"><i class="fas fa-file-invoice"></i> Notas de sesión (${patientNotes.length})</button>
             <button class="patient-tab" onclick="switchPatientTab('sesiones', this)"><i class="fas fa-calendar-check"></i> Historial de Sesiones (${patientApps.length})</button>
             <button class="patient-tab" onclick="switchPatientTab('historia', this)"><i class="fas fa-book-medical"></i> Historia</button>
+            <button class="patient-tab" onclick="switchPatientTab('examen-mental', this)"><i class="fas fa-brain"></i> Examen Mental</button>
             <button class="patient-tab" onclick="switchPatientTab('timeline', this)"><i class="fas fa-stream"></i> Línea de Tiempo</button>
             <button class="patient-tab" onclick="switchPatientTab('objetivos', this)"><i class="fas fa-bullseye"></i> Objetivos</button>
             <button class="patient-tab" onclick="switchPatientTab('escalas', this)"><i class="fas fa-chart-line"></i> Evaluaciones</button>
+            <button class="patient-tab" onclick="switchPatientTab('genograma', this)"><i class="fas fa-sitemap"></i> Genograma</button>
             <button class="patient-tab" onclick="switchPatientTab('apoyo', this)"><i class="fas fa-hands-helping"></i> Red de Apoyo</button>
             <button class="patient-tab" onclick="switchPatientTab('portal', this)">
                 <i class="fas fa-mobile-alt"></i> Portal Paciente
@@ -3398,9 +3405,11 @@ function viewPatient(id) {
         <div id="tab-notas" class="patient-tab-content">${renderTabNotasSesion(id)}</div>
         <div id="tab-sesiones" class="patient-tab-content">${renderTabHistorialSesiones(id)}</div>
         <div id="tab-historia" class="patient-tab-content">${renderTabHistoria(patient)}</div>
+        <div id="tab-examen-mental" class="patient-tab-content">${typeof MentalExamModule !== 'undefined' ? MentalExamModule.renderTab(patient) : '<div class="empty-state"><p>Módulo de examen mental cargando...</p></div>'}</div>
         <div id="tab-timeline" class="patient-tab-content">${renderTabTimeline(id)}</div>
         <div id="tab-objetivos" class="patient-tab-content">${renderTabObjetivos(id)}</div>
         <div id="tab-escalas" class="patient-tab-content">${renderTabEscalas(id)}</div>
+        <div id="tab-genograma" class="patient-tab-content">${typeof GenogramModule !== 'undefined' ? GenogramModule.renderTabGenograma(patient) : '<div class="empty-state"><p>Módulo de genograma cargando...</p></div>'}</div>
         <div id="tab-apoyo" class="patient-tab-content">${renderTabApoyo(patient)}</div>
         <div id="tab-portal" class="patient-tab-content">${renderPortalTab(id)}</div>
     `;
@@ -3429,6 +3438,23 @@ function switchPatientTab(tabName, btn) {
     if (tabName === 'sesiones' && AppState.selectedPatientId && typeof renderTabHistorialSesiones === 'function') {
         const cont = document.getElementById('tab-sesiones');
         if (cont) cont.innerHTML = renderTabHistorialSesiones(AppState.selectedPatientId);
+    }
+    if (tabName === 'genograma' && AppState.selectedPatientId && typeof GenogramModule !== 'undefined') {
+        const patient = AppState.patients.find(p => String(p.id) === String(AppState.selectedPatientId));
+        if (patient) {
+            const cont = document.getElementById('tab-genograma');
+            if (cont) cont.innerHTML = GenogramModule.renderTabGenograma(patient);
+            GenogramModule.initPatientGenogram(AppState.selectedPatientId);
+        }
+    }
+    if (tabName === 'examen-mental' && AppState.selectedPatientId && typeof MentalExamModule !== 'undefined') {
+        const patient = AppState.patients.find(p => String(p.id) === String(AppState.selectedPatientId));
+        if (patient) {
+            const cont = document.getElementById('tab-examen-mental');
+            if (cont && (!cont.querySelector('.mental-exam-container') || cont.innerHTML.includes('cargando'))) {
+                cont.innerHTML = MentalExamModule.renderTab(patient);
+            }
+        }
     }
 }
 
@@ -3621,7 +3647,9 @@ function renderTabResumen(patientId, wellbeing, sessionPrep, emotionalProfile, c
     // 3. Ficha de Intervención y Tratamiento
     const treatmentDetailsHtml = `
         <div class="expediente-data-row"><span class="expediente-data-label">Enfoque Principal:</span><span class="expediente-data-val"><strong>${patient.intervention || 'Terapia Cognitivo-Conductual (TCC)'}</strong></span></div>
-        <div class="expediente-data-row"><span class="expediente-data-label">Encuadre Acordado:</span><span class="expediente-data-val">${patient.frequency || 'Semanal'} · Modalidad ${patient.modality || 'Presencial'} · Turno ${patient.shift || 'Mañana/Tarde'}</span></div>
+        <div class="expediente-data-row"><span class="expediente-data-label">Frecuencia Acordada:</span><span class="expediente-data-val">${patient.frequency || 'Semanal'}</span></div>
+        <div class="expediente-data-row"><span class="expediente-data-label">Modalidad:</span><span class="expediente-data-val">${patient.modality || 'Presencial'}</span></div>
+        <div class="expediente-data-row"><span class="expediente-data-label">Turno:</span><span class="expediente-data-val">${patient.shift || 'Mañana / Tarde'}</span></div>
         <div class="expediente-data-row"><span class="expediente-data-label">Consulta Previa:</span><span class="expediente-data-val">¿Asistió antes?: ${patient.previousPsych || 'No'} · Iniciativa: ${patient.initiative || 'Propia'}</span></div>
 
         <div class="treatment-block-highlight">
@@ -4999,15 +5027,24 @@ function renderTabHistoria(patient) {
     if (cat === 'child') {
         sections.push({
             title: '👨‍👧 Representante Legal y Tutoría Pediátrica',
-            content: patient.guardianName ? `<strong>Tutor/a:</strong> ${patient.guardianName} (${patient.guardianRelation || 'Tutor'})<br><strong>Teléfono de contacto:</strong> ${patient.guardianPhone || 'Sin registrar'}<br><strong>Consentimiento Parental:</strong> ${patient.guardianConsent === 'firmado' ? '✅ Firmado y en custodia' : '⏳ Pendiente de firma'}` : null
+            content: patient.guardianName ? `<strong>Tutor/a:</strong> ${patient.guardianName} (${patient.guardianRelation || 'Tutor'})<br><strong>Teléfono de contacto:</strong> ${patient.guardianPhone || 'Sin registrar'}<br><strong>Consentimiento Informado:</strong> ${patient.guardianConsent === 'firmado' ? '✅ Firmado y en custodia' : '⏳ Pendiente de firma'}` : null
         });
         sections.push({
-            title: '🏫 Contexto Escolar e Institucional',
-            content: (patient.schoolName || patient.schoolGrade) ? `<strong>Institución Educativa:</strong> ${patient.schoolName || 'No esp.'}<br><strong>Grado / Curso:</strong> ${patient.schoolGrade || 'No esp.'}` : null
+            title: '📚 Contexto Escolar',
+            content: patient.schoolGrade ? `<strong>Nivel de Escolaridad:</strong> ${patient.schoolGrade}` : null
         });
         sections.push({
-            title: '🌱 Hitos del Neurodesarrollo y Antecedentes Perinatales',
+            title: '🌱 Hitos del Neurodesarrollo',
             content: patient.developmentalMilestones
+        });
+    } else if (cat === 'adolescent') {
+        sections.push({
+            title: '🛡️ Representante Legal & Tutoría',
+            content: patient.guardianName ? `<strong>Tutor/a:</strong> ${patient.guardianName} (${patient.guardianRelation || 'Tutor'})<br><strong>Teléfono tutor:</strong> ${patient.guardianPhone || 'Sin registrar'}<br><strong>Consentimiento Informado:</strong> ${patient.guardianConsent === 'firmado' ? '✅ Firmado y en custodia' : '⏳ Pendiente de firma'}` : null
+        });
+        sections.push({
+            title: '📚 Escolaridad',
+            content: patient.schoolGrade ? `<strong>Nivel de Escolaridad:</strong> ${patient.schoolGrade}` : null
         });
     } else {
         if (patient.maritalStatus) {
@@ -5022,13 +5059,13 @@ function renderTabHistoria(patient) {
     sections.push(
         { title: 'Motivo de Consulta', content: patient.reason },
         { title: 'Objetivos del Paciente', content: patient.goals },
-        { title: 'Antecedentes Personales', content: patient.medical },
+        { title: 'Antecedentes Médicos / Orgánicos', content: patient.medical },
         { title: 'Historia Familiar', content: patient.familyHistory },
         { title: 'Factores de Riesgo', content: patient.riskFactors },
         { title: 'Factores Protectores', content: patient.protectiveFactors },
-        { title: 'Medicación Actual', content: patient.medication },
-        { title: 'Diagnóstico Secundario', content: patient.diagnosis2 },
-        { title: 'Encuadre', content: patient.notes }
+        { title: 'Frecuencia Acordada', content: patient.frequency },
+        { title: 'Modalidad', content: patient.modality },
+        { title: 'Turno', content: patient.shift }
     );
 
     return sections.map(s => `<div class="clinical-history-section"><h4>${s.title}</h4><div class="clinical-history-content ${!s.content ? 'empty' : ''}">${s.content || 'Sin información registrada'}</div></div>`).join('');

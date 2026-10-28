@@ -258,9 +258,9 @@ flowchart TD
     Calc -->|"12 a 17 años"| Adolescentes["🧑 Etapa de la Adolescencia (12 a 17 años)"]
     Calc -->|">= 18 años"| Adultos["👤 Etapa Adulta (18+ años)"]
 
-    Ninos --> P1["• Representación Legal y Acompañamiento Familiar (Tutoría)\n• Consentimiento Parental Legal Firmado\n• Contexto Escolar & Grado Académico\n• Hitos del Neurodesarrollo & Perinatales\n• Psicoeducación: Semáforo Emocional Lúdico"]
+    Ninos --> P1["• Representación Legal y Acompañamiento Familiar (Tutoría)\n• Consentimiento Informado Legal Firmado\n• Contexto Escolar & Grado Académico\n• Hitos del Neurodesarrollo & Perinatales\n• Psicoeducación: Semáforo Emocional Lúdico"]
     
-    Adolescentes --> P2["• Tutor/a de Contacto & Emergencia\n• Consentimiento Parental Legal\n• Pacto Ético de Confidencialidad en la Adolescencia\n• Asentimiento Informado del Menor\n• Perspectiva de la Persona Joven vs Demanda Familiar\n• Psicoeducación: Brújula de Autonomía vs Presión Social"]
+    Adolescentes --> P2["• Tutor/a de Contacto & Emergencia\n• Consentimiento Informado Legal\n• Pacto Ético de Confidencialidad en la Adolescencia\n• Asentimiento Informado del Menor\n• Perspectiva de la Persona Joven vs Demanda Familiar\n• Psicoeducación: Brújula de Autonomía vs Presión Social"]
     
     Adultos --> P3["• Autonomía Plena & Consentimiento Individual Directo\n• Ocupación, Profesión y Situación Laboral\n• Estado Civil y Convivencia\n• Contacto de Emergencia Designado\n• Psicometría Integral (PHQ-9, GAD-7, BDI-II, BAI, PSS-10)"]
 
@@ -307,7 +307,7 @@ flowchart TD
 Por criterios deontológicos de protección al menor y adecuación al proceso clínico adolescente:
 1. **Omitir Teléfono Propio y Estado Civil del Adolescente**: El contacto formal y estado civil se registran exclusivamente en la ficha del representante legal / tutor.
 2. **Omitir Nombre de Institución Educativa**: Se conserva únicamente el nivel de escolaridad (`schoolGrade`), protegiendo la identidad institucional del menor.
-3. **Sustitución de "Consentimiento Parental" por "Consentimiento Informado"**: Refleja la autonomía progresiva del menor y el marco bioético internacional.
+3. **Sustitución de "Consentimiento Informado" por "Consentimiento Informado"**: Refleja la autonomía progresiva del menor y el marco bioético internacional.
 4. **Omitir Pacto de Confidencialidad Separado**: Se integra dentro del Consentimiento Informado del encuadre.
 5. **Omitir Diagnóstico CIE-11 / DSM-5 y Medicación en Admisión**: La ficha del adolescente prioriza la comprensión biopsicosocial (hipótesis biológica, psicológica y familiar) en lugar del etiquetado nosológico prematuro.
 6. **Omitir Notas Libres de Encuadre**: Reemplazado por los tres parámetros protocolizados: Frecuencia Acordada, Modalidad y Turno (Mañana / Tarde).
@@ -1929,7 +1929,7 @@ flowchart TD
    - Estado Civil
    - Teléfono
    - Correo Electrónico
-   - Consentimiento Informado (Firmado / Pendiente) — *Sustituye la denominación previa de "consentimiento parental"*.
+   - Consentimiento Informado (Firmado / Pendiente) — *Sustituye la denominación previa de "Consentimiento Informado"*.
 4. **Información Referente a la Consulta Psicológica**:
    - ¿Ha asistido antes a Consulta Psicológica?* (Sí / No)
    - Nombre de la Persona que solicita la Consulta

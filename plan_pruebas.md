@@ -35,7 +35,7 @@ El presente documento define la matriz exhaustiva de pruebas unitarias, de integ
 | **TC-POR-01** | Portal Paciente | Autoregistro Cognitivo ABC de Beck | Guardado con situación, creencia y emoción (0-100%) |
 | **TC-POR-02** | Portal Paciente | Activación de Botón SOS / Protocolo de Crisis | Generación de alerta inmediata y líneas de emergencia 24/7 |
 | **TC-VITAL-01** | Ciclo Vital | Inferencia por Etapa Vital (Niñez, Adolescencia, Adultez) | Mapeo exacto <12a, 12-17a, 18+a |
-| **TC-VITAL-02** | Niñez | Integridad Pediátrica (Tutoría, Escuela, Neurodesarrollo) | Tutor legal, escuela y consentimiento parental requeridos |
+| **TC-VITAL-02** | Niñez | Integridad Pediátrica (Tutoría, Escuela, Neurodesarrollo) | Tutor legal, escuela y Consentimiento Informado requeridos |
 | **TC-VITAL-03** | Adolescencia | Marco Ético de Confidencialidad y Asentimiento | Registro de confidencialidad y perspectiva propia del menor |
 | **TC-VITAL-04** | Ciclo Vital | Filtrado Reactivo Multidimensional | Conteo exacto y filtrado sin pérdida de expedientes |
 | **TC-HIST-01** | Anamnesis Infantil | Integridad Perinatal, Parto e Hitos 0-3a | Ficha biparental, somatometría e hitos motores |

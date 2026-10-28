@@ -195,7 +195,7 @@ function generateSignedInformedConsent() {
     let sigLabel = `<strong>Firma del Paciente</strong><br>${patient.name}`;
 
     if (cat === 'child') {
-        docTitle = 'Documento de Consentimiento Parental para Psicoterapia Infantil';
+        docTitle = 'Documento de Consentimiento Informado para Psicoterapia Infantil';
         docIntro = `Yo, <strong>${patient.guardianName || 'Representante Legal'}</strong>, en mi condición de <strong>${patient.guardianRelation || 'Tutor/a Legal'}</strong> del/de la menor <strong>${patient.name}</strong> ${patient.birthdate ? `(Edad: ${calculateAge(patient.birthdate)} años)` : ''}, autorizo la atención psicoterapéutica brindada por <strong>${AppState.currentUser?.name || 'Terapeuta'}</strong>.`;
         docClauses = `
             <div class="clause">
