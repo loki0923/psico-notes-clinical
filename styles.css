@@ -7273,11 +7273,78 @@ body.screen-locked .sidebar {
    ======================================================== */
 
 .geno-wizard-card {
-    max-width: 860px;
+    max-width: 880px;
     width: 95vw;
     max-height: 90vh;
     display: flex;
     flex-direction: column;
+}
+
+/* Soporte retrocompatible y centrado de modales */
+.modal-overlay.active {
+    position: fixed !important;
+    top: 0 !important;
+    left: 0 !important;
+    width: 100vw !important;
+    height: 100vh !important;
+    z-index: 2200 !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    padding: 20px !important;
+    box-sizing: border-box !important;
+    overflow-y: auto !important;
+}
+
+.modal-card {
+    position: relative;
+    background: var(--bg-modal, var(--bg-card));
+    border-radius: 16px;
+    border: 1px solid var(--border-primary);
+    box-shadow: 0 24px 50px -12px rgba(0, 0, 0, 0.45);
+    width: 100%;
+    max-height: 90vh;
+    overflow-y: auto;
+    z-index: 2;
+    padding: 0;
+    margin: auto;
+}
+.modal-card.modal-sm { max-width: 540px; }
+.modal-card.modal-md { max-width: 640px; }
+.modal-card.modal-lg { max-width: 880px; }
+
+/* Control de inputs en modales del genograma */
+.form-control,
+.wizard-member-row input,
+.wizard-member-row select,
+.wizard-member-row textarea {
+    width: 100%;
+    padding: 8px 12px;
+    background: var(--bg-card);
+    color: var(--text-primary);
+    border: 1px solid var(--border-primary);
+    border-radius: var(--radius-sm);
+    font-size: 13px;
+    box-sizing: border-box;
+    transition: all 0.15s ease;
+}
+
+[data-theme="dark"] .form-control,
+[data-theme="dark"] .wizard-member-row input,
+[data-theme="dark"] .wizard-member-row select,
+[data-theme="dark"] .wizard-member-row textarea {
+    background: #1a2724;
+    color: #f1f5f9;
+    border-color: #293d37;
+}
+
+.form-control:focus,
+.wizard-member-row input:focus,
+.wizard-member-row select:focus,
+.wizard-member-row textarea:focus {
+    border-color: var(--brand-deep, #0d9488);
+    outline: none;
+    box-shadow: 0 0 0 2px rgba(13, 148, 136, 0.25);
 }
 
 .geno-wizard-body {

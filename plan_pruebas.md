@@ -165,6 +165,30 @@ flowchart TD
 | **TC-POR-16** | Portal Pacientes & Kid | Agendamiento, Notas Reflexivas y Personalización Infantil | `pickAvailableSlot` resuelve dualmente `scheduleDate`/`scheduleSessionDate`; notas infantiles y nombres de avatar se vinculan y persisten correctamente |
 | **TC-REC-02** | Grabación & Copiloto | Mapeo Defensivo SOAP en SessionRecorder | Transcripción ambient y síntesis aplican con éxito sobre `noteSubjetivo`, `noteObjetivo`, `noteAnalisis` y `notePlan` sin campos mudos |
 
-**Total de Pruebas Automatizadas Activas**: 123 de 123 superadas exitosamente (100% Pass Rate).
+---
+
+## 9. Casos de Prueba — Mejoras Generales Solicitadas por Dirección Clínica (v7.5)
+
+| ID | Módulo | Nombre de la Prueba | Criterio de Aprobación |
+|---|---|---|---|
+| **TC-MEJ-01** | Consentimiento | Etiqueta "FIRMADO POR EL REPRESENTANTE" y Formato Configurable | Etiqueta oficial en verde con icono de validación y editor adaptable de cláusulas (`toggleConsentEditorMode`, `txtCustomConsentFormat`) |
+| **TC-MEJ-02** | HC Adulto | Historia Clínica Adulto Sobria (Cero Emojis en Títulos y Acordeones) | Verificación estricta de paridad y remoción total de emojis en toolbar y los bloques 1 a 9 del acordeón |
+| **TC-MEJ-03** | HC Infantil | Posición del Bebé (4 Opciones) e Inclusión Sistemática de "Dato no Obtenido" | Selector `fh_babyPosition` con `Cefálica`, `Transversal`, `Podálica` y `Dato no Obtenido`, e incorporación sistemática en parto, llanto, reanimación e incubadora |
+| **TC-MEJ-04** | Genograma | Genograma Familiar Interactivo y Accesible desde HC | Botón `[Genograma]` abre `GenogramModule` interactivo con opciones de wizard, agregar familiar, unión y relación de Bowen |
+| **TC-MEJ-05** | Examen Mental | Examen Mental en Formato Check-List Protocolizado | Modal de verificación rápida con 1 clic en "Todo Conservado", actualización dinámica y auto-inserción en historia clínica |
+| **TC-MEJ-06** | Psicométricos | Gestión Dinámica de Escalas y Tests Psicológicos | Modal de creación y edición de escalas con baremos, y eliminación de escalas personalizadas |
+| **TC-MEJ-07** | Genograma UI | Modales y Fichas de Genograma (Centrado, Dark Mode y Responsive) | 100% de los modales (`modalGenoMember`, `modalEditMember`, `modalAddUnion`, `modalEditUnion`, `modalAddRel`, `modalEditRel`, `modalGenoWizard`) usan `<div class="modal active">` con overlay centrado, cierre por backdrop, inputs adaptados a modo oscuro y cuadrículas auto-ajustables |
+
+---
+
+## 10. Casos de Prueba — Finanzas Multimoneda y Cotización Automatizada BCV (v8.0)
+
+| ID | Módulo | Nombre de la Prueba | Criterio de Aprobación |
+|---|---|---|---|
+| **TC-FIN-BCV-01** | Finanzas & BCV | Cotización y Tasas Automatizadas BCV (Dólar, Euro y Resiliencia Multimoneda) | Endpoint backend `/api/v1/finance/bcv-rates`, caché de 30 min, fallback resiliente, `convertCurrency` bidireccional exacto y fijación/persistencia de tasa manual personalizada. |
+| **TC-FIN-BCV-02** | Finanzas & Pagos | Registro y Conciliación de Pagos en Moneda Local (Bolívares / VES) y Divisas | Selector de moneda (VES, USD, EUR), métodos nacionales (Pago Móvil, Transferencia Bancaria), captura de referencia bancaria, normalización a USD, persistencia de `originalAmount` y cálculo de deudas y recordatorios WhatsApp con tasa del día. |
+
+**Total de Pruebas Automatizadas Activas**: 148 de 148 superadas exitosamente (100% Pass Rate).
+
 
 

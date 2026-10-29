@@ -715,9 +715,28 @@ function openScaleEditorModal(scaleId = null) {
         if (document.getElementById('scaleCutoffSev')) document.getElementById('scaleCutoffSev').value = Math.round(scale.maxScore * 0.67);
     }
 
+    const delBtn = document.getElementById('btnDeleteCustomScale');
+    if (delBtn) {
+        delBtn.style.display = (scale && scale.isCustom) ? 'inline-flex' : 'none';
+    }
+
     openModal('scaleEditorModal');
 }
-window.openScaleEditorModal = openScaleEditorModal;
+if (typeof window !== 'undefined') window.openScaleEditorModal = openScaleEditorModal;
+if (typeof globalThis !== 'undefined') globalThis.openScaleEditorModal = openScaleEditorModal;
+
+function deleteCustomScale(scaleId) {
+    if (!scaleId) return;
+    if (typeof confirm === 'function' && !confirm('¿Deseas eliminar esta escala psicométrica?')) return;
+    const custom = getCustomScales();
+    delete custom[scaleId];
+    saveCustomScales(custom);
+    closeModal('scaleEditorModal');
+    if (typeof renderScalesView === 'function') renderScalesView();
+    if (typeof showToast === 'function') showToast('Escala psicométrica eliminada', 'info');
+}
+if (typeof window !== 'undefined') window.deleteCustomScale = deleteCustomScale;
+if (typeof globalThis !== 'undefined') globalThis.deleteCustomScale = deleteCustomScale;
 
 function handleSaveCustomScale(e) {
     e.preventDefault();
@@ -806,6 +825,7 @@ const _scalesTargetScope = (typeof window !== 'undefined') ? window : (typeof gl
 if (_scalesTargetScope) {
     _scalesTargetScope.handleSaveCustomScale = handleSaveCustomScale;
     if (typeof openScaleEditorModal === 'function') _scalesTargetScope.openScaleEditorModal = openScaleEditorModal;
+    if (typeof deleteCustomScale === 'function') _scalesTargetScope.deleteCustomScale = deleteCustomScale;
     if (typeof openInteractiveScaleModal === 'function') _scalesTargetScope.openInteractiveScaleModal = openInteractiveScaleModal;
     if (typeof submitInteractiveScaleForm === 'function') _scalesTargetScope.submitInteractiveScaleForm = submitInteractiveScaleForm;
     if (typeof renderScalesView === 'function') _scalesTargetScope.renderScalesView = renderScalesView;

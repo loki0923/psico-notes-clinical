@@ -399,7 +399,7 @@ const ClinicalHistorySystem = {
 
                         <div style="padding: 10px 14px; background: rgba(45, 212, 191, 0.08); border-radius: 8px; border: 1px solid rgba(45, 212, 191, 0.25);">
                             <strong>Consentimiento Informado:</strong> 
-                            ${h.guardianConsent === 'firmado' ? '<span style="color:#059669; font-weight:600;"><i class="fas fa-check-circle"></i> Firmado por Representante Legal y en custodia clínica</span>' : '<span style="color:#d97706; font-weight:600;"><i class="fas fa-clock"></i> Pendiente de firma y ratificación</span>'}
+                            ${h.guardianConsent === 'firmado' ? '<span style="color:#059669; font-weight:700;"><i class="fas fa-check-circle"></i> FIRMADO POR EL REPRESENTANTE</span>' : '<span style="color:#d97706; font-weight:600;"><i class="fas fa-clock"></i> Pendiente de firma y ratificación</span>'}
                         </div>
                     </div>
                 </div>
@@ -781,7 +781,7 @@ const ClinicalHistorySystem = {
 
                         <div style="padding: 10px 14px; background: rgba(45, 212, 191, 0.08); border-radius: 8px; border: 1px solid rgba(45, 212, 191, 0.25);">
                             <strong>Consentimiento Informado:</strong> 
-                            ${h.guardianConsent === 'firmado' ? '<span style="color:#059669; font-weight:600;"><i class="fas fa-check-circle"></i> Firmado por Representante Legal y en custodia clínica</span>' : '<span style="color:#d97706; font-weight:600;"><i class="fas fa-clock"></i> Pendiente de firma y ratificación</span>'}
+                            ${h.guardianConsent === 'firmado' ? '<span style="color:#059669; font-weight:700;"><i class="fas fa-check-circle"></i> FIRMADO POR EL REPRESENTANTE</span>' : '<span style="color:#d97706; font-weight:600;"><i class="fas fa-clock"></i> Pendiente de firma y ratificación</span>'}
                             <div style="margin-top:6px;font-size:12px;color:var(--text-secondary);">
                                 <i class="fas fa-hand-holding-heart" style="color:var(--accent-primary);"></i> <strong>Asentimiento Informado del Adolescente (LOPNNA Art. 80):</strong> Consignado en alianza terapéutica y proceso de escucha activa.
                             </div>
@@ -1119,7 +1119,7 @@ const ClinicalHistorySystem = {
         return `
             <div class="clinical-history-toolbar">
                 <div class="cht-title">
-                    <span class="cht-badge">👤 Historia Clínica Adulto (5 Pág. Oficial)</span>
+                    <span class="cht-badge">Historia Clínica Adulto (5 Pág. Oficial)</span>
                     <small>Modelo Oficial Protocolizado · ${therapist.name} (${therapist.specialty}${regInfo})</small>
                 </div>
                 <div class="cht-actions">
@@ -1141,7 +1141,7 @@ const ClinicalHistorySystem = {
                     <div class="hist-acc-header" onclick="ClinicalHistorySystem.toggleAccordion('acc_adult_1')">
                         <div class="hist-acc-title">
                             <span class="acc-num">1</span>
-                            <strong>📋 1. Identificación del Paciente</strong>
+                            <strong>1. Identificación del Paciente</strong>
                         </div>
                         <i class="fas fa-chevron-down acc-arrow"></i>
                     </div>
@@ -1190,7 +1190,7 @@ const ClinicalHistorySystem = {
                     <div class="hist-acc-header" onclick="ClinicalHistorySystem.toggleAccordion('acc_adult_2')">
                         <div class="hist-acc-title">
                             <span class="acc-num">2</span>
-                            <strong>🧠 2. Motivo de Consulta y Examen Mental</strong>
+                            <strong>2. Motivo de Consulta y Examen Mental</strong>
                         </div>
                         <i class="fas fa-chevron-down acc-arrow"></i>
                     </div>
@@ -1227,7 +1227,7 @@ const ClinicalHistorySystem = {
                     <div class="hist-acc-header" onclick="ClinicalHistorySystem.toggleAccordion('acc_adult_3')">
                         <div class="hist-acc-title">
                             <span class="acc-num">3</span>
-                            <strong>🩺 3. Antecedentes</strong>
+                            <strong>3. Antecedentes</strong>
                         </div>
                         <i class="fas fa-chevron-down acc-arrow"></i>
                     </div>
@@ -1279,7 +1279,7 @@ const ClinicalHistorySystem = {
                     <div class="hist-acc-header" onclick="ClinicalHistorySystem.toggleAccordion('acc_adult_4')">
                         <div class="hist-acc-title">
                             <span class="acc-num">4</span>
-                            <strong>🏠 4. Situación Actual y Áreas Vitales</strong>
+                            <strong>4. Situación Actual y Áreas Vitales</strong>
                         </div>
                         <i class="fas fa-chevron-down acc-arrow"></i>
                     </div>
@@ -1326,7 +1326,7 @@ const ClinicalHistorySystem = {
                     <div class="hist-acc-header" onclick="ClinicalHistorySystem.toggleAccordion('acc_adult_5')">
                         <div class="hist-acc-title">
                             <span class="acc-num">5</span>
-                            <strong>🌿 5. Hábitos Psicobiológicos</strong>
+                            <strong>5. Hábitos Psicobiológicos</strong>
                         </div>
                         <i class="fas fa-chevron-down acc-arrow"></i>
                     </div>
@@ -1355,7 +1355,7 @@ const ClinicalHistorySystem = {
                     <div class="hist-acc-header" onclick="ClinicalHistorySystem.toggleAccordion('acc_adult_6')">
                         <div class="hist-acc-title">
                             <span class="acc-num">6</span>
-                            <strong>🎯 6. Metas y Proyecto de Vida</strong>
+                            <strong>6. Metas y Proyecto de Vida</strong>
                         </div>
                         <i class="fas fa-chevron-down acc-arrow"></i>
                     </div>
@@ -1408,7 +1408,7 @@ const ClinicalHistorySystem = {
             return this.renderAdultHistoryIntegral(patient, h, therapist, regInfo);
         }
 
-        const stageTitle = isChild ? '🧒 Historia Clínica Infantil (7 Pág.)' : '👤 Historia Clínica Adulto (5 Pág.)';
+        const stageTitle = isChild ? '🧒 Historia Clínica Infantil (7 Pág.)' : 'Historia Clínica Adulto (5 Pág.)';
 
         return `
             <div class="clinical-history-toolbar">
@@ -1437,7 +1437,7 @@ const ClinicalHistorySystem = {
                     <div class="hist-acc-header" onclick="ClinicalHistorySystem.toggleAccordion('acc_sec_1')">
                         <div class="hist-acc-title">
                             <span class="acc-num">1</span>
-                            <strong>📋 Datos de Identificación del Paciente & Convivencia</strong>
+                            <strong>${isAdult ? 'Identificación, Vínculos Filiatorios & Convivencia' : 'Datos de Identificación del Paciente & Convivencia'}</strong>
                         </div>
                         <i class="fas fa-chevron-down acc-arrow"></i>
                     </div>
@@ -1454,7 +1454,7 @@ const ClinicalHistorySystem = {
                             <div><strong>Consulta previa:</strong> ${h.hasAttendedBefore === 'SI' ? `Sí (${h.previousAttendanceDate || 'Fecha no esp.'})` : 'Primera vez'}</div>
                         </div>
 
-                        <div class="hist-sub-heading">👨‍👩‍👧 Datos Filiatorios de los Progenitores (Padres)</div>
+                        <div class="hist-sub-heading">${isAdult ? 'Datos Filiatorios de los Progenitores (Padres)' : '👨‍👩‍👧 Datos Filiatorios de los Progenitores (Padres)'}</div>
                         <div class="hist-grid-parents">
                             <div class="parent-box">
                                 <h5>Madre: ${h.motherName || 'No registrada'}</h5>
@@ -1484,7 +1484,7 @@ const ClinicalHistorySystem = {
                     <div class="hist-acc-header" onclick="ClinicalHistorySystem.toggleAccordion('acc_sec_2')">
                         <div class="hist-acc-title">
                             <span class="acc-num">2</span>
-                            <strong>👁️ Motivo de Consulta & Situación Actual</strong>
+                            <strong>${isAdult ? 'Motivo de Consulta & Situación Actual' : '👁️ Motivo de Consulta & Situación Actual'}</strong>
                         </div>
                         <i class="fas fa-chevron-down acc-arrow"></i>
                     </div>
@@ -1514,7 +1514,7 @@ const ClinicalHistorySystem = {
                     <div class="hist-acc-header" onclick="ClinicalHistorySystem.toggleAccordion('acc_sec_3')">
                         <div class="hist-acc-title">
                             <span class="acc-num">3</span>
-                            <strong>🧠 Examen Mental & Tríada Sintomatológica</strong>
+                            <strong>${isAdult ? 'Examen Mental & Tríada Sintomatológica' : '🧠 Examen Mental & Tríada Sintomatológica'}</strong>
                         </div>
                         <i class="fas fa-chevron-down acc-arrow"></i>
                     </div>
@@ -1536,15 +1536,15 @@ const ClinicalHistorySystem = {
                         </div>
                         <div class="symptom-triad-grid">
                             <div class="triad-card">
-                                <h6>🏃 Características Conductuales</h6>
+                                <h6>${isAdult ? 'Características Conductuales' : '🏃 Características Conductuales'}</h6>
                                 <p>${h.symptomsBehavioral || 'Sin reporte conductual'}</p>
                             </div>
                             <div class="triad-card">
-                                <h6>🎭 Características Emocionales</h6>
+                                <h6>${isAdult ? 'Características Emocionales' : '🎭 Características Emocionales'}</h6>
                                 <p>${h.symptomsEmotional || 'Sin reporte emocional'}</p>
                             </div>
                             <div class="triad-card">
-                                <h6>🫀 Características Orgánicas / Somáticas</h6>
+                                <h6>${isAdult ? 'Características Orgánicas / Somáticas' : '🫀 Características Orgánicas / Somáticas'}</h6>
                                 <p>${h.symptomsOrganic || 'Sin reporte orgánico'}</p>
                             </div>
                         </div>
@@ -1556,7 +1556,7 @@ const ClinicalHistorySystem = {
                     <div class="hist-acc-header" onclick="ClinicalHistorySystem.toggleAccordion('acc_sec_4')">
                         <div class="hist-acc-title">
                             <span class="acc-num">4</span>
-                            <strong>🩺 Antecedentes Médicos, Neurológicos & Quirúrgicos</strong>
+                            <strong>${isAdult ? 'Antecedentes Médicos, Neurológicos & Quirúrgicos' : '🩺 Antecedentes Médicos, Neurológicos & Quirúrgicos'}</strong>
                         </div>
                         <i class="fas fa-chevron-down acc-arrow"></i>
                     </div>
@@ -1691,7 +1691,7 @@ const ClinicalHistorySystem = {
                     <div class="hist-acc-header" onclick="ClinicalHistorySystem.toggleAccordion('acc_sec_7')">
                         <div class="hist-acc-title">
                             <span class="acc-num">7</span>
-                            <strong>💼 Situación Actual y Áreas de Vida Adulta</strong>
+                            <strong>Situación Actual y Áreas de Vida Adulta</strong>
                         </div>
                         <i class="fas fa-chevron-down acc-arrow"></i>
                     </div>
@@ -1712,7 +1712,7 @@ const ClinicalHistorySystem = {
                     <div class="hist-acc-header" onclick="ClinicalHistorySystem.toggleAccordion('acc_sec_8')">
                         <div class="hist-acc-title">
                             <span class="acc-num">8</span>
-                            <strong>🏠 Vivienda, Hábitos Psicobiológicos, Sueño & Fobias</strong>
+                            <strong>${isAdult ? 'Vivienda, Hábitos Psicobiológicos, Sueño & Fobias' : '🏠 Vivienda, Hábitos Psicobiológicos, Sueño & Fobias'}</strong>
                         </div>
                         <i class="fas fa-chevron-down acc-arrow"></i>
                     </div>
@@ -1724,7 +1724,7 @@ const ClinicalHistorySystem = {
                             <div><strong>Convivientes Hogar:</strong> Adultos: ${h.occupantsAdultsM}M/${h.occupantsAdultsF}F · Jóvenes: ${h.occupantsTeensM}M/${h.occupantsTeensF}F · Niños: ${h.occupantsChildrenM}M/${h.occupantsChildrenF}F</div>
                         </div>
 
-                        <div class="hist-sub-heading">🌿 Hábitos Psicobiológicos y Patrones Conductuales</div>
+                        <div class="hist-sub-heading">${isAdult ? 'Hábitos Psicobiológicos y Patrones Conductuales' : '🌿 Hábitos Psicobiológicos y Patrones Conductuales'}</div>
                         <table class="hist-table-medical">
                             <tr><th>Indicador</th><th>Observación Clínica</th></tr>
                             <tr><td>Consumos / Adicciones (Alcohol, Nicotina, Pantallas, Drogas)</td><td>${h.addictions || 'Negativo'}</td></tr>
@@ -1745,7 +1745,7 @@ const ClinicalHistorySystem = {
                     <div class="hist-acc-header" onclick="ClinicalHistorySystem.toggleAccordion('acc_sec_9')">
                         <div class="hist-acc-title">
                             <span class="acc-num">9</span>
-                            <strong>📑 Impresión Diagnóstica & Plan Terapéutico (CIE-10/11 & DSM-5-TR)</strong>
+                            <strong>${isAdult ? 'Impresión Diagnóstica & Plan Terapéutico (CIE-10/11 & DSM-5-TR)' : '📑 Impresión Diagnóstica & Plan Terapéutico (CIE-10/11 & DSM-5-TR)'}</strong>
                         </div>
                         <i class="fas fa-chevron-down acc-arrow"></i>
                     </div>
@@ -2037,7 +2037,12 @@ const ClinicalHistorySystem = {
                             <textarea id="fh_symptomsOrganic" rows="2" placeholder="Quejas somáticas, cefaleas, dolor abdominal, encopresis, enuresis...">${h.symptomsOrganic || ''}</textarea>
                         </div>
 
-                        <h4 style="margin-top:20px;">EXAMEN MENTAL:</h4>
+                        <div style="display:flex;justify-content:space-between;align-items:center;margin-top:20px;margin-bottom:8px;">
+                            <h4 style="margin:0;">EXAMEN MENTAL:</h4>
+                            <button type="button" class="btn-secondary btn-sm" onclick="if (typeof MentalExamModule !== 'undefined') MentalExamModule.openChecklistModal('fh_mentalExam')" title="Completar mediante casillas de verificación rápida">
+                                <i class="fas fa-tasks"></i> Check-List Rápido
+                            </button>
+                        </div>
                         <div class="form-group">
                             <label>Examen Mental:</label>
                             <textarea id="fh_mentalExam" rows="4" placeholder="Apariencia, porte, actitud, contacto visual, lenguaje, psicomotricidad, afecto, pensamiento, sensopercepción, orientación acorde a la edad...">${h.mentalExam || ''}</textarea>
@@ -2159,6 +2164,7 @@ const ClinicalHistorySystem = {
                                     <option value="Espontáneo" ${h.deliveryType === 'Espontáneo' ? 'selected' : ''}>Espontáneo</option>
                                     <option value="Inducido" ${h.deliveryType === 'Inducido' ? 'selected' : ''}>Inducido</option>
                                     <option value="Cesárea" ${h.deliveryType === 'Cesárea' ? 'selected' : ''}>Cesárea</option>
+                                    <option value="Dato no Obtenido" ${h.deliveryType === 'Dato no Obtenido' ? 'selected' : ''}>Dato no Obtenido</option>
                                 </select>
                             </div>
                         </div>
@@ -2170,19 +2176,25 @@ const ClinicalHistorySystem = {
                                 <select id="fh_birthCry">
                                     <option value="SI" ${h.birthCry === 'SI' ? 'selected' : ''}>SI</option>
                                     <option value="NO" ${h.birthCry === 'NO' ? 'selected' : ''}>NO</option>
+                                    <option value="Dato no Obtenido" ${h.birthCry === 'Dato no Obtenido' ? 'selected' : ''}>Dato no Obtenido</option>
                                 </select>
                             </div>
                             <div class="form-group" style="flex:1;">
                                 <label>Posición del Bebé:</label>
-                                <input type="text" id="fh_babyPosition" value="${h.babyPosition || ''}" placeholder="Cefálica, podálica...">
+                                <select id="fh_babyPosition">
+                                    <option value="Cefálica" ${h.babyPosition === 'Cefálica' || !h.babyPosition ? 'selected' : ''}>Cefálica</option>
+                                    <option value="Transversal" ${h.babyPosition === 'Transversal' ? 'selected' : ''}>Transversal</option>
+                                    <option value="Podálica" ${h.babyPosition === 'Podálica' ? 'selected' : ''}>Podálica</option>
+                                    <option value="Dato no Obtenido" ${h.babyPosition === 'Dato no Obtenido' ? 'selected' : ''}>Dato no Obtenido</option>
+                                </select>
                             </div>
                             <div class="form-group" style="flex:1;">
                                 <label>Peso:</label>
-                                <input type="text" id="fh_birthWeight" value="${h.birthWeight || ''}" placeholder="Ej: 3.200 kg">
+                                <input type="text" id="fh_birthWeight" value="${h.birthWeight || ''}" placeholder="Ej: 3.200 kg / Dato no Obtenido">
                             </div>
                             <div class="form-group" style="flex:1;">
                                 <label>Medida:</label>
-                                <input type="text" id="fh_birthLength" value="${h.birthLength || ''}" placeholder="Ej: 50 cm">
+                                <input type="text" id="fh_birthLength" value="${h.birthLength || ''}" placeholder="Ej: 50 cm / Dato no Obtenido">
                             </div>
                         </div>
                         <div class="form-row">
@@ -2191,6 +2203,7 @@ const ClinicalHistorySystem = {
                                 <select id="fh_resuscitation">
                                     <option value="NO" ${h.resuscitation === 'NO' ? 'selected' : ''}>NO</option>
                                     <option value="SI" ${h.resuscitation === 'SI' ? 'selected' : ''}>SI</option>
+                                    <option value="Dato no Obtenido" ${h.resuscitation === 'Dato no Obtenido' ? 'selected' : ''}>Dato no Obtenido</option>
                                 </select>
                             </div>
                             <div class="form-group" style="flex:1;">
@@ -2198,6 +2211,7 @@ const ClinicalHistorySystem = {
                                 <select id="fh_incubator">
                                     <option value="NO" ${h.incubator === 'NO' ? 'selected' : ''}>NO</option>
                                     <option value="SI" ${h.incubator === 'SI' ? 'selected' : ''}>SI</option>
+                                    <option value="Dato no Obtenido" ${h.incubator === 'Dato no Obtenido' ? 'selected' : ''}>Dato no Obtenido</option>
                                 </select>
                             </div>
                             <div class="form-group" style="flex:2;">
@@ -2635,7 +2649,12 @@ const ClinicalHistorySystem = {
                             <textarea id="fh_observedGestures" rows="3" placeholder="Postura, contacto ocular, tensión motora, gesticulación...">${h.observedGestures || ''}</textarea>
                         </div>
 
-                        <h4 style="margin-top:20px;">EXAMEN MENTAL:</h4>
+                        <div style="display:flex;justify-content:space-between;align-items:center;margin-top:20px;margin-bottom:8px;">
+                            <h4 style="margin:0;">EXAMEN MENTAL:</h4>
+                            <button type="button" class="btn-secondary btn-sm" onclick="if (typeof MentalExamModule !== 'undefined') MentalExamModule.openChecklistModal('fh_mentalExam')" title="Completar mediante casillas de verificación rápida">
+                                <i class="fas fa-tasks"></i> Check-List Rápido
+                            </button>
+                        </div>
                         <div class="form-group">
                             <textarea id="fh_mentalExam" rows="4" placeholder="Porte, orientación, conciencia, afecto, pensamiento, sensopercepción, juicio...">${h.mentalExam || ''}</textarea>
                         </div>
@@ -2721,6 +2740,7 @@ const ClinicalHistorySystem = {
                                     <option value="Cesárea" ${h.deliveryType === 'Cesárea' ? 'selected' : ''}>Cesárea</option>
                                     <option value="Espontáneo" ${h.deliveryType === 'Espontáneo' ? 'selected' : ''}>Espontáneo</option>
                                     <option value="Inducido" ${h.deliveryType === 'Inducido' ? 'selected' : ''}>Inducido</option>
+                                    <option value="Dato no Obtenido" ${h.deliveryType === 'Dato no Obtenido' ? 'selected' : ''}>Dato no Obtenido</option>
                                 </select>
                             </div>
                         </div>
@@ -2732,11 +2752,20 @@ const ClinicalHistorySystem = {
                                 <select id="fh_birthCry">
                                     <option value="SI" ${h.birthCry === 'SI' ? 'selected' : ''}>SI</option>
                                     <option value="NO" ${h.birthCry === 'NO' ? 'selected' : ''}>NO</option>
+                                    <option value="Dato no Obtenido" ${h.birthCry === 'Dato no Obtenido' ? 'selected' : ''}>Dato no Obtenido</option>
                                 </select>
                             </div>
-                            <div class="form-group" style="flex:1;"><label>Posición del Bebé:</label><input type="text" id="fh_babyPosition" value="${h.babyPosition || ''}"></div>
-                            <div class="form-group" style="flex:1;"><label>Peso:</label><input type="text" id="fh_birthWeight" value="${h.birthWeight || ''}"></div>
-                            <div class="form-group" style="flex:1;"><label>Medida:</label><input type="text" id="fh_birthLength" value="${h.birthLength || ''}"></div>
+                            <div class="form-group" style="flex:1;">
+                                <label>Posición del Bebé:</label>
+                                <select id="fh_babyPosition">
+                                    <option value="Cefálica" ${h.babyPosition === 'Cefálica' || !h.babyPosition ? 'selected' : ''}>Cefálica</option>
+                                    <option value="Transversal" ${h.babyPosition === 'Transversal' ? 'selected' : ''}>Transversal</option>
+                                    <option value="Podálica" ${h.babyPosition === 'Podálica' ? 'selected' : ''}>Podálica</option>
+                                    <option value="Dato no Obtenido" ${h.babyPosition === 'Dato no Obtenido' ? 'selected' : ''}>Dato no Obtenido</option>
+                                </select>
+                            </div>
+                            <div class="form-group" style="flex:1;"><label>Peso:</label><input type="text" id="fh_birthWeight" value="${h.birthWeight || ''}" placeholder="Ej: 3.200 kg / Dato no Obtenido"></div>
+                            <div class="form-group" style="flex:1;"><label>Medida:</label><input type="text" id="fh_birthLength" value="${h.birthLength || ''}" placeholder="Ej: 50 cm / Dato no Obtenido"></div>
                         </div>
                         <div class="form-row">
                             <div class="form-group" style="flex:1;">
@@ -2744,6 +2773,7 @@ const ClinicalHistorySystem = {
                                 <select id="fh_resuscitation">
                                     <option value="NO" ${h.resuscitation === 'NO' ? 'selected' : ''}>NO</option>
                                     <option value="SI" ${h.resuscitation === 'SI' ? 'selected' : ''}>SI</option>
+                                    <option value="Dato no Obtenido" ${h.resuscitation === 'Dato no Obtenido' ? 'selected' : ''}>Dato no Obtenido</option>
                                 </select>
                             </div>
                             <div class="form-group" style="flex:1;">
@@ -2751,6 +2781,7 @@ const ClinicalHistorySystem = {
                                 <select id="fh_incubator">
                                     <option value="NO" ${h.incubator === 'NO' ? 'selected' : ''}>NO</option>
                                     <option value="SI" ${h.incubator === 'SI' ? 'selected' : ''}>SI</option>
+                                    <option value="Dato no Obtenido" ${h.incubator === 'Dato no Obtenido' ? 'selected' : ''}>Dato no Obtenido</option>
                                 </select>
                             </div>
                             <div class="form-group" style="flex:2;"><label>Primera alimentación:</label><input type="text" id="fh_firstFeeding" value="${h.firstFeeding || ''}"></div>
@@ -3097,7 +3128,12 @@ const ClinicalHistorySystem = {
                             <textarea id="fh_observedGestures" rows="3" placeholder="Postura, contacto visual, gesticulación, microexpresiones, tensión somática...">${h.observedGestures || ''}</textarea>
                         </div>
 
-                        <h4 style="margin-top:20px;">EXAMEN MENTAL</h4>
+                        <div style="display:flex;justify-content:space-between;align-items:center;margin-top:20px;margin-bottom:8px;">
+                            <h4 style="margin:0;">EXAMEN MENTAL</h4>
+                            <button type="button" class="btn-secondary btn-sm" onclick="if (typeof MentalExamModule !== 'undefined') MentalExamModule.openChecklistModal('fh_mentalExam')" title="Completar mediante casillas de verificación rápida">
+                                <i class="fas fa-tasks"></i> Check-List Rápido
+                            </button>
+                        </div>
                         <div class="form-group">
                             <label>Examen Mental:</label>
                             <textarea id="fh_mentalExam" rows="5" placeholder="Porte, actitud, conciencia, orientación, pensamiento, sensopercepción, afecto, memoria, juicio...">${h.mentalExam || ''}</textarea>
@@ -3532,12 +3568,12 @@ const ClinicalHistorySystem = {
                         <div class="form-row">
                             <div class="form-group"><label>Embarazo Deseado:</label><select id="fh_pregnancyDesired"><option ${h.pregnancyDesired==='SI'?'selected':''}>SI</option><option ${h.pregnancyDesired==='NO'?'selected':''}>NO</option></select></div>
                             <div class="form-group"><label>Embarazo Planificado:</label><select id="fh_pregnancyPlanned"><option ${h.pregnancyPlanned==='SI'?'selected':''}>SI</option><option ${h.pregnancyPlanned==='NO'?'selected':''}>NO</option></select></div>
-                            <div class="form-group"><label>Tipo de Parto:</label><select id="fh_deliveryType"><option ${h.deliveryType==='Espontáneo'?'selected':''}>Espontáneo</option><option ${h.deliveryType==='Inducido'?'selected':''}>Inducido</option><option ${h.deliveryType==='Cesárea'?'selected':''}>Cesárea</option><option ${h.deliveryType==='Natural'?'selected':''}>Natural</option></select></div>
+                            <div class="form-group"><label>Tipo de Parto:</label><select id="fh_deliveryType"><option ${h.deliveryType==='Espontáneo'?'selected':''}>Espontáneo</option><option ${h.deliveryType==='Inducido'?'selected':''}>Inducido</option><option ${h.deliveryType==='Cesárea'?'selected':''}>Cesárea</option><option ${h.deliveryType==='Natural'?'selected':''}>Natural</option><option ${h.deliveryType==='Dato no Obtenido'?'selected':''}>Dato no Obtenido</option></select></div>
                         </div>
                         <div class="form-row">
                             <div class="form-group"><label>Peso al nacer:</label><input type="text" id="fh_birthWeight" value="${h.birthWeight}"></div>
                             <div class="form-group"><label>Talla al nacer:</label><input type="text" id="fh_birthLength" value="${h.birthLength}"></div>
-                            <div class="form-group"><label>Llanto al nacer:</label><select id="fh_birthCry"><option ${h.birthCry==='SI'?'selected':''}>SI</option><option ${h.birthCry==='NO'?'selected':''}>NO</option></select></div>
+                            <div class="form-group"><label>Llanto al nacer:</label><select id="fh_birthCry"><option ${h.birthCry==='SI'?'selected':''}>SI</option><option ${h.birthCry==='NO'?'selected':''}>NO</option><option ${h.birthCry==='Dato no Obtenido'?'selected':''}>Dato no Obtenido</option></select></div>
                         </div>
                         <div class="form-group"><label>Desarrollo fetal y estado emocional materno en gestación:</label><textarea id="fh_motherEmotionalState" rows="2">${h.motherEmotionalState}</textarea></div>
                         <h4>Hitos Primeros Años</h4>
@@ -3839,6 +3875,10 @@ const ClinicalHistorySystem = {
         if (!patient) return;
         const h = this.getFullHistory(patient);
 
+        if (typeof GenogramModule !== 'undefined') {
+            GenogramModule.initPatientGenogram(patient.id);
+        }
+
         let modal = document.getElementById('genogramModal');
         if (!modal) {
             modal = document.createElement('div');
@@ -3847,58 +3887,58 @@ const ClinicalHistorySystem = {
             document.body.appendChild(modal);
         }
 
+        const genogram = (typeof GenogramModule !== 'undefined') ? GenogramModule.getGenogram(patient) : null;
+        const svgContent = (genogram && typeof GenogramModule !== 'undefined') 
+            ? GenogramModule.renderSVG(genogram, { width: 900, height: 460, interactive: true })
+            : `<div style="padding:40px;text-align:center;">Cargando lienzo interactivo del genograma...</div>`;
+
         modal.innerHTML = `
             <div class="modal-overlay" onclick="closeModal('genogramModal')"></div>
-            <div class="modal-content modal-large">
+            <div class="modal-content modal-large" style="max-width:960px;">
                 <div class="modal-header">
-                    <h2>🌳 Genograma Familiar — ${patient.name}</h2>
+                    <h2>🌳 Genograma Familiar Sistémico — ${patient.name}</h2>
                     <button class="btn-icon" onclick="closeModal('genogramModal')"><i class="fas fa-times"></i></button>
                 </div>
                 <div style="padding:16px;">
-                    <div class="genogram-canvas-box">
-                        <svg class="genogram-svg" viewBox="0 0 600 320" xmlns="http://www.w3.org/2000/svg">
-                            <!-- Conector de Padres -->
-                            <line x1="180" y1="80" x2="420" y2="80" stroke="#0d9488" stroke-width="2.5" />
-                            <line x1="300" y1="80" x2="300" y2="180" stroke="#0d9488" stroke-width="2.5" />
-
-                            <!-- Padre (Cuadrado) -->
-                            <rect x="140" y="40" width="80" height="80" rx="8" fill="#e2e8f0" stroke="#334155" stroke-width="2"/>
-                            <text x="180" y="75" text-anchor="middle" font-size="12" font-weight="bold" fill="#0f172a">PADRE</text>
-                            <text x="180" y="95" text-anchor="middle" font-size="10" fill="#475569">${h.fatherName || 'Padre'}</text>
-
-                            <!-- Madre (Círculo) -->
-                            <circle cx="420" cy="80" r="40" fill="#fce7f3" stroke="#db2777" stroke-width="2"/>
-                            <text x="420" y="78" text-anchor="middle" font-size="12" font-weight="bold" fill="#0f172a">MADRE</text>
-                            <text x="420" y="95" text-anchor="middle" font-size="10" fill="#475569">${h.motherName || 'Madre'}</text>
-
-                            <!-- Ramas a hijos -->
-                            <line x1="200" y1="180" x2="400" y2="180" stroke="#0d9488" stroke-width="2" />
-                            <line x1="200" y1="180" x2="200" y2="220" stroke="#0d9488" stroke-width="2" />
-                            <line x1="300" y1="180" x2="300" y2="220" stroke="#0d9488" stroke-width="2" />
-                            <line x1="400" y1="180" x2="400" y2="220" stroke="#0d9488" stroke-width="2" />
-
-                            <!-- Paciente Identificado (Centro) -->
-                            <rect x="255" y="220" width="90" height="70" rx="8" fill="#ccfbf1" stroke="#0d9488" stroke-width="3"/>
-                            <text x="300" y="250" text-anchor="middle" font-size="11" font-weight="bold" fill="#0d9488">★ PACIENTE</text>
-                            <text x="300" y="270" text-anchor="middle" font-size="10" fill="#0f172a">${patient.name.split(' ')[0]}</text>
-
-                            <!-- Hermano 1 / Hermanos -->
-                            <rect x="160" y="225" width="80" height="60" rx="6" fill="#f1f5f9" stroke="#64748b" stroke-width="1.5"/>
-                            <text x="200" y="255" text-anchor="middle" font-size="10" fill="#334155">Hermano(s)</text>
-                            <text x="200" y="272" text-anchor="middle" font-size="9" fill="#64748b">(${h.siblingsCount} reg.)</text>
-
-                            <!-- Hermano 2 / Convivencia -->
-                            <circle cx="400" cy="255" r="30" fill="#f1f5f9" stroke="#64748b" stroke-width="1.5"/>
-                            <text x="400" y="258" text-anchor="middle" font-size="10" fill="#334155">Hogar</text>
-                        </svg>
+                    <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;margin-bottom:12px;">
+                        <div style="display:flex;gap:8px;flex-wrap:wrap;">
+                            <button class="btn-sm btn-primary" onclick="GenogramModule.openWizardModal('${patient.id}'); closeModal('genogramModal');" title="Asistente guiado paso a paso">
+                                <i class="fas fa-magic"></i> Asistente Guiado
+                            </button>
+                            <button class="btn-sm btn-secondary" onclick="GenogramModule.openAddMemberModal();" title="Agregar familiar">
+                                <i class="fas fa-user-plus"></i> + Familiar
+                            </button>
+                            <button class="btn-sm btn-secondary" onclick="GenogramModule.openAddUnionModal();" title="Matrimonio o convivencia">
+                                <i class="fas fa-ring"></i> + Unión
+                            </button>
+                            <button class="btn-sm btn-secondary" onclick="GenogramModule.openAddRelationshipModal();" title="Vínculo afectivo o Bowen">
+                                <i class="fas fa-heart"></i> + Relación Bowen
+                            </button>
+                        </div>
+                        <div>
+                            <button class="btn-sm btn-secondary" onclick="closeModal('genogramModal'); if (typeof switchPatientTab === 'function') switchPatientTab('genograma');" title="Abrir editor completo en pestaña">
+                                <i class="fas fa-expand"></i> Editor Completo
+                            </button>
+                        </div>
                     </div>
-                    <div style="margin-top:14px;background:var(--bg-secondary);padding:12px;border-radius:8px;font-size:12px;">
-                        <strong>Simbología Clínica Internacional:</strong> Cuadrado = Varón | Círculo = Mujer | Doble borde / Color resaltado = Paciente Índice Identificado.
+                    <div class="genogram-canvas-box" id="modalGenogramCanvasContainer" style="overflow:auto;background:var(--bg-secondary);border-radius:var(--radius-md);border:1px solid var(--border-primary);padding:10px;text-align:center;">
+                        ${svgContent}
+                    </div>
+                    <div style="margin-top:12px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;font-size:12px;color:var(--text-secondary);">
+                        <div>
+                            <i class="fas fa-info-circle"></i> Haz clic sobre cualquier miembro o unión en el diagrama para editar sus datos clínicos, edad o pauta relacional.
+                        </div>
+                        <div style="font-weight:600;">
+                            Estándar McGoldrick, Gerson & Bowen
+                        </div>
                     </div>
                 </div>
             </div>
         `;
         openModal('genogramModal');
+        if (typeof GenogramModule !== 'undefined' && typeof GenogramModule.setupInteractiveEvents === 'function') {
+            setTimeout(() => GenogramModule.setupInteractiveEvents(), 50);
+        }
     },
 
     // -------------------------------------------------------------

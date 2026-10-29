@@ -3760,6 +3760,307 @@ sequenceDiagram
 
 ---
 
+## 39. Plan Maestro de Mejoras Generales del Sistema (Requerimientos Clínicos v7.5)
+
+**Documento de Especificación Técnica Oficial**  
+*Autor:* Agente 1 — Arquitecto de Software y Project Manager  
+*Fecha:* Octubre 2026  
+*Entrada:* Hoja de requerimientos clínicos protocolizados y mejoras prioritarias
+
+```mermaid
+flowchart TD
+    subgraph PDF_Requerimientos["📋 Requerimientos Clínicos Solicitados"]
+        R1["1. Agregar y Editar Escalas & Tests"]
+        R2["2 & 3. Consentimiento Informado Flexible & Formato Configurable"]
+        R4["4. Editar Genograma Directo e Interactivo"]
+        R5["5. Examen Mental tipo Check-List Rápido"]
+        R6["6. Quitar Emojis en HC Adulto (Sobriedad Médica)"]
+        R7["7 & 8. HC Infantil: Posición del Bebé & 'Dato no Obtenido'"]
+        R9["9. Badge: 'CONSENTIMIENTO INFORMADO: FIRMADO POR EL REPRESENTANTE'"]
+    end
+
+    subgraph A1_Diseno["🏛️ Agente 1: Arquitectura y Modelado"]
+        M_Scales["Modelo de Escalas Dinámicas & Persistencia"]
+        M_Consent["Motor de Plantillas de Consentimiento"]
+        M_Geno["Integración Unificada GenogramModule en HC"]
+        M_MSE["Engine de Check-List y Síntesis Semiográfica"]
+        M_HC["Estandarización Terminológica y Limpieza de Emojis"]
+    end
+
+    subgraph Delegacion_Agentes["👥 Delegación Multi-Agente"]
+        BE["Agente 2: Backend (Endpoints, Persistencia y Dual Store)"]
+        FE["Agente 3: Frontend (UI/UX, Acordeones, Checklists y Modales)"]
+        QA["Agente 4: QA/DevOps (Casos TC-MEJ-01..05, 100% Tests Verificados)"]
+    end
+
+    PDF_Requerimientos --> A1_Diseno
+    A1_Diseno --> Delegacion_Agentes
+    Delegacion_Agentes --> Despliegue["🚀 Despliegue Local y Validación Clínica"]
+```
+
+---
+
+### 39.1. Desglose Detallado de Requerimientos y Especificación Técnica
+
+#### Requerimiento 1: Opción de Agregar y Editar Escalas y Tests
+* **Objetivo Clínico**: Brindar al terapeuta la autonomía de registrar cuestionarios psicométricos propios o de adaptar ítems y baremos de corte en escalas estandarizadas (PHQ-9, GAD-7, BDI-II, etc.).
+* **Especificación de Arquitectura**:
+  - **Estructura de Datos de Escala Dinámica**:
+    ```typescript
+    interface ClinicalScaleDefinition {
+      id: string; // 'custom_xxx' o ID estándar ('phq9', 'gad7', etc.)
+      name: string; // Título formal
+      shortName: string; // Sigla (ej: BDI-II, PCL-5)
+      domain: string; // Sintomatología Ansiosa, Depresiva, Estrés Traumático, etc.
+      maxScore: number;
+      questions: string[];
+      options: Array<{ label: string; value: number }>;
+      cutoffs: {
+        mild: number;
+        moderate: number;
+        severe: number;
+      };
+      isCustom?: boolean;
+      updatedAt?: string;
+    }
+    ```
+  - **Persistencia**:
+    - Dual mode: En local store `data/psiconotes_relacional.json` bajo la colección `therapist_scales`, con fallback en `localStorage` (`psico_custom_scales_${uid}`).
+    - Sincronización en la nube mediante `CloudSyncManager`.
+  - **Experiencia de Usuario (UI/UX)**:
+    - Botón prominente `+ Nueva Escala / Test` y botón `Editar` en cada tarjeta del catálogo de psicometría.
+    - Modal de edición completo (`scaleEditorModal`) con gestión dinámica de ítems (preguntas), selector de tipo de escala (Likert 0-3, Likert 1-4, Likert 0-4, Sí/No 0-1) y cálculo asistido de puntos de corte.
+
+---
+
+#### Requerimientos 2 y 3: Consentimiento Informado & Modificación de Formato
+* **Objetivo Clínico**: Flexibilizar el documento legal y ético de encuadre psicoterapéutico. El profesional debe poder revisar, adaptar las cláusulas institucionales, encabezados y términos de confidencialidad según las particularidades de su práctica o normativas locales (FPV, LOPNNA, MPPS).
+* **Especificación de Arquitectura**:
+  - **Módulo `consentimiento.js` Refactorizado**:
+    - Incorporar modo de edición de plantilla previa a la firma.
+    - Soporte de marcadores dinámicos: `{{PACIENTE}}`, `{{TERAPEUTA}}`, `{{FECHA}}`, `{{TUTOR}}`, `{{DURACION}}`.
+    - Selector de modo: Firma digital en pantalla táctil o registro de consentimiento físico consignado en consultorio.
+    - Exportación oficial a PDF con maquetado formal, membrete y espacio para doble firma.
+
+---
+
+#### Requerimiento 4: Editar Genograma Directo desde Historia Clínica
+* **Objetivo Clínico**: Permitir que al presionar el botón `[Genograma]` en la barra de herramientas de la Historia Clínica (`historia-clinica.js`), el terapeuta acceda de forma inmediata y directa a la edición interactiva del genograma familiar de 3 generaciones, sin mostrar vistas estáticas no editables.
+* **Especificación de Arquitectura**:
+  - `ClinicalHistorySystem.openGenogramModal(patientId)` debe integrarse bidireccionalmente con `GenogramModule`.
+  - Debe renderizar el lienzo SVG interactivo con nodos arrastrables, editor de miembros (`openMemberModal`), editor de uniones matrimoniales (`openAddUnionModal`), relaciones afectivas de Bowen (`openAddRelationshipModal`) y asistente guiado (`openWizardModal`).
+  - Al guardar cambios en el genograma, debe actualizarse en tiempo real la ficha del paciente, la historia clínica y la exportación en PDF.
+
+---
+
+#### Requerimiento 5: Examen Mental tipo Check-List
+* **Objetivo Clínico**: Agilizar la evaluación psicopatológica mediante un formato de verificación rápida (Check-List con casillas y chips de selección múltiple), reduciendo el tiempo de redacción y garantizando el barrido de las funciones mentales de la semiótica psiquiátrica.
+* **Especificación de Arquitectura**:
+  - **Interfaz Check-List Reactiva**:
+    - Agrupación por dominios: 1. Porte y Actitud, 2. Conciencia, 3. Atención y Orientación, 4. Memoria y Juicio, 5. Pensamiento, 6. Lenguaje, 7. Afecto, 8. Sensopercepción, 9. Psicomotricidad, 10. Insight y Riesgo.
+    - Acciones rápidas: Botón `⭐ Todo Conservado / Eutímico` para marcar en 1 clic los parámetros normales, permitiendo desmarcar únicamente los hallazgos patológicos observados.
+    - Generador automático de párrafo de síntesis semiológica para incrustar en la nota SOAP o en la Historia Clínica Oficial.
+
+---
+
+#### Requerimiento 6: Quitar Emojis en Historia Clínica Adulto
+* **Objetivo Clínico**: Proporcionar una apariencia 100% formal, médica y protocolizada a la Historia Clínica de Adultos, eliminando emojis de títulos, acordeones y botones conforme a las observaciones de los colegios de psicólogos y directores clínicos.
+* **Mapeo de Normalización**:
+  | Ubicación Actual con Emoji | Nuevo Texto Normalizado (Sin Emojis) |
+  |---|---|
+  | `👤 Historia Clínica Adulto (5 Pág.)` | `Historia Clínica Adulto (5 Pág.)` |
+  | `1 📋 Datos de Identificación del Paciente & Convivencia` / `👤 Identificación, Vínculos Filiatorios & Convivencia` | `1. Identificación, Vínculos Filiatorios & Convivencia` |
+  | `2 👁️ Motivo de Consulta & Situación Actual` / `🎯 Motivo de Consulta & Situación Actual` | `2. Motivo de Consulta & Situación Actual` |
+  | `3 🧠 Examen Mental & Tríada Sintomatológica` | `3. Examen Mental & Tríada Sintomatológica` |
+  | `4 🩺 Antecedentes Médicos, Neurológicos & Quirúrgicos` | `4. Antecedentes Médicos, Neurológicos & Quirúrgicos` |
+  | `5 / 7 💼 Situación Actual y Áreas de Vida Adulta` | `5. Situación Actual y Áreas de Vida Adulta` |
+  | `6 / 8 🏠 Vivienda, Hábitos Psicobiológicos, Sueño & Fobias` | `6. Vivienda, Hábitos Psicobiológicos, Sueño & Fobias` |
+  | `7 / 9 📋 Impresión Diagnóstica & Plan Terapéutico (CIE-10/11 & DSM-5-TR)` | `7. Impresión Diagnóstica & Plan Terapéutico (CIE-10/11 & DSM-5-TR)` |
+  | Subtítulos: `👨‍👩‍👧 Datos Filiatorios`, `🏃 Conductuales`, `🎭 Emocionales`, `🫀 Orgánicas` | `Datos Filiatorios`, `Características Conductuales`, `Características Emocionales`, `Características Orgánicas` |
+
+---
+
+#### Requerimientos 7 y 8: HC Infantil — Posición del Bebé y Opción Sistemática "Dato no Obtenido"
+* **Objetivo Clínico**: En anamnesis perinatales retrospectivas, con frecuencia los padres o tutores desconocen detalles obstétricos o cronológicos específicos. El sistema debe permitir registrar explícitamente "Dato no Obtenido" sin forzar datos inventados ni dejar campos ambiguos.
+* **Especificación de Campos**:
+  1. **Posición del Bebé**:
+     - Selector estandarizado:
+       - `<option value="Cefálica">Cefálica</option>`
+       - `<option value="Transversal">Transversal</option>`
+       - `<option value="Podálica">Podálica</option>`
+       - `<option value="Dato no Obtenido">Dato no Obtenido</option>`
+  2. **Demás Ítems Perinatales y de Desarrollo**:
+     - `Llanto al nacer`: `SI`, `NO`, `Dato no Obtenido`.
+     - `Tipo de Parto`: `Natural`, `Espontáneo`, `Cesárea`, `Inducido`, `Dato no Obtenido`.
+     - `Reanimación`: `NO`, `SI`, `Dato no Obtenido`.
+     - `Incubadora`: `NO`, `SI`, `Dato no Obtenido`.
+     - Hitos de desarrollo (Control cefálico, Sedestación, Gateo, Primeros pasos, Primeras palabras, etc.): Botón rápido o valor seleccionable `Dato no Obtenido`.
+
+---
+
+#### Requerimiento 9: Ajuste de Etiqueta — "CONSENTIMIENTO INFORMADO: FIRMADO POR EL REPRESENTANTE"
+* **Objetivo Clínico**: Reflejar con exactitud jurídica la figura de la representación legal en pacientes infanto-juveniles según la directriz solicitada.
+* **Transformación**:
+  - **Texto Anterior**: `Consentimiento Informado: Firmado por Representante Legal y en custodia clínica`
+  - **Nuevo Texto Oficial**:
+    ```html
+    <div style="padding: 10px 14px; background: rgba(45, 212, 191, 0.08); border-radius: 8px; border: 1px solid rgba(45, 212, 191, 0.25);">
+        <strong>CONSENTIMIENTO INFORMADO:</strong> 
+        <span style="color:#059669; font-weight:700;">
+            <i class="fas fa-check-circle"></i> FIRMADO POR EL REPRESENTANTE
+        </span>
+    </div>
+    ```
+
+---
+
+### 39.2. Matriz de Distribución para Agentes Especializados
+
+```mermaid
+sequenceDiagram
+    autonumber
+    actor Clinico as 🩺 Dirección Clínica
+    participant PM as Agente 1 (Arquitecto / PM)
+    participant BE as Agente 2 (Backend)
+    participant FE as Agente 3 (Frontend / Mobile)
+    participant QA as Agente 4 (QA / DevOps)
+
+    Clinico->>PM: Entrega requerimientos de mejoras en PDF
+    Note over PM: Análisis estructural y diseño de especificación
+    PM->>PM: Documenta Sección 39 en arquitectura.md
+    PM-->>BE: Directrices de persistencia para escalas y consentimientos
+    PM-->>FE: Directrices de UI (Checklist MSE, Emojis HC, Genograma y Selectores)
+    PM-->>QA: Especificación de casos de prueba TC-MEJ-01 a TC-MEJ-06
+
+    par Ejecución Coordinada
+        BE->>BE: Habilita rutas y persistencia de escalas dinámicas
+        FE->>FE: Implementa UI, elimina emojis y conecta Genograma/Checklist
+        QA->>QA: Diseña e integra suite automatizada en tests.js
+    end
+
+    QA->>QA: Ejecuta suite completa (npm test)
+    QA-->>PM: Reporte de 100% pruebas aprobadas sin regresión
+    PM->>Clinico: Entrega del sistema perfeccionado
+```
+
+| Rol | Agente | Tareas Concretas Asignadas |
+|---|---|---|
+| **Arquitecto / PM** | **Agente 1** | Definición de especificación técnica en `arquitectura.md`, diagramas Mermaid y coordinación del ciclo de entrega. |
+| **Backend** | **Agente 2** | Persistencia relacional de escalas dinámicas (`therapist_scales`), auditoría y consistencia en `server.js` y `db.js`. |
+| **Frontend / Mobile** | **Agente 3** | 1. Eliminación de emojis en HC Adulto.<br>2. Selector de posición del bebé (`Cefálica`, `Transversal`, `Podálica`, `Dato no Obtenido`) e ítems con `Dato no Obtenido`.<br>3. Cambio de etiqueta a `CONSENTIMIENTO INFORMADO: FIRMADO POR EL REPRESENTANTE`.<br>4. Integración del editor de Genograma interactivo en botón de HC.<br>5. Check-list rápido para Examen Mental.<br>6. Editor y creador de escalas y modificación de consentimiento. |
+| **QA & DevOps** | **Agente 4** | Creación y ejecución de casos de prueba automatizados (`TC-MEJ-01` a `TC-MEJ-07`) en `plan_pruebas.md` y `tests.js`, asegurando 100% de éxito y cero regresiones. |
+
+---
+
+### 39.3. Arquitectura y Solución de Fichas y Modales del Genograma (v7.5.1)
+
+#### 1. Diagnóstico de la Falla Visual
+- **Desplazamiento a la izquierda y recorte**: `genogram.js` renderizaba modales inyectando directamente `<div class="modal-overlay active">` como nodo raíz con un hijo `<div class="modal-card">`. Dado que `.modal-overlay` en `styles.css` tenía `position: absolute` sin `display: flex` ni reglas de centrado (`align-items: center; justify-content: center;`), la tarjeta quedaba anclada en la esquina superior izquierda del viewport, solapada por la barra lateral y recortando los textos (`sistente Familiar: Cue...`, `buelo Paterno (Varón ▢)`).
+- **Incompatibilidad Cromática en Modo Oscuro**: Los campos `<input type="number" class="form-control">` carecían de reglas de tema oscuro, por lo que el navegador renderizaba fondos blancos nativos (`#ffffff`) con texto negro, rompiendo el estándar estético de Serena Clinical UI.
+- **Inflexibilidad en Viewports Medianos/Móviles**: El uso de cuadrículas rígidas `grid-template-columns: 1fr 1fr;` provocaba compresión excesiva en pantallas medianas o reducidas.
+
+#### 2. Solución Estructural Implementada
+1. **Jerarquía DOM Estándar de Modales**:
+   Todos los modales del genograma (`modalGenoMember`, `modalEditMember`, `modalAddUnion`, `modalEditUnion`, `modalAddRel`, `modalEditRel`, `modalGenoWizard`) fueron refactorizados a la convención canónica del sistema:
+   ```html
+   <div class="modal active" id="{modalId}">
+       <div class="modal-overlay" onclick="GenogramModule.closeModal('{modalId}')"></div>
+       <div class="modal-content [modal-large|modal-xl] [geno-wizard-card]" style="max-width: ...px; margin: auto;">
+           <div class="modal-header">...</div>
+           <div class="modal-body">...</div>
+           <div class="modal-footer">...</div>
+       </div>
+   </div>
+   ```
+2. **Defensa CSS Failsafe**:
+   Se incorporó en `styles.css` la regla de centrado forzado para `.modal-overlay.active` (`position: fixed !important; top: 0; left: 0; width: 100vw; height: 100vh; z-index: 2200; display: flex; align-items: center; justify-content: center;`), garantizando centrado absoluto en cualquier escenario.
+3. **Modo Oscuro Completo para `.form-control`**:
+   Soporte completo en `[data-theme="dark"] .form-control` con tokens `background: #1a2724; color: #f1f5f9; border-color: #293d37;` y anillo de foco en color esmeralda (`#0d9488`).
+4. **Cuadrículas Adaptativas (Responsive Grid)**:
+   Se migraron los formularios a `grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));`, permitiendo que las tarjetas de abuelos y padres se organicen en dos columnas en pantallas de escritorio y colapsen fluidamente en columnas individuales en pantallas medianas o móviles sin desbordar.
+5. **Limpieza Rigurosa en `injectModal`**:
+   `injectModal()` ahora remueve proactivamente cualquier modal o fondo previo antes de inyectar uno nuevo, evitando overlays huérfanos o duplicación de tarjetas.
+
+---
+
+## 40. Módulo de Finanzas Multimoneda y Cotización Automatizada BCV (v8.0)
+
+### 40.1. Requerimiento y Visión Clínica
+En la práctica psicoterapéutica en Venezuela, los honorarios y cobros se transaccionan comúnmente en dos monedas:
+1. **Divisas ($ USD / € EUR)**: Efectivo en divisas, Zelle, Binance Pay (USDT).
+2. **Moneda Local (Bolívares / VES)**: Pago Móvil interbancario, transferencias bancarias nacionales, punto de venta y efectivo en bolívares.
+
+Los profesionales requerían:
+- Automatización de la tasa oficial del Banco Central de Venezuela (BCV) en tiempo real para USD y EUR sin tener que consultar páginas externas manualmente.
+- Capacidad de registrar y consultar ingresos/egresos tanto en Bolívares como en Divisas con cálculo automático de conversión y captura del método (Pago Móvil, Zelle, etc.) y número de referencia bancaria.
+- Visualización dual y selector de modo monetario (`USD`, `VES`, `DUAL`) en los indicadores KPI de ingresos, egresos y balance neto.
+- Cotización oficial en las tarifas por tiempo de consulta y en los mensajes automáticos de cobranza vía WhatsApp y portapapeles.
+
+### 40.2. Diagrama de Arquitectura Multimoneda (Mermaid)
+
+```mermaid
+flowchart TB
+    subgraph Frontend["💻 Frontend Clínico (finance.js & index.html)"]
+        UI_Banner["🇻🇪 Banner BCV (Cotización USD / EUR al Día)"]
+        UI_Toggle["Selector de Moneda (USD / VES / Dual)"]
+        UI_KPI["KPIs Duales (Ingresos, Gastos, Balance)"]
+        UI_ModalTx["#financeTransactionModal (VES / USD / EUR)"]
+        UI_ModalBcv["#financeBcvRateModal (Ajuste / Tasa Manual)"]
+        UI_Rates["Tarifas por Tiempo (USD + Contravalor Bs.)"]
+        UI_Debts["Cuentas por Cobrar & Recordatorios WhatsApp en Bs."]
+    end
+
+    subgraph Core_Finance["⚙️ Motor Multimoneda (finance.js)"]
+        RatesStore[("LocalStorage: psico_bcv_rates")]
+        FnConvert["convertCurrency(amount, from, to)"]
+        FnFetchBCV["fetchBcvExchangeRates(forceRefresh)"]
+        FnDualFormat["formatDualCurrency(amountUSD)"]
+    end
+
+    subgraph Backend_Gateway["🛡️ Backend Gateway (server.js)"]
+        RouteBCV["GET /api/v1/finance/bcv-rates"]
+        RouteRefresh["POST /api/v1/finance/bcv-rates/refresh"]
+        CacheBCV["Caché en Memoria (TTL: 30 min)"]
+    end
+
+    subgraph Upstream_APIs["🌐 Fuentes Oficiales Externas"]
+        BCV_Official["DolarApi Venezuela (BCV Oficial USD & EUR)"]
+    end
+
+    UI_Banner -->|Consulta / Refresco| FnFetchBCV
+    FnFetchBCV -->|HTTP GET| RouteBCV
+    RouteBCV --> CacheBCV
+    CacheBCV -->|Fetch con Timeout 6s| BCV_Official
+    FnFetchBCV --> RatesStore
+    RatesStore --> FnConvert
+    FnConvert --> UI_KPI
+    FnConvert --> UI_ModalTx
+    FnConvert --> UI_Rates
+    FnConvert --> UI_Debts
+    UI_ModalBcv -->|Guarda Tasa Manual o Auto| RatesStore
+```
+
+### 40.3. Componentes Implementados y Especificación Técnica
+1. **API Backend (`server.js`)**:
+   - `GET /api/v1/finance/bcv-rates`: Consulta `dolarapi.com/v1/dolares/oficial` y `dolarapi.com/v1/euros/oficial`, con caché en memoria de 30 minutos y resiliencia de fallback en caso de desconexión.
+   - `POST /api/v1/finance/bcv-rates/refresh`: Invalida la caché y recupera la cotización oficial más reciente.
+2. **Motor de Conversión y Persistencia (`finance.js`)**:
+   - `getBcvExchangeRates()` / `saveBcvExchangeRates(data)`: Persistencia segura con soporte para modo automático y modo manual personalizado.
+   - `convertCurrency(amount, fromCurr, toCurr)`: Conversión bidireccional exacta con redondeo a 2 decimales.
+   - `formatDualCurrency(amountUSD, showBoth)`: Formateador tipográfico dual para tarjetas de resumen y reportes.
+3. **Registro de Transacciones Multimoneda**:
+   - Selector de moneda nativa (`VES`, `USD`, `EUR`).
+   - Calculadora en tiempo real al escribir el monto en Bolívares o en Divisas.
+   - Selección de forma de pago venezolana e internacional (*Pago Móvil, Transferencia Bancaria Nacional, Punto de Venta, Zelle, Efectivo Divisas, Binance Pay*).
+   - Captura de número de referencia bancaria para conciliación.
+   - Normalización a USD para mantener total consistencia contable y retrocompatibilidad con las pruebas unitarias y de balance.
+4. **Tarifas y Cobranzas**:
+   - Visualización de precios en USD y en Bolívares calculados con la cotización del día.
+   - Mensajes automáticos de WhatsApp y portapapeles con detalle de las citas impagadas en USD y su equivalente exacto en Bolívares según la tasa del BCV del día, simplificando los pagos para pacientes y terapeuta.
+
+
+
+
 
 
 

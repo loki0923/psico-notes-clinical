@@ -1645,6 +1645,20 @@
     </div>
 </div>
 
+<!-- FINANCE BCV RATE MODAL -->
+<div class="modal" id="financeBcvRateModal">
+    <div class="modal-overlay" onclick="closeModal('financeBcvRateModal')"></div>
+    <div class="modal-content" style="max-width: 520px;">
+        <div class="modal-header">
+            <h2 id="financeBcvRateModalTitle"><i class="fas fa-landmark" style="color:var(--accent-primary);"></i> Tasa Oficial BCV y Moneda Local</h2>
+            <button class="btn-icon" onclick="closeModal('financeBcvRateModal')">
+                <i class="fas fa-times"></i>
+            </button>
+        </div>
+        <div class="modal-form" id="financeBcvRateModalBody"></div>
+    </div>
+</div>
+
 <!-- DRAWER LATERAL DE RECORDATORIOS DE SESIONES -->
 <div class="reminder-drawer" id="sessionReminderDrawer">
     <div class="reminder-drawer-overlay" onclick="closeReminderDrawer()"></div>
@@ -2176,9 +2190,14 @@
                     <input type="number" id="scaleCutoffSev" value="13">
                 </div>
             </div>
-            <div class="modal-actions">
-                <button type="button" class="btn-secondary" onclick="closeModal('scaleEditorModal')">Cancelar</button>
-                <button type="submit" class="btn-primary"><i class="fas fa-check-circle"></i> Guardar Escala</button>
+            <div class="modal-actions" style="display:flex;justify-content:space-between;align-items:center;">
+                <button type="button" class="btn-danger" id="btnDeleteCustomScale" style="display:none;" onclick="deleteCustomScale(document.getElementById('customScaleEditId').value)">
+                    <i class="fas fa-trash"></i> Eliminar Escala
+                </button>
+                <div style="display:flex;gap:10px;margin-left:auto;">
+                    <button type="button" class="btn-secondary" onclick="closeModal('scaleEditorModal')">Cancelar</button>
+                    <button type="submit" class="btn-primary"><i class="fas fa-check-circle"></i> Guardar Escala</button>
+                </div>
             </div>
         </form>
     </div>

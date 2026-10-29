@@ -1223,6 +1223,208 @@ const MentalExamModule = {
             </html>
         `);
         printWindow.document.close();
+    },
+
+    // =============================================================
+    // MODO CHECK-LIST RÁPIDO PARA HISTORIA CLÍNICA Y NOTAS
+    // =============================================================
+    openChecklistModal(targetInputId = 'fh_mentalExam') {
+        let modal = document.getElementById('mentalExamChecklistModal');
+        if (!modal) {
+            modal = document.createElement('div');
+            modal.id = 'mentalExamChecklistModal';
+            modal.className = 'modal';
+            document.body.appendChild(modal);
+        }
+
+        const checklistCategories = [
+            {
+                name: '1. Porte, Aspecto y Actitud',
+                items: [
+                    { id: 'me_ck_aseado', label: 'Aseado y con adecuado aliño personal', text: 'Paciente aseado/a, con adecuado cuidado personal', normal: true },
+                    { id: 'me_ck_ropa_adecuada', label: 'Vestimenta acorde a edad, contexto y clima', text: 'vestimenta acorde al contexto y ocasión', normal: true },
+                    { id: 'me_ck_colaborador', label: 'Actitud colaboradora, receptiva y comunicativa', text: 'actitud colaboradora y participativa ante la entrevista', normal: true },
+                    { id: 'me_ck_contacto_visual', label: 'Contacto visual espontáneo y sostenido', text: 'contacto visual directo y adecuado', normal: true },
+                    { id: 'me_ck_desalinado', label: 'Desaliñado / Higiene descuidada', text: 'presenta desaliño y descuido en higiene personal', normal: false },
+                    { id: 'me_ck_hostil', label: 'Actitud reticente, desconfiada u hostil', text: 'actitud reticente y a la defensiva', normal: false },
+                    { id: 'me_ck_inquieto', label: 'Inquietud psicomotora / Ansiedad evidente', text: 'inquietud psicomotora y desasosiego motriz', normal: false },
+                    { id: 'me_ck_inhibido', label: 'Inhibición psicomotora / Retraimiento', text: 'inhibición conductual y retraimiento psicomotor', normal: false }
+                ]
+            },
+            {
+                name: '2. Conciencia y Orientación',
+                items: [
+                    { id: 'me_ck_lucido', label: 'Lúcido y vigil (Conciencia clara)', text: 'vigil y lúcido/a en su esfera de conciencia', normal: true },
+                    { id: 'me_ck_orientado', label: 'Orientado en tiempo, espacio y persona', text: 'orientado/a en tiempo, espacio y persona (autopsíquica y alopsíquica conservada)', normal: true },
+                    { id: 'me_ck_somnoliento', label: 'Somnoliento / Embotamiento de conciencia', text: 'tendencia a la somnolencia y embotamiento', normal: false },
+                    { id: 'me_ck_desorientado', label: 'Desorientación temporoespacial parcial o total', text: 'desorientación en tiempo y/o espacio', normal: false }
+                ]
+            },
+            {
+                name: '3. Atención y Memoria',
+                items: [
+                    { id: 'me_ck_euprosexia', label: 'Euprosexia (Atención focalizada y sostenida)', text: 'euprosexia con adecuada focalización atencional', normal: true },
+                    { id: 'me_ck_memoria_ok', label: 'Memoria inmediata, reciente y remota conservada', text: 'memoria inmediata, reciente y remota indemne', normal: true },
+                    { id: 'me_ck_hipoprosexia', label: 'Hipoprosexia / Marcada distraibilidad', text: 'hipoprosexia con dificultad de concentración', normal: false },
+                    { id: 'me_ck_amnesia', label: 'Fallas amnésicas o lagunas de fijación/evocación', text: 'fallas amnésicas en fijación y evocación reciente', normal: false }
+                ]
+            },
+            {
+                name: '4. Pensamiento y Lenguaje',
+                items: [
+                    { id: 'me_ck_curso_logico', label: 'Curso lógico, coherente y fluido', text: 'pensamiento de curso lógico, coherente y velocidad conservada', normal: true },
+                    { id: 'me_ck_sin_delirios', label: 'Sin ideas delirantes, obsesivas ni fóbicas', text: 'sin ideación delirante, obsesiva ni fóbica', normal: true },
+                    { id: 'me_ck_lenguaje_claro', label: 'Lenguaje fluido, claro y articulado', text: 'lenguaje fluido, bien articulado y comprensible, con mímica congruente', normal: true },
+                    { id: 'me_ck_taquipsiquia', label: 'Taquipsiquia (Pensamiento acelerado / Verborrea)', text: 'taquipsiquia con fuga de ideas', normal: false },
+                    { id: 'me_ck_bradipsiquia', label: 'Bradipsiquia (Pensamiento enlentecido)', text: 'bradipsiquia con marcado enlentecimiento asociativo', normal: false },
+                    { id: 'me_ck_delirios', label: 'Presencia de ideas delirantes', text: 'presencia de ideas delirantes estructuradas', normal: false },
+                    { id: 'me_ck_obsesiones', label: 'Ideas obsesivas / Rumiaciones intrusivas', text: 'rumiaciones obsesivas recurrentes', normal: false }
+                ]
+            },
+            {
+                name: '5. Afectividad y Sensopercepción',
+                items: [
+                    { id: 'me_ck_eutimico', label: 'Eutímico / Afecto modulado y resonante', text: 'ánimo eutímico, afectividad modulada con adecuada resonancia afectiva', normal: true },
+                    { id: 'me_ck_sin_alucinaciones', label: 'Sensopercepción conservada (Sin alucinaciones)', text: 'sensopercepción conservada sin fenómenos alucinatorios ni ilusorios', normal: true },
+                    { id: 'me_ck_depresivo', label: 'Hipotimia / Ánimo triste o decaído', text: 'hipotimia con ánimo marcadamente triste y apesadumbrado', normal: false },
+                    { id: 'me_ck_ansioso', label: 'Ansiedad marcada / Angustia somática', text: 'afecto ansioso con tensión psicosomática', normal: false },
+                    { id: 'me_ck_labil', label: 'Labilidad emocional / Llanto fácil', text: 'labilidad afectiva con llanto fácil', normal: false },
+                    { id: 'me_ck_alucinaciones', label: 'Presencia de alucinaciones (auditivas/visuales)', text: 'alteración sensoperceptiva de tipo alucinatorio', normal: false }
+                ]
+            },
+            {
+                name: '6. Juicio, Introspección y Riesgo',
+                items: [
+                    { id: 'me_ck_juicio_conservado', label: 'Juicio de realidad conservado', text: 'juicio práctico y de realidad conservado', normal: true },
+                    { id: 'me_ck_insight_positivo', label: 'Insight positivo / Conciencia de situación', text: 'insight positivo con adecuada conciencia de situación y necesidad de ayuda', normal: true },
+                    { id: 'me_ck_riesgo_negativo', label: 'Riesgo autolítico descartado / Negativo', text: 'riesgo autolítico y heteroagresivo descartado en la evaluación actual', normal: true },
+                    { id: 'me_ck_juicio_desviado', label: 'Juicio de realidad comprometido', text: 'juicio de realidad comprometido', normal: false },
+                    { id: 'me_ck_insight_nulo', label: 'Insight nulo / Ausencia de conciencia', text: 'ausencia de introspección (insight nulo)', normal: false },
+                    { id: 'me_ck_riesgo_activo', label: '⚠️ Ideación de muerte o riesgo autolítico presente', text: '⚠️ Presencia de ideación autolítica activa / Requiere contención y protocolo de seguridad', normal: false }
+                ]
+            }
+        ];
+
+        this._ckCategories = checklistCategories;
+
+        modal.innerHTML = `
+            <div class="modal-overlay" onclick="closeModal('mentalExamChecklistModal')"></div>
+            <div class="modal-content modal-large" style="max-width:860px;max-height:92vh;display:flex;flex-direction:column;">
+                <div class="modal-header">
+                    <h2>📋 Examen Mental — Formato Check-List Protocolizado</h2>
+                    <button class="btn-icon" onclick="closeModal('mentalExamChecklistModal')"><i class="fas fa-times"></i></button>
+                </div>
+                <div style="padding:14px;overflow-y:auto;flex:1;">
+                    <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;margin-bottom:12px;background:var(--bg-secondary);padding:10px 14px;border-radius:8px;">
+                        <span style="font-size:12.5px;color:var(--text-secondary);">
+                            Selecciona las casillas correspondientes para generar automáticamente la síntesis semiológica.
+                        </span>
+                        <div style="display:flex;gap:8px;">
+                            <button type="button" class="btn-sm btn-primary" onclick="MentalExamModule.checkAllNormalChecklist('${targetInputId}')">
+                                <i class="fas fa-check-double"></i> ⭐ Marcar Todo Conservado / Eutímico
+                            </button>
+                            <button type="button" class="btn-sm btn-secondary" onclick="MentalExamModule.clearChecklist('${targetInputId}')">
+                                Limpiar
+                            </button>
+                        </div>
+                    </div>
+
+                    <div style="display:grid;grid-template-columns:repeat(auto-fit, minmax(360px, 1fr));gap:14px;">
+                        ${checklistCategories.map(cat => `
+                            <div style="background:var(--bg-secondary);padding:12px;border-radius:8px;border:1px solid var(--border-primary);">
+                                <h4 style="margin:0 0 10px 0;font-size:13px;color:var(--accent-primary);border-bottom:1px solid var(--border-secondary);padding-bottom:4px;">${cat.name}</h4>
+                                <div style="display:flex;flex-direction:column;gap:6px;">
+                                    ${cat.items.map(item => `
+                                        <label style="display:flex;align-items:flex-start;gap:8px;font-size:12px;cursor:pointer;line-height:1.35;">
+                                            <input type="checkbox" id="${item.id}" data-normal="${item.normal}" onchange="MentalExamModule.updateChecklistLiveText('${targetInputId}')" style="margin-top:2px;">
+                                            <span style="${item.normal ? 'color:var(--text-primary);' : 'color:#e16259;font-weight:600;'}">${item.label}</span>
+                                        </label>
+                                    `).join('')}
+                                </div>
+                            </div>
+                        `).join('')}
+                    </div>
+
+                    <div style="margin-top:16px;">
+                        <label style="font-size:12.5px;font-weight:700;display:block;margin-bottom:4px;">
+                            📝 Previsualización de la Síntesis Semiológica:
+                        </label>
+                        <textarea id="me_ck_preview" rows="4" style="width:100%;font-size:12.5px;padding:8px 12px;border-radius:6px;border:1px solid var(--border-primary);background:var(--bg-card);color:var(--text-primary);" placeholder="Selecciona casillas arriba para generar el texto..."></textarea>
+                    </div>
+                </div>
+                <div class="modal-actions" style="padding:12px 16px;border-top:1px solid var(--border-primary);display:flex;justify-content:flex-end;gap:10px;">
+                    <button type="button" class="btn-secondary" onclick="closeModal('mentalExamChecklistModal')">Cancelar</button>
+                    <button type="button" class="btn-primary" onclick="MentalExamModule.applyChecklistToField('${targetInputId}')">
+                        <i class="fas fa-file-import"></i> Aplicar al Examen Mental
+                    </button>
+                </div>
+            </div>
+        `;
+
+        openModal('mentalExamChecklistModal');
+        this.checkAllNormalChecklist(targetInputId);
+    },
+
+    checkAllNormalChecklist(targetInputId) {
+        if (!this._ckCategories) return;
+        this._ckCategories.forEach(cat => {
+            cat.items.forEach(item => {
+                const el = document.getElementById(item.id);
+                if (el) el.checked = item.normal;
+            });
+        });
+        this.updateChecklistLiveText(targetInputId);
+    },
+
+    clearChecklist(targetInputId) {
+        if (!this._ckCategories) return;
+        this._ckCategories.forEach(cat => {
+            cat.items.forEach(item => {
+                const el = document.getElementById(item.id);
+                if (el) el.checked = false;
+            });
+        });
+        this.updateChecklistLiveText(targetInputId);
+    },
+
+    updateChecklistLiveText(targetInputId) {
+        if (!this._ckCategories) return;
+        const selectedTexts = [];
+        this._ckCategories.forEach(cat => {
+            cat.items.forEach(item => {
+                const el = document.getElementById(item.id);
+                if (el && el.checked) {
+                    selectedTexts.push(item.text);
+                }
+            });
+        });
+
+        const preview = document.getElementById('me_ck_preview');
+        if (preview) {
+            if (selectedTexts.length === 0) {
+                preview.value = '';
+            } else {
+                let narrative = 'Al examen mental: ' + selectedTexts.join('; ') + '.';
+                // Capitalizar primera letra después de punto
+                narrative = narrative.charAt(0).toUpperCase() + narrative.slice(1);
+                preview.value = narrative;
+            }
+        }
+    },
+
+    applyChecklistToField(targetInputId) {
+        const preview = document.getElementById('me_ck_preview');
+        const text = preview ? preview.value.trim() : '';
+        const target = document.getElementById(targetInputId);
+        if (target) {
+            target.value = text;
+            target.dispatchEvent(new Event('input', { bubbles: true }));
+            target.dispatchEvent(new Event('change', { bubbles: true }));
+        }
+        closeModal('mentalExamChecklistModal');
+        if (typeof showToast === 'function') {
+            showToast('✅ Examen Mental sintetizado e insertado con éxito', 'success');
+        }
     }
 };
 

@@ -123,6 +123,165 @@ function getFinanceStorageKey(key) {
 }
 
 // -------------------------------------------------------------
+// TASAS OFICIALES BCV Y GESTIÓN MULTIMONEDA (USD / VES / EUR)
+// -------------------------------------------------------------
+
+const DEFAULT_BCV_CONFIG = {
+    usdRate: 888.89,
+    eurRate: 989.39,
+    lastUpdated: new Date().toISOString(),
+    source: 'BCV (Oficial)',
+    isManual: false
+};
+
+function getBcvExchangeRates() {
+    try {
+        const stored = _storageGet('psico_bcv_rates');
+        if (stored) {
+            const parsed = JSON.parse(stored);
+            if (parsed && typeof parsed.usdRate === 'number' && parsed.usdRate > 0) {
+                return parsed;
+            }
+        }
+    } catch {}
+    return { ...DEFAULT_BCV_CONFIG };
+}
+
+function saveBcvExchangeRates(data) {
+    try {
+        const current = getBcvExchangeRates();
+        const rawUsd = parseFloat(data.usdRate) || current.usdRate || 888.89;
+        const rawEur = parseFloat(data.eurRate) || current.eurRate || 989.39;
+        const updated = {
+            ...current,
+            ...data,
+            usdRate: Math.round((rawUsd + Number.EPSILON) * 100) / 100,
+            eurRate: Math.round((rawEur + Number.EPSILON) * 100) / 100,
+            lastUpdated: data.lastUpdated || new Date().toISOString()
+        };
+        _storageSet('psico_bcv_rates', JSON.stringify(updated));
+        return updated;
+    } catch {
+        return getBcvExchangeRates();
+    }
+}
+
+async function fetchBcvExchangeRates(forceRefresh = false) {
+    const current = getBcvExchangeRates();
+    if (current.isManual && !forceRefresh) {
+        return current;
+    }
+
+    try {
+        let fetchedData = null;
+        if (typeof window !== 'undefined' && window.location && window.location.protocol !== 'file:') {
+            const url = `/api/v1/finance/bcv-rates${forceRefresh ? '?force=true' : ''}`;
+            const res = await fetch(url).catch(() => null);
+            if (res && res.ok) {
+                fetchedData = await res.json().catch(() => null);
+            }
+        }
+
+        if (!fetchedData || !fetchedData.rates || !fetchedData.rates.USD) {
+            const res = await fetch('https://ve.dolarapi.com/v1/dolares/oficial').catch(() => null);
+            if (res && res.ok) {
+                const d = await res.json().catch(() => null);
+                if (d && (d.promedio || d.venta)) {
+                    fetchedData = {
+                        rates: {
+                            USD: { rate: parseFloat(d.promedio || d.venta), date: d.fechaActualizacion },
+                            EUR: { rate: parseFloat(d.promedio || d.venta) * 1.11, date: d.fechaActualizacion }
+                        },
+                        source: 'Banco Central de Venezuela (BCV Oficial)'
+                    };
+                }
+            }
+        }
+
+        if (fetchedData && fetchedData.rates && fetchedData.rates.USD && fetchedData.rates.USD.rate > 0) {
+            const updated = saveBcvExchangeRates({
+                usdRate: fetchedData.rates.USD.rate,
+                eurRate: (fetchedData.rates.EUR && fetchedData.rates.EUR.rate) ? fetchedData.rates.EUR.rate : (fetchedData.rates.USD.rate * 1.11),
+                lastUpdated: fetchedData.rates.USD.date || new Date().toISOString(),
+                source: fetchedData.source || 'BCV (Oficial)',
+                isManual: false
+            });
+            if (forceRefresh && typeof _financeUtilScope.showToast === 'function') {
+                _financeUtilScope.showToast(`🇻🇪 Tasa BCV actualizada: 1 USD = ${updated.usdRate.toLocaleString('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} Bs.`, 'success');
+            }
+            if (typeof renderFinanceView === 'function') {
+                renderFinanceView();
+            }
+            return updated;
+        }
+    } catch (e) {
+        console.warn('[Finance] No se pudo obtener tasa BCV en vivo:', e);
+    }
+
+    if (forceRefresh && typeof _financeUtilScope.showToast === 'function') {
+        _financeUtilScope.showToast('No fue posible contactar al BCV. Se mantiene la última tasa guardada.', 'warning');
+    }
+    return current;
+}
+
+function convertCurrency(amount, fromCurr = 'USD', toCurr = 'VES') {
+    const num = Number(amount || 0);
+    if (isNaN(num) || num === 0) return 0;
+    const rates = getBcvExchangeRates();
+    const usdRate = rates.usdRate || 888.89;
+    const eurRate = rates.eurRate || 989.39;
+
+    const from = (fromCurr || 'USD').toUpperCase();
+    const to = (toCurr || 'VES').toUpperCase();
+
+    if (from === to) return num;
+
+    let inUSD = num;
+    if (from === 'VES' || from === 'BS' || from === 'BS.') {
+        inUSD = num / usdRate;
+    } else if (from === 'EUR') {
+        inUSD = (num * eurRate) / usdRate;
+    }
+
+    if (to === 'USD') {
+        return roundCurrency(inUSD);
+    } else if (to === 'VES' || to === 'BS' || to === 'BS.') {
+        return Math.round((inUSD * usdRate + Number.EPSILON) * 100) / 100;
+    } else if (to === 'EUR') {
+        return roundCurrency((inUSD * usdRate) / eurRate);
+    }
+
+    return roundCurrency(inUSD);
+}
+
+function formatDualCurrency(amountUSD, showBoth = true, preferredCurrency = null) {
+    const _scope = (typeof window !== 'undefined') ? window : (typeof globalThis !== 'undefined' ? globalThis : {});
+    const mode = preferredCurrency || _scope._financeCurrencyMode || 'DUAL';
+    const numUSD = Number(amountUSD || 0);
+    const numVES = convertCurrency(numUSD, 'USD', 'VES');
+
+    const formattedUSD = `$${numUSD.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} USD`;
+    const formattedVES = `Bs. ${numVES.toLocaleString('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+
+    if (mode === 'VES') {
+        return showBoth ? `${formattedVES} <span style="font-size:11px;opacity:0.75;font-weight:normal;">(≈ ${formattedUSD})</span>` : formattedVES;
+    } else if (mode === 'USD') {
+        return showBoth ? `${formattedUSD} <span style="font-size:11px;opacity:0.75;font-weight:normal;">(≈ ${formattedVES})</span>` : formattedUSD;
+    } else {
+        return `<span style="font-weight:700;">${formattedUSD}</span> <span style="font-size:12px;opacity:0.85;margin-left:4px;">/ ${formattedVES}</span>`;
+    }
+}
+
+function setFinanceCurrencyMode(mode) {
+    const _scope = (typeof window !== 'undefined') ? window : (typeof globalThis !== 'undefined' ? globalThis : {});
+    _scope._financeCurrencyMode = mode;
+    try {
+        _storageSet('psico_finance_currency_mode', mode);
+    } catch {}
+    renderFinanceView();
+}
+
+// -------------------------------------------------------------
 // TRANSACCIONES
 // -------------------------------------------------------------
 
@@ -323,8 +482,19 @@ function renderFinanceView() {
         if (!_scope._financeActiveTab) {
             _scope._financeActiveTab = 'transactions';
         }
+        if (!_scope._financeCurrencyMode) {
+            _scope._financeCurrencyMode = _storageGet('psico_finance_currency_mode') || 'DUAL';
+        }
         const currentTab = _scope._financeActiveTab;
+        const currencyMode = _scope._financeCurrencyMode;
 
+        // Intentar obtener tasas BCV en segundo plano en primer renderizado
+        if (typeof window !== 'undefined' && !_scope._bcvFetched) {
+            _scope._bcvFetched = true;
+            fetchBcvExchangeRates(false).catch(() => {});
+        }
+
+        const bcvRates = getBcvExchangeRates();
         const txs = getFinanceTransactions() || [];
         const categories = getFinanceCategories() || [];
 
@@ -378,11 +548,15 @@ function renderFinanceView() {
             tabHtml = renderRatesTabHtml();
         }
 
+        const usdFormatted = Number(bcvRates.usdRate || 888.89).toLocaleString('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+        const eurFormatted = Number(bcvRates.eurRate || 989.39).toLocaleString('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+        const lastUpdatedText = bcvRates.lastUpdated ? new Date(bcvRates.lastUpdated).toLocaleDateString('es-VE') : 'Hoy';
+
         container.innerHTML = `
             <div class="page-header">
                 <div class="page-header-left">
                     <h1 class="page-title">Finanzas de la Consulta</h1>
-                    <p class="page-subtitle">Control de ingresos, egresos, tarifas por tiempo y metas de facturación</p>
+                    <p class="page-subtitle">Control de ingresos, egresos, tarifas por tiempo y tasas automatizadas BCV / Divisas</p>
                 </div>
                 <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;">
                     <button class="btn-secondary" onclick="openPortalPaymentMethodsModal()" title="Configurar métodos y datos bancarios para pagos de pacientes en el portal">
@@ -426,6 +600,41 @@ function renderFinanceView() {
                             <i class="fas fa-plus"></i> Añadir Tarifa por Tiempo
                         </button>
                     `}
+                </div>
+            </div>
+
+            <!-- BANNER DE COTIZACIÓN AUTOMATIZADA BCV Y VISUALIZACIÓN DUAL -->
+            <div class="finance-bcv-banner" style="background:var(--bg-card);border:1px solid var(--border-primary);border-radius:12px;padding:12px 18px;margin-bottom:18px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:12px;box-shadow:0 2px 8px rgba(0,0,0,0.03);">
+                <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;">
+                    <div style="font-size:24px;line-height:1;">🇻🇪</div>
+                    <div>
+                        <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
+                            <span style="font-size:11.5px;font-weight:700;letter-spacing:0.5px;color:var(--text-tertiary);text-transform:uppercase;">Tasa Oficial BCV</span>
+                            <span style="font-size:11px;padding:2px 8px;border-radius:12px;font-weight:600;background:${bcvRates.isManual ? 'rgba(245,158,11,0.15)' : 'rgba(16,185,129,0.15)'};color:${bcvRates.isManual ? '#d97706' : '#059669'};">
+                                ${bcvRates.isManual ? '🔒 Tasa Manual Personalizada' : '🟢 Automatizada'}
+                            </span>
+                            <span style="font-size:11px;color:var(--text-tertiary);">${lastUpdatedText}</span>
+                        </div>
+                        <div style="font-size:15px;font-weight:700;color:var(--text-primary);margin-top:2px;display:flex;align-items:center;gap:12px;flex-wrap:wrap;">
+                            <span>1 USD = <strong style="color:var(--accent-primary, #2563eb);">${usdFormatted} Bs.</strong></span>
+                            <span style="color:var(--text-tertiary);opacity:0.4;">|</span>
+                            <span style="font-size:13.5px;color:var(--text-secondary);">1 EUR = <strong>${eurFormatted} Bs.</strong></span>
+                        </div>
+                    </div>
+                </div>
+                <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
+                    <!-- Selector de visualización de moneda -->
+                    <div style="display:inline-flex;background:var(--bg-secondary);border:1px solid var(--border-primary);border-radius:8px;padding:2px;font-size:12px;">
+                        <button type="button" class="btn-sm" onclick="setFinanceCurrencyMode('USD')" style="padding:4px 10px;border-radius:6px;border:none;cursor:pointer;background:${currencyMode === 'USD' ? 'var(--accent-primary, #2563eb)' : 'transparent'};color:${currencyMode === 'USD' ? '#fff' : 'var(--text-secondary)'};font-weight:${currencyMode === 'USD' ? '700' : '500'};" title="Ver saldos en Dólares ($ USD)">💵 USD</button>
+                        <button type="button" class="btn-sm" onclick="setFinanceCurrencyMode('VES')" style="padding:4px 10px;border-radius:6px;border:none;cursor:pointer;background:${currencyMode === 'VES' ? 'var(--accent-primary, #2563eb)' : 'transparent'};color:${currencyMode === 'VES' ? '#fff' : 'var(--text-secondary)'};font-weight:${currencyMode === 'VES' ? '700' : '500'};" title="Ver saldos en Bolívares (Bs. VES)">🇻🇪 Bs.</button>
+                        <button type="button" class="btn-sm" onclick="setFinanceCurrencyMode('DUAL')" style="padding:4px 10px;border-radius:6px;border:none;cursor:pointer;background:${currencyMode === 'DUAL' ? 'var(--accent-primary, #2563eb)' : 'transparent'};color:${currencyMode === 'DUAL' ? '#fff' : 'var(--text-secondary)'};font-weight:${currencyMode === 'DUAL' ? '700' : '500'};" title="Ver saldos en ambas monedas simultáneamente">⚖️ Dual</button>
+                    </div>
+                    <button type="button" class="btn-secondary btn-sm" onclick="fetchBcvExchangeRates(true)" style="padding:5px 10px;font-size:12px;" title="Actualizar cotización en vivo desde el Banco Central de Venezuela">
+                        <i class="fas fa-arrows-rotate"></i> Actualizar BCV
+                    </button>
+                    <button type="button" class="btn-secondary btn-sm" onclick="openBcvRateSettingsModal()" style="padding:5px 10px;font-size:12px;" title="Configurar tasa BCV o fijar tasa personalizada">
+                        <i class="fas fa-sliders"></i> Ajustar
+                    </button>
                 </div>
             </div>
 
@@ -484,6 +693,8 @@ function renderTransactionsTabHtml(txs, totalIncome, totalExpense, netBalance) {
     const _scope = (typeof window !== 'undefined') ? window : (typeof globalThis !== 'undefined' ? globalThis : {});
     const filterType = _scope._financeFilterType || 'all';
     const searchText = (_scope._financeSearchText || '').toLowerCase();
+    const currMode = _scope._financeCurrencyMode || 'DUAL';
+    const bcv = getBcvExchangeRates();
     const safeTxs = Array.isArray(txs) ? txs : [];
 
     let filteredTxs = safeTxs.filter(t => {
@@ -493,14 +704,27 @@ function renderTransactionsTabHtml(txs, totalIncome, totalExpense, netBalance) {
         if (searchText) {
             const concept = (t.concept || '').toLowerCase();
             const cat = (t.category || '').toLowerCase();
-            if (!concept.includes(searchText) && !cat.includes(searchText)) return false;
+            const method = (t.paymentMethod || '').toLowerCase();
+            const ref = (t.reference || '').toLowerCase();
+            if (!concept.includes(searchText) && !cat.includes(searchText) && !method.includes(searchText) && !ref.includes(searchText)) return false;
         }
         return true;
     });
 
-    const displayIncome = Number(totalIncome || 0).toFixed(2);
-    const displayExpense = Number(totalExpense || 0).toFixed(2);
-    const displayNet = Number(netBalance || 0).toFixed(2);
+    const incomeUSD = Number(totalIncome || 0);
+    const incomeVES = convertCurrency(incomeUSD, 'USD', 'VES');
+    const expenseUSD = Number(totalExpense || 0);
+    const expenseVES = convertCurrency(expenseUSD, 'USD', 'VES');
+    const netUSD = Number(netBalance || 0);
+    const netVES = convertCurrency(netUSD, 'USD', 'VES');
+
+    const displayIncomeUSD = incomeUSD.toFixed(2);
+    const displayExpenseUSD = expenseUSD.toFixed(2);
+    const displayNetUSD = netUSD.toFixed(2);
+
+    const displayIncomeVES = incomeVES.toLocaleString('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    const displayExpenseVES = expenseVES.toLocaleString('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    const displayNetVES = netVES.toLocaleString('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
     return `
         <div class="summary-cards">
@@ -508,24 +732,36 @@ function renderTransactionsTabHtml(txs, totalIncome, totalExpense, netBalance) {
                 <div class="summary-icon">💵</div>
                 <div class="summary-info">
                     <h3>Ingresos Totales</h3>
-                    <div class="summary-value" style="color:#4dab87;">$${displayIncome}</div>
-                    <div class="summary-label">Sesiones y honorarios</div>
+                    <div class="summary-value" style="color:#4dab87;">
+                        ${currMode === 'VES' ? `Bs. ${displayIncomeVES}` : `$${displayIncomeUSD}`}
+                    </div>
+                    <div class="summary-label" style="font-weight:600;color:var(--text-secondary);">
+                        ${currMode === 'VES' ? `≈ $${displayIncomeUSD} USD` : `≈ Bs. ${displayIncomeVES}`}
+                    </div>
                 </div>
             </div>
             <div class="summary-card">
                 <div class="summary-icon">💸</div>
                 <div class="summary-info">
                     <h3>Egresos Totales</h3>
-                    <div class="summary-value" style="color:#e16259;">$${displayExpense}</div>
-                    <div class="summary-label">Gastos operativos</div>
+                    <div class="summary-value" style="color:#e16259;">
+                        ${currMode === 'VES' ? `Bs. ${displayExpenseVES}` : `$${displayExpenseUSD}`}
+                    </div>
+                    <div class="summary-label" style="font-weight:600;color:var(--text-secondary);">
+                        ${currMode === 'VES' ? `≈ $${displayExpenseUSD} USD` : `≈ Bs. ${displayExpenseVES}`}
+                    </div>
                 </div>
             </div>
             <div class="summary-card priority">
                 <div class="summary-icon">⚖️</div>
                 <div class="summary-info">
                     <h3>Balance Neto</h3>
-                    <div class="summary-value" style="color:${(netBalance || 0) >= 0 ? 'var(--text-primary)' : '#e16259'};">$${displayNet}</div>
-                    <div class="summary-label">Rentabilidad de la consulta</div>
+                    <div class="summary-value" style="color:${(netBalance || 0) >= 0 ? 'var(--text-primary)' : '#e16259'};">
+                        ${currMode === 'VES' ? `Bs. ${displayNetVES}` : `$${displayNetUSD}`}
+                    </div>
+                    <div class="summary-label" style="font-weight:600;color:var(--text-secondary);">
+                        ${currMode === 'VES' ? `≈ $${displayNetUSD} USD` : `≈ Bs. ${displayNetVES}`}
+                    </div>
                 </div>
             </div>
         </div>
@@ -534,7 +770,7 @@ function renderTransactionsTabHtml(txs, totalIncome, totalExpense, netBalance) {
             <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;flex-wrap:wrap;gap:12px;">
                 <h2 class="section-title" style="margin:0;"><i class="fas fa-list"></i> Historial de Transacciones (${filteredTxs.length})</h2>
                 <div style="display:flex;gap:8px;align-items:center;">
-                    <input type="text" id="financeSearchInput" placeholder="Buscar concepto..." value="${_scope._financeSearchText || ''}" oninput="setFinanceSearchText(this.value)" style="padding:6px 12px;border:1px solid var(--border-primary);border-radius:var(--radius-sm);background:var(--bg-card);color:var(--text-primary);font-size:13px;">
+                    <input type="text" id="financeSearchInput" placeholder="Buscar concepto o referencia..." value="${_scope._financeSearchText || ''}" oninput="setFinanceSearchText(this.value)" style="padding:6px 12px;border:1px solid var(--border-primary);border-radius:var(--radius-sm);background:var(--bg-card);color:var(--text-primary);font-size:13px;">
                     <select onchange="setFinanceFilterType(this.value)" style="padding:6px 10px;border:1px solid var(--border-primary);border-radius:var(--radius-sm);background:var(--bg-card);color:var(--text-primary);font-size:13px;">
                         <option value="all" ${filterType === 'all' ? 'selected' : ''}>Todos</option>
                         <option value="income" ${filterType === 'income' ? 'selected' : ''}>Solo Ingresos 🟢</option>
@@ -551,19 +787,44 @@ function renderTransactionsTabHtml(txs, totalIncome, totalExpense, netBalance) {
             ` : `
                 <div style="display:flex;flex-direction:column;gap:8px;">
                     ${filteredTxs.slice().sort((a,b) => new Date(b.date || 0) - new Date(a.date || 0)).map(t => {
-                        const amt = Number(t.amount || 0).toFixed(2);
+                        const isVES = (t.currency || '').toUpperCase() === 'VES';
+                        const isEUR = (t.currency || '').toUpperCase() === 'EUR';
+                        const origVal = t.originalAmount || (isVES ? roundCurrency(t.amount * (t.exchangeRate || bcv.usdRate)) : t.amount);
+                        
+                        const primaryAmt = isVES
+                            ? `Bs. ${Number(origVal).toLocaleString('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
+                            : isEUR
+                                ? `€${Number(origVal).toFixed(2)} EUR`
+                                : `$${Number(t.amount || 0).toFixed(2)} USD`;
+
+                        const secondaryAmt = isVES
+                            ? `≈ $${Number(t.amount || 0).toFixed(2)} USD`
+                            : `≈ Bs. ${convertCurrency(t.amount, 'USD', 'VES').toLocaleString('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+
+                        const methodBadge = t.paymentMethod ? `<span style="font-size:11px;background:var(--bg-card);padding:2px 6px;border-radius:4px;border:1px solid var(--border-primary);color:var(--text-secondary);">${t.paymentMethod}</span>` : '';
+                        const refBadge = t.reference ? `<span style="font-size:11px;font-family:monospace;color:var(--text-tertiary);background:var(--bg-card);padding:2px 6px;border-radius:4px;border:1px solid var(--border-primary);">Ref: ${t.reference}</span>` : '';
+
                         return `
                         <div style="padding:12px 16px;background:var(--bg-secondary);border-radius:var(--radius-md);display:flex;justify-content:space-between;align-items:center;gap:12px;">
                             <div style="display:flex;align-items:center;gap:12px;min-width:0;flex:1;">
                                 <div style="font-size:20px;flex-shrink:0;">${t.type === 'income' ? '🟢' : '🔴'}</div>
                                 <div style="min-width:0;">
                                     <div style="font-weight:600;font-size:14px;color:var(--text-primary);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${t.concept}</div>
-                                    <div style="font-size:12px;color:var(--text-tertiary);">${formatDate(t.date)} · ${t.category || 'General'}</div>
+                                    <div style="font-size:12px;color:var(--text-tertiary);display:flex;align-items:center;gap:6px;flex-wrap:wrap;margin-top:2px;">
+                                        <span>${formatDate(t.date)} · ${t.category || 'General'}</span>
+                                        ${methodBadge}
+                                        ${refBadge}
+                                    </div>
                                 </div>
                             </div>
                             <div style="display:flex;align-items:center;gap:12px;flex-shrink:0;">
-                                <div style="font-size:16px;font-weight:700;color:${t.type === 'income' ? '#4dab87' : '#e16259'};">
-                                    ${t.type === 'income' ? '+' : '-'}$${amt}
+                                <div style="display:flex;flex-direction:column;align-items:flex-end;">
+                                    <div style="font-size:15.5px;font-weight:700;color:${t.type === 'income' ? '#4dab87' : '#e16259'};">
+                                        ${t.type === 'income' ? '+' : '-'}${primaryAmt}
+                                    </div>
+                                    <div style="font-size:11px;color:var(--text-tertiary);font-weight:500;">
+                                        ${secondaryAmt}
+                                    </div>
                                 </div>
                                 <button class="btn-icon" onclick="openEditTransactionModal('${t.id}')" title="Editar Transacción"><i class="fas fa-edit"></i></button>
                                 <button class="btn-icon" style="color:#e16259;" onclick="deleteTransaction('${t.id}')" title="Eliminar Transacción"><i class="fas fa-trash"></i></button>
@@ -861,7 +1122,9 @@ function renderRatesTabHtml() {
                 </div>
             ` : `
                 <div style="display:grid;grid-template-columns:repeat(auto-fit, minmax(min(100%, 280px), 1fr));gap:16px;">
-                    ${(Array.isArray(rates) ? rates : []).slice().sort((a,b) => (Number(a.durationMinutes) || 0) - (Number(b.durationMinutes) || 0)).map(r => `
+                    ${(Array.isArray(rates) ? rates : []).slice().sort((a,b) => (Number(a.durationMinutes) || 0) - (Number(b.durationMinutes) || 0)).map(r => {
+                        const amtVES = convertCurrency(r.amount, 'USD', 'VES');
+                        return `
                         <div class="finance-rate-card ${r.isDefault ? 'default-rate' : ''}">
                             <div>
                                 <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
@@ -875,8 +1138,11 @@ function renderRatesTabHtml() {
                                     ` : ''}
                                 </div>
                                 <h3 style="margin:0 0 4px 0;font-size:16px;font-weight:700;color:var(--text-primary);">${r.title || 'Tarifa de Consulta'}</h3>
-                                <div style="font-size:22px;font-weight:800;color:var(--accent-primary);margin:6px 0;">
+                                <div style="font-size:20px;font-weight:800;color:var(--accent-primary);margin:6px 0;">
                                     $${Number(r.amount || 0).toFixed(2)} <span style="font-size:12px;font-weight:500;color:var(--text-tertiary);">${r.currency || 'USD'}</span>
+                                    <div style="font-size:12.5px;font-weight:600;color:var(--text-secondary);margin-top:2px;">
+                                        ≈ Bs. ${amtVES.toLocaleString('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} <span style="font-size:10.5px;color:var(--text-tertiary);font-weight:normal;">(Tasa BCV)</span>
+                                    </div>
                                 </div>
                                 ${r.description ? `<p style="margin:4px 0 0 0;font-size:12px;color:var(--text-secondary);line-height:1.4;">${r.description}</p>` : ''}
                             </div>
@@ -895,21 +1161,35 @@ function renderRatesTabHtml() {
                                 </div>
                             </div>
                         </div>
-                    `).join('')}
+                    `;
+                    }).join('')}
                 </div>
             `}
         </div>
     `;
 }
 
+function updateRateVesPreview(usdVal) {
+    const preview = document.getElementById('rateVesPreview');
+    if (!preview) return;
+    const num = parseFloat(usdVal) || 0;
+    const inVES = convertCurrency(num, 'USD', 'VES');
+    const rates = getBcvExchangeRates();
+    preview.innerHTML = `Equivale a: <strong style="color:var(--accent-primary);">Bs. ${inVES.toLocaleString('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</strong> (Tasa BCV: ${(rates.usdRate || 888.89).toLocaleString('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} Bs.)`;
+}
+
 function openRateModal(rateId = null) {
     const rates = getFinanceRates();
     const r = rateId ? rates.find(item => String(item.id) === String(rateId)) : null;
+    const bcv = getBcvExchangeRates();
 
     const body = document.getElementById('financeRateModalBody');
     if (!body) return;
     const titleEl = document.getElementById('financeRateModalTitle');
     if (titleEl) titleEl.textContent = r ? 'Editar Tarifa por Tiempo' : 'Nueva Tarifa por Tiempo';
+
+    const initialAmount = r ? r.amount : 45.00;
+    const initialVES = convertCurrency(initialAmount, 'USD', 'VES');
 
     body.innerHTML = `
         <form onsubmit="handleRateSubmit(event, '${r ? r.id : ''}')" class="modal-form">
@@ -924,7 +1204,10 @@ function openRateModal(rateId = null) {
                 </div>
                 <div class="form-group">
                     <label>Precio ($ USD) *</label>
-                    <input type="number" step="0.01" id="rateAmount" required placeholder="Ej: 45.00" value="${r ? r.amount : ''}">
+                    <input type="number" step="0.01" id="rateAmount" required placeholder="Ej: 45.00" value="${r ? r.amount : ''}" oninput="updateRateVesPreview(this.value)">
+                    <div id="rateVesPreview" style="font-size:11.5px;color:var(--text-secondary);margin-top:4px;">
+                        Equivale a: <strong>Bs. ${initialVES.toLocaleString('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</strong> (Tasa BCV)
+                    </div>
                 </div>
             </div>
             <div class="form-group">
@@ -1008,8 +1291,55 @@ function deleteRate(rateId) {
 }
 
 // -------------------------------------------------------------
-// MODALES GENERALES DE TRANSACCIONES Y CATEGORÍAS
+// MODALES GENERALES DE TRANSACCIONES Y CATEGORÍAS (MULTIMONEDA)
 // -------------------------------------------------------------
+
+function onTransactionCurrencyChange() {
+    const currSelect = document.getElementById('txCurrency');
+    const label = document.getElementById('txAmountLabel');
+    const methodSelect = document.getElementById('txPaymentMethod');
+    if (!currSelect || !label) return;
+
+    const val = currSelect.value;
+    if (val === 'VES') {
+        label.textContent = 'Monto en Bolívares (Bs.) *';
+        if (methodSelect && !methodSelect.value.includes('Móvil') && !methodSelect.value.includes('Bolívares') && !methodSelect.value.includes('Bancaria')) {
+            methodSelect.value = 'Pago Móvil';
+        }
+    } else if (val === 'EUR') {
+        label.textContent = 'Monto en Euros (€) *';
+        if (methodSelect) methodSelect.value = 'Transferencia Internacional';
+    } else {
+        label.textContent = 'Monto en Divisas ($ USD) *';
+        if (methodSelect && (methodSelect.value.includes('Móvil') || methodSelect.value.includes('Bolívares'))) {
+            methodSelect.value = 'Zelle';
+        }
+    }
+    updateTxEquivalentPreview();
+}
+
+function updateTxEquivalentPreview() {
+    const amountInput = document.getElementById('txAmount');
+    const currSelect = document.getElementById('txCurrency');
+    const previewEl = document.getElementById('txConversionText');
+    if (!amountInput || !previewEl) return;
+
+    const val = parseFloat(amountInput.value) || 0;
+    const curr = currSelect ? currSelect.value : 'USD';
+    const rates = getBcvExchangeRates();
+    const usdRate = rates.usdRate || 888.89;
+
+    if (curr === 'VES') {
+        const inUSD = val > 0 ? (val / usdRate) : 0;
+        previewEl.innerHTML = `Equivale a: <strong>$${inUSD.toFixed(2)} USD</strong> (Tasa BCV: ${usdRate.toLocaleString('es-VE', {minimumFractionDigits: 2, maximumFractionDigits: 2})} Bs.)`;
+    } else if (curr === 'EUR') {
+        const inVES = val > 0 ? (val * (rates.eurRate || 989.39)) : 0;
+        previewEl.innerHTML = `Equivale a: <strong>Bs. ${inVES.toLocaleString('es-VE', {minimumFractionDigits: 2, maximumFractionDigits: 2})}</strong> (Tasa Euro BCV)`;
+    } else {
+        const inVES = val > 0 ? (val * usdRate) : 0;
+        previewEl.innerHTML = `Equivale a: <strong>Bs. ${inVES.toLocaleString('es-VE', {minimumFractionDigits: 2, maximumFractionDigits: 2})}</strong> (Tasa BCV: ${usdRate.toLocaleString('es-VE', {minimumFractionDigits: 2, maximumFractionDigits: 2})} Bs.)`;
+    }
+}
 
 function openTransactionModal(type = 'income') {
     const categories = getFinanceCategories();
@@ -1018,28 +1348,70 @@ function openTransactionModal(type = 'income') {
     const titleEl = document.getElementById('financeTransactionModalTitle');
     if (titleEl) titleEl.textContent = type === 'income' ? 'Registrar Ingreso' : 'Registrar Egreso';
     
+    const rates = getBcvExchangeRates();
+    const usdRateStr = (rates.usdRate || 888.89).toLocaleString('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+
     body.innerHTML = `
         <form onsubmit="handleTransactionSubmit(event, '${type}')" class="modal-form">
             <div class="form-group">
                 <label>Concepto *</label>
-                <input type="text" id="txConcept" required placeholder="${type === 'income' ? 'Ej: Honorarios sesión...' : 'Ej: Alquiler consultorio marzo...'}">
+                <input type="text" id="txConcept" required placeholder="${type === 'income' ? 'Ej: Honorarios sesión psicoterapéutica...' : 'Ej: Alquiler consultorio, materiales clínicos...'}">
             </div>
+
+            <div class="form-row">
+                <div class="form-group" style="flex:1;">
+                    <label>Moneda de Pago *</label>
+                    <select id="txCurrency" onchange="onTransactionCurrencyChange()">
+                        <option value="VES" selected>🇻🇪 Bolívares (Bs. VES)</option>
+                        <option value="USD">💵 Divisas ($ USD)</option>
+                        <option value="EUR">💶 Euros (€ EUR)</option>
+                    </select>
+                </div>
+                <div class="form-group" style="flex:1.5;">
+                    <label id="txAmountLabel">Monto en Bolívares (Bs.) *</label>
+                    <input type="number" step="0.01" id="txAmount" required placeholder="0.00" oninput="updateTxEquivalentPreview()">
+                </div>
+            </div>
+
+            <!-- Preview dinámico de equivalencia según BCV -->
+            <div id="txConversionPreview" style="margin-top:-6px;margin-bottom:12px;padding:8px 12px;background:var(--bg-secondary);border:1px solid var(--border-primary);border-radius:8px;font-size:12px;color:var(--text-secondary);display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:6px;">
+                <span id="txConversionText">Equivale a: <strong>$0.00 USD</strong> (Tasa BCV: ${usdRateStr} Bs.)</span>
+                <span style="font-size:11px;color:var(--text-tertiary);font-weight:600;"><i class="fas fa-landmark"></i> BCV Oficial</span>
+            </div>
+
             <div class="form-row">
                 <div class="form-group">
-                    <label>Monto ($) *</label>
-                    <input type="number" step="0.01" id="txAmount" required placeholder="0.00">
+                    <label>Forma de Pago</label>
+                    <select id="txPaymentMethod">
+                        <option value="Pago Móvil">📲 Pago Móvil (Bs.)</option>
+                        <option value="Transferencia Bancaria Nacional">🏦 Transferencia Bancaria Bs.</option>
+                        <option value="Efectivo Bolívares">💵 Efectivo Bolívares</option>
+                        <option value="Punto de Venta / Tarjeta">💳 Punto de Venta / Tarjeta</option>
+                        <option value="Zelle">💵 Zelle (USD)</option>
+                        <option value="Efectivo Divisas">💵 Efectivo Divisas ($ USD)</option>
+                        <option value="Binance Pay">🟡 Binance Pay (USDT)</option>
+                        <option value="Transferencia Internacional">🌐 Transferencia Internacional</option>
+                    </select>
                 </div>
+                <div class="form-group">
+                    <label>N° Referencia / Comprobante (Opcional)</label>
+                    <input type="text" id="txReference" placeholder="Ej: 984021">
+                </div>
+            </div>
+
+            <div class="form-row">
                 <div class="form-group">
                     <label>Fecha *</label>
                     <input type="date" id="txDate" required value="${toDateInputValue(new Date())}">
                 </div>
+                <div class="form-group">
+                    <label>Categoría</label>
+                    <select id="txCategory">
+                        ${type === 'income' ? '<option value="Consulta Clínica">Consulta Clínica</option><option value="Supervisión Emitida">Supervisión Emitida</option><option value="Taller / Docencia">Taller / Docencia</option><option value="Otros Ingresos">Otros Ingresos</option>' : categories.map(c => `<option value="${c}">${c}</option>`).join('')}
+                    </select>
+                </div>
             </div>
-            <div class="form-group">
-                <label>Categoría</label>
-                <select id="txCategory">
-                    ${type === 'income' ? '<option value="Consulta Clínica">Consulta Clínica</option><option value="Supervisión Emitida">Supervisión Emitida</option><option value="Taller / Docencia">Taller / Docencia</option>' : categories.map(c => `<option value="${c}">${c}</option>`).join('')}
-                </select>
-            </div>
+
             <div class="modal-actions">
                 <button type="button" class="btn-secondary" onclick="closeModal('financeTransactionModal')">Cancelar</button>
                 <button type="submit" class="btn-primary">Guardar Transacción</button>
@@ -1051,11 +1423,32 @@ function openTransactionModal(type = 'income') {
 
 function handleTransactionSubmit(e, type) {
     e.preventDefault();
+    const enteredAmount = parseFloat(document.getElementById('txAmount').value) || 0;
+    const currency = document.getElementById('txCurrency') ? document.getElementById('txCurrency').value : 'USD';
+    const paymentMethod = document.getElementById('txPaymentMethod') ? document.getElementById('txPaymentMethod').value : '';
+    const reference = document.getElementById('txReference') ? document.getElementById('txReference').value.trim() : '';
+    const rates = getBcvExchangeRates();
+    const bcvRate = rates.usdRate || 888.8909;
+
+    let normalizedUSD = enteredAmount;
+    let originalAmount = enteredAmount;
+
+    if (currency === 'VES') {
+        normalizedUSD = roundCurrency(enteredAmount / bcvRate);
+    } else if (currency === 'EUR') {
+        normalizedUSD = roundCurrency((enteredAmount * (rates.eurRate || 989.39)) / bcvRate);
+    }
+
     const tx = {
         id: generateId(),
         type,
         concept: document.getElementById('txConcept').value.trim(),
-        amount: parseFloat(document.getElementById('txAmount').value) || 0,
+        amount: normalizedUSD,
+        originalAmount: originalAmount,
+        currency: currency,
+        exchangeRate: bcvRate,
+        paymentMethod: paymentMethod,
+        reference: reference,
         date: document.getElementById('txDate').value,
         category: document.getElementById('txCategory').value,
         createdAt: new Date().toISOString()
@@ -1065,7 +1458,7 @@ function handleTransactionSubmit(e, type) {
     saveFinanceTransactions(txs);
     closeModal('financeTransactionModal');
     renderFinanceView();
-    showToast('Transacción registrada', 'success');
+    showToast(currency === 'VES' ? `Ingreso registrado: Bs. ${originalAmount.toLocaleString('es-VE', {minimumFractionDigits:2})} (≈ $${normalizedUSD.toFixed(2)} USD)` : 'Transacción registrada con éxito', 'success');
 }
 
 function openEditTransactionModal(id) {
@@ -1077,31 +1470,75 @@ function openEditTransactionModal(id) {
     const body = document.getElementById('financeTransactionModalBody');
     document.getElementById('financeTransactionModalTitle').textContent = `Editar ${tx.type === 'income' ? 'Ingreso' : 'Egreso'}`;
 
+    const curr = (tx.currency || 'USD').toUpperCase();
+    const isVES = curr === 'VES';
+    const displayVal = (typeof tx.originalAmount !== 'undefined' && tx.originalAmount !== null) ? Number(tx.originalAmount).toFixed(2) : Number(tx.amount).toFixed(2);
+    const rates = getBcvExchangeRates();
+    const usdRateStr = (rates.usdRate || 888.89).toLocaleString('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+
     body.innerHTML = `
         <form onsubmit="handleTransactionEditSubmit(event, '${tx.id}')" class="modal-form">
             <div class="form-group">
                 <label>Concepto *</label>
                 <input type="text" id="txConcept" required value="${tx.concept}">
             </div>
+
+            <div class="form-row">
+                <div class="form-group" style="flex:1;">
+                    <label>Moneda de Pago *</label>
+                    <select id="txCurrency" onchange="onTransactionCurrencyChange()">
+                        <option value="VES" ${curr === 'VES' ? 'selected' : ''}>🇻🇪 Bolívares (Bs. VES)</option>
+                        <option value="USD" ${curr === 'USD' ? 'selected' : ''}>💵 Divisas ($ USD)</option>
+                        <option value="EUR" ${curr === 'EUR' ? 'selected' : ''}>💶 Euros (€ EUR)</option>
+                    </select>
+                </div>
+                <div class="form-group" style="flex:1.5;">
+                    <label id="txAmountLabel">${isVES ? 'Monto en Bolívares (Bs.) *' : 'Monto ($ USD) *'}</label>
+                    <input type="number" step="0.01" id="txAmount" required value="${displayVal}" oninput="updateTxEquivalentPreview()">
+                </div>
+            </div>
+
+            <div id="txConversionPreview" style="margin-top:-6px;margin-bottom:12px;padding:8px 12px;background:var(--bg-secondary);border:1px solid var(--border-primary);border-radius:8px;font-size:12px;color:var(--text-secondary);display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:6px;">
+                <span id="txConversionText">Tasa BCV: <strong>${usdRateStr} Bs./USD</strong></span>
+                <span style="font-size:11px;color:var(--text-tertiary);font-weight:600;"><i class="fas fa-landmark"></i> BCV Oficial</span>
+            </div>
+
             <div class="form-row">
                 <div class="form-group">
-                    <label>Monto ($) *</label>
-                    <input type="number" step="0.01" id="txAmount" required value="${tx.amount}">
+                    <label>Forma de Pago</label>
+                    <select id="txPaymentMethod">
+                        <option value="Pago Móvil" ${tx.paymentMethod === 'Pago Móvil' ? 'selected' : ''}>📲 Pago Móvil (Bs.)</option>
+                        <option value="Transferencia Bancaria Nacional" ${tx.paymentMethod === 'Transferencia Bancaria Nacional' ? 'selected' : ''}>🏦 Transferencia Bancaria Bs.</option>
+                        <option value="Efectivo Bolívares" ${tx.paymentMethod === 'Efectivo Bolívares' ? 'selected' : ''}>💵 Efectivo Bolívares</option>
+                        <option value="Punto de Venta / Tarjeta" ${tx.paymentMethod === 'Punto de Venta / Tarjeta' ? 'selected' : ''}>💳 Punto de Venta / Tarjeta</option>
+                        <option value="Zelle" ${tx.paymentMethod === 'Zelle' ? 'selected' : ''}>💵 Zelle (USD)</option>
+                        <option value="Efectivo Divisas" ${tx.paymentMethod === 'Efectivo Divisas' ? 'selected' : ''}>💵 Efectivo Divisas ($ USD)</option>
+                        <option value="Binance Pay" ${tx.paymentMethod === 'Binance Pay' ? 'selected' : ''}>🟡 Binance Pay (USDT)</option>
+                        <option value="Transferencia Internacional" ${tx.paymentMethod === 'Transferencia Internacional' ? 'selected' : ''}>🌐 Transferencia Internacional</option>
+                    </select>
                 </div>
+                <div class="form-group">
+                    <label>N° Referencia / Comprobante</label>
+                    <input type="text" id="txReference" value="${tx.reference || ''}" placeholder="Ej: 984021">
+                </div>
+            </div>
+
+            <div class="form-row">
                 <div class="form-group">
                     <label>Fecha *</label>
                     <input type="date" id="txDate" required value="${tx.date}">
                 </div>
+                <div class="form-group">
+                    <label>Categoría</label>
+                    <select id="txCategory">
+                        ${tx.type === 'income' 
+                            ? ['Consulta Clínica', 'Supervisión Emitida', 'Taller / Docencia', 'Otros Ingresos'].map(c => `<option value="${c}" ${tx.category === c ? 'selected' : ''}>${c}</option>`).join('')
+                            : categories.map(c => `<option value="${c}" ${tx.category === c ? 'selected' : ''}>${c}</option>`).join('')
+                        }
+                    </select>
+                </div>
             </div>
-            <div class="form-group">
-                <label>Categoría</label>
-                <select id="txCategory">
-                    ${tx.type === 'income' 
-                        ? ['Consulta Clínica', 'Supervisión Emitida', 'Taller / Docencia', 'Otros Ingresos'].map(c => `<option value="${c}" ${tx.category === c ? 'selected' : ''}>${c}</option>`).join('')
-                        : categories.map(c => `<option value="${c}" ${tx.category === c ? 'selected' : ''}>${c}</option>`).join('')
-                    }
-                </select>
-            </div>
+
             <div class="modal-actions">
                 <button type="button" class="btn-secondary" onclick="closeModal('financeTransactionModal')">Cancelar</button>
                 <button type="submit" class="btn-primary">Guardar Cambios</button>
@@ -1109,6 +1546,7 @@ function openEditTransactionModal(id) {
         </form>
     `;
     openModal('financeTransactionModal');
+    updateTxEquivalentPreview();
 }
 
 function handleTransactionEditSubmit(e, id) {
@@ -1116,15 +1554,136 @@ function handleTransactionEditSubmit(e, id) {
     const txs = getFinanceTransactions();
     const idx = txs.findIndex(t => String(t.id) === String(id));
     if (idx !== -1) {
+        const enteredAmount = parseFloat(document.getElementById('txAmount').value) || 0;
+        const currency = document.getElementById('txCurrency') ? document.getElementById('txCurrency').value : (txs[idx].currency || 'USD');
+        const paymentMethod = document.getElementById('txPaymentMethod') ? document.getElementById('txPaymentMethod').value : (txs[idx].paymentMethod || '');
+        const reference = document.getElementById('txReference') ? document.getElementById('txReference').value.trim() : (txs[idx].reference || '');
+        const rates = getBcvExchangeRates();
+        const bcvRate = rates.usdRate || 888.8909;
+
+        let normalizedUSD = enteredAmount;
+        let originalAmount = enteredAmount;
+
+        if (currency === 'VES') {
+            normalizedUSD = roundCurrency(enteredAmount / bcvRate);
+        } else if (currency === 'EUR') {
+            normalizedUSD = roundCurrency((enteredAmount * (rates.eurRate || 989.39)) / bcvRate);
+        }
+
         txs[idx].concept = document.getElementById('txConcept').value.trim();
-        txs[idx].amount = parseFloat(document.getElementById('txAmount').value) || 0;
+        txs[idx].amount = normalizedUSD;
+        txs[idx].originalAmount = originalAmount;
+        txs[idx].currency = currency;
+        txs[idx].exchangeRate = bcvRate;
+        txs[idx].paymentMethod = paymentMethod;
+        txs[idx].reference = reference;
         txs[idx].date = document.getElementById('txDate').value;
         txs[idx].category = document.getElementById('txCategory').value;
+
         saveFinanceTransactions(txs);
         closeModal('financeTransactionModal');
         renderFinanceView();
         showToast('Transacción actualizada con éxito', 'success');
     }
+}
+
+// -------------------------------------------------------------
+// MODAL DE CONFIGURACIÓN DE TASA BCV Y TASA MANUAL
+// -------------------------------------------------------------
+
+function openBcvRateSettingsModal() {
+    const rates = getBcvExchangeRates();
+    const body = document.getElementById('financeBcvRateModalBody');
+    if (!body) return;
+
+    const usdFormatted = Number(rates.usdRate || 888.89).toLocaleString('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    const eurFormatted = Number(rates.eurRate || 989.39).toLocaleString('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    const lastUpdateFormatted = rates.lastUpdated ? new Date(rates.lastUpdated).toLocaleString('es-VE') : 'Hoy';
+
+    body.innerHTML = `
+        <form onsubmit="handleBcvRateSettingsSubmit(event)" class="modal-form">
+            <div style="background:var(--bg-secondary);border:1px solid var(--border-primary);border-radius:10px;padding:14px;margin-bottom:16px;">
+                <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
+                    <span style="font-size:11.5px;font-weight:700;color:var(--text-tertiary);text-transform:uppercase;">Fuente de Cotización</span>
+                    <span style="font-size:11px;padding:2px 8px;border-radius:10px;font-weight:700;background:${rates.isManual ? 'rgba(245,158,11,0.15)' : 'rgba(16,185,129,0.15)'};color:${rates.isManual ? '#d97706' : '#059669'};">
+                        ${rates.isManual ? 'Modo Manual' : 'Sincronizado Oficial'}
+                    </span>
+                </div>
+                <div style="font-size:14px;color:var(--text-primary);font-weight:600;margin-bottom:4px;">
+                    ${rates.source || 'Banco Central de Venezuela (BCV Oficial)'}
+                </div>
+                <div style="font-size:12px;color:var(--text-secondary);">
+                    Última actualización: <strong>${lastUpdateFormatted}</strong>
+                </div>
+            </div>
+
+            <div class="form-group" style="margin-bottom:14px;">
+                <label class="checkbox-label" style="display:flex;align-items:center;gap:10px;font-size:13px;font-weight:600;cursor:pointer;">
+                    <input type="checkbox" id="cfgBcvManualToggle" ${rates.isManual ? 'checked' : ''} onchange="toggleBcvManualInputs(this.checked)">
+                    <span>Fijar tasa de cambio manual personalizada para la consulta</span>
+                </label>
+                <div style="font-size:11.5px;color:var(--text-tertiary);margin-left:26px;margin-top:2px;">
+                    Si no está marcada, el sistema actualizará automáticamente la cotización oficial del BCV.
+                </div>
+            </div>
+
+            <div id="bcvInputsContainer" style="display:flex;flex-direction:column;gap:12px;">
+                <div class="form-group">
+                    <label>Precio Dólar BCV (Bs. / USD) *</label>
+                    <input type="number" step="0.01" id="cfgBcvUsd" required value="${Number(rates.usdRate || 888.89).toFixed(2)}" ${rates.isManual ? '' : 'readonly'} style="${rates.isManual ? '' : 'background:var(--bg-secondary);opacity:0.85;'}">
+                </div>
+                <div class="form-group">
+                    <label>Precio Euro BCV (Bs. / EUR) *</label>
+                    <input type="number" step="0.01" id="cfgBcvEur" required value="${Number(rates.eurRate || 989.39).toFixed(2)}" ${rates.isManual ? '' : 'readonly'} style="${rates.isManual ? '' : 'background:var(--bg-secondary);opacity:0.85;'}">
+                </div>
+            </div>
+
+            <div style="margin-top:16px;display:flex;gap:10px;justify-content:space-between;align-items:center;flex-wrap:wrap;">
+                <button type="button" class="btn-secondary btn-sm" onclick="fetchBcvExchangeRates(true).then(() => openBcvRateSettingsModal())" style="color:var(--accent-primary);">
+                    <i class="fas fa-arrows-rotate"></i> Forzar Sincronización BCV
+                </button>
+                <div class="modal-actions" style="margin:0;">
+                    <button type="button" class="btn-secondary" onclick="closeModal('financeBcvRateModal')">Cerrar</button>
+                    <button type="submit" class="btn-primary">Guardar Configuración</button>
+                </div>
+            </div>
+        </form>
+    `;
+    openModal('financeBcvRateModal');
+}
+
+function toggleBcvManualInputs(isManual) {
+    const usdInput = document.getElementById('cfgBcvUsd');
+    const eurInput = document.getElementById('cfgBcvEur');
+    if (usdInput) {
+        usdInput.readOnly = !isManual;
+        usdInput.style.background = isManual ? 'var(--bg-input)' : 'var(--bg-secondary)';
+        usdInput.style.opacity = isManual ? '1' : '0.85';
+    }
+    if (eurInput) {
+        eurInput.readOnly = !isManual;
+        eurInput.style.background = isManual ? 'var(--bg-input)' : 'var(--bg-secondary)';
+        eurInput.style.opacity = isManual ? '1' : '0.85';
+    }
+}
+
+function handleBcvRateSettingsSubmit(e) {
+    if (e && e.preventDefault) e.preventDefault();
+    const isManual = document.getElementById('cfgBcvManualToggle') ? document.getElementById('cfgBcvManualToggle').checked : false;
+    const usdVal = parseFloat(document.getElementById('cfgBcvUsd')?.value) || 888.8909;
+    const eurVal = parseFloat(document.getElementById('cfgBcvEur')?.value) || 989.3889;
+
+    saveBcvExchangeRates({
+        usdRate: usdVal,
+        eurRate: eurVal,
+        isManual: isManual,
+        source: isManual ? 'Tasa Manual Personalizada' : 'BCV (Oficial)',
+        lastUpdated: new Date().toISOString()
+    });
+
+    closeModal('financeBcvRateModal');
+    renderFinanceView();
+    showToast(isManual ? '🔒 Tasa de cambio manual establecida' : '🟢 Tasa sincronizada con BCV guardada', 'success');
 }
 
 function deleteTransaction(id) {
@@ -1309,7 +1868,10 @@ function renderDebtsTabHtml() {
                                     <div style="font-size:20px;font-weight:800;color:#e16259;">
                                         $${Number(d.totalDebt || 0).toFixed(2)} USD
                                     </div>
-                                    <div style="font-size:11px;font-weight:600;color:var(--text-tertiary);">Pendiente de pago</div>
+                                    <div style="font-size:12.5px;font-weight:700;color:var(--text-secondary);margin-top:2px;">
+                                        ≈ Bs. ${convertCurrency(d.totalDebt, 'USD', 'VES').toLocaleString('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                                    </div>
+                                    <div style="font-size:11px;font-weight:600;color:var(--text-tertiary);">Pendiente de pago (Tasa BCV)</div>
                                 </div>
                             </div>
 
@@ -1319,7 +1881,7 @@ function renderDebtsTabHtml() {
                                     <div style="display:flex;justify-content:space-between;align-items:center;font-size:13px;">
                                         <span>🗓️ <strong>${formatDate(a.date)}</strong> (${a.time || 'Sesión'}) · ${a.type || 'Individual'}</span>
                                         <div style="display:flex;align-items:center;gap:8px;">
-                                            <strong style="color:var(--text-primary);">$${Number(a.amount || 0).toFixed(2)}</strong>
+                                            <strong style="color:var(--text-primary);">$${Number(a.amount || 0).toFixed(2)} <span style="font-size:11px;font-weight:500;color:var(--text-tertiary);">(≈ Bs. ${convertCurrency(a.amount, 'USD', 'VES').toLocaleString('es-VE', {minimumFractionDigits: 2})})</span></strong>
                                             <button class="btn-secondary btn-sm" onclick="settlePatientDebt('${d.patientId}', '${a.id}')" title="Marcar esta sesión como pagada">
                                                 💵 Saldar Cita
                                             </button>
@@ -1543,10 +2105,17 @@ function sendPaymentReminderWhatsApp(patientId) {
     const patientDebt = debts.find(d => String(d.patientId) === String(patientId));
     if (!patientDebt) return;
 
-    const therapistName = AppState.currentUser ? AppState.currentUser.name : 'Su Terapeuta';
-    const datesList = patientDebt.appointments.map(a => `${formatDate(a.date)} (${a.time || 'Sesión'}) - $${a.amount.toFixed(2)}`).join('\n• ');
+    const bcv = getBcvExchangeRates();
+    const totalUSD = Number(patientDebt.totalDebt || 0);
+    const totalVES = convertCurrency(totalUSD, 'USD', 'VES');
+    const therapistName = (typeof AppState !== 'undefined' && AppState && AppState.currentUser) ? AppState.currentUser.name : 'Su Terapeuta';
+    const datesList = (patientDebt.appointments || []).map(a => {
+        const aUSD = Number(a.amount || 0);
+        const aVES = convertCurrency(aUSD, 'USD', 'VES');
+        return `${formatDate(a.date)} (${a.time || 'Sesión'}) - $${aUSD.toFixed(2)} USD (≈ Bs. ${aVES.toLocaleString('es-VE', {minimumFractionDigits:2})})`;
+    }).join('\n• ');
 
-    const message = `Hola ${patientDebt.patientName}, espero que te encuentres muy bien. 👋\n\nTe escribo para hacer un cordial recordatorio sobre el pago pendiente de las siguientes sesiones de consulta psicológica con ${therapistName}:\n\n• ${datesList}\n\n📌 *Monto Total Pendiente: $${patientDebt.totalDebt.toFixed(2)} USD*\n\nPor favor infórmame al realizar la transferencia o pago móvil. ¡Quedo atento/a a tus comentarios! 😊`;
+    const message = `Hola ${patientDebt.patientName}, espero que te encuentres muy bien. 👋\n\nTe escribo para hacer un cordial recordatorio sobre el pago pendiente de las siguientes sesiones de consulta psicológica con ${therapistName}:\n\n• ${datesList}\n\n📌 *Monto Total Pendiente: $${totalUSD.toFixed(2)} USD (o Bs. ${totalVES.toLocaleString('es-VE', {minimumFractionDigits: 2, maximumFractionDigits: 2})} a tasa oficial BCV: ${Number(bcv.usdRate || 888.89).toLocaleString('es-VE', {minimumFractionDigits:2, maximumFractionDigits:2})} Bs./USD)*\n\n💡 *Formas de Pago:*\n• Pago Móvil o Transferencia en Bolívares (a tasa oficial BCV)\n• Divisas en efectivo o Zelle\n\nPor favor infórmame al realizar el pago adjuntando el comprobante o referencia. ¡Quedo atento/a a tus comentarios! 😊`;
 
     const encodedMsg = encodeURIComponent(message);
     const rawPhone = (patientDebt.patientPhone || '').replace(/\D/g, '');
@@ -1555,7 +2124,7 @@ function sendPaymentReminderWhatsApp(patientId) {
         window.open(`https://wa.me/${rawPhone}?text=${encodedMsg}`, '_blank');
     } else {
         navigator.clipboard.writeText(message);
-        showToast('📋 Número no válido para WhatsApp directos. Mensaje de cobro copiado al portapapeles.', 'info');
+        showToast('📋 Número no válido para WhatsApp directo. Mensaje de cobro copiado al portapapeles.', 'info');
     }
 }
 
@@ -1564,10 +2133,17 @@ function copyPaymentReminderText(patientId) {
     const patientDebt = debts.find(d => String(d.patientId) === String(patientId));
     if (!patientDebt) return;
 
-    const therapistName = AppState.currentUser ? AppState.currentUser.name : 'Su Terapeuta';
-    const datesList = patientDebt.appointments.map(a => `${formatDate(a.date)} (${a.time || 'Sesión'}) - $${a.amount.toFixed(2)}`).join('\n• ');
+    const bcv = getBcvExchangeRates();
+    const totalUSD = Number(patientDebt.totalDebt || 0);
+    const totalVES = convertCurrency(totalUSD, 'USD', 'VES');
+    const therapistName = (typeof AppState !== 'undefined' && AppState && AppState.currentUser) ? AppState.currentUser.name : 'Su Terapeuta';
+    const datesList = (patientDebt.appointments || []).map(a => {
+        const aUSD = Number(a.amount || 0);
+        const aVES = convertCurrency(aUSD, 'USD', 'VES');
+        return `${formatDate(a.date)} (${a.time || 'Sesión'}) - $${aUSD.toFixed(2)} USD (≈ Bs. ${aVES.toLocaleString('es-VE', {minimumFractionDigits:2})})`;
+    }).join('\n• ');
 
-    const message = `Hola ${patientDebt.patientName}, espero que te encuentres muy bien. 👋\n\nTe escribo para hacer un cordial recordatorio sobre el pago pendiente de las siguientes sesiones de consulta psicológica con ${therapistName}:\n\n• ${datesList}\n\n📌 *Monto Total Pendiente: $${patientDebt.totalDebt.toFixed(2)} USD*\n\nPor favor infórmame al realizar el pago. ¡Quedo atento/a! 😊`;
+    const message = `Hola ${patientDebt.patientName}, espero que te encuentres muy bien. 👋\n\nTe escribo para hacer un cordial recordatorio sobre el pago pendiente de las siguientes sesiones de consulta psicológica con ${therapistName}:\n\n• ${datesList}\n\n📌 *Monto Total Pendiente: $${totalUSD.toFixed(2)} USD (o Bs. ${totalVES.toLocaleString('es-VE', {minimumFractionDigits: 2, maximumFractionDigits: 2})} a tasa oficial BCV: ${Number(bcv.usdRate || 888.89).toLocaleString('es-VE', {minimumFractionDigits:2, maximumFractionDigits:2})} Bs./USD)*\n\n💡 *Formas de Pago:*\n• Pago Móvil o Transferencia en Bolívares (a tasa oficial BCV)\n• Divisas en efectivo o Zelle\n\nPor favor infórmame al realizar el pago. ¡Quedo atento/a! 😊`;
 
     navigator.clipboard.writeText(message);
     showToast('📋 Mensaje de cobro copiado al portapapeles', 'success');
@@ -1685,6 +2261,19 @@ if (_financeTargetScope) {
     _financeTargetScope.settleAllPatientDebtsGlobal = settleAllPatientDebtsGlobal;
     _financeTargetScope.setFinanceFilterType = setFinanceFilterType;
     _financeTargetScope.setFinanceSearchText = setFinanceSearchText;
+    // Multimoneda y BCV
+    _financeTargetScope.getBcvExchangeRates = getBcvExchangeRates;
+    _financeTargetScope.saveBcvExchangeRates = saveBcvExchangeRates;
+    _financeTargetScope.fetchBcvExchangeRates = fetchBcvExchangeRates;
+    _financeTargetScope.convertCurrency = convertCurrency;
+    _financeTargetScope.formatDualCurrency = formatDualCurrency;
+    _financeTargetScope.setFinanceCurrencyMode = setFinanceCurrencyMode;
+    _financeTargetScope.openBcvRateSettingsModal = openBcvRateSettingsModal;
+    _financeTargetScope.handleBcvRateSettingsSubmit = handleBcvRateSettingsSubmit;
+    _financeTargetScope.toggleBcvManualInputs = toggleBcvManualInputs;
+    _financeTargetScope.onTransactionCurrencyChange = onTransactionCurrencyChange;
+    _financeTargetScope.updateTxEquivalentPreview = updateTxEquivalentPreview;
+    _financeTargetScope.updateRateVesPreview = updateRateVesPreview;
 }
 if (typeof module !== 'undefined' && module.exports) {
     module.exports = {
@@ -1730,6 +2319,18 @@ if (typeof module !== 'undefined' && module.exports) {
         settlePatientDebt,
         settleAllPatientDebtsGlobal,
         setFinanceFilterType,
-        setFinanceSearchText
+        setFinanceSearchText,
+        getBcvExchangeRates,
+        saveBcvExchangeRates,
+        fetchBcvExchangeRates,
+        convertCurrency,
+        formatDualCurrency,
+        setFinanceCurrencyMode,
+        openBcvRateSettingsModal,
+        handleBcvRateSettingsSubmit,
+        toggleBcvManualInputs,
+        onTransactionCurrencyChange,
+        updateTxEquivalentPreview,
+        updateRateVesPreview
     };
 }

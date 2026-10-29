@@ -691,9 +691,11 @@ const GenogramModule = {
     // Actualización rápida de capas sin recrear todo el DOM
     refreshCanvasFast() {
         if (typeof document === 'undefined') return;
-        const container = document.getElementById('genogramCanvasContainer');
+        const container = document.getElementById('genogramCanvasContainer') || document.getElementById('modalGenogramCanvasContainer');
         if (!container || !this.currentGenogram) return;
-        container.innerHTML = this.renderSVG(this.currentGenogram, { width: 960, height: 540, interactive: true });
+        const w = container.id === 'modalGenogramCanvasContainer' ? 900 : 960;
+        const h = container.id === 'modalGenogramCanvasContainer' ? 460 : 540;
+        container.innerHTML = this.renderSVG(this.currentGenogram, { width: w, height: h, interactive: true });
         this.setupInteractiveEvents();
     },
 
@@ -860,13 +862,14 @@ const GenogramModule = {
     openAddMemberModal() {
         if (!this.currentGenogram) return;
         const modalHtml = `
-        <div class="modal-overlay active" id="modalGenoMember">
-            <div class="modal-card modal-md">
+        <div class="modal active" id="modalGenoMember">
+            <div class="modal-overlay" onclick="GenogramModule.closeModal('modalGenoMember')"></div>
+            <div class="modal-content modal-large" style="max-width: 640px; margin: auto;">
                 <div class="modal-header">
                     <h3 class="modal-title"><i class="fas fa-user-plus"></i> Agregar Familiar al Genograma</h3>
                     <button class="btn-icon" onclick="GenogramModule.closeModal('modalGenoMember')"><i class="fas fa-times"></i></button>
                 </div>
-                <div class="modal-body">
+                <div class="modal-body" style="padding: 16px;">
                     <div class="form-row">
                         <div class="form-group">
                             <label>Nombre Completo *</label>
@@ -929,7 +932,7 @@ const GenogramModule = {
                         </div>
                     </div>
                 </div>
-                <div class="modal-footer">
+                <div class="modal-footer" style="padding: 16px; border-top: 1px solid var(--border-primary); display: flex; justify-content: flex-end; gap: 10px;">
                     <button class="btn-secondary" onclick="GenogramModule.closeModal('modalGenoMember')">Cancelar</button>
                     <button class="btn-primary" onclick="GenogramModule.saveNewMember()">Guardar Miembro</button>
                 </div>
@@ -996,13 +999,14 @@ const GenogramModule = {
         if (!member) return;
 
         const modalHtml = `
-        <div class="modal-overlay active" id="modalEditMember">
-            <div class="modal-card modal-md">
+        <div class="modal active" id="modalEditMember">
+            <div class="modal-overlay" onclick="GenogramModule.closeModal('modalEditMember')"></div>
+            <div class="modal-content modal-large" style="max-width: 640px; margin: auto;">
                 <div class="modal-header">
                     <h3 class="modal-title"><i class="fas fa-user-edit"></i> Editar: ${member.name} ${member.isIndex ? '(Caso Índice)' : ''}</h3>
                     <button class="btn-icon" onclick="GenogramModule.closeModal('modalEditMember')"><i class="fas fa-times"></i></button>
                 </div>
-                <div class="modal-body">
+                <div class="modal-body" style="padding: 16px;">
                     <div class="form-row">
                         <div class="form-group">
                             <label>Nombre Completo *</label>
@@ -1058,7 +1062,7 @@ const GenogramModule = {
                         <textarea id="gEditNotes" class="form-control" rows="2" placeholder="Observaciones particulares">${member.notes || ''}</textarea>
                     </div>
                 </div>
-                <div class="modal-footer" style="display:flex;justify-content:space-between;">
+                <div class="modal-footer" style="padding: 16px; border-top: 1px solid var(--border-primary); display:flex;justify-content:space-between;">
                     ${!member.isIndex ? `
                         <button class="btn-danger" onclick="GenogramModule.deleteMember('${member.id}')">
                             <i class="fas fa-trash"></i> Eliminar Miembro
@@ -1120,13 +1124,14 @@ const GenogramModule = {
 
         const members = this.currentGenogram.members;
         const modalHtml = `
-        <div class="modal-overlay active" id="modalAddUnion">
-            <div class="modal-card modal-sm">
+        <div class="modal active" id="modalAddUnion">
+            <div class="modal-overlay" onclick="GenogramModule.closeModal('modalAddUnion')"></div>
+            <div class="modal-content modal-large" style="max-width: 540px; margin: auto;">
                 <div class="modal-header">
                     <h3 class="modal-title"><i class="fas fa-ring"></i> Conectar Unión de Pareja</h3>
                     <button class="btn-icon" onclick="GenogramModule.closeModal('modalAddUnion')"><i class="fas fa-times"></i></button>
                 </div>
-                <div class="modal-body">
+                <div class="modal-body" style="padding: 16px;">
                     <div class="form-group">
                         <label>Pareja 1 *</label>
                         <select id="uPartner1" class="form-control">
@@ -1159,7 +1164,7 @@ const GenogramModule = {
                         </div>
                     </div>
                 </div>
-                <div class="modal-footer">
+                <div class="modal-footer" style="padding: 16px; border-top: 1px solid var(--border-primary); display: flex; justify-content: flex-end; gap: 10px;">
                     <button class="btn-secondary" onclick="GenogramModule.closeModal('modalAddUnion')">Cancelar</button>
                     <button class="btn-primary" onclick="GenogramModule.saveNewUnion()">Establecer Unión</button>
                 </div>
@@ -1205,13 +1210,14 @@ const GenogramModule = {
 
         const members = this.currentGenogram.members;
         const modalHtml = `
-        <div class="modal-overlay active" id="modalAddRel">
-            <div class="modal-card modal-md">
+        <div class="modal active" id="modalAddRel">
+            <div class="modal-overlay" onclick="GenogramModule.closeModal('modalAddRel')"></div>
+            <div class="modal-content modal-large" style="max-width: 580px; margin: auto;">
                 <div class="modal-header">
                     <h3 class="modal-title"><i class="fas fa-project-diagram"></i> Registrar Pauta Relacional (Bowen)</h3>
                     <button class="btn-icon" onclick="GenogramModule.closeModal('modalAddRel')"><i class="fas fa-times"></i></button>
                 </div>
-                <div class="modal-body">
+                <div class="modal-body" style="padding: 16px;">
                     <div class="form-row">
                         <div class="form-group">
                             <label>Desde *</label>
@@ -1239,7 +1245,7 @@ const GenogramModule = {
                         <input type="text" id="rNotes" class="form-control" placeholder="Ej. Triangulación parental, desborde de reactividad...">
                     </div>
                 </div>
-                <div class="modal-footer">
+                <div class="modal-footer" style="padding: 16px; border-top: 1px solid var(--border-primary); display: flex; justify-content: flex-end; gap: 10px;">
                     <button class="btn-secondary" onclick="GenogramModule.closeModal('modalAddRel')">Cancelar</button>
                     <button class="btn-primary" onclick="GenogramModule.saveNewRelationship()">Trazar Dinámica</button>
                 </div>
@@ -1285,13 +1291,14 @@ const GenogramModule = {
         const toM = this.currentGenogram.members.find(m => m.id === rel.toId);
 
         const modalHtml = `
-        <div class="modal-overlay active" id="modalEditRel">
-            <div class="modal-card modal-sm">
+        <div class="modal active" id="modalEditRel">
+            <div class="modal-overlay" onclick="GenogramModule.closeModal('modalEditRel')"></div>
+            <div class="modal-content modal-large" style="max-width: 540px; margin: auto;">
                 <div class="modal-header">
                     <h3 class="modal-title"><i class="fas fa-link"></i> Dinámica: ${fromM?.name} ↔ ${toM?.name}</h3>
                     <button class="btn-icon" onclick="GenogramModule.closeModal('modalEditRel')"><i class="fas fa-times"></i></button>
                 </div>
-                <div class="modal-body">
+                <div class="modal-body" style="padding: 16px;">
                     <div class="form-group">
                         <label>Tipo de Vínculo</label>
                         <select id="rEditType" class="form-control">
@@ -1305,7 +1312,7 @@ const GenogramModule = {
                         <input type="text" id="rEditNotes" class="form-control" value="${rel.notes || ''}">
                     </div>
                 </div>
-                <div class="modal-footer" style="display:flex;justify-content:space-between;">
+                <div class="modal-footer" style="padding: 16px; border-top: 1px solid var(--border-primary); display:flex;justify-content:space-between;">
                     <button class="btn-danger" onclick="GenogramModule.deleteRelationship('${rel.id}')">
                         <i class="fas fa-trash"></i> Eliminar
                     </button>
@@ -1344,13 +1351,14 @@ const GenogramModule = {
         const p2 = this.currentGenogram.members.find(m => m.id === union.partner2Id);
 
         const modalHtml = `
-        <div class="modal-overlay active" id="modalEditUnion">
-            <div class="modal-card modal-sm">
+        <div class="modal active" id="modalEditUnion">
+            <div class="modal-overlay" onclick="GenogramModule.closeModal('modalEditUnion')"></div>
+            <div class="modal-content modal-large" style="max-width: 540px; margin: auto;">
                 <div class="modal-header">
                     <h3 class="modal-title"><i class="fas fa-ring"></i> Unión: ${p1?.name} & ${p2?.name}</h3>
                     <button class="btn-icon" onclick="GenogramModule.closeModal('modalEditUnion')"><i class="fas fa-times"></i></button>
                 </div>
-                <div class="modal-body">
+                <div class="modal-body" style="padding: 16px;">
                     <div class="form-group">
                         <label>Estado de la Unión</label>
                         <select id="uEditType" class="form-control">
@@ -1371,7 +1379,7 @@ const GenogramModule = {
                         </div>
                     </div>
                 </div>
-                <div class="modal-footer" style="display:flex;justify-content:space-between;">
+                <div class="modal-footer" style="padding: 16px; border-top: 1px solid var(--border-primary); display:flex;justify-content:space-between;">
                     <button class="btn-danger" onclick="GenogramModule.deleteUnion('${union.id}')">
                         <i class="fas fa-trash"></i> Eliminar Unión
                     </button>
@@ -1408,7 +1416,7 @@ const GenogramModule = {
     // Inyector helper de modales en el DOM
     injectModal(modalHtml) {
         if (typeof document === 'undefined') return;
-        const oldModal = document.querySelector('.modal-overlay.active[id^="modal"]');
+        document.querySelectorAll('.modal[id^="modalGeno"], .modal[id^="modalEdit"], .modal[id^="modalAdd"], .modal-overlay[id^="modal"]').forEach(el => el.remove());
         const container = document.createElement('div');
         container.innerHTML = modalHtml;
         const newEl = container.firstElementChild;
@@ -1663,14 +1671,15 @@ ${cutoffs.length > 0 ? `* **Cortes Emocionales (Cut-offs):** Ruptura activa de c
         };
 
         const modalHtml = `
-        <div class="modal-overlay active" id="modalGenoWizard">
-            <div class="modal-card geno-wizard-card">
+        <div class="modal active" id="modalGenoWizard">
+            <div class="modal-overlay" onclick="GenogramModule.closeModal('modalGenoWizard')"></div>
+            <div class="modal-content modal-xl geno-wizard-card" style="max-width: 880px; margin: auto;">
                 <div class="modal-header">
                     <h3 class="modal-title"><i class="fas fa-magic" style="color:#0d9488;"></i> Asistente Familiar: Cuestionario de 2da Línea</h3>
                     <button class="btn-icon" onclick="GenogramModule.closeModal('modalGenoWizard')"><i class="fas fa-times"></i></button>
                 </div>
                 
-                <div class="wizard-stepper">
+                <div class="wizard-stepper" style="padding: 12px 20px 8px 20px;">
                     <div class="wizard-step-item active" id="wStepTab_1" onclick="GenogramModule.setWizardStep(1)">
                         <span class="wizard-step-badge">1</span> Abuelos (1ra Gen)
                     </div>
@@ -1692,7 +1701,7 @@ ${cutoffs.length > 0 ? `* **Cortes Emocionales (Cut-offs):** Ruptura activa de c
                     ${this.renderWizardStepView(1)}
                 </div>
 
-                <div class="modal-footer" style="display:flex;justify-content:space-between;align-items:center;">
+                <div class="modal-footer" style="padding: 16px 20px; border-top: 1px solid var(--border-primary); display:flex;justify-content:space-between;align-items:center;">
                     <button class="btn-secondary" id="btnWizPrev" onclick="GenogramModule.prevWizardStep()" style="visibility:hidden;">
                         <i class="fas fa-arrow-left"></i> Anterior
                     </button>
@@ -1769,7 +1778,7 @@ ${cutoffs.length > 0 ? `* **Cortes Emocionales (Cut-offs):** Ruptura activa de c
             <!-- Rama Paterna -->
             <div class="wizard-section-box">
                 <div class="wizard-section-title"><i class="fas fa-users"></i> Abuelos de la Rama Paterna</div>
-                <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;">
+                <div style="display:grid;grid-template-columns:repeat(auto-fit, minmax(280px, 1fr));gap:14px;">
                     <!-- Abuelo Paterno -->
                     <div class="wizard-member-row">
                         <strong>Abuelo Paterno (Varón ▢)</strong>
@@ -1839,7 +1848,7 @@ ${cutoffs.length > 0 ? `* **Cortes Emocionales (Cut-offs):** Ruptura activa de c
             <!-- Rama Materna -->
             <div class="wizard-section-box">
                 <div class="wizard-section-title"><i class="fas fa-users"></i> Abuelos de la Rama Materna</div>
-                <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;">
+                <div style="display:grid;grid-template-columns:repeat(auto-fit, minmax(280px, 1fr));gap:14px;">
                     <!-- Abuelo Materno -->
                     <div class="wizard-member-row">
                         <strong>Abuelo Materno (Varón ▢)</strong>
@@ -2040,7 +2049,7 @@ ${cutoffs.length > 0 ? `* **Cortes Emocionales (Cut-offs):** Ruptura activa de c
                 Define los datos y la unión conyugal de los progenitores directos del paciente.
             </p>
 
-            <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;">
+            <div style="display:grid;grid-template-columns:repeat(auto-fit, minmax(280px, 1fr));gap:16px;">
                 <!-- Padre -->
                 <div class="wizard-section-box">
                     <div class="wizard-section-title"><i class="fas fa-male"></i> Padre del Paciente (Varón ▢)</div>
@@ -2135,7 +2144,7 @@ ${cutoffs.length > 0 ? `* **Cortes Emocionales (Cut-offs):** Ruptura activa de c
             <!-- Paciente Identificado -->
             <div class="wizard-section-box">
                 <div class="wizard-section-title"><i class="fas fa-user-check"></i> Paciente Identificado (Caso Índice con Doble Contorno)</div>
-                <div style="display:grid;grid-template-columns:2fr 1fr 1fr;gap:12px;">
+                <div style="display:grid;grid-template-columns:repeat(auto-fit, minmax(180px, 1fr));gap:12px;">
                     <div>
                         <label style="font-size:11px;">Nombre Completo</label>
                         <input type="text" class="form-control" value="${d.patient.name}"
@@ -2248,7 +2257,7 @@ ${cutoffs.length > 0 ? `* **Cortes Emocionales (Cut-offs):** Ruptura activa de c
 
                 ${d.hasPartner ? `
                 <div style="margin-top:16px;padding-top:14px;border-top:1px solid var(--border-primary);">
-                    <div style="display:grid;grid-template-columns:2fr 1fr 1fr;gap:12px;margin-bottom:12px;">
+                    <div style="display:grid;grid-template-columns:repeat(auto-fit, minmax(180px, 1fr));gap:12px;margin-bottom:12px;">
                         <div>
                             <label style="font-size:11px;">Nombre de la Pareja</label>
                             <input type="text" class="form-control" value="${d.partner.name}"

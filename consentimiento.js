@@ -67,11 +67,22 @@ function openInformedConsentModal(patientId) {
                     Paciente: <strong>${patient.name}</strong> · ${cat === 'child' ? 'Etapa: Niñez' : cat === 'adolescent' ? 'Etapa: Adolescencia' : 'Etapa: Adultez'} | Fecha: ${new Date().toLocaleDateString('es-ES')}
                 </p>
 
-                <div style="max-height: 200px; overflow-y: auto; background: var(--bg-secondary); padding: 14px; border-radius: var(--radius-md); font-size: 12px; line-height: 1.5; margin-bottom: 16px; border: 1px solid var(--border-primary);">
-                    <h4 style="margin-top:0;">Encuadre Clínico y Secreto Profesional Adaptado</h4>
+                <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;">
+                    <h4 style="margin:0;font-size:13px;color:var(--text-primary);">Encuadre Clínico y Secreto Profesional Adaptado</h4>
+                    <button type="button" class="btn-sm btn-secondary" onclick="toggleConsentEditorMode()" id="btnToggleConsentEdit">
+                        <i class="fas fa-edit"></i> Modificar Formato
+                    </button>
+                </div>
+
+                <div id="consentPreviewBox" style="max-height: 200px; overflow-y: auto; background: var(--bg-secondary); padding: 14px; border-radius: var(--radius-md); font-size: 12px; line-height: 1.5; margin-bottom: 16px; border: 1px solid var(--border-primary);">
                     <p>${consentIntro}</p>
                     ${consentClauses}
                     ${sharedClauses}
+                </div>
+
+                <div id="consentEditBox" style="display:none;margin-bottom:16px;">
+                    <textarea id="txtCustomConsentFormat" rows="8" style="width:100%;font-size:12px;padding:10px;border-radius:var(--radius-md);border:1px solid var(--border-primary);background:var(--bg-card);color:var(--text-primary);line-height:1.5;">${(patient.customConsentText || `${consentIntro}\n\n${consentClauses.replace(/<[^>]*>/g, '').trim()}\n\n${sharedClauses.replace(/<[^>]*>/g, '').trim()}`)}</textarea>
+                    <small style="color:var(--text-secondary);font-size:11px;">Puedes personalizar las cláusulas o términos del consentimiento informado libremente.</small>
                 </div>
 
                 <div style="margin-bottom:14px;background:var(--bg-secondary);padding:10px 14px;border-radius:var(--radius-md);font-size:12px;border:1px solid var(--border-primary);">
@@ -244,6 +255,12 @@ function generateSignedInformedConsent() {
     `;
     docClauses += sharedDocClauses;
 
+    const customTxtEl = (typeof document !== 'undefined') ? document.getElementById('txtCustomConsentFormat') : null;
+    if (customTxtEl && customTxtEl.value && customTxtEl.value.trim().length > 30) {
+        patient.customConsentText = customTxtEl.value.trim();
+        docClauses = `<div class="clause" style="white-space:pre-wrap;line-height:1.6;">${customTxtEl.value.trim().replace(/</g, '&lt;').replace(/>/g, '&gt;')}</div>`;
+    }
+
     // Persistir el consentimiento informado firmado en el expediente clínico del paciente
     const nowIso = new Date().toISOString();
     patient.informedConsent = {
@@ -324,10 +341,28 @@ function generateInformedConsent(patientId) {
     openInformedConsentModal(patientId);
 }
 
+function toggleConsentEditorMode() {
+    if (typeof document === 'undefined') return;
+    const prev = document.getElementById('consentPreviewBox');
+    const edit = document.getElementById('consentEditBox');
+    const btn = document.getElementById('btnToggleConsentEdit');
+    if (!prev || !edit) return;
+    if (edit.style.display === 'none') {
+        edit.style.display = 'block';
+        prev.style.display = 'none';
+        if (btn) btn.innerHTML = '<i class="fas fa-eye"></i> Ver Formato';
+    } else {
+        edit.style.display = 'none';
+        prev.style.display = 'block';
+        if (btn) btn.innerHTML = '<i class="fas fa-edit"></i> Modificar Formato';
+    }
+}
+
 // Exposición global
 if (typeof window !== 'undefined') {
     window.openInformedConsentModal = openInformedConsentModal;
     window.generateInformedConsent = generateInformedConsent;
     window.generateSignedInformedConsent = generateSignedInformedConsent;
     window.clearSignatureCanvas = clearSignatureCanvas;
+    window.toggleConsentEditorMode = toggleConsentEditorMode;
 }

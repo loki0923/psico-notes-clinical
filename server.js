@@ -1163,6 +1163,121 @@ app.post('/api/v1/therapist/payment-methods', requireTherapistAuth, async (req, 
     }
 });
 
+// ============================================
+// TASAS DE CAMBIO OFICIALES BCV (FINANZAS MULTIMONEDA)
+// ============================================
+let _bcvCache = {
+    data: null,
+    timestamp: 0,
+    ttl: 30 * 60 * 1000 // 30 minutos de caché
+};
+
+async function fetchBcvRatesFromUpstream() {
+    const now = Date.now();
+    if (_bcvCache.data && (now - _bcvCache.timestamp < _bcvCache.ttl)) {
+        return _bcvCache.data;
+    }
+
+    try {
+        const [usdRes, eurRes] = await Promise.all([
+            fetch('https://ve.dolarapi.com/v1/dolares/oficial', { signal: AbortSignal.timeout(6000) })
+                .then(r => r.ok ? r.json() : null)
+                .catch(() => null),
+            fetch('https://ve.dolarapi.com/v1/euros/oficial', { signal: AbortSignal.timeout(6000) })
+                .then(r => r.ok ? r.json() : null)
+                .catch(() => null)
+        ]);
+
+        const usdRate = (usdRes && (usdRes.promedio || usdRes.venta || usdRes.compra)) ? parseFloat(usdRes.promedio || usdRes.venta) : null;
+        const eurRate = (eurRes && (eurRes.promedio || eurRes.venta || eurRes.compra)) ? parseFloat(eurRes.promedio || eurRes.venta) : null;
+
+        if (usdRate && usdRate > 0) {
+            const result = {
+                status: 'ok',
+                source: 'Banco Central de Venezuela (BCV Oficial)',
+                timestamp: new Date().toISOString(),
+                date: (usdRes && usdRes.fechaActualizacion) || new Date().toISOString(),
+                rates: {
+                    USD: {
+                        currency: 'USD',
+                        name: 'Dólar Estadounidense (BCV)',
+                        rate: Math.round(usdRate * 100) / 100,
+                        date: (usdRes && usdRes.fechaActualizacion) || new Date().toISOString()
+                    },
+                    EUR: {
+                        currency: 'EUR',
+                        name: 'Euro (BCV)',
+                        rate: eurRate ? Math.round(eurRate * 100) / 100 : Math.round(usdRate * 1.08 * 100) / 100,
+                        date: (eurRes && eurRes.fechaActualizacion) || new Date().toISOString()
+                    }
+                }
+            };
+            _bcvCache = {
+                data: result,
+                timestamp: now,
+                ttl: 30 * 60 * 1000
+            };
+            return result;
+        }
+    } catch (e) {
+        console.warn('[BCV-Rates] Aviso consultando servicio externo de BCV:', e.message);
+    }
+
+    if (_bcvCache.data) {
+        return {
+            ..._bcvCache.data,
+            cachedFallback: true
+        };
+    }
+
+    // Fallback de contingencia si no hay internet o servicio externo no responde
+    return {
+        status: 'ok',
+        source: 'BCV (Estimación de contingencia)',
+        timestamp: new Date().toISOString(),
+        date: new Date().toISOString(),
+        rates: {
+            USD: {
+                currency: 'USD',
+                name: 'Dólar Estadounidense (BCV)',
+                rate: 888.89,
+                date: new Date().toISOString()
+            },
+            EUR: {
+                currency: 'EUR',
+                name: 'Euro (BCV)',
+                rate: 989.39,
+                date: new Date().toISOString()
+            }
+        },
+        isFallback: true
+    };
+}
+
+// Endpoint público/autenticado para consultar tasas oficiales BCV
+app.get('/api/v1/finance/bcv-rates', async (req, res) => {
+    try {
+        const force = req.query.force === 'true' || req.query.force === '1';
+        if (force) {
+            _bcvCache.timestamp = 0;
+        }
+        const data = await fetchBcvRatesFromUpstream();
+        res.json(data);
+    } catch (err) {
+        handleClinicalError(res, err, 'Error obteniendo tasas BCV');
+    }
+});
+
+app.post('/api/v1/finance/bcv-rates/refresh', requireTherapistAuth, async (req, res) => {
+    try {
+        _bcvCache.timestamp = 0;
+        const data = await fetchBcvRatesFromUpstream();
+        res.json(data);
+    } catch (err) {
+        handleClinicalError(res, err, 'Error refrescando tasas BCV');
+    }
+});
+
 // Alertas de crisis activas para el terapeuta (Aislamiento por terapeuta autenticado)
 app.get('/api/v1/portal/crisis-alerts', requireTherapistAuth, async (req, res) => {
     try {

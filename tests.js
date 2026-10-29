@@ -7796,6 +7796,352 @@ ClinicalTestSuite.add('TC-MSE-02', 'Renderizado UI y Persistencia de Examen Ment
     }
 });
 
+// 124. TC-MEJ-01: Consentimiento Informado (Etiqueta "FIRMADO POR EL REPRESENTANTE" y Formato Configurable)
+ClinicalTestSuite.add('TC-MEJ-01', 'Consentimiento Informado: Etiqueta "FIRMADO POR EL REPRESENTANTE" y Formato Configurable', async () => {
+    const fs = await import('fs');
+    const path = await import('path');
+
+    const hcJs = fs.readFileSync(path.resolve('historia-clinica.js'), 'utf8');
+    if (!hcJs.includes('FIRMADO POR EL REPRESENTANTE')) {
+        throw new Error('historia-clinica.js debe reflejar la etiqueta "FIRMADO POR EL REPRESENTANTE" para consentimiento en menores');
+    }
+
+    const consentJs = fs.readFileSync(path.resolve('consentimiento.js'), 'utf8');
+    if (!consentJs.includes('toggleConsentEditorMode') || !consentJs.includes('txtCustomConsentFormat')) {
+        throw new Error('consentimiento.js debe ofrecer editor configurable de formato y cláusulas (toggleConsentEditorMode)');
+    }
+});
+
+// 125. TC-MEJ-02: Historia Clínica Adulto Sobria (Cero Emojis en Títulos y Acordeones)
+ClinicalTestSuite.add('TC-MEJ-02', 'Historia Clínica Adulto Sobria (Cero Emojis en Títulos y Acordeones)', async () => {
+    if (typeof ClinicalHistorySystem === 'undefined') {
+        await import('./historia-clinica.js');
+    }
+    const CHS = globalThis.ClinicalHistorySystem;
+    const testAdult = {
+        id: 'pat_adult_no_emoji_01',
+        name: 'Roberto Valera',
+        category: 'adult',
+        gender: 'Masculino',
+        birthdate: '1985-04-12',
+        ci: 'V-15.892.441',
+        occupation: 'Ingeniero',
+        maritalStatus: 'Casado',
+        livesWith: 'Esposa e hijos'
+    };
+    const h = CHS.getFullHistory(testAdult);
+    const therapist = CHS.getTherapistInfo();
+    const html = CHS.renderAdultHistoryIntegral(testAdult, h, therapist, therapist.registry);
+
+    // Validar ausencia de emojis en los títulos de sección del acordeón de adulto
+    const forbiddenEmojis = ['👤', '📋', '🧠', '🩺', '🏠', '🌿', '🎯'];
+    for (const emoji of forbiddenEmojis) {
+        // Los títulos de acordeón no deben contener estos emojis en HC adulto
+        const regex = new RegExp(`<strong[^>]*>\\s*${emoji}`, 'i');
+        if (regex.test(html)) {
+            throw new Error(`Se detectó emoji no permitido "${emoji}" en el encabezado de HC Adulto`);
+        }
+    }
+
+    if (!html.includes('Historia Clínica Adulto (5 Pág. Oficial)')) {
+        throw new Error('Debe mostrar el badge formal de Historia Clínica Adulto sin emojis');
+    }
+});
+
+// 126. TC-MEJ-03: HC Infantil (Posición del Bebé con 4 Opciones y "Dato no Obtenido" Sistemático)
+ClinicalTestSuite.add('TC-MEJ-03', 'HC Infantil: Posición del Bebé con 4 Opciones y "Dato no Obtenido" Sistemático', async () => {
+    const fs = await import('fs');
+    const path = await import('path');
+
+    const hcJs = fs.readFileSync(path.resolve('historia-clinica.js'), 'utf8');
+
+    // 1. Validar que fh_babyPosition sea un select con Cefálica, Transversal, Podálica y Dato no Obtenido
+    if (!hcJs.includes('<select id="fh_babyPosition">')) {
+        throw new Error('fh_babyPosition debe ser un elemento select estandarizado');
+    }
+    const requiredBabyOptions = ['Cefálica', 'Transversal', 'Podálica', 'Dato no Obtenido'];
+    for (const opt of requiredBabyOptions) {
+        if (!hcJs.includes(`value="${opt}"`)) {
+            throw new Error(`fh_babyPosition debe incluir la opción "${opt}"`);
+        }
+    }
+
+    // 2. Validar inclusión de "Dato no Obtenido" en Llanto al nacer, Tipo de parto, Reanimación e Incubadora
+    if (!hcJs.includes('fh_birthCry') || !hcJs.includes('fh_deliveryType')) {
+        throw new Error('Deben existir los campos de llanto y tipo de parto en historia clínica');
+    }
+    const deliveryIdx = hcJs.indexOf('id="fh_deliveryType"');
+    const deliveryEndIdx = hcJs.indexOf('</select>', deliveryIdx);
+    const deliveryBlock = hcJs.substring(deliveryIdx, deliveryEndIdx);
+    if (!deliveryBlock.includes('Dato no Obtenido')) {
+        throw new Error('El selector de Tipo de Parto debe incluir "Dato no Obtenido"');
+    }
+
+    const birthCryIdx = hcJs.indexOf('id="fh_birthCry"');
+    const birthCryEndIdx = hcJs.indexOf('</select>', birthCryIdx);
+    const birthCryBlock = hcJs.substring(birthCryIdx, birthCryEndIdx);
+    if (!birthCryBlock.includes('Dato no Obtenido')) {
+        throw new Error('El selector de Llanto al nacer debe incluir "Dato no Obtenido"');
+    }
+});
+
+// 127. TC-MEJ-04: Genograma Familiar Interactivo y Accesible desde Historia Clínica
+ClinicalTestSuite.add('TC-MEJ-04', 'Genograma Familiar Interactivo y Accesible desde Historia Clínica', async () => {
+    if (typeof ClinicalHistorySystem === 'undefined') {
+        await import('./historia-clinica.js');
+    }
+    if (typeof GenogramModule === 'undefined') {
+        await import('./genogram.js');
+    }
+    const CHS = globalThis.ClinicalHistorySystem;
+    const GM = globalThis.GenogramModule;
+
+    if (typeof CHS.openGenogramModal !== 'function') {
+        throw new Error('ClinicalHistorySystem debe exponer openGenogramModal');
+    }
+    if (typeof GM.openWizardModal !== 'function' || typeof GM.renderSVG !== 'function') {
+        throw new Error('GenogramModule debe exponer openWizardModal y renderSVG');
+    }
+});
+
+// 128. TC-MEJ-05: Examen Mental en Formato Check-List Protocolizado
+ClinicalTestSuite.add('TC-MEJ-05', 'Examen Mental en Formato Check-List Protocolizado', async () => {
+    if (typeof MentalExamModule === 'undefined') {
+        await import('./mental-exam.js');
+    }
+    const MEM = globalThis.MentalExamModule;
+
+    if (typeof MEM.openChecklistModal !== 'function') {
+        throw new Error('MentalExamModule debe proveer openChecklistModal');
+    }
+    if (typeof MEM.checkAllNormalChecklist !== 'function') {
+        throw new Error('MentalExamModule debe proveer checkAllNormalChecklist para marcar todo normal en 1 clic');
+    }
+    if (typeof MEM.updateChecklistLiveText !== 'function') {
+        throw new Error('MentalExamModule debe proveer updateChecklistLiveText para generar la síntesis semiológica');
+    }
+
+    // Verificar que historia-clinica.js enlace el botón de check-list rápido
+    const fs = await import('fs');
+    const path = await import('path');
+    const hcJs = fs.readFileSync(path.resolve('historia-clinica.js'), 'utf8');
+    if (!hcJs.includes('openChecklistModal')) {
+        throw new Error('historia-clinica.js debe incluir el botón para invocar openChecklistModal');
+    }
+});
+
+// 129. TC-MEJ-06: Gestión Dinámica de Escalas Psicométricas (Creación, Edición y Eliminación)
+ClinicalTestSuite.add('TC-MEJ-06', 'Gestión Dinámica de Escalas Psicométricas (Creación, Edición y Eliminación)', async () => {
+    if (typeof getAllClinicalScales === 'undefined') {
+        await import('./scales.js');
+    }
+
+    if (typeof globalThis.openScaleEditorModal !== 'function') {
+        throw new Error('scales.js debe exponer globalmente openScaleEditorModal');
+    }
+    if (typeof globalThis.deleteCustomScale !== 'function') {
+        throw new Error('scales.js debe exponer globalmente deleteCustomScale');
+    }
+    if (typeof globalThis.handleSaveCustomScale !== 'function') {
+        throw new Error('scales.js debe exponer globalmente handleSaveCustomScale');
+    }
+
+    const fs = await import('fs');
+    const path = await import('path');
+    const indexHtml = fs.readFileSync(path.resolve('index.html'), 'utf8');
+    if (!indexHtml.includes('btnDeleteCustomScale') || !indexHtml.includes('scaleEditorModal')) {
+        throw new Error('index.html debe contener el modal scaleEditorModal y el botón btnDeleteCustomScale');
+    }
+});
+
+// 130. TC-MEJ-07: Modales y Fichas de Genograma (Centrado, Modo Oscuro, Responsive y Cierre por Backdrop)
+ClinicalTestSuite.add('TC-MEJ-07', 'Modales y Fichas de Genograma: Centrado, Modo Oscuro, Responsive y Cierre', async () => {
+    const fs = await import('fs');
+    const path = await import('path');
+    const genoJs = fs.readFileSync(path.resolve('genogram.js'), 'utf8');
+    const stylesCss = fs.readFileSync(path.resolve('styles.css'), 'utf8');
+
+    // 1. Verificar que los 6 modales usan el contenedor estándar .modal.active con modal-overlay y modal-content
+    const expectedModals = [
+        'modalGenoMember',
+        'modalEditMember',
+        'modalAddUnion',
+        'modalEditUnion',
+        'modalAddRel',
+        'modalEditRel',
+        'modalGenoWizard'
+    ];
+
+    for (const modalId of expectedModals) {
+        if (!genoJs.includes(`id="${modalId}"`)) {
+            throw new Error(`genogram.js debe contener el modal con id="${modalId}"`);
+        }
+        if (!genoJs.includes(`<div class="modal active" id="${modalId}">`)) {
+            throw new Error(`genogram.js debe encapsular "${modalId}" dentro de <div class="modal active"> para centrado perfecto`);
+        }
+    }
+
+    // 2. Verificar que no quedan modales obsoletos con <div class="modal-overlay active"
+    if (genoJs.includes('<div class="modal-overlay active"')) {
+        throw new Error('genogram.js no debe utilizar modal-overlay active como raíz exterior');
+    }
+
+    // 3. Verificar que injectModal limpia modales previos
+    if (!genoJs.includes('document.querySelectorAll(\'.modal[id^="modalGeno"]') && !genoJs.includes('document.querySelectorAll(\'.modal[')) {
+        throw new Error('genogram.js injectModal debe limpiar modales anteriores del DOM');
+    }
+
+    // 4. Verificar estilos para form-control, modal-card y dark mode en styles.css
+    if (!stylesCss.includes('.form-control') || !stylesCss.includes('[data-theme="dark"] .form-control')) {
+        throw new Error('styles.css debe definir estilos para .form-control y modo oscuro [data-theme="dark"]');
+    }
+    if (!stylesCss.includes('.modal-overlay.active')) {
+        throw new Error('styles.css debe definir el fallback de centrado para .modal-overlay.active');
+    }
+});
+
+// 147. TC-FIN-BCV-01: Cotización y Tasas Automatizadas BCV (Dólar, Euro y Resiliencia Multimoneda)
+ClinicalTestSuite.add('TC-FIN-BCV-01', 'Cotización y Tasas Automatizadas BCV (Dólar, Euro y Resiliencia Multimoneda)', async () => {
+    const fs = await import('fs');
+    const path = await import('path');
+
+    // 1. Verificar endpoint en server.js
+    const serverJs = fs.readFileSync(path.resolve('./server.js'), 'utf8');
+    if (!serverJs.includes('/api/v1/finance/bcv-rates')) {
+        throw new Error('server.js debe exponer la ruta /api/v1/finance/bcv-rates');
+    }
+    if (!serverJs.includes('dolarapi.com/v1/dolares/oficial')) {
+        throw new Error('server.js debe consultar fuentes oficiales de cotización BCV');
+    }
+
+    // 2. Importar finanzas y verificar API de tasas
+    await import('./finance.js');
+    const scope = (typeof window !== 'undefined') ? window : globalThis;
+    const { getBcvExchangeRates, saveBcvExchangeRates, convertCurrency, formatDualCurrency } = scope;
+
+    if (typeof getBcvExchangeRates !== 'function' || typeof convertCurrency !== 'function') {
+        throw new Error('finance.js debe exportar getBcvExchangeRates y convertCurrency');
+    }
+
+    const rates = getBcvExchangeRates();
+    if (!rates || typeof rates.usdRate !== 'number' || rates.usdRate <= 0) {
+        throw new Error('getBcvExchangeRates debe retornar una tasa positiva de USD');
+    }
+    if (typeof rates.eurRate !== 'number' || rates.eurRate <= 0) {
+        throw new Error('getBcvExchangeRates debe retornar una tasa positiva de EUR');
+    }
+
+    // 3. Verificar conversión matemática bidireccional
+    const testUSD = 50.00;
+    const expectedVES = Math.round((testUSD * rates.usdRate + Number.EPSILON) * 100) / 100;
+    const convertedVES = convertCurrency(testUSD, 'USD', 'VES');
+
+    if (Math.abs(convertedVES - expectedVES) > 0.05) {
+        throw new Error(`Conversión USD a VES errónea: esperado ${expectedVES}, obtenido ${convertedVES}`);
+    }
+
+    const convertedUSDBack = convertCurrency(convertedVES, 'VES', 'USD');
+    if (Math.abs(convertedUSDBack - testUSD) > 0.05) {
+        throw new Error(`Conversión inversa VES a USD errónea: esperado ${testUSD}, obtenido ${convertedUSDBack}`);
+    }
+
+    // 4. Probar fijación de tasa manual personalizada
+    const originalRates = { ...rates };
+    saveBcvExchangeRates({
+        isManual: true,
+        usdRate: 950.00,
+        eurRate: 1050.00
+    });
+
+    const manualRates = getBcvExchangeRates();
+    if (!manualRates.isManual || manualRates.usdRate !== 950.00) {
+        throw new Error('La tasa manual personalizada no se guardó correctamente');
+    }
+
+    const convManual = convertCurrency(10, 'USD', 'VES');
+    if (convManual !== 9500.00) {
+        throw new Error(`Cálculo con tasa manual erróneo: esperado 9500, obtenido ${convManual}`);
+    }
+
+    // Restaurar
+    saveBcvExchangeRates(originalRates);
+});
+
+// 148. TC-FIN-BCV-02: Registro y Conciliación de Pagos en Moneda Local (Bolívares / VES) y Divisas
+ClinicalTestSuite.add('TC-FIN-BCV-02', 'Registro y Conciliación de Pagos en Moneda Local (Bolívares / VES) y Divisas', async () => {
+    const fs = await import('fs');
+    const path = await import('path');
+
+    // 1. Verificar modal en index.html
+    const indexHtml = fs.readFileSync(path.resolve('./index.html'), 'utf8');
+    if (!indexHtml.includes('id="financeBcvRateModal"')) {
+        throw new Error('index.html debe contener el modal financeBcvRateModal');
+    }
+
+    // 2. Verificar funciones en finance.js
+    const financeJs = fs.readFileSync(path.resolve('./finance.js'), 'utf8');
+    const requiredFunctions = [
+        'getBcvExchangeRates',
+        'fetchBcvExchangeRates',
+        'convertCurrency',
+        'openBcvRateSettingsModal',
+        'handleBcvRateSettingsSubmit',
+        'setFinanceCurrencyMode',
+        'onTransactionCurrencyChange',
+        'updateTxEquivalentPreview'
+    ];
+
+    for (const fn of requiredFunctions) {
+        if (!financeJs.includes(fn)) {
+            throw new Error(`finance.js debe implementar y exponer: ${fn}`);
+        }
+    }
+
+    // 3. Simular registro de transacción en Bolívares (VES)
+    await import('./finance.js');
+    const scope = (typeof window !== 'undefined') ? window : globalThis;
+    const { getFinanceTransactions, saveFinanceTransactions, getBcvExchangeRates } = scope;
+
+    const initialTxs = getFinanceTransactions();
+    const rates = getBcvExchangeRates();
+    const usdRate = rates.usdRate || 888.89;
+
+    const vesAmount = 45000.00;
+    const expectedNormalizedUSD = Math.round(((vesAmount / usdRate) + Number.EPSILON) * 100) / 100;
+
+    const txBs = {
+        id: 'tx_bcv_test_' + Date.now(),
+        type: 'income',
+        concept: 'Consulta Psicológica Individual (Pago Móvil Mercantil)',
+        amount: expectedNormalizedUSD,
+        originalAmount: vesAmount,
+        currency: 'VES',
+        exchangeRate: usdRate,
+        paymentMethod: 'Pago Móvil',
+        reference: '784192',
+        category: 'Consulta Clínica',
+        date: '2026-10-29',
+        createdAt: new Date().toISOString()
+    };
+
+    const updatedTxs = [...initialTxs, txBs];
+    saveFinanceTransactions(updatedTxs);
+
+    const reloaded = getFinanceTransactions();
+    const found = reloaded.find(t => t.id === txBs.id);
+    if (!found) {
+        throw new Error('No se recuperó la transacción registrada en Bolívares');
+    }
+    if (found.currency !== 'VES' || found.originalAmount !== 45000.00) {
+        throw new Error('Los atributos de moneda local (VES) y monto original no coinciden');
+    }
+    if (found.paymentMethod !== 'Pago Móvil' || found.reference !== '784192') {
+        throw new Error('Los datos de método de pago y referencia bancaria no se persistieron');
+    }
+
+    // Limpiar
+    saveFinanceTransactions(initialTxs);
+});
 
 // Auto-ejecución si se corre desde Node.js (CLI)
 if (typeof process !== 'undefined' && process.argv && process.argv[1] && process.argv[1].endsWith('tests.js')) {
