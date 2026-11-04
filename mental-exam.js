@@ -11,10 +11,26 @@ const MentalExamModule = {
         const cat = (typeof getPatientCategory === 'function') ? getPatientCategory(patient) : 'adult';
         const age = patient.birthdate && typeof calculateAge === 'function' ? calculateAge(patient.birthdate) : (patient.age || 25);
         const gender = (patient.gender || 'Femenino');
+        const isFem = (gender || '').toLowerCase().startsWith('fem');
 
         // Si ya existen datos previos guardados en el paciente, cargarlos
         if (patient.mentalExam && patient.mentalExam.fields) {
-            return JSON.parse(JSON.stringify(patient.mentalExam.fields));
+            const loaded = JSON.parse(JSON.stringify(patient.mentalExam.fields));
+            // Asegurar compatibilidad si viene con la opción antigua de vestimenta
+            if (!loaded.aspectoVestimenta || loaded.aspectoVestimenta.length === 0) {
+                loaded.aspectoVestimenta = isFem 
+                    ? ['Aseada', 'Arreglada', 'Vestimenta de acuerdo a edad y ocasión']
+                    : ['Aseado', 'Arreglado', 'Vestimenta de acuerdo a edad y ocasión'];
+            } else {
+                // Si tenía 'Vestido de acuerdo a la ocasión', actualizar a 'Vestimenta de acuerdo a edad y ocasión'
+                loaded.aspectoVestimenta = loaded.aspectoVestimenta.map(v => 
+                    v === 'Vestido de acuerdo a la ocasión' ? 'Vestimenta de acuerdo a edad y ocasión' : v
+                );
+                if (loaded.vestimentaEdadOcasion === 'SI' && !loaded.aspectoVestimenta.some(v => /vestiment[ao]|vestid[ao]/i.test(v))) {
+                    loaded.aspectoVestimenta.push('Vestimenta de acuerdo a edad y ocasión');
+                }
+            }
+            return loaded;
         }
 
         return {
@@ -25,7 +41,9 @@ const MentalExamModule = {
             biotipo: 'Mesomorfo',
 
             // 2. Aspecto y vestimenta
-            aspectoVestimenta: ['Aseado', 'Arreglado', 'Vestido de acuerdo a la ocasión'],
+            aspectoVestimenta: isFem 
+                ? ['Aseada', 'Arreglada', 'Vestimenta de acuerdo a edad y ocasión']
+                : ['Aseado', 'Arreglado', 'Vestimenta de acuerdo a edad y ocasión'],
             vestimentaEdadOcasion: 'SI',
 
             // 3. Actitud
@@ -111,18 +129,19 @@ const MentalExamModule = {
     // Generador en tiempo real de la narrativa clínica protocolizada (según el orden del PDF pág. 8)
     generateNarrative(fields, patient) {
         const parts = [];
+        const isFem = (fields.sexo || '').toLowerCase().startsWith('fem');
 
-        // 1. Presentación
+        // 1. Presentación (Parte 1 del PDF)
         let generoTxt = 'Paciente';
         if (fields.sexo === 'Femenino') generoTxt = 'Paciente femenina';
         else if (fields.sexo === 'Masculino') generoTxt = 'Paciente masculino';
         else generoTxt = `Paciente (${fields.sexo})`;
 
-        let pres = `${generoTxt} de ${fields.edad || '—'} años de edad`;
+        let pres = '';
         if (fields.edadAparenteCronologica === 'SI') {
-            pres += ', edad aparente a edad cronológica';
+            pres = `${generoTxt} de ${fields.edad || '—'} años, edad aparente a edad cronológica`;
         } else {
-            pres += ', con edad aparente no acorde a su edad cronológica';
+            pres = `${generoTxt} de ${fields.edad || '—'} años de edad, no aparente a edad cronológica`;
         }
         if (fields.biotipo) {
             pres += ` y biotipo ${fields.biotipo.toLowerCase()}`;
@@ -130,32 +149,75 @@ const MentalExamModule = {
         pres += '.';
         parts.push(pres);
 
-        // 2. Aspecto
-        let aspList = (fields.aspectoVestimenta || []).slice();
-        let aspTxt = '';
-        if (aspList.length > 0) {
-            aspTxt = aspList.join(', ');
-        } else {
-            aspTxt = 'Presentación personal adecuada al contexto';
+        // 2. Aspecto y Vestimenta (Parte 2 y Parte 4 del PDF)
+        const aspList = (fields.aspectoVestimenta || []).slice();
+        const vestimentaSelected = aspList.some(v => /vestiment[ao]|vestid[ao]/i.test(v));
+        const cleanAdjs = aspList.filter(v => !/vestiment[ao]|vestid[ao]/i.test(v));
+
+        // Adaptar automáticamente adjetivos al género indicado (-o/-a, -e/-a)
+        const genderAdaptedAdjs = cleanAdjs.map(adj => {
+            if (isFem) {
+                return adj.replace(/\bAseado\b/i, 'Aseada')
+                          .replace(/\bArreglado\b/i, 'Arreglada')
+                          .replace(/\bDescuidado\b/i, 'Descuidada')
+                          .replace(/\bDesarreglado\b/i, 'Desarreglada');
+            } else {
+                return adj.replace(/\bAseada\b/i, 'Aseado')
+                          .replace(/\bArreglada\b/i, 'Arreglado')
+                          .replace(/\bDescuidada\b/i, 'Descuidado')
+                          .replace(/\bDesarreglada\b/i, 'Desarreglado');
+            }
+        });
+
+        let adjTxt = '';
+        if (genderAdaptedAdjs.length === 1) {
+            adjTxt = genderAdaptedAdjs[0];
+        } else if (genderAdaptedAdjs.length === 2) {
+            adjTxt = `${genderAdaptedAdjs[0]} y ${genderAdaptedAdjs[1].toLowerCase()}`;
+        } else if (genderAdaptedAdjs.length > 2) {
+            adjTxt = `${genderAdaptedAdjs.slice(0, -1).join(', ')} y ${genderAdaptedAdjs[genderAdaptedAdjs.length - 1].toLowerCase()}`;
+        } else if (!vestimentaSelected && fields.vestimentaEdadOcasion !== 'SI') {
+            adjTxt = 'Presentación personal adecuada al contexto';
         }
-        if (fields.vestimentaEdadOcasion === 'SI') {
-            aspTxt += ', vestimenta de acuerdo a la edad y ocasión.';
+
+        if (adjTxt) {
+            adjTxt = adjTxt.charAt(0).toUpperCase() + adjTxt.slice(1);
+        }
+
+        let aspTxt = '';
+        const hasVestimenta = vestimentaSelected || fields.vestimentaEdadOcasion === 'SI';
+        if (hasVestimenta) {
+            if (adjTxt) {
+                aspTxt = `${adjTxt}, vestimenta de acuerdo a la edad y ocasión.`;
+            } else {
+                aspTxt = 'Vestimenta de acuerdo a la edad y ocasión.';
+            }
+        } else if (fields.vestimentaEdadOcasion === 'NO') {
+            if (adjTxt) {
+                aspTxt = `${adjTxt}, vestimenta no acorde a la edad ni ocasión.`;
+            } else {
+                aspTxt = 'Vestimenta no acorde a la edad ni ocasión.';
+            }
         } else {
-            aspTxt += ', vestimenta no acorde a la edad ni ocasión.';
+            aspTxt = `${adjTxt}.`;
         }
         parts.push(aspTxt);
 
-        // 3. Actitud
-        let actList = (fields.actitud || []).slice();
+        // 3. Actitud (Parte 3 del PDF)
+        const actList = (fields.actitud || []).slice();
         if (actList.length > 0) {
-            parts.push(`Actitud ${actList.join(', ').toLowerCase()}.`);
+            let actTxt = '';
+            if (actList.length === 1) actTxt = actList[0].toLowerCase();
+            else if (actList.length === 2) actTxt = `${actList[0].toLowerCase()}, ${actList[1].toLowerCase()}`;
+            else actTxt = `${actList.slice(0, -1).map(a => a.toLowerCase()).join(', ')} y ${actList[actList.length - 1].toLowerCase()}`;
+            parts.push(`Actitud ${actTxt}.`);
         } else {
             parts.push('Actitud colaboradora ante la evaluación.');
         }
 
         // 4. Nivel de Conciencia
         if (fields.concienciaAlterada === 'NO') {
-            parts.push('Nivel de Conciencia Conservado (vigil y lúcido).');
+            parts.push('Nivel de Conciencia Conservado.');
         } else {
             const items = [
                 ...(fields.concienciaCuantitativa || []),
@@ -168,7 +230,7 @@ const MentalExamModule = {
 
         // 5. Atención
         if (fields.atencionAlterada === 'NO') {
-            parts.push('Atención Conservada (normoprosexia).');
+            parts.push('Atención Conservada.');
         } else {
             const atList = fields.atencionTipo && fields.atencionTipo.length > 0 ? fields.atencionTipo.join(', ') : 'alteraciones atencionales';
             parts.push(`Atención alterada (${atList}).`);
@@ -177,7 +239,7 @@ const MentalExamModule = {
         // 6. Orientación
         const orientParts = [];
         if (fields.orientacionAlopsiquica === 'SI' && fields.orientacionAutopsiquica === 'SI') {
-            orientParts.push('Orientado Alopsíquica y Autopsíquicamente (tiempo, espacio y persona)');
+            orientParts.push('Orientado Alopsíquica y Autopsíquicamente');
         } else if (fields.orientacionAutopsiquica === 'SI') {
             orientParts.push('Orientado Autopsíquicamente y desorientado Alopsíquicamente');
         } else if (fields.orientacionAlopsiquica === 'SI') {
@@ -192,7 +254,7 @@ const MentalExamModule = {
 
         // 7. Memoria
         if (fields.memoriaConservada === 'SI') {
-            parts.push('Memoria Conservada (fijación, evocación y conservación normales).');
+            parts.push('Memoria Conservada.');
         } else {
             const memItems = [
                 ...(fields.memoriaCualitativo || []),
@@ -205,7 +267,7 @@ const MentalExamModule = {
         parts.push(`Juicio Práctico ${fields.juicioPractico || 'Conservado'}.`);
 
         // 9. Inteligencia
-        let intelTxt = `Inteligencia ${fields.inteligencia === 'Promedio' ? 'Normal / Promedio' : fields.inteligencia}.`;
+        let intelTxt = fields.inteligencia === 'Promedio' ? 'Inteligencia Normal.' : `Inteligencia ${fields.inteligencia}.`;
         if (fields.pruebasRealizadas === 'SI') {
             intelTxt += ` Pruebas psicométricas aplicadas: ${fields.pruebasCual || 'Batería psicométrica estándar'}.`;
         }
@@ -216,7 +278,7 @@ const MentalExamModule = {
         if (fields.pensamientoVelocidad && fields.pensamientoVelocidad !== 'Normal') {
             pensParts.push(fields.pensamientoVelocidad);
         }
-        if (fields.pensamientoEstructura && fields.pensamientoEstructura.length > 0) {
+        if (fields.pensamientoEstructura && fields.pensamientoEstructura.length > 0 && !fields.pensamientoEstructura.includes('Lógico y Coherente')) {
             pensParts.push(fields.pensamientoEstructura.join(', '));
         }
         if (fields.pensamientoDelirios === 'SI' && fields.pensamientoDeliriosLista && fields.pensamientoDeliriosLista.length > 0) {
@@ -228,7 +290,7 @@ const MentalExamModule = {
         if (pensParts.length === 0) {
             parts.push('Pensamiento de curso lógico, coherente y velocidad conservada, sin ideas delirantes ni obsesivas.');
         } else {
-            parts.push(`Pensamiento: ${pensParts.join('. ')}.`);
+            parts.push(`${pensParts.join('. ')}.`);
         }
 
         // 11. Lenguaje
@@ -245,7 +307,7 @@ const MentalExamModule = {
         if (lengParts.length === 0) {
             parts.push('Lenguaje fluido, articulado y comprensible, con adecuada entonación y mímica congruente.');
         } else {
-            parts.push(`Lenguaje: ${lengParts.join('. ')}.`);
+            parts.push(`${lengParts.join('. ')}.`);
         }
 
         // 12. Afectividad
@@ -269,7 +331,7 @@ const MentalExamModule = {
         if (fields.afectoCualitativo && fields.afectoCualitativo.length > 0) {
             afectParts.push(fields.afectoCualitativo.join(', '));
         }
-        parts.push(`Afectividad: ${afectParts.join(', ')}.`);
+        parts.push(`${afectParts.join(', ')}.`);
 
         // 13. Sensopercepción
         const sensParts = [];
@@ -288,7 +350,7 @@ const MentalExamModule = {
         if (sensParts.length === 0) {
             parts.push('Sensopercepción conservada, sin alteraciones sensoriales ni fenómenos alucinatorios.');
         } else {
-            parts.push(`Sensopercepción: ${sensParts.join('. ')}.`);
+            parts.push(`${sensParts.join('. ')}.`);
         }
 
         // 14. Psicomotricidad
@@ -302,18 +364,22 @@ const MentalExamModule = {
         if (psicoParts.length === 0) {
             parts.push('Psicomotricidad adecuada, marcha y postura estables sin tics, temblores ni estereotipias.');
         } else {
-            parts.push(`Psicomotricidad: ${psicoParts.join(', ')}.`);
+            parts.push(`${psicoParts.join(', ')}.`);
         }
 
         // 15. Vida Instintiva
         if (fields.vidaInstintivaAlterada === 'NO' || !fields.vidaInstintivaLista || fields.vidaInstintivaLista.length === 0) {
             parts.push('Vida Instintiva conservada (patrones de sueño, alimentación y conducta preservados).');
         } else {
-            parts.push(`Vida Instintiva: ${fields.vidaInstintivaLista.join(', ')}.`);
+            parts.push(`${fields.vidaInstintivaLista.join(', ')}.`);
         }
 
         // 16. Volición
-        parts.push(`Volición: ${fields.volicion || 'Normobulia'}.`);
+        if (fields.volicion === 'Normobulia') {
+            parts.push('Volición: Normobulia.');
+        } else {
+            parts.push(`${fields.volicion || 'Normobulia'}.`);
+        }
 
         // 17. Conciencia de Enfermedad
         parts.push(`Conciencia de Enfermedad ${fields.concienciaEnfermedad || 'Presente'}.`);
@@ -344,7 +410,7 @@ const MentalExamModule = {
                                 <span class="me-protocol-pill"><i class="fas fa-stethoscope"></i> 18 Funciones Semiológicas</span>
                             </div>
                             <p style="margin:3px 0 0;font-size:12.5px;color:var(--text-secondary);line-height:1.4;">
-                                Evaluación semiológica protocolizada. Selección interactiva con síntesis diagnóstica en vivo.
+                                Evaluación semiológica protocolizada. Selección interactiva con pestañas desplegables y síntesis diagnóstica en vivo.
                             </p>
                         </div>
                     </div>
@@ -364,14 +430,24 @@ const MentalExamModule = {
                     </div>
                 </div>
 
-                <!-- BARRA DE FILTRO POR DOMINIOS CLÍNICOS -->
-                <div class="me-category-bar">
-                    <button type="button" class="me-cat-pill active" onclick="MentalExamModule.filterGroup('all', this)"><i class="fas fa-layer-group"></i> Todas (18)</button>
-                    <button type="button" class="me-cat-pill" onclick="MentalExamModule.filterGroup('1', this)"><i class="fas fa-user-check"></i> I. Aspecto & Actitud (1-3)</button>
-                    <button type="button" class="me-cat-pill" onclick="MentalExamModule.filterGroup('2', this)"><i class="fas fa-brain"></i> II. Cognición (4-9)</button>
-                    <button type="button" class="me-cat-pill" onclick="MentalExamModule.filterGroup('3', this)"><i class="fas fa-comments"></i> III. Pensamiento (10-11)</button>
-                    <button type="button" class="me-cat-pill" onclick="MentalExamModule.filterGroup('4', this)"><i class="fas fa-heart-pulse"></i> IV. Afecto & Percepción (12-13)</button>
-                    <button type="button" class="me-cat-pill" onclick="MentalExamModule.filterGroup('5', this)"><i class="fas fa-shield-halved"></i> V. Juicio & Volición (14-18)</button>
+                <!-- BARRA DE FILTRO POR DOMINIOS CLÍNICOS Y CONTROLES DE DESPLIEGUE -->
+                <div class="me-filter-toolbar">
+                    <div class="me-category-bar">
+                        <button type="button" class="me-cat-pill active" onclick="MentalExamModule.filterGroup('all', this)"><i class="fas fa-layer-group"></i> Todas (18)</button>
+                        <button type="button" class="me-cat-pill" onclick="MentalExamModule.filterGroup('1', this)"><i class="fas fa-user-check"></i> I. Aspecto & Actitud (1-3)</button>
+                        <button type="button" class="me-cat-pill" onclick="MentalExamModule.filterGroup('2', this)"><i class="fas fa-brain"></i> II. Cognición (4-9)</button>
+                        <button type="button" class="me-cat-pill" onclick="MentalExamModule.filterGroup('3', this)"><i class="fas fa-comments"></i> III. Pensamiento (10-11)</button>
+                        <button type="button" class="me-cat-pill" onclick="MentalExamModule.filterGroup('4', this)"><i class="fas fa-heart-pulse"></i> IV. Afecto & Percepción (12-13)</button>
+                        <button type="button" class="me-cat-pill" onclick="MentalExamModule.filterGroup('5', this)"><i class="fas fa-shield-halved"></i> V. Juicio & Volición (14-18)</button>
+                    </div>
+                    <div class="me-accordion-controls">
+                        <button type="button" class="me-acc-btn" onclick="MentalExamModule.expandAllCards()" title="Desplegar todas las funciones">
+                            <i class="fas fa-angles-down"></i> Desplegar todas
+                        </button>
+                        <button type="button" class="me-acc-btn" onclick="MentalExamModule.collapseAllCards()" title="Plegar todas las funciones para vista limpia">
+                            <i class="fas fa-angles-up"></i> Plegar todas
+                        </button>
+                    </div>
                 </div>
 
                 <!-- CUADRÍCULA PRINCIPAL: FORMULARIO INTERACTIVO + VISOR NARRATIVO -->
@@ -423,16 +499,163 @@ const MentalExamModule = {
         `;
     },
 
+    // Retorna las opciones de adjetivos de aspecto según género (Parte 2 del PDF)
+    getAspectOptions(gender) {
+        const isFem = (gender || '').toLowerCase().startsWith('fem');
+        if (isFem) {
+            return [
+                'Aseada',
+                'Arreglada',
+                'Descuidada',
+                'Desarreglada',
+                'Extravagante',
+                'Vestimenta de acuerdo a edad y ocasión'
+            ];
+        }
+        return [
+            'Aseado',
+            'Arreglado',
+            'Descuidado',
+            'Desarreglado',
+            'Extravagante',
+            'Vestimenta de acuerdo a edad y ocasión'
+        ];
+    },
+
+    // Opciones completas de actitud (Parte 3 del PDF)
+    getActitudOptions() {
+        return [
+            'Amable', 'Suspicaz', 'Colaboradora', 'Interesada', 'Cansada', 'Altiva',
+            'De gran confianza', 'Demandante', 'Distante', 'De extrañeza', 'Hostil',
+            'Inhibida', 'Intrusiva', 'Pasivo agresiva', 'Pueril', 'Quejumbrosa'
+        ];
+    },
+
+    // Render de lista desplegable personalizada compacta (ahorro de espacio)
+    renderDropdown(field, label, options, selectedValues = []) {
+        const count = selectedValues.length;
+        const tagsHtml = count === 0
+            ? `<span class="me-dd-placeholder">Seleccionar opciones...</span>`
+            : selectedValues.map(v => `
+                <span class="me-dd-tag">
+                    ${v}
+                    <button type="button" class="me-dd-tag-remove" onclick="MentalExamModule.removeDropdownItem('${field}', '${v.replace(/'/g, "\\'")}', event)">×</button>
+                </span>
+            `).join('');
+
+        return `
+            <div class="me-dropdown-container" id="me_dd_container_${field}" data-field="${field}">
+                <div class="me-dropdown-trigger" id="me_dd_trigger_${field}" onclick="MentalExamModule.toggleDropdownMenu('${field}')" tabindex="0">
+                    <div class="me-dropdown-tags-wrapper" id="me_dd_tags_${field}">
+                        ${tagsHtml}
+                    </div>
+                    <div class="me-dropdown-icons">
+                        <span class="me-dd-counter" id="me_dd_counter_${field}">${count}</span>
+                        <i class="fas fa-chevron-down me-dd-arrow" id="me_dd_arrow_${field}"></i>
+                    </div>
+                </div>
+                <div class="me-dropdown-menu" id="me_dd_menu_${field}">
+                    ${options.map(opt => {
+                        const checked = selectedValues.includes(opt);
+                        return `
+                            <label class="me-dd-item ${checked ? 'selected' : ''}">
+                                <input type="checkbox" value="${opt}" ${checked ? 'checked' : ''} onchange="MentalExamModule.onDropdownToggle('${field}', '${opt.replace(/'/g, "\\'")}')">
+                                <span>${opt}</span>
+                            </label>
+                        `;
+                    }).join('')}
+                </div>
+            </div>
+        `;
+    },
+
+    // Generador de resumen breve para cada cabecera de tarjeta (Dashboard visible al colapsar)
+    getCardSummary(cardNum, s) {
+        switch (cardNum) {
+            case 1:
+                return `${s.sexo || 'Paciente'}, ${s.edad || '—'} años · ${s.edadAparenteCronologica === 'SI' ? 'Edad aparente acorde' : 'Edad no acorde'}`;
+            case 2: {
+                const list = s.aspectoVestimenta || [];
+                if (list.length === 0) return 'Presentación adecuada';
+                return list.slice(0, 2).join(', ') + (list.length > 2 ? ` (+${list.length - 2})` : '');
+            }
+            case 3: {
+                const list = s.actitud || [];
+                if (list.length === 0) return 'Colaboradora';
+                return list.slice(0, 2).join(', ') + (list.length > 2 ? ` (+${list.length - 2})` : '');
+            }
+            case 4:
+                return s.concienciaAlterada === 'SI' ? '⚠️ Alterada' : '✓ Conservado';
+            case 5:
+                return s.atencionAlterada === 'SI' ? '⚠️ Alterada' : '✓ Conservada';
+            case 6:
+                if (s.orientacionAlopsiquica === 'SI' && s.orientacionAutopsiquica === 'SI') return '✓ Orientado globalmente';
+                if (s.orientacionAutopsiquica === 'SI') return 'Autopsíquica conservada';
+                if (s.orientacionAlopsiquica === 'SI') return 'Alopsíquica conservada';
+                return '⚠️ Desorientado';
+            case 7:
+                return s.memoriaConservada === 'SI' ? '✓ Conservada' : '⚠️ Alterada';
+            case 8:
+                return s.juicioPractico === 'Conservado' ? '✓ Conservado' : `⚠️ ${s.juicioPractico}`;
+            case 9:
+                return s.inteligencia === 'Promedio' ? '✓ Normal / Promedio' : s.inteligencia;
+            case 10:
+                if (s.pensamientoVelocidad && s.pensamientoVelocidad !== 'Normal') return `⚠️ ${s.pensamientoVelocidad}`;
+                if (s.pensamientoDelirios === 'SI') return '⚠️ Delirios';
+                return '✓ Lógico y conservado';
+            case 11:
+                if ((s.lenguajeOrganico && s.lenguajeOrganico.length > 0) || (s.lenguajePsicogeno && s.lenguajePsicogeno.length > 0)) {
+                    return `⚠️ ${[...(s.lenguajePsicogeno || []), ...(s.lenguajeOrganico || [])][0] || 'Alterado'}`;
+                }
+                return '✓ Articulado y fluido';
+            case 12:
+                if (s.hipertimiaPresenta === 'SI') {
+                    return `⚠️ ${s.hipertimiaTipo || 'Hipertimia'}`;
+                }
+                return s.afectoBase ? `✓ ${s.afectoBase}` : '✓ Eutímico';
+            case 13:
+                if (s.sensopercepcionCuantitativa && s.sensopercepcionCuantitativa !== 'Conservada') return `⚠️ ${s.sensopercepcionCuantitativa}`;
+                if (s.alucinacionesPresenta === 'SI') return '⚠️ Alucinaciones';
+                if (s.ilusionesPresenta === 'SI') return '⚠️ Ilusiones';
+                return '✓ Conservada';
+            case 14:
+                if ((s.psicomotricidadOrganico && s.psicomotricidadOrganico.length > 0) || (s.psicomotricidadNoOrganico && s.psicomotricidadNoOrganico.length > 0)) {
+                    return `⚠️ ${[...(s.psicomotricidadNoOrganico || []), ...(s.psicomotricidadOrganico || [])][0] || 'Alterada'}`;
+                }
+                return '✓ Postura y motricidad estable';
+            case 15:
+                return s.vidaInstintivaAlterada === 'SI' ? `⚠️ Alterada (${(s.vidaInstintivaLista || []).slice(0, 2).join(', ')})` : '✓ Conservada';
+            case 16:
+                return s.volicion === 'Normobulia' ? '✓ Normobulia' : `⚠️ ${s.volicion}`;
+            case 17:
+                return s.concienciaEnfermedad === 'Presente' ? '✓ Presente (Insight +)' : `⚠️ ${s.concienciaEnfermedad}`;
+            case 18:
+                return s.juicioRealidad === 'Conservado' ? '✓ Conservado' : `⚠️ ${s.juicioRealidad}`;
+            default:
+                return '';
+        }
+    },
+
     // Render de cada una de las 18 secciones
     renderFormSections(s) {
+        const aspectOpts = this.getAspectOptions(s.sexo);
+        const actitudOpts = this.getActitudOptions();
+
         return `
             <!-- 1. PRESENTACIÓN -->
-            <div class="me-card" data-group="1">
-                <div class="me-card-header">
-                    <div class="me-card-title"><span class="me-num">1</span> Presentación General</div>
-                    <span class="me-card-tag">General</span>
+            <div class="me-card collapsible" id="me_card_1" data-group="1" data-card-num="1">
+                <div class="me-card-header me-accordion-header" onclick="MentalExamModule.toggleCardCollapse(1)" role="button" tabindex="0">
+                    <div class="me-header-left">
+                        <span class="me-num">1</span>
+                        <span class="me-card-title">Presentación General</span>
+                        <span class="me-card-tag">General</span>
+                    </div>
+                    <div class="me-header-right">
+                        <span class="me-card-summary" id="me_summary_1">${this.getCardSummary(1, s)}</span>
+                        <i class="fas fa-chevron-down me-accordion-chevron" id="me_chevron_1"></i>
+                    </div>
                 </div>
-                <div class="me-card-body">
+                <div class="me-card-body" id="me_body_1">
                     <div class="me-field-grid-2">
                         <div class="me-field-block">
                             <label class="me-field-label">Sexo:</label>
@@ -466,48 +689,58 @@ const MentalExamModule = {
                 </div>
             </div>
 
-            <!-- 2. ASPECTO Y VESTIMENTA -->
-            <div class="me-card" data-group="1">
-                <div class="me-card-header">
-                    <div class="me-card-title"><span class="me-num">2</span> Aspecto y Vestimenta</div>
-                    <span class="me-card-tag">General</span>
+            <!-- 2. ASPECTO Y VESTIMENTA (Parte 2 del PDF: Lista desplegable, eliminación SI/NO y concordancia de género) -->
+            <div class="me-card collapsible" id="me_card_2" data-group="1" data-card-num="2">
+                <div class="me-card-header me-accordion-header" onclick="MentalExamModule.toggleCardCollapse(2)" role="button" tabindex="0">
+                    <div class="me-header-left">
+                        <span class="me-num">2</span>
+                        <span class="me-card-title">Aspecto y Vestimenta</span>
+                        <span class="me-card-tag">General</span>
+                    </div>
+                    <div class="me-header-right">
+                        <span class="me-card-summary" id="me_summary_2">${this.getCardSummary(2, s)}</span>
+                        <i class="fas fa-chevron-down me-accordion-chevron" id="me_chevron_2"></i>
+                    </div>
                 </div>
-                <div class="me-card-body">
-                    <label class="me-field-label">Aspecto General (Selección múltiple):</label>
-                    <div class="me-chips-group" data-field="aspectoVestimenta" data-type="multiple">
-                        ${['Aseado', 'Arreglado', 'Descuidada', 'Desarreglada', 'Extravagante', 'Vestido de acuerdo a la ocasión'].map(opt => `<span class="me-chip ${(s.aspectoVestimenta || []).includes(opt) ? 'active' : ''}" onclick="MentalExamModule.onChipToggle(this, 'aspectoVestimenta', '${opt}')">${opt}</span>`).join('')}
-                    </div>
-                    <div style="margin-top:12px;">
-                        <label class="me-field-label">Vestimenta de Acuerdo a la Edad y Ocasión:</label>
-                        <div class="me-chips-group me-segmented" data-field="vestimentaEdadOcasion" data-type="single">
-                            <span class="me-chip ${s.vestimentaEdadOcasion === 'SI' ? 'active' : ''}" onclick="MentalExamModule.onChipSelect(this, 'vestimentaEdadOcasion', 'SI')">SÍ</span>
-                            <span class="me-chip ${s.vestimentaEdadOcasion === 'NO' ? 'active' : ''}" onclick="MentalExamModule.onChipSelect(this, 'vestimentaEdadOcasion', 'NO')">NO</span>
-                        </div>
-                    </div>
+                <div class="me-card-body" id="me_body_2">
+                    <label class="me-field-label">Aspecto General y Vestimenta (Lista Desplegable):</label>
+                    ${this.renderDropdown('aspectoVestimenta', 'Aspecto y Vestimenta', aspectOpts, s.aspectoVestimenta || [])}
                 </div>
             </div>
 
-            <!-- 3. ACTITUD -->
-            <div class="me-card" data-group="1">
-                <div class="me-card-header">
-                    <div class="me-card-title"><span class="me-num">3</span> Actitud hacia la Entrevista y el Evaluador</div>
-                    <span class="me-card-tag">General</span>
-                </div>
-                <div class="me-card-body">
-                    <label class="me-field-label">Rasgos observados durante el encuentro:</label>
-                    <div class="me-chips-group" data-field="actitud" data-type="multiple">
-                        ${['Amable', 'Suspicaz', 'Colaboradora', 'Interesada', 'Cansada', 'Altiva', 'De gran confianza', 'Demandante', 'Distante', 'De extrañeza', 'Hostil', 'Inhibida', 'Intrusiva', 'Pasivo agresiva', 'Pueril', 'Quejumbrosa'].map(opt => `<span class="me-chip ${(s.actitud || []).includes(opt) ? 'active' : ''}" onclick="MentalExamModule.onChipToggle(this, 'actitud', '${opt}')">${opt}</span>`).join('')}
+            <!-- 3. ACTITUD (Parte 3 del PDF: Lista desplegable para ahorro de espacio) -->
+            <div class="me-card collapsible" id="me_card_3" data-group="1" data-card-num="3">
+                <div class="me-card-header me-accordion-header" onclick="MentalExamModule.toggleCardCollapse(3)" role="button" tabindex="0">
+                    <div class="me-header-left">
+                        <span class="me-num">3</span>
+                        <span class="me-card-title">Actitud hacia la Entrevista y el Evaluador</span>
+                        <span class="me-card-tag">General</span>
                     </div>
+                    <div class="me-header-right">
+                        <span class="me-card-summary" id="me_summary_3">${this.getCardSummary(3, s)}</span>
+                        <i class="fas fa-chevron-down me-accordion-chevron" id="me_chevron_3"></i>
+                    </div>
+                </div>
+                <div class="me-card-body" id="me_body_3">
+                    <label class="me-field-label">Rasgos observados durante el encuentro (Lista Desplegable):</label>
+                    ${this.renderDropdown('actitud', 'Actitud', actitudOpts, s.actitud || [])}
                 </div>
             </div>
 
             <!-- 4. NIVEL DE CONCIENCIA -->
-            <div class="me-card" data-group="2">
-                <div class="me-card-header">
-                    <div class="me-card-title"><span class="me-num">4</span> Nivel de Conciencia</div>
-                    <span class="me-card-tag">Cognición</span>
+            <div class="me-card collapsible" id="me_card_4" data-group="2" data-card-num="4">
+                <div class="me-card-header me-accordion-header" onclick="MentalExamModule.toggleCardCollapse(4)" role="button" tabindex="0">
+                    <div class="me-header-left">
+                        <span class="me-num">4</span>
+                        <span class="me-card-title">Nivel de Conciencia</span>
+                        <span class="me-card-tag">Cognición</span>
+                    </div>
+                    <div class="me-header-right">
+                        <span class="me-card-summary" id="me_summary_4">${this.getCardSummary(4, s)}</span>
+                        <i class="fas fa-chevron-down me-accordion-chevron" id="me_chevron_4"></i>
+                    </div>
                 </div>
-                <div class="me-card-body">
+                <div class="me-card-body" id="me_body_4">
                     <div class="me-toggle-row">
                         <label class="me-field-label" style="margin:0;">¿Presenta alteraciones?:</label>
                         <div class="me-chips-group me-segmented" data-field="concienciaAlterada" data-type="single">
@@ -534,12 +767,19 @@ const MentalExamModule = {
             </div>
 
             <!-- 5. ATENCIÓN -->
-            <div class="me-card" data-group="2">
-                <div class="me-card-header">
-                    <div class="me-card-title"><span class="me-num">5</span> Atención (Prosexia)</div>
-                    <span class="me-card-tag">Cognición</span>
+            <div class="me-card collapsible" id="me_card_5" data-group="2" data-card-num="5">
+                <div class="me-card-header me-accordion-header" onclick="MentalExamModule.toggleCardCollapse(5)" role="button" tabindex="0">
+                    <div class="me-header-left">
+                        <span class="me-num">5</span>
+                        <span class="me-card-title">Atención (Prosexia)</span>
+                        <span class="me-card-tag">Cognición</span>
+                    </div>
+                    <div class="me-header-right">
+                        <span class="me-card-summary" id="me_summary_5">${this.getCardSummary(5, s)}</span>
+                        <i class="fas fa-chevron-down me-accordion-chevron" id="me_chevron_5"></i>
+                    </div>
                 </div>
-                <div class="me-card-body">
+                <div class="me-card-body" id="me_body_5">
                     <div class="me-toggle-row">
                         <label class="me-field-label" style="margin:0;">¿Presenta alteraciones?:</label>
                         <div class="me-chips-group me-segmented" data-field="atencionAlterada" data-type="single">
@@ -557,12 +797,19 @@ const MentalExamModule = {
             </div>
 
             <!-- 6. ORIENTACIÓN -->
-            <div class="me-card" data-group="2">
-                <div class="me-card-header">
-                    <div class="me-card-title"><span class="me-num">6</span> Orientación (Autopsíquica y Alopsíquica)</div>
-                    <span class="me-card-tag">Cognición</span>
+            <div class="me-card collapsible" id="me_card_6" data-group="2" data-card-num="6">
+                <div class="me-card-header me-accordion-header" onclick="MentalExamModule.toggleCardCollapse(6)" role="button" tabindex="0">
+                    <div class="me-header-left">
+                        <span class="me-num">6</span>
+                        <span class="me-card-title">Orientación (Autopsíquica y Alopsíquica)</span>
+                        <span class="me-card-tag">Cognición</span>
+                    </div>
+                    <div class="me-header-right">
+                        <span class="me-card-summary" id="me_summary_6">${this.getCardSummary(6, s)}</span>
+                        <i class="fas fa-chevron-down me-accordion-chevron" id="me_chevron_6"></i>
+                    </div>
                 </div>
-                <div class="me-card-body">
+                <div class="me-card-body" id="me_body_6">
                     <div class="me-field-grid-2">
                         <div class="me-field-block">
                             <label class="me-field-label">Orientado Autopsíquicamente (Persona):</label>
@@ -589,12 +836,19 @@ const MentalExamModule = {
             </div>
 
             <!-- 7. MEMORIA -->
-            <div class="me-card" data-group="2">
-                <div class="me-card-header">
-                    <div class="me-card-title"><span class="me-num">7</span> Memoria (Fijación, Evocación y Reconocimiento)</div>
-                    <span class="me-card-tag">Cognición</span>
+            <div class="me-card collapsible" id="me_card_7" data-group="2" data-card-num="7">
+                <div class="me-card-header me-accordion-header" onclick="MentalExamModule.toggleCardCollapse(7)" role="button" tabindex="0">
+                    <div class="me-header-left">
+                        <span class="me-num">7</span>
+                        <span class="me-card-title">Memoria (Fijación, Evocación y Reconocimiento)</span>
+                        <span class="me-card-tag">Cognición</span>
+                    </div>
+                    <div class="me-header-right">
+                        <span class="me-card-summary" id="me_summary_7">${this.getCardSummary(7, s)}</span>
+                        <i class="fas fa-chevron-down me-accordion-chevron" id="me_chevron_7"></i>
+                    </div>
                 </div>
-                <div class="me-card-body">
+                <div class="me-card-body" id="me_body_7">
                     <div class="me-toggle-row">
                         <label class="me-field-label" style="margin:0;">¿Memoria conservada?:</label>
                         <div class="me-chips-group me-segmented" data-field="memoriaConservada" data-type="single">
@@ -616,12 +870,19 @@ const MentalExamModule = {
             </div>
 
             <!-- 8. JUICIO PRÁCTICO -->
-            <div class="me-card" data-group="2">
-                <div class="me-card-header">
-                    <div class="me-card-title"><span class="me-num">8</span> Juicio Práctico</div>
-                    <span class="me-card-tag">Cognición</span>
+            <div class="me-card collapsible" id="me_card_8" data-group="2" data-card-num="8">
+                <div class="me-card-header me-accordion-header" onclick="MentalExamModule.toggleCardCollapse(8)" role="button" tabindex="0">
+                    <div class="me-header-left">
+                        <span class="me-num">8</span>
+                        <span class="me-card-title">Juicio Práctico</span>
+                        <span class="me-card-tag">Cognición</span>
+                    </div>
+                    <div class="me-header-right">
+                        <span class="me-card-summary" id="me_summary_8">${this.getCardSummary(8, s)}</span>
+                        <i class="fas fa-chevron-down me-accordion-chevron" id="me_chevron_8"></i>
+                    </div>
                 </div>
-                <div class="me-card-body">
+                <div class="me-card-body" id="me_body_8">
                     <div class="me-chips-group" data-field="juicioPractico" data-type="single">
                         ${['Conservado', 'Parcial', 'Desviado'].map(opt => `<span class="me-chip ${s.juicioPractico === opt ? 'active' : ''}" onclick="MentalExamModule.onChipSelect(this, 'juicioPractico', '${opt}')">${opt}</span>`).join('')}
                     </div>
@@ -629,12 +890,19 @@ const MentalExamModule = {
             </div>
 
             <!-- 9. INTELIGENCIA -->
-            <div class="me-card" data-group="2">
-                <div class="me-card-header">
-                    <div class="me-card-title"><span class="me-num">9</span> Capacidad Intelectual Estimada</div>
-                    <span class="me-card-tag">Cognición</span>
+            <div class="me-card collapsible" id="me_card_9" data-group="2" data-card-num="9">
+                <div class="me-card-header me-accordion-header" onclick="MentalExamModule.toggleCardCollapse(9)" role="button" tabindex="0">
+                    <div class="me-header-left">
+                        <span class="me-num">9</span>
+                        <span class="me-card-title">Capacidad Intelectual Estimada</span>
+                        <span class="me-card-tag">Cognición</span>
+                    </div>
+                    <div class="me-header-right">
+                        <span class="me-card-summary" id="me_summary_9">${this.getCardSummary(9, s)}</span>
+                        <i class="fas fa-chevron-down me-accordion-chevron" id="me_chevron_9"></i>
+                    </div>
                 </div>
-                <div class="me-card-body">
+                <div class="me-card-body" id="me_body_9">
                     <div class="me-chips-group" data-field="inteligencia" data-type="single">
                         ${['Inferior al promedio', 'Promedio', 'Superior al promedio'].map(opt => `<span class="me-chip ${s.inteligencia === opt ? 'active' : ''}" onclick="MentalExamModule.onChipSelect(this, 'inteligencia', '${opt}')">${opt}</span>`).join('')}
                     </div>
@@ -652,12 +920,19 @@ const MentalExamModule = {
             </div>
 
             <!-- 10. PENSAMIENTO -->
-            <div class="me-card" data-group="3">
-                <div class="me-card-header">
-                    <div class="me-card-title"><span class="me-num">10</span> Pensamiento (Velocidad, Estructura y Contenido)</div>
-                    <span class="me-card-tag">Pensamiento</span>
+            <div class="me-card collapsible" id="me_card_10" data-group="3" data-card-num="10">
+                <div class="me-card-header me-accordion-header" onclick="MentalExamModule.toggleCardCollapse(10)" role="button" tabindex="0">
+                    <div class="me-header-left">
+                        <span class="me-num">10</span>
+                        <span class="me-card-title">Pensamiento (Velocidad, Estructura y Contenido)</span>
+                        <span class="me-card-tag">Pensamiento</span>
+                    </div>
+                    <div class="me-header-right">
+                        <span class="me-card-summary" id="me_summary_10">${this.getCardSummary(10, s)}</span>
+                        <i class="fas fa-chevron-down me-accordion-chevron" id="me_chevron_10"></i>
+                    </div>
                 </div>
-                <div class="me-card-body">
+                <div class="me-card-body" id="me_body_10">
                     <label class="me-field-label">A. Velocidad:</label>
                     <div class="me-chips-group" data-field="pensamientoVelocidad" data-type="single">
                         ${['Normal', 'Taquipsiquia', 'Pensamiento Ideofugal', 'Fuga de Ideas', 'Bradipsiquia', 'Inhibición del Pensamiento'].map(opt => `<span class="me-chip ${s.pensamientoVelocidad === opt ? 'active' : ''}" onclick="MentalExamModule.onChipSelect(this, 'pensamientoVelocidad', '${opt}')">${opt}</span>`).join('')}
@@ -690,12 +965,19 @@ const MentalExamModule = {
             </div>
 
             <!-- 11. LENGUAJE -->
-            <div class="me-card" data-group="3">
-                <div class="me-card-header">
-                    <div class="me-card-title"><span class="me-num">11</span> Lenguaje (Verbal y No Verbal)</div>
-                    <span class="me-card-tag">Lenguaje</span>
+            <div class="me-card collapsible" id="me_card_11" data-group="3" data-card-num="11">
+                <div class="me-card-header me-accordion-header" onclick="MentalExamModule.toggleCardCollapse(11)" role="button" tabindex="0">
+                    <div class="me-header-left">
+                        <span class="me-num">11</span>
+                        <span class="me-card-title">Lenguaje (Verbal y No Verbal)</span>
+                        <span class="me-card-tag">Lenguaje</span>
+                    </div>
+                    <div class="me-header-right">
+                        <span class="me-card-summary" id="me_summary_11">${this.getCardSummary(11, s)}</span>
+                        <i class="fas fa-chevron-down me-accordion-chevron" id="me_chevron_11"></i>
+                    </div>
                 </div>
-                <div class="me-card-body">
+                <div class="me-card-body" id="me_body_11">
                     <label class="me-field-label">A. Trastornos Orgánicos del Lenguaje Oral:</label>
                     <div class="me-chips-group" data-field="lenguajeOrganico" data-type="multiple">
                         ${['Disartria', 'Dislalia', 'Afasia de Broca', 'Afasia de Wernicke', 'Afasia Global', 'Afasia Anómica', 'Afasia Conductiva', 'Afasia Acústico-Amnésica', 'Afasia Motora Transcortical', 'Afasia Sensitiva Transcortical', 'Afasia Transcortical Mixta'].map(opt => `<span class="me-chip ${(s.lenguajeOrganico || []).includes(opt) ? 'active' : ''}" onclick="MentalExamModule.onChipToggle(this, 'lenguajeOrganico', '${opt}')">${opt}</span>`).join('')}
@@ -714,12 +996,19 @@ const MentalExamModule = {
             </div>
 
             <!-- 12. AFECTIVIDAD -->
-            <div class="me-card" data-group="4">
-                <div class="me-card-header">
-                    <div class="me-card-title"><span class="me-num">12</span> Afectividad</div>
-                    <span class="me-card-tag">Afecto</span>
+            <div class="me-card collapsible" id="me_card_12" data-group="4" data-card-num="12">
+                <div class="me-card-header me-accordion-header" onclick="MentalExamModule.toggleCardCollapse(12)" role="button" tabindex="0">
+                    <div class="me-header-left">
+                        <span class="me-num">12</span>
+                        <span class="me-card-title">Afectividad</span>
+                        <span class="me-card-tag">Afecto</span>
+                    </div>
+                    <div class="me-header-right">
+                        <span class="me-card-summary" id="me_summary_12">${this.getCardSummary(12, s)}</span>
+                        <i class="fas fa-chevron-down me-accordion-chevron" id="me_chevron_12"></i>
+                    </div>
                 </div>
-                <div class="me-card-body">
+                <div class="me-card-body" id="me_body_12">
                     <label class="me-field-label">Afecto basal:</label>
                     <div class="me-chips-group" data-field="afectoBase" data-type="single">
                         ${['Modulado / Eutímico', 'Furor Maníaco', 'Beatitud', 'Éxtasis', 'Hipotimia', 'Atimia'].map(opt => `<span class="me-chip ${s.afectoBase === opt ? 'active' : ''}" onclick="MentalExamModule.onChipSelect(this, 'afectoBase', '${opt}')">${opt}</span>`).join('')}
@@ -758,12 +1047,19 @@ const MentalExamModule = {
             </div>
 
             <!-- 13. SENSOPERCEPCIÓN -->
-            <div class="me-card" data-group="4">
-                <div class="me-card-header">
-                    <div class="me-card-title"><span class="me-num">13</span> Sensopercepción</div>
-                    <span class="me-card-tag">Percepción</span>
+            <div class="me-card collapsible" id="me_card_13" data-group="4" data-card-num="13">
+                <div class="me-card-header me-accordion-header" onclick="MentalExamModule.toggleCardCollapse(13)" role="button" tabindex="0">
+                    <div class="me-header-left">
+                        <span class="me-num">13</span>
+                        <span class="me-card-title">Sensopercepción</span>
+                        <span class="me-card-tag">Percepción</span>
+                    </div>
+                    <div class="me-header-right">
+                        <span class="me-card-summary" id="me_summary_13">${this.getCardSummary(13, s)}</span>
+                        <i class="fas fa-chevron-down me-accordion-chevron" id="me_chevron_13"></i>
+                    </div>
                 </div>
-                <div class="me-card-body">
+                <div class="me-card-body" id="me_body_13">
                     <label class="me-field-label">Cuantitativo:</label>
                     <div class="me-chips-group" data-field="sensopercepcionCuantitativa" data-type="single">
                         ${['Conservada', 'Aceleración de la Percepción', 'Retardo de la Percepción', 'Abolición de la Percepción'].map(opt => `<span class="me-chip ${s.sensopercepcionCuantitativa === opt ? 'active' : ''}" onclick="MentalExamModule.onChipSelect(this, 'sensopercepcionCuantitativa', '${opt}')">${opt}</span>`).join('')}
@@ -807,12 +1103,19 @@ const MentalExamModule = {
             </div>
 
             <!-- 14. PSICOMOTRICIDAD -->
-            <div class="me-card" data-group="5">
-                <div class="me-card-header">
-                    <div class="me-card-title"><span class="me-num">14</span> Psicomotricidad</div>
-                    <span class="me-card-tag">Conducta</span>
+            <div class="me-card collapsible" id="me_card_14" data-group="5" data-card-num="14">
+                <div class="me-card-header me-accordion-header" onclick="MentalExamModule.toggleCardCollapse(14)" role="button" tabindex="0">
+                    <div class="me-header-left">
+                        <span class="me-num">14</span>
+                        <span class="me-card-title">Psicomotricidad</span>
+                        <span class="me-card-tag">Conducta</span>
+                    </div>
+                    <div class="me-header-right">
+                        <span class="me-card-summary" id="me_summary_14">${this.getCardSummary(14, s)}</span>
+                        <i class="fas fa-chevron-down me-accordion-chevron" id="me_chevron_14"></i>
+                    </div>
                 </div>
-                <div class="me-card-body">
+                <div class="me-card-body" id="me_body_14">
                     <label class="me-field-label">A. Trastornos Orgánicos:</label>
                     <div class="me-chips-group" data-field="psicomotricidadOrganico" data-type="multiple">
                         ${['Facies', 'Sincinesia', 'Temblor', 'Hemibalismo', 'Espasmos', 'Corea', 'Atetosis', 'Mioclonías', 'Distonía', 'Rigidez', 'Discinesia Paroxística', 'Acatisia', 'Acinesia', 'Incoordinación Motora', 'Cataplexia y Parálisis del Sueño', 'Apraxia Ideacional', 'Dispraxia Ideacional'].map(opt => `<span class="me-chip ${(s.psicomotricidadOrganico || []).includes(opt) ? 'active' : ''}" onclick="MentalExamModule.onChipToggle(this, 'psicomotricidadOrganico', '${opt}')">${opt}</span>`).join('')}
@@ -826,12 +1129,19 @@ const MentalExamModule = {
             </div>
 
             <!-- 15. VIDA INSTINTIVA -->
-            <div class="me-card" data-group="5">
-                <div class="me-card-header">
-                    <div class="me-card-title"><span class="me-num">15</span> Vida Instintiva (Sueño, Apetito y Conducta)</div>
-                    <span class="me-card-tag">Instinto</span>
+            <div class="me-card collapsible" id="me_card_15" data-group="5" data-card-num="15">
+                <div class="me-card-header me-accordion-header" onclick="MentalExamModule.toggleCardCollapse(15)" role="button" tabindex="0">
+                    <div class="me-header-left">
+                        <span class="me-num">15</span>
+                        <span class="me-card-title">Vida Instintiva (Sueño, Apetito y Conducta)</span>
+                        <span class="me-card-tag">Instinto</span>
+                    </div>
+                    <div class="me-header-right">
+                        <span class="me-card-summary" id="me_summary_15">${this.getCardSummary(15, s)}</span>
+                        <i class="fas fa-chevron-down me-accordion-chevron" id="me_chevron_15"></i>
+                    </div>
                 </div>
-                <div class="me-card-body">
+                <div class="me-card-body" id="me_body_15">
                     <div class="me-toggle-row">
                         <label class="me-field-label" style="margin:0;">¿Presenta alteraciones?:</label>
                         <div class="me-chips-group me-segmented" data-field="vidaInstintivaAlterada" data-type="single">
@@ -849,12 +1159,19 @@ const MentalExamModule = {
             </div>
 
             <!-- 16. VOLICIÓN -->
-            <div class="me-card" data-group="5">
-                <div class="me-card-header">
-                    <div class="me-card-title"><span class="me-num">16</span> Volición (Voluntad y Motivación)</div>
-                    <span class="me-card-tag">Volición</span>
+            <div class="me-card collapsible" id="me_card_16" data-group="5" data-card-num="16">
+                <div class="me-card-header me-accordion-header" onclick="MentalExamModule.toggleCardCollapse(16)" role="button" tabindex="0">
+                    <div class="me-header-left">
+                        <span class="me-num">16</span>
+                        <span class="me-card-title">Volición (Voluntad y Motivación)</span>
+                        <span class="me-card-tag">Volición</span>
+                    </div>
+                    <div class="me-header-right">
+                        <span class="me-card-summary" id="me_summary_16">${this.getCardSummary(16, s)}</span>
+                        <i class="fas fa-chevron-down me-accordion-chevron" id="me_chevron_16"></i>
+                    </div>
                 </div>
-                <div class="me-card-body">
+                <div class="me-card-body" id="me_body_16">
                     <div class="me-chips-group" data-field="volicion" data-type="single">
                         ${['Normobulia', 'Abulia', 'Hipobulia', 'Hiperbulia', 'Apatía'].map(opt => `<span class="me-chip ${s.volicion === opt ? 'active' : ''}" onclick="MentalExamModule.onChipSelect(this, 'volicion', '${opt}')">${opt}</span>`).join('')}
                     </div>
@@ -862,12 +1179,19 @@ const MentalExamModule = {
             </div>
 
             <!-- 17. CONCIENCIA DE ENFERMEDAD -->
-            <div class="me-card" data-group="5">
-                <div class="me-card-header">
-                    <div class="me-card-title"><span class="me-num">17</span> Conciencia de Enfermedad (Insight)</div>
-                    <span class="me-card-tag">Insight</span>
+            <div class="me-card collapsible" id="me_card_17" data-group="5" data-card-num="17">
+                <div class="me-card-header me-accordion-header" onclick="MentalExamModule.toggleCardCollapse(17)" role="button" tabindex="0">
+                    <div class="me-header-left">
+                        <span class="me-num">17</span>
+                        <span class="me-card-title">Conciencia de Enfermedad (Insight)</span>
+                        <span class="me-card-tag">Insight</span>
+                    </div>
+                    <div class="me-header-right">
+                        <span class="me-card-summary" id="me_summary_17">${this.getCardSummary(17, s)}</span>
+                        <i class="fas fa-chevron-down me-accordion-chevron" id="me_chevron_17"></i>
+                    </div>
                 </div>
-                <div class="me-card-body">
+                <div class="me-card-body" id="me_body_17">
                     <div class="me-chips-group" data-field="concienciaEnfermedad" data-type="single">
                         ${['Presente', 'Parcial', 'Ausente'].map(opt => `<span class="me-chip ${s.concienciaEnfermedad === opt ? 'active' : ''}" onclick="MentalExamModule.onChipSelect(this, 'concienciaEnfermedad', '${opt}')">${opt}</span>`).join('')}
                     </div>
@@ -875,12 +1199,19 @@ const MentalExamModule = {
             </div>
 
             <!-- 18. JUICIO DE REALIDAD -->
-            <div class="me-card" data-group="5">
-                <div class="me-card-header">
-                    <div class="me-card-title"><span class="me-num">18</span> Juicio de Realidad</div>
-                    <span class="me-card-tag">Realidad</span>
+            <div class="me-card collapsible" id="me_card_18" data-group="5" data-card-num="18">
+                <div class="me-card-header me-accordion-header" onclick="MentalExamModule.toggleCardCollapse(18)" role="button" tabindex="0">
+                    <div class="me-header-left">
+                        <span class="me-num">18</span>
+                        <span class="me-card-title">Juicio de Realidad</span>
+                        <span class="me-card-tag">Realidad</span>
+                    </div>
+                    <div class="me-header-right">
+                        <span class="me-card-summary" id="me_summary_18">${this.getCardSummary(18, s)}</span>
+                        <i class="fas fa-chevron-down me-accordion-chevron" id="me_chevron_18"></i>
+                    </div>
                 </div>
-                <div class="me-card-body">
+                <div class="me-card-body" id="me_body_18">
                     <div class="me-chips-group" data-field="juicioRealidad" data-type="single">
                         ${['Conservado', 'Parcial', 'Desviado'].map(opt => `<span class="me-chip ${s.juicioRealidad === opt ? 'active' : ''}" onclick="MentalExamModule.onChipSelect(this, 'juicioRealidad', '${opt}')">${opt}</span>`).join('')}
                     </div>
@@ -894,6 +1225,11 @@ const MentalExamModule = {
         const group = el.parentElement;
         group.querySelectorAll('.me-chip').forEach(c => c.classList.remove('active'));
         el.classList.add('active');
+
+        // Si cambia el sexo, adaptar automáticamente las terminaciones de adjetivos de aspecto
+        if (field === 'sexo') {
+            this.updateAspectGender(value);
+        }
 
         // Toggle condicionales visuales
         if (field === 'concienciaAlterada') {
@@ -926,15 +1262,168 @@ const MentalExamModule = {
         }
 
         this.syncStateAndRegenerate();
+        this.updateAllCardSummaries();
     },
 
     onChipToggle(el, field, value) {
         el.classList.toggle('active');
         this.syncStateAndRegenerate();
+        this.updateAllCardSummaries();
     },
 
     onFieldChange(field, value) {
         this.syncStateAndRegenerate();
+        this.updateAllCardSummaries();
+    },
+
+    // Gestión de Dropdowns desplegables (Aspecto y Actitud)
+    toggleDropdownMenu(field) {
+        const menu = document.getElementById(`me_dd_menu_${field}`);
+        const trigger = document.getElementById(`me_dd_trigger_${field}`);
+        if (!menu || !trigger) return;
+
+        const isShown = menu.classList.contains('show');
+        // Cerrar todos los demás
+        document.querySelectorAll('.me-dropdown-menu.show').forEach(m => m.classList.remove('show'));
+        document.querySelectorAll('.me-dropdown-trigger.open').forEach(t => t.classList.remove('open'));
+
+        if (!isShown) {
+            menu.classList.add('show');
+            trigger.classList.add('open');
+        }
+    },
+
+    onDropdownToggle(field, value) {
+        const menu = document.getElementById(`me_dd_menu_${field}`);
+        if (!menu) return;
+
+        // Actualizar etiquetas en el trigger
+        this.refreshDropdownTags(field);
+        this.syncStateAndRegenerate();
+        this.updateAllCardSummaries();
+    },
+
+    removeDropdownItem(field, value, ev) {
+        if (ev) ev.stopPropagation();
+        const menu = document.getElementById(`me_dd_menu_${field}`);
+        if (!menu) return;
+
+        const inputs = menu.querySelectorAll('input[type="checkbox"]');
+        inputs.forEach(input => {
+            if (input.value === value) {
+                input.checked = false;
+                const parent = input.closest('.me-dd-item');
+                if (parent) parent.classList.remove('selected');
+            }
+        });
+
+        this.refreshDropdownTags(field);
+        this.syncStateAndRegenerate();
+        this.updateAllCardSummaries();
+    },
+
+    refreshDropdownTags(field) {
+        const menu = document.getElementById(`me_dd_menu_${field}`);
+        const tagsContainer = document.getElementById(`me_dd_tags_${field}`);
+        const counter = document.getElementById(`me_dd_counter_${field}`);
+        if (!menu || !tagsContainer) return;
+
+        const selectedValues = [];
+        menu.querySelectorAll('input[type="checkbox"]').forEach(input => {
+            const parent = input.closest('.me-dd-item');
+            if (input.checked) {
+                selectedValues.push(input.value);
+                if (parent) parent.classList.add('selected');
+            } else {
+                if (parent) parent.classList.remove('selected');
+            }
+        });
+
+        if (counter) counter.textContent = selectedValues.length;
+
+        if (selectedValues.length === 0) {
+            tagsContainer.innerHTML = `<span class="me-dd-placeholder">Seleccionar opciones...</span>`;
+        } else {
+            tagsContainer.innerHTML = selectedValues.map(v => `
+                <span class="me-dd-tag">
+                    ${v}
+                    <button type="button" class="me-dd-tag-remove" onclick="MentalExamModule.removeDropdownItem('${field}', '${v.replace(/'/g, "\\'")}', event)">×</button>
+                </span>
+            `).join('');
+        }
+    },
+
+    // Adapta automáticamente los adjetivos de aspecto según género seleccionado en Presentación (Parte 2)
+    updateAspectGender(gender) {
+        const isFem = (gender || '').toLowerCase().startsWith('fem');
+        const menu = document.getElementById('me_dd_menu_aspectoVestimenta');
+        if (!menu) return;
+
+        // Obtener valores actualmente seleccionados y transformarlos
+        const currentChecked = Array.from(menu.querySelectorAll('input[type="checkbox"]:checked')).map(cb => cb.value);
+        const transformedChecked = currentChecked.map(val => {
+            if (isFem) {
+                return val.replace(/\bAseado\b/i, 'Aseada')
+                          .replace(/\bArreglado\b/i, 'Arreglada')
+                          .replace(/\bDescuidado\b/i, 'Descuidada')
+                          .replace(/\bDesarreglado\b/i, 'Desarreglada');
+            } else {
+                return val.replace(/\bAseada\b/i, 'Aseado')
+                          .replace(/\bArreglada\b/i, 'Arreglado')
+                          .replace(/\bDescuidada\b/i, 'Descuidado')
+                          .replace(/\bDesarreglada\b/i, 'Desarreglado');
+            }
+        });
+
+        const newOptions = this.getAspectOptions(gender);
+        menu.innerHTML = newOptions.map(opt => {
+            const checked = transformedChecked.includes(opt);
+            return `
+                <label class="me-dd-item ${checked ? 'selected' : ''}">
+                    <input type="checkbox" value="${opt}" ${checked ? 'checked' : ''} onchange="MentalExamModule.onDropdownToggle('aspectoVestimenta', '${opt.replace(/'/g, "\\'")}')">
+                    <span>${opt}</span>
+                </label>
+            `;
+        }).join('');
+
+        this.refreshDropdownTags('aspectoVestimenta');
+    },
+
+    // Gestión de Acordeón Pestañas Desplegables (Reducción de Ruido Visual)
+    toggleCardCollapse(cardNum) {
+        const card = document.getElementById(`me_card_${cardNum}`);
+        if (!card) return;
+        card.classList.toggle('collapsed');
+    },
+
+    expandAllCards() {
+        document.querySelectorAll('.me-card.collapsible').forEach(c => {
+            c.classList.remove('collapsed');
+        });
+    },
+
+    collapseAllCards() {
+        document.querySelectorAll('.me-card.collapsible').forEach(c => {
+            c.classList.add('collapsed');
+        });
+    },
+
+    updateAllCardSummaries() {
+        const s = this.collectCurrentState();
+        for (let i = 1; i <= 18; i++) {
+            const el = document.getElementById(`me_summary_${i}`);
+            if (el) {
+                const sum = this.getCardSummary(i, s);
+                el.textContent = sum;
+                if (sum.startsWith('⚠️')) {
+                    el.className = 'me-card-summary alert';
+                } else if (sum.startsWith('✓')) {
+                    el.className = 'me-card-summary success';
+                } else {
+                    el.className = 'me-card-summary';
+                }
+            }
+        }
     },
 
     // Extraer estado actual desde el DOM interactivo
@@ -945,18 +1434,29 @@ const MentalExamModule = {
         };
 
         const getMultiple = (field) => {
+            // Revisar si viene de un dropdown interactivo
+            const menu = document.getElementById(`me_dd_menu_${field}`);
+            if (menu) {
+                return Array.from(menu.querySelectorAll('input[type="checkbox"]:checked')).map(cb => cb.value.trim());
+            }
+            // Fallback a chips
             const group = document.querySelector(`.me-chips-group[data-field="${field}"]`);
             if (!group) return [];
             return Array.from(group.querySelectorAll('.me-chip.active')).map(c => c.textContent.trim());
         };
+
+        const aspectoVals = getMultiple('aspectoVestimenta');
 
         return {
             sexo: getSingle('sexo'),
             edad: document.getElementById('me_edad')?.value || '',
             edadAparenteCronologica: getSingle('edadAparenteCronologica') || 'SI',
             biotipo: getSingle('biotipo') || 'Mesomorfo',
-            aspectoVestimenta: getMultiple('aspectoVestimenta'),
-            vestimentaEdadOcasion: getSingle('vestimentaEdadOcasion') || 'SI',
+            aspectoVestimenta: aspectoVals,
+            vestimentaEdadOcasion: (function() {
+                if (aspectoVals.some(v => /vestiment[ao]|vestid[ao]/i.test(v))) return 'SI';
+                return getSingle('vestimentaEdadOcasion') || 'SI';
+            })(),
             actitud: getMultiple('actitud'),
             concienciaAlterada: getSingle('concienciaAlterada') || 'NO',
             concienciaCuantitativa: getMultiple('concienciaCuantitativa'),
@@ -987,6 +1487,7 @@ const MentalExamModule = {
             hipertimiaTipo: getSingle('hipertimiaTipo') || '',
             hipertimiaPolo: getSingle('hipertimiaPolo') || '',
             hipertimiaSentimientos: getMultiple('hipertimiaSentimientos'),
+            afectoOtrasAlteraciones: getMultiple('afectoOtrasAlteraciones'),
             afectoCualitativo: getMultiple('afectoCualitativo'),
             sensopercepcionCuantitativa: getSingle('sensopercepcionCuantitativa') || 'Conservada',
             ilusionesPresenta: getSingle('ilusionesPresenta') || 'NO',
@@ -1034,6 +1535,10 @@ const MentalExamModule = {
         cards.forEach(card => {
             if (groupId === 'all' || card.getAttribute('data-group') === String(groupId)) {
                 card.style.display = 'block';
+                // Si se filtra una categoría específica, expandirla automáticamente para conveniencia del profesional
+                if (groupId !== 'all') {
+                    card.classList.remove('collapsed');
+                }
             } else {
                 card.style.display = 'none';
             }
@@ -1055,6 +1560,7 @@ const MentalExamModule = {
             formPane.innerHTML = `<form id="mentalExamForm" onsubmit="event.preventDefault();">${this.renderFormSections(initial)}</form>`;
         }
         this.syncStateAndRegenerate();
+        this.updateAllCardSummaries();
         if (typeof showToast === 'function') showToast('Valores normotípicos conservados cargados', 'success');
     },
 
@@ -1427,6 +1933,15 @@ const MentalExamModule = {
         }
     }
 };
+
+if (typeof document !== 'undefined') {
+    document.addEventListener('click', (e) => {
+        if (!e.target.closest('.me-dropdown-container')) {
+            document.querySelectorAll('.me-dropdown-menu.show').forEach(m => m.classList.remove('show'));
+            document.querySelectorAll('.me-dropdown-trigger.open').forEach(t => t.classList.remove('open'));
+        }
+    });
+}
 
 if (typeof window !== 'undefined') {
     window.MentalExamModule = MentalExamModule;

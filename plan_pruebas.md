@@ -187,8 +187,9 @@ flowchart TD
 |---|---|---|---|
 | **TC-FIN-BCV-01** | Finanzas & BCV | Cotización y Tasas Automatizadas BCV (Dólar, Euro y Resiliencia Multimoneda) | Endpoint backend `/api/v1/finance/bcv-rates`, caché de 30 min, fallback resiliente, `convertCurrency` bidireccional exacto y fijación/persistencia de tasa manual personalizada. |
 | **TC-FIN-BCV-02** | Finanzas & Pagos | Registro y Conciliación de Pagos en Moneda Local (Bolívares / VES) y Divisas | Selector de moneda (VES, USD, EUR), métodos nacionales (Pago Móvil, Transferencia Bancaria), captura de referencia bancaria, normalización a USD, persistencia de `originalAmount` y cálculo de deudas y recordatorios WhatsApp con tasa del día. |
+| **TC-FIN-BCV-03** | Finanzas & Tarifas | Tarifas a la Tasa Utilizada y Paridad Exacta de Divisas (Cero Inflación EUR a USD) | Selección de moneda en tarifas (USD, EUR, VES), vinculación de tasa utilizada por el psicólogo (Bs. por divisa), paridad 1:1 en divisas para evitar que 10 € se conviertan a 12 $, y registro congruente entre tarifas de citas y cobros recibidos. |
 
-**Total de Pruebas Automatizadas Activas**: 148 de 148 superadas exitosamente (100% Pass Rate).
+**Total de Pruebas Automatizadas Activas**: 149 de 149 superadas exitosamente (100% Pass Rate).
 
 
 

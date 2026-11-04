@@ -8431,9 +8431,12 @@ function populateAppointmentRates(selectedRateId = null, forcedPrice = null) {
         const opt = document.createElement('option');
         opt.value = r.id;
         opt.dataset.amount = r.amount;
+        opt.dataset.currency = r.currency || 'USD';
+        opt.dataset.exchangeRate = r.customExchangeRate || '';
         opt.dataset.duration = r.durationMinutes;
         opt.dataset.title = r.title;
-        opt.textContent = `${r.title} (${r.durationMinutes} min) - $${parseFloat(r.amount).toFixed(2)} USD${r.isDefault ? ' [Predeterminada]' : ''}`;
+        const sym = (r.currency === 'EUR') ? '€' : ((r.currency === 'VES') ? 'Bs. ' : '$');
+        opt.textContent = `${r.title} (${r.durationMinutes} min) - ${sym}${parseFloat(r.amount).toFixed(2)} ${r.currency || 'USD'}${r.isDefault ? ' [Predeterminada]' : ''}`;
         if (selectedRateId && String(r.id) === String(selectedRateId)) {
             opt.selected = true;
         } else if (!selectedRateId && r.isDefault && (!patient || !patient.customFee)) {
@@ -8445,6 +8448,7 @@ function populateAppointmentRates(selectedRateId = null, forcedPrice = null) {
     const customOpt = document.createElement('option');
     customOpt.value = 'custom';
     customOpt.dataset.amount = '';
+    customOpt.dataset.currency = 'USD';
     customOpt.dataset.duration = '';
     customOpt.dataset.title = 'Tarifa Personalizada';
     customOpt.textContent = '✏️ Otra Tarifa / Precio Personalizado';
@@ -8472,6 +8476,13 @@ function onAppointmentRateSelectChange(forcedPrice = null) {
         priceInput.value = parseFloat(selectedOpt.dataset.amount).toFixed(2);
     }
 
+    const curr = selectedOpt.dataset.currency || 'USD';
+    const sym = (curr === 'EUR') ? '€' : ((curr === 'VES') ? 'Bs.' : '$');
+    const priceLabel = document.getElementById('appointmentPriceLabel') || document.querySelector('label[for="appointmentPrice"]');
+    if (priceLabel) {
+        priceLabel.innerHTML = `<i class="fas fa-tag" style="color:#4dab87;"></i> Precio (${sym} ${curr}) *`;
+    }
+
     if (selectedOpt.dataset.duration && durationSelect) {
         const dur = String(selectedOpt.dataset.duration);
         let optExists = Array.from(durationSelect.options).some(o => String(o.value) === dur);
@@ -8494,6 +8505,9 @@ function handleAppointmentSubmit(e) {
     const priceVal = parseFloat(document.getElementById('appointmentPrice')?.value) || 0;
     const rateId = rateSelect ? rateSelect.value : null;
     const rateTitle = selectedRateOpt ? (selectedRateOpt.dataset.title || selectedRateOpt.textContent) : 'Sesión psicoterapéutica';
+    const appCurrency = selectedRateOpt ? (selectedRateOpt.dataset.currency || 'USD') : 'USD';
+    const appExchangeRate = selectedRateOpt?.dataset?.exchangeRate ? parseFloat(selectedRateOpt.dataset.exchangeRate) : null;
+    const sym = (appCurrency === 'EUR') ? '€' : ((appCurrency === 'VES') ? 'Bs.' : '$');
 
     const app = { 
         id: document.getElementById('appointmentId').value || generateId(), 
@@ -8505,6 +8519,8 @@ function handleAppointmentSubmit(e) {
         notes: document.getElementById('appointmentNotes').value.trim(), 
         status: appStatus,
         price: priceVal,
+        currency: appCurrency,
+        exchangeRate: appExchangeRate,
         rateId: rateId,
         rateTitle: rateTitle,
         createdAt: new Date().toISOString() 
@@ -8516,7 +8532,7 @@ function handleAppointmentSubmit(e) {
         showToast('Cita actualizada con tarifa y precio', 'success'); 
     } else { 
         AppState.appointments.push(app); 
-        showToast(`Cita agendada ($${priceVal.toFixed(2)} USD)`, 'success'); 
+        showToast(`Cita agendada (${sym}${priceVal.toFixed(2)} ${appCurrency})`, 'success'); 
     }
     saveData(); 
     if (typeof syncAppointmentStatusToPortalAndBackend === 'function') {

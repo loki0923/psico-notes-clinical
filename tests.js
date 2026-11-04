@@ -8143,6 +8143,101 @@ ClinicalTestSuite.add('TC-FIN-BCV-02', 'Registro y Conciliación de Pagos en Mon
     saveFinanceTransactions(initialTxs);
 });
 
+// 149. TC-FIN-BCV-03: Tarifas a la Tasa Utilizada y Paridad Exacta de Divisas (Cero Inflación EUR a USD)
+ClinicalTestSuite.add('TC-FIN-BCV-03', 'Tarifas a la Tasa Utilizada y Paridad Exacta de Divisas (Cero Inflación EUR a USD)', async () => {
+    await import('./finance.js');
+    const scope = (typeof window !== 'undefined') ? window : globalThis;
+    const { 
+        getFinanceRates, 
+        saveFinanceRates, 
+        getBcvExchangeRates, 
+        saveBcvExchangeRates, 
+        convertCurrency, 
+        registerIncomeFromAppointment, 
+        getFinanceTransactions, 
+        saveFinanceTransactions 
+    } = scope;
+
+    const initialRates = getFinanceRates();
+    const initialTxs = getFinanceTransactions();
+    const originalBcv = getBcvExchangeRates();
+
+    // 1. Establecer tasa del terapeuta con paridad 1:1 en divisas
+    const therapistRate = 900.00; // Tasa que el terapeuta está utilizando
+    saveBcvExchangeRates({
+        usdRate: therapistRate,
+        eurRate: 1000.00,
+        isManual: true,
+        eurParity: true // Paridad activa
+    });
+
+    // 2. Configurar tarifa de consulta en Euros (€10.00 EUR) usando la tasa del terapeuta
+    const euroRate = {
+        id: 'rate_eur_test_' + Date.now(),
+        title: 'Consulta Online Internacional (Europa)',
+        durationMinutes: 50,
+        amount: 10.00,
+        currency: 'EUR',
+        customExchangeRate: therapistRate,
+        description: 'Sesión para pacientes en el exterior cobrada a tasa fija',
+        isDefault: false
+    };
+
+    saveFinanceRates([...initialRates, euroRate]);
+    const reloadedRates = getFinanceRates();
+    const savedRate = reloadedRates.find(r => r.id === euroRate.id);
+    if (!savedRate || savedRate.amount !== 10.00 || savedRate.currency !== 'EUR' || savedRate.customExchangeRate !== 900.00) {
+        throw new Error('La tarifa configurada en Euros con tasa personalizada no se guardó correctamente');
+    }
+
+    // 3. Verificar que 10 Euros NO se inflan artificialmente a 12 Dólares
+    const convertedUSD = convertCurrency(10.00, 'EUR', 'USD');
+    if (convertedUSD !== 10.00) {
+        throw new Error(`Se esperaba paridad exacta de 10.00 USD para 10 Euros, pero se obtuvo ${convertedUSD}`);
+    }
+
+    // 4. Verificar que el equivalente en Bolívares use la tasa que el psicólogo está utilizando
+    const convertedVES = convertCurrency(10.00, 'EUR', 'VES', therapistRate);
+    if (convertedVES !== 9000.00) {
+        throw new Error(`El cálculo a Bolívares debió ser 10 * 900 = 9000.00 Bs., pero fue ${convertedVES}`);
+    }
+
+    // 5. Simular cobro de cita agendada con la tarifa en Euros
+    const testAppointment = {
+        id: 'apt_eur_test_' + Date.now(),
+        patientId: 'pat_eur_01',
+        price: 10.00,
+        currency: 'EUR',
+        exchangeRate: therapistRate,
+        rateId: euroRate.id,
+        rateTitle: euroRate.title,
+        duration: 50,
+        date: '2026-10-29'
+    };
+
+    registerIncomeFromAppointment(testAppointment);
+    const txs = getFinanceTransactions();
+    const registeredTx = txs.find(t => t.appointmentId === testAppointment.id);
+
+    if (!registeredTx) {
+        throw new Error('No se generó la transacción para la cita en Euros');
+    }
+    if (registeredTx.amount !== 10.00) {
+        throw new Error(`El monto normalizado debe ser 10.00 (sin inflar a 12 USD), obtenido: ${registeredTx.amount}`);
+    }
+    if (registeredTx.originalAmount !== 10.00 || registeredTx.currency !== 'EUR') {
+        throw new Error('La transacción debe preservar el monto original de 10.00 y la moneda EUR');
+    }
+    if (registeredTx.exchangeRate !== therapistRate) {
+        throw new Error(`La transacción debió registrarse con la tasa utilizada de ${therapistRate} Bs.`);
+    }
+
+    // Restaurar estado
+    saveFinanceRates(initialRates);
+    saveFinanceTransactions(initialTxs);
+    saveBcvExchangeRates(originalBcv);
+});
+
 // Auto-ejecución si se corre desde Node.js (CLI)
 if (typeof process !== 'undefined' && process.argv && process.argv[1] && process.argv[1].endsWith('tests.js')) {
     ClinicalTestSuite.runAll().then(res => {

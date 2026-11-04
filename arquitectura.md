@@ -4054,9 +4054,11 @@ flowchart TB
    - Selección de forma de pago venezolana e internacional (*Pago Móvil, Transferencia Bancaria Nacional, Punto de Venta, Zelle, Efectivo Divisas, Binance Pay*).
    - Captura de número de referencia bancaria para conciliación.
    - Normalización a USD para mantener total consistencia contable y retrocompatibilidad con las pruebas unitarias y de balance.
-4. **Tarifas y Cobranzas**:
-   - Visualización de precios en USD y en Bolívares calculados con la cotización del día.
-   - Mensajes automáticos de WhatsApp y portapapeles con detalle de las citas impagadas en USD y su equivalente exacto en Bolívares según la tasa del BCV del día, simplificando los pagos para pacientes y terapeuta.
+4. **Tarifas y Cobranzas a la Tasa Utilizada**:
+   - Soporte multimoneda en tarifas: cada tarifa puede configurarse en `USD`, `EUR` o `VES`.
+   - Vinculación de **la tasa que el terapeuta está utilizando**: permite elegir entre la tasa oficial del día o una tasa personalizada para la sesión.
+   - **Paridad 1:1 en cobros de divisas**: evita que 10 Euros se conviertan artificialmente en 12 Dólares por arbitraje cambiario cruzado, preservando montos enteros idénticos entre la tarifa de la sesión y el pago recibido.
+   - Mensajes automáticos de WhatsApp y portapapeles con detalle de las citas impagadas en la moneda real pactada y su equivalente exacto en Bolívares según la tasa acordada, garantizando que el terapeuta y el paciente concilien sin discrepancias de centavos.
 
 
 

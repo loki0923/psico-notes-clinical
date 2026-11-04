@@ -131,7 +131,8 @@ const DEFAULT_BCV_CONFIG = {
     eurRate: 989.39,
     lastUpdated: new Date().toISOString(),
     source: 'BCV (Oficial)',
-    isManual: false
+    isManual: false,
+    eurParity: true // Paridad 1:1 en divisas para consultas (1 € = 1 $), sin inflar 10 euros a 12 dólares
 };
 
 function getBcvExchangeRates() {
@@ -140,6 +141,7 @@ function getBcvExchangeRates() {
         if (stored) {
             const parsed = JSON.parse(stored);
             if (parsed && typeof parsed.usdRate === 'number' && parsed.usdRate > 0) {
+                if (typeof parsed.eurParity === 'undefined') parsed.eurParity = true;
                 return parsed;
             }
         }
@@ -157,6 +159,7 @@ function saveBcvExchangeRates(data) {
             ...data,
             usdRate: Math.round((rawUsd + Number.EPSILON) * 100) / 100,
             eurRate: Math.round((rawEur + Number.EPSILON) * 100) / 100,
+            eurParity: typeof data.eurParity === 'boolean' ? data.eurParity : (current.eurParity !== false),
             lastUpdated: data.lastUpdated || new Date().toISOString()
         };
         _storageSet('psico_bcv_rates', JSON.stringify(updated));
@@ -224,12 +227,12 @@ async function fetchBcvExchangeRates(forceRefresh = false) {
     return current;
 }
 
-function convertCurrency(amount, fromCurr = 'USD', toCurr = 'VES') {
+function convertCurrency(amount, fromCurr = 'USD', toCurr = 'VES', customRate = null) {
     const num = Number(amount || 0);
     if (isNaN(num) || num === 0) return 0;
     const rates = getBcvExchangeRates();
-    const usdRate = rates.usdRate || 888.89;
-    const eurRate = rates.eurRate || 989.39;
+    const usdRate = (customRate && customRate > 0) ? customRate : (rates.usdRate || 888.89);
+    const eurRate = (customRate && customRate > 0) ? customRate : (rates.eurRate || 989.39);
 
     const from = (fromCurr || 'USD').toUpperCase();
     const to = (toCurr || 'VES').toUpperCase();
@@ -240,14 +243,24 @@ function convertCurrency(amount, fromCurr = 'USD', toCurr = 'VES') {
     if (from === 'VES' || from === 'BS' || from === 'BS.') {
         inUSD = num / usdRate;
     } else if (from === 'EUR') {
-        inUSD = (num * eurRate) / usdRate;
+        if (rates.eurParity !== false) {
+            inUSD = num; // Paridad 1:1 en divisas para que 10 € no se conviertan a 12 $
+        } else {
+            inUSD = (num * eurRate) / usdRate;
+        }
     }
 
     if (to === 'USD') {
         return roundCurrency(inUSD);
     } else if (to === 'VES' || to === 'BS' || to === 'BS.') {
+        if (from === 'EUR' && rates.eurParity !== false) {
+            return Math.round((num * usdRate + Number.EPSILON) * 100) / 100;
+        }
         return Math.round((inUSD * usdRate + Number.EPSILON) * 100) / 100;
     } else if (to === 'EUR') {
+        if (rates.eurParity !== false) {
+            return roundCurrency(inUSD);
+        }
         return roundCurrency((inUSD * usdRate) / eurRate);
     }
 
@@ -294,7 +307,26 @@ function getFinanceTransactions() {
         }
         if (stored) {
             const parsed = JSON.parse(stored);
-            if (Array.isArray(parsed)) return parsed;
+            if (Array.isArray(parsed)) {
+                // Auto-healing / sanitización retroactiva de paridad de divisas (EUR 1:1)
+                const bcv = getBcvExchangeRates();
+                if (bcv && bcv.eurParity !== false) {
+                    let modified = false;
+                    parsed.forEach(t => {
+                        if (t && (t.currency || '').toUpperCase() === 'EUR') {
+                            const orig = (typeof t.originalAmount !== 'undefined' && t.originalAmount !== null) ? Number(t.originalAmount) : null;
+                            if (orig !== null && orig > 0 && Math.abs(Number(t.amount) - orig) > 0.01) {
+                                t.amount = orig;
+                                modified = true;
+                            }
+                        }
+                    });
+                    if (modified) {
+                        try { _storageSet(key, JSON.stringify(parsed)); } catch {}
+                    }
+                }
+                return parsed;
+            }
         }
     } catch { return []; }
     return [];
@@ -431,6 +463,7 @@ function registerIncomeFromAppointment(appointment) {
         ? AppState.patients.find(p => String(p.id) === String(appointment.patientId)) 
         : null;
     const rates = getFinanceRates();
+    const bcvRates = getBcvExchangeRates();
     
     let selectedRate = null;
     if (appointment.rateId) {
@@ -440,9 +473,19 @@ function registerIncomeFromAppointment(appointment) {
         selectedRate = rates.find(r => r.isDefault) || (rates.length > 0 ? rates[0] : null);
     }
 
-    const amount = (typeof appointment.price !== 'undefined' && appointment.price !== null && !isNaN(parseFloat(appointment.price)))
+    const rawAmount = (typeof appointment.price !== 'undefined' && appointment.price !== null && !isNaN(parseFloat(appointment.price)))
         ? parseFloat(appointment.price)
         : (selectedRate ? parseFloat(selectedRate.amount) : 45.00);
+
+    const currency = appointment.currency || (selectedRate ? (selectedRate.currency || 'USD') : 'USD');
+    const usedRate = appointment.exchangeRate || (selectedRate ? selectedRate.customExchangeRate : bcvRates.usdRate) || bcvRates.usdRate || 888.89;
+
+    let normalizedAmount = rawAmount;
+    if (currency === 'VES') {
+        normalizedAmount = roundCurrency(rawAmount / usedRate);
+    } else if (currency === 'EUR' && bcvRates.eurParity !== false) {
+        normalizedAmount = rawAmount; // 10 EUR equivale exactamente a 10 en divisa base, sin recargos
+    }
 
     const durationText = appointment.duration ? ` (${appointment.duration} min)` : (selectedRate ? ` (${selectedRate.durationMinutes} min)` : '');
     const rateTitle = appointment.rateTitle || (selectedRate ? selectedRate.title : 'Sesión psicoterapéutica');
@@ -451,8 +494,10 @@ function registerIncomeFromAppointment(appointment) {
         id: generateId(),
         type: 'income',
         concept: `${rateTitle}${durationText} - ${patient ? patient.name : 'Paciente'}`,
-        amount: roundCurrency(amount),
-        currency: 'USD',
+        amount: roundCurrency(normalizedAmount),
+        originalAmount: roundCurrency(rawAmount),
+        currency: currency,
+        exchangeRate: usedRate,
         category: 'Consulta Clínica',
         patientId: appointment.patientId,
         appointmentId: appointment.id,
@@ -464,7 +509,8 @@ function registerIncomeFromAppointment(appointment) {
     if (!txs.some(t => String(t.appointmentId) === String(appointment.id))) {
         txs.push(tx);
         saveFinanceTransactions(txs);
-        showToast(`Cobro registrado: $${roundCurrency(amount).toFixed(2)} USD`, 'success');
+        const sym = (currency === 'EUR') ? '€' : ((currency === 'VES') ? 'Bs.' : '$');
+        showToast(`Cobro registrado: ${sym}${roundCurrency(rawAmount).toFixed(2)} ${currency}`, 'success');
     }
 }
 
@@ -503,7 +549,11 @@ function renderFinanceView() {
 
         (Array.isArray(txs) ? txs : []).forEach(t => {
             if (!t) return;
-            const val = roundCurrency(t.amount);
+            const curr = (t.currency || 'USD').toUpperCase();
+            let val = roundCurrency(t.amount);
+            if (curr === 'EUR' && bcvRates.eurParity !== false) {
+                val = roundCurrency(t.originalAmount || t.amount);
+            }
             if (t.type === 'income') totalIncome = roundCurrency(totalIncome + val);
             else totalExpense = roundCurrency(totalExpense + val);
         });
@@ -711,12 +761,46 @@ function renderTransactionsTabHtml(txs, totalIncome, totalExpense, netBalance) {
         return true;
     });
 
-    const incomeUSD = Number(totalIncome || 0);
-    const incomeVES = convertCurrency(incomeUSD, 'USD', 'VES');
-    const expenseUSD = Number(totalExpense || 0);
-    const expenseVES = convertCurrency(expenseUSD, 'USD', 'VES');
-    const netUSD = Number(netBalance || 0);
-    const netVES = convertCurrency(netUSD, 'USD', 'VES');
+    let calcIncomeUSD = 0;
+    let calcIncomeVES = 0;
+    let calcExpenseUSD = 0;
+    let calcExpenseVES = 0;
+
+    (Array.isArray(safeTxs) ? safeTxs : []).forEach(t => {
+        if (!t) return;
+        const curr = (t.currency || 'USD').toUpperCase();
+        const orig = (typeof t.originalAmount !== 'undefined' && t.originalAmount !== null) ? Number(t.originalAmount) : Number(t.amount || 0);
+        const rate = t.exchangeRate || bcv.usdRate || 888.89;
+
+        let u = Number(t.amount || 0);
+        let v = 0;
+
+        if (curr === 'VES') {
+            v = orig;
+            u = roundCurrency(orig / rate);
+        } else if (curr === 'EUR') {
+            u = (bcv.eurParity !== false) ? orig : u;
+            v = Math.round((orig * rate + Number.EPSILON) * 100) / 100;
+        } else {
+            u = orig;
+            v = Math.round((orig * rate + Number.EPSILON) * 100) / 100;
+        }
+
+        if (t.type === 'income') {
+            calcIncomeUSD = roundCurrency(calcIncomeUSD + u);
+            calcIncomeVES = roundCurrency(calcIncomeVES + v);
+        } else {
+            calcExpenseUSD = roundCurrency(calcExpenseUSD + u);
+            calcExpenseVES = roundCurrency(calcExpenseVES + v);
+        }
+    });
+
+    const incomeUSD = calcIncomeUSD;
+    const incomeVES = calcIncomeVES;
+    const expenseUSD = calcExpenseUSD;
+    const expenseVES = calcExpenseVES;
+    const netUSD = roundCurrency(incomeUSD - expenseUSD);
+    const netVES = roundCurrency(incomeVES - expenseVES);
 
     const displayIncomeUSD = incomeUSD.toFixed(2);
     const displayExpenseUSD = expenseUSD.toFixed(2);
@@ -789,7 +873,9 @@ function renderTransactionsTabHtml(txs, totalIncome, totalExpense, netBalance) {
                     ${filteredTxs.slice().sort((a,b) => new Date(b.date || 0) - new Date(a.date || 0)).map(t => {
                         const isVES = (t.currency || '').toUpperCase() === 'VES';
                         const isEUR = (t.currency || '').toUpperCase() === 'EUR';
-                        const origVal = t.originalAmount || (isVES ? roundCurrency(t.amount * (t.exchangeRate || bcv.usdRate)) : t.amount);
+                        const origVal = (typeof t.originalAmount !== 'undefined' && t.originalAmount !== null) ? Number(t.originalAmount) : Number(t.amount || 0);
+                        const rateUsed = t.exchangeRate || bcv.usdRate || 888.89;
+                        const effectiveUSD = (isEUR && bcv.eurParity !== false) ? origVal : (isVES ? roundCurrency(origVal / rateUsed) : Number(t.amount || 0));
                         
                         const primaryAmt = isVES
                             ? `Bs. ${Number(origVal).toLocaleString('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
@@ -798,8 +884,10 @@ function renderTransactionsTabHtml(txs, totalIncome, totalExpense, netBalance) {
                                 : `$${Number(t.amount || 0).toFixed(2)} USD`;
 
                         const secondaryAmt = isVES
-                            ? `≈ $${Number(t.amount || 0).toFixed(2)} USD`
-                            : `≈ Bs. ${convertCurrency(t.amount, 'USD', 'VES').toLocaleString('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+                            ? `≈ $${Number(effectiveUSD).toFixed(2)} USD`
+                            : isEUR
+                                ? `≈ Bs. ${Math.round((origVal * rateUsed + Number.EPSILON) * 100 / 100).toLocaleString('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
+                                : `≈ Bs. ${Math.round((effectiveUSD * rateUsed + Number.EPSILON) * 100 / 100).toLocaleString('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 
                         const methodBadge = t.paymentMethod ? `<span style="font-size:11px;background:var(--bg-card);padding:2px 6px;border-radius:4px;border:1px solid var(--border-primary);color:var(--text-secondary);">${t.paymentMethod}</span>` : '';
                         const refBadge = t.reference ? `<span style="font-size:11px;font-family:monospace;color:var(--text-tertiary);background:var(--bg-card);padding:2px 6px;border-radius:4px;border:1px solid var(--border-primary);">Ref: ${t.reference}</span>` : '';
@@ -1098,12 +1186,13 @@ function deleteGoal(goalId, patientId) {
 
 function renderRatesTabHtml() {
     const rates = getFinanceRates();
+    const bcvRates = getBcvExchangeRates();
 
     return `
         <div style="background:var(--accent-light);border-left:4px solid var(--accent-primary);padding:14px 18px;border-radius:var(--radius-md);margin-bottom:20px;display:flex;gap:12px;align-items:center;">
             <div style="font-size:24px;color:var(--accent-primary);"><i class="fas fa-clock"></i></div>
             <div style="font-size:13px;color:var(--text-secondary);line-height:1.4;">
-                <strong style="color:var(--text-primary);">Configuración de Tarifas de Consulta:</strong> Define los precios por duración de sesión (ej. 30, 45, 50, 60 o 90 min) y modalidad. La <strong>Tarifa Predeterminada</strong> se utilizará para registrar ingresos automáticamente al agendar o completar consultas.
+                <strong style="color:var(--text-primary);">Configuración de Tarifas de Consulta:</strong> Define los precios por duración de sesión (ej. 30, 45, 50, 60 o 90 min) y modalidad. Puedes seleccionar la moneda (<strong>USD, EUR, VES</strong>) y fijar la <strong>tasa que estás utilizando</strong> para que tus cobros y sesiones coincidan exactamente sin desfases cambiarios.
             </div>
         </div>
 
@@ -1123,7 +1212,17 @@ function renderRatesTabHtml() {
             ` : `
                 <div style="display:grid;grid-template-columns:repeat(auto-fit, minmax(min(100%, 280px), 1fr));gap:16px;">
                     ${(Array.isArray(rates) ? rates : []).slice().sort((a,b) => (Number(a.durationMinutes) || 0) - (Number(b.durationMinutes) || 0)).map(r => {
-                        const amtVES = convertCurrency(r.amount, 'USD', 'VES');
+                        const curr = r.currency || 'USD';
+                        const sym = curr === 'EUR' ? '€' : (curr === 'VES' ? 'Bs. ' : '$');
+                        const rateUsed = r.customExchangeRate || bcvRates.usdRate || 888.89;
+                        let equivText = '';
+                        if (curr === 'VES') {
+                            const inDivisas = rateUsed > 0 ? (r.amount / rateUsed).toFixed(2) : '0.00';
+                            equivText = `≈ $ ${inDivisas} Divisas <span style="font-size:10.5px;color:var(--text-tertiary);font-weight:normal;">(${r.customExchangeRate ? 'Tasa Personalizada' : 'Tasa que estoy utilizando'}: ${rateUsed.toFixed(2)} Bs.)</span>`;
+                        } else {
+                            const amtVES = Math.round((r.amount * rateUsed + Number.EPSILON) * 100) / 100;
+                            equivText = `≈ Bs. ${amtVES.toLocaleString('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} <span style="font-size:10.5px;color:var(--text-tertiary);font-weight:normal;">(${r.customExchangeRate ? 'Tasa Personalizada' : 'Tasa que estoy utilizando'}: ${rateUsed.toFixed(2)} Bs.)</span>`;
+                        }
                         return `
                         <div class="finance-rate-card ${r.isDefault ? 'default-rate' : ''}">
                             <div>
@@ -1139,9 +1238,9 @@ function renderRatesTabHtml() {
                                 </div>
                                 <h3 style="margin:0 0 4px 0;font-size:16px;font-weight:700;color:var(--text-primary);">${r.title || 'Tarifa de Consulta'}</h3>
                                 <div style="font-size:20px;font-weight:800;color:var(--accent-primary);margin:6px 0;">
-                                    $${Number(r.amount || 0).toFixed(2)} <span style="font-size:12px;font-weight:500;color:var(--text-tertiary);">${r.currency || 'USD'}</span>
+                                    ${sym}${Number(r.amount || 0).toFixed(2)} <span style="font-size:12px;font-weight:500;color:var(--text-tertiary);">${curr}</span>
                                     <div style="font-size:12.5px;font-weight:600;color:var(--text-secondary);margin-top:2px;">
-                                        ≈ Bs. ${amtVES.toLocaleString('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} <span style="font-size:10.5px;color:var(--text-tertiary);font-weight:normal;">(Tasa BCV)</span>
+                                        ${equivText}
                                     </div>
                                 </div>
                                 ${r.description ? `<p style="margin:4px 0 0 0;font-size:12px;color:var(--text-secondary);line-height:1.4;">${r.description}</p>` : ''}
@@ -1169,13 +1268,64 @@ function renderRatesTabHtml() {
     `;
 }
 
-function updateRateVesPreview(usdVal) {
+function onRateCurrencyChange() {
+    const currSelect = document.getElementById('rateCurrency');
+    const label = document.getElementById('rateAmountLabel');
+    if (!currSelect || !label) return;
+    const curr = currSelect.value;
+    if (curr === 'EUR') {
+        label.textContent = 'Precio (€ EUR) *';
+    } else if (curr === 'VES') {
+        label.textContent = 'Precio (Bs. VES) *';
+    } else {
+        label.textContent = 'Precio ($ USD) *';
+    }
+    updateRateVesPreview();
+}
+
+function onRateExchangeRateTypeChange() {
+    const typeSelect = document.getElementById('rateExchangeRateType');
+    const group = document.getElementById('rateCustomRateGroup');
+    if (!typeSelect || !group) return;
+    const isCustom = typeSelect.value === 'custom';
+    group.style.display = isCustom ? 'block' : 'none';
+    if (isCustom) {
+        const input = document.getElementById('rateCustomExchangeRate');
+        const bcv = getBcvExchangeRates();
+        if (input && !input.value) {
+            input.value = Number(bcv.usdRate || 888.89).toFixed(2);
+        }
+    }
+    updateRateVesPreview();
+}
+
+function updateRateVesPreview(forcedVal = null) {
     const preview = document.getElementById('rateVesPreview');
     if (!preview) return;
-    const num = parseFloat(usdVal) || 0;
-    const inVES = convertCurrency(num, 'USD', 'VES');
-    const rates = getBcvExchangeRates();
-    preview.innerHTML = `Equivale a: <strong style="color:var(--accent-primary);">Bs. ${inVES.toLocaleString('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</strong> (Tasa BCV: ${(rates.usdRate || 888.89).toLocaleString('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} Bs.)`;
+    const amountInput = document.getElementById('rateAmount');
+    const currSelect = document.getElementById('rateCurrency');
+    const typeSelect = document.getElementById('rateExchangeRateType');
+    const customRateInput = document.getElementById('rateCustomExchangeRate');
+
+    const num = (forcedVal !== null && !isNaN(parseFloat(forcedVal)))
+        ? parseFloat(forcedVal)
+        : (amountInput ? parseFloat(amountInput.value) || 0 : 0);
+    const curr = currSelect ? currSelect.value : 'USD';
+    const isCustom = typeSelect && typeSelect.value === 'custom';
+    const bcv = getBcvExchangeRates();
+    const customRateVal = customRateInput ? parseFloat(customRateInput.value) : null;
+    const activeRate = (isCustom && customRateVal && customRateVal > 0) ? customRateVal : (bcv.usdRate || 888.89);
+
+    if (curr === 'VES') {
+        const inDivisas = activeRate > 0 ? (num / activeRate) : 0;
+        preview.innerHTML = `Equivale a: <strong style="color:var(--accent-primary);">$${inDivisas.toFixed(2)} USD / Divisas</strong> (Tasa que estás utilizando: ${activeRate.toLocaleString('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} Bs.)`;
+    } else if (curr === 'EUR') {
+        const inVES = Math.round((num * activeRate + Number.EPSILON) * 100) / 100;
+        preview.innerHTML = `Equivale a: <strong style="color:var(--accent-primary);">Bs. ${inVES.toLocaleString('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</strong> | Valor Sesión: <strong>€${num.toFixed(2)} EUR</strong> (A tu tasa de: ${activeRate.toLocaleString('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} Bs. · Sin recargo a dólares)`;
+    } else {
+        const inVES = Math.round((num * activeRate + Number.EPSILON) * 100) / 100;
+        preview.innerHTML = `Equivale a: <strong style="color:var(--accent-primary);">Bs. ${inVES.toLocaleString('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</strong> (Tasa que estás utilizando: ${activeRate.toLocaleString('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} Bs.)`;
+    }
 }
 
 function openRateModal(rateId = null) {
@@ -1186,10 +1336,11 @@ function openRateModal(rateId = null) {
     const body = document.getElementById('financeRateModalBody');
     if (!body) return;
     const titleEl = document.getElementById('financeRateModalTitle');
-    if (titleEl) titleEl.textContent = r ? 'Editar Tarifa por Tiempo' : 'Nueva Tarifa por Tiempo';
+    if (titleEl) titleEl.textContent = r ? 'Editar Tarifa de Consulta' : 'Nueva Tarifa de Consulta';
 
-    const initialAmount = r ? r.amount : 45.00;
-    const initialVES = convertCurrency(initialAmount, 'USD', 'VES');
+    const initialCurrency = r ? (r.currency || 'USD') : 'USD';
+    const hasCustomRate = Boolean(r && r.customExchangeRate);
+    const initialCustomRate = hasCustomRate ? r.customExchangeRate : '';
 
     body.innerHTML = `
         <form onsubmit="handleRateSubmit(event, '${r ? r.id : ''}')" class="modal-form">
@@ -1197,19 +1348,51 @@ function openRateModal(rateId = null) {
                 <label>Nombre / Modalidad de la Consulta *</label>
                 <input type="text" id="rateTitle" required placeholder="Ej: Consulta Psicoterapéutica Individual" value="${r ? r.title : ''}">
             </div>
+
             <div class="form-row">
-                <div class="form-group">
+                <div class="form-group" style="flex:1;">
                     <label>Duración (Minutos) *</label>
                     <input type="number" id="rateDuration" required placeholder="Ej: 50" value="${r ? r.durationMinutes : 50}">
                 </div>
-                <div class="form-group">
-                    <label>Precio ($ USD) *</label>
-                    <input type="number" step="0.01" id="rateAmount" required placeholder="Ej: 45.00" value="${r ? r.amount : ''}" oninput="updateRateVesPreview(this.value)">
-                    <div id="rateVesPreview" style="font-size:11.5px;color:var(--text-secondary);margin-top:4px;">
-                        Equivale a: <strong>Bs. ${initialVES.toLocaleString('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</strong> (Tasa BCV)
-                    </div>
+                <div class="form-group" style="flex:1;">
+                    <label>Moneda de la Tarifa *</label>
+                    <select id="rateCurrency" onchange="onRateCurrencyChange()">
+                        <option value="USD" ${initialCurrency === 'USD' ? 'selected' : ''}>💵 Divisas ($ USD)</option>
+                        <option value="EUR" ${initialCurrency === 'EUR' ? 'selected' : ''}>💶 Euros (€ EUR)</option>
+                        <option value="VES" ${initialCurrency === 'VES' ? 'selected' : ''}>🇻🇪 Bolívares (Bs. VES)</option>
+                    </select>
                 </div>
             </div>
+
+            <div class="form-row">
+                <div class="form-group" style="flex:1;">
+                    <label id="rateAmountLabel">Precio (${initialCurrency === 'EUR' ? '€ EUR' : (initialCurrency === 'VES' ? 'Bs. VES' : '$ USD')}) *</label>
+                    <input type="number" step="0.01" id="rateAmount" required placeholder="Ej: 10.00" value="${r ? r.amount : ''}" oninput="updateRateVesPreview()">
+                </div>
+                <div class="form-group" style="flex:1.2;">
+                    <label>Tasa de Cambio para Sesiones *</label>
+                    <select id="rateExchangeRateType" onchange="onRateExchangeRateTypeChange()">
+                        <option value="current" ${!hasCustomRate ? 'selected' : ''}>⭐ Mi Tasa Actual (${(bcv.usdRate || 888.89).toFixed(2)} Bs.)</option>
+                        <option value="custom" ${hasCustomRate ? 'selected' : ''}>✏️ Tasa Personalizada para esta Tarifa</option>
+                    </select>
+                </div>
+            </div>
+
+            <div id="rateCustomRateGroup" style="display:${hasCustomRate ? 'block' : 'none'};margin-top:-6px;margin-bottom:12px;background:var(--bg-secondary);padding:10px 12px;border-radius:8px;border:1px dashed var(--border-primary);">
+                <label style="font-size:12px;font-weight:600;color:var(--text-primary);display:block;margin-bottom:4px;">
+                    Tasa que estoy utilizando para esta sesión (Bs. por divisa) *
+                </label>
+                <input type="number" step="0.01" id="rateCustomExchangeRate" placeholder="Ej: ${(bcv.usdRate || 888.89).toFixed(2)}" value="${initialCustomRate}" oninput="updateRateVesPreview()">
+                <div style="font-size:11px;color:var(--text-tertiary);margin-top:4px;">
+                    Esta tasa se aplicará automáticamente tanto al agendar la sesión como al recibir los pagos.
+                </div>
+            </div>
+
+            <!-- Preview dinámico de equivalencia -->
+            <div id="rateVesPreview" style="margin-top:-4px;margin-bottom:14px;padding:9px 12px;background:var(--bg-secondary);border:1px solid var(--border-primary);border-radius:8px;font-size:12px;color:var(--text-secondary);">
+                <!-- Se llena dinámicamente -->
+            </div>
+
             <div class="form-group">
                 <label>Descripción / Indicaciones</label>
                 <textarea id="rateDescription" rows="2" placeholder="Ej: Sesión estándar de 50 minutos para terapia individual...">${r && r.description ? r.description : ''}</textarea>
@@ -1226,6 +1409,7 @@ function openRateModal(rateId = null) {
             </div>
         </form>
     `;
+    updateRateVesPreview();
     openModal('financeRateModal');
 }
 
@@ -1236,6 +1420,10 @@ function handleRateSubmit(e, rateId) {
     const title = document.getElementById('rateTitle').value.trim();
     const durationMinutes = parseInt(document.getElementById('rateDuration').value) || 50;
     const amount = parseFloat(document.getElementById('rateAmount').value) || 0;
+    const currency = document.getElementById('rateCurrency') ? document.getElementById('rateCurrency').value : 'USD';
+    const rateType = document.getElementById('rateExchangeRateType') ? document.getElementById('rateExchangeRateType').value : 'current';
+    const customRateVal = parseFloat(document.getElementById('rateCustomExchangeRate')?.value);
+    const customExchangeRate = (rateType === 'custom' && customRateVal > 0) ? customRateVal : null;
     const description = document.getElementById('rateDescription').value.trim();
     const isDefault = document.getElementById('rateIsDefault').checked;
 
@@ -1246,7 +1434,7 @@ function handleRateSubmit(e, rateId) {
     if (rateId) {
         const idx = rates.findIndex(r => String(r.id) === String(rateId));
         if (idx !== -1) {
-            rates[idx] = { ...rates[idx], title, durationMinutes, amount, description, isDefault };
+            rates[idx] = { ...rates[idx], title, durationMinutes, amount, currency, customExchangeRate, description, isDefault };
         }
     } else {
         rates.push({
@@ -1254,7 +1442,8 @@ function handleRateSubmit(e, rateId) {
             title,
             durationMinutes,
             amount,
-            currency: 'USD',
+            currency,
+            customExchangeRate,
             description,
             isDefault: isDefault || rates.length === 0
         });
@@ -1263,7 +1452,7 @@ function handleRateSubmit(e, rateId) {
     saveFinanceRates(rates);
     closeModal('financeRateModal');
     renderFinanceView();
-    showToast('Tarifa por tiempo guardada con éxito', 'success');
+    showToast('Tarifa guardada a tu tasa establecida', 'success');
 }
 
 function setDefaultRate(rateId) {
@@ -1321,23 +1510,25 @@ function onTransactionCurrencyChange() {
 function updateTxEquivalentPreview() {
     const amountInput = document.getElementById('txAmount');
     const currSelect = document.getElementById('txCurrency');
+    const rateInput = document.getElementById('txExchangeRate');
     const previewEl = document.getElementById('txConversionText');
     if (!amountInput || !previewEl) return;
 
     const val = parseFloat(amountInput.value) || 0;
     const curr = currSelect ? currSelect.value : 'USD';
     const rates = getBcvExchangeRates();
-    const usdRate = rates.usdRate || 888.89;
+    const customRateVal = rateInput ? parseFloat(rateInput.value) : null;
+    const usedRate = (customRateVal && customRateVal > 0) ? customRateVal : (rates.usdRate || 888.89);
 
     if (curr === 'VES') {
-        const inUSD = val > 0 ? (val / usdRate) : 0;
-        previewEl.innerHTML = `Equivale a: <strong>$${inUSD.toFixed(2)} USD</strong> (Tasa BCV: ${usdRate.toLocaleString('es-VE', {minimumFractionDigits: 2, maximumFractionDigits: 2})} Bs.)`;
+        const inUSD = val > 0 ? (val / usedRate) : 0;
+        previewEl.innerHTML = `Equivale a: <strong>$${inUSD.toFixed(2)} USD / Divisas</strong> (A tu tasa de: ${usedRate.toLocaleString('es-VE', {minimumFractionDigits: 2, maximumFractionDigits: 2})} Bs.)`;
     } else if (curr === 'EUR') {
-        const inVES = val > 0 ? (val * (rates.eurRate || 989.39)) : 0;
-        previewEl.innerHTML = `Equivale a: <strong>Bs. ${inVES.toLocaleString('es-VE', {minimumFractionDigits: 2, maximumFractionDigits: 2})}</strong> (Tasa Euro BCV)`;
+        const inVES = val > 0 ? (val * usedRate) : 0;
+        previewEl.innerHTML = `Equivale a: <strong>Bs. ${inVES.toLocaleString('es-VE', {minimumFractionDigits: 2, maximumFractionDigits: 2})}</strong> | Valor: <strong>€${val.toFixed(2)} EUR</strong> (Misma tasa que sesiones: ${usedRate.toFixed(2)} Bs.)`;
     } else {
-        const inVES = val > 0 ? (val * usdRate) : 0;
-        previewEl.innerHTML = `Equivale a: <strong>Bs. ${inVES.toLocaleString('es-VE', {minimumFractionDigits: 2, maximumFractionDigits: 2})}</strong> (Tasa BCV: ${usdRate.toLocaleString('es-VE', {minimumFractionDigits: 2, maximumFractionDigits: 2})} Bs.)`;
+        const inVES = val > 0 ? (val * usedRate) : 0;
+        previewEl.innerHTML = `Equivale a: <strong>Bs. ${inVES.toLocaleString('es-VE', {minimumFractionDigits: 2, maximumFractionDigits: 2})}</strong> (A tu tasa de: ${usedRate.toLocaleString('es-VE', {minimumFractionDigits: 2, maximumFractionDigits: 2})} Bs.)`;
     }
 }
 
@@ -1349,7 +1540,7 @@ function openTransactionModal(type = 'income') {
     if (titleEl) titleEl.textContent = type === 'income' ? 'Registrar Ingreso' : 'Registrar Egreso';
     
     const rates = getBcvExchangeRates();
-    const usdRateStr = (rates.usdRate || 888.89).toLocaleString('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    const usdRateStr = (rates.usdRate || 888.89).toFixed(2);
 
     body.innerHTML = `
         <form onsubmit="handleTransactionSubmit(event, '${type}')" class="modal-form">
@@ -1373,10 +1564,17 @@ function openTransactionModal(type = 'income') {
                 </div>
             </div>
 
-            <!-- Preview dinámico de equivalencia según BCV -->
-            <div id="txConversionPreview" style="margin-top:-6px;margin-bottom:12px;padding:8px 12px;background:var(--bg-secondary);border:1px solid var(--border-primary);border-radius:8px;font-size:12px;color:var(--text-secondary);display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:6px;">
-                <span id="txConversionText">Equivale a: <strong>$0.00 USD</strong> (Tasa BCV: ${usdRateStr} Bs.)</span>
-                <span style="font-size:11px;color:var(--text-tertiary);font-weight:600;"><i class="fas fa-landmark"></i> BCV Oficial</span>
+            <div class="form-row">
+                <div class="form-group" style="flex:1;">
+                    <label>Tasa que estoy utilizando (Bs.) *</label>
+                    <input type="number" step="0.01" id="txExchangeRate" value="${usdRateStr}" oninput="updateTxEquivalentPreview()" title="Tasa que utilizas para esta sesión o cobro">
+                </div>
+                <div class="form-group" style="flex:1.5;">
+                    <label>Equivalencia Conciliada</label>
+                    <div id="txConversionPreview" style="padding:9px 12px;background:var(--bg-secondary);border:1px solid var(--border-primary);border-radius:8px;font-size:12px;color:var(--text-secondary);min-height:38px;display:flex;align-items:center;">
+                        <span id="txConversionText">Equivale a: <strong>$0.00 USD</strong></span>
+                    </div>
+                </div>
             </div>
 
             <div class="form-row">
@@ -1389,6 +1587,7 @@ function openTransactionModal(type = 'income') {
                         <option value="Punto de Venta / Tarjeta">💳 Punto de Venta / Tarjeta</option>
                         <option value="Zelle">💵 Zelle (USD)</option>
                         <option value="Efectivo Divisas">💵 Efectivo Divisas ($ USD)</option>
+                        <option value="Efectivo Euros">💶 Efectivo Euros (€ EUR)</option>
                         <option value="Binance Pay">🟡 Binance Pay (USDT)</option>
                         <option value="Transferencia Internacional">🌐 Transferencia Internacional</option>
                     </select>
@@ -1418,6 +1617,7 @@ function openTransactionModal(type = 'income') {
             </div>
         </form>
     `;
+    updateTxEquivalentPreview();
     openModal('financeTransactionModal');
 }
 
@@ -1428,15 +1628,18 @@ function handleTransactionSubmit(e, type) {
     const paymentMethod = document.getElementById('txPaymentMethod') ? document.getElementById('txPaymentMethod').value : '';
     const reference = document.getElementById('txReference') ? document.getElementById('txReference').value.trim() : '';
     const rates = getBcvExchangeRates();
-    const bcvRate = rates.usdRate || 888.8909;
+    const rateInput = document.getElementById('txExchangeRate');
+    const customRateVal = rateInput ? parseFloat(rateInput.value) : null;
+    const usedRate = (customRateVal && customRateVal > 0) ? customRateVal : (rates.usdRate || 888.89);
 
     let normalizedUSD = enteredAmount;
     let originalAmount = enteredAmount;
 
     if (currency === 'VES') {
-        normalizedUSD = roundCurrency(enteredAmount / bcvRate);
+        normalizedUSD = roundCurrency(enteredAmount / usedRate);
     } else if (currency === 'EUR') {
-        normalizedUSD = roundCurrency((enteredAmount * (rates.eurRate || 989.39)) / bcvRate);
+        // Mantiene paridad 1:1 con la divisa base para que 10 € se registren como 10 y no como 12 $
+        normalizedUSD = (rates.eurParity !== false) ? enteredAmount : roundCurrency((enteredAmount * usedRate) / (rates.usdRate || 1));
     }
 
     const tx = {
@@ -1446,7 +1649,7 @@ function handleTransactionSubmit(e, type) {
         amount: normalizedUSD,
         originalAmount: originalAmount,
         currency: currency,
-        exchangeRate: bcvRate,
+        exchangeRate: usedRate,
         paymentMethod: paymentMethod,
         reference: reference,
         date: document.getElementById('txDate').value,
@@ -1493,14 +1696,22 @@ function openEditTransactionModal(id) {
                     </select>
                 </div>
                 <div class="form-group" style="flex:1.5;">
-                    <label id="txAmountLabel">${isVES ? 'Monto en Bolívares (Bs.) *' : 'Monto ($ USD) *'}</label>
+                    <label id="txAmountLabel">${isVES ? 'Monto en Bolívares (Bs.) *' : (curr === 'EUR' ? 'Monto en Euros (€) *' : 'Monto ($ USD) *')}</label>
                     <input type="number" step="0.01" id="txAmount" required value="${displayVal}" oninput="updateTxEquivalentPreview()">
                 </div>
             </div>
 
-            <div id="txConversionPreview" style="margin-top:-6px;margin-bottom:12px;padding:8px 12px;background:var(--bg-secondary);border:1px solid var(--border-primary);border-radius:8px;font-size:12px;color:var(--text-secondary);display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:6px;">
-                <span id="txConversionText">Tasa BCV: <strong>${usdRateStr} Bs./USD</strong></span>
-                <span style="font-size:11px;color:var(--text-tertiary);font-weight:600;"><i class="fas fa-landmark"></i> BCV Oficial</span>
+            <div class="form-row">
+                <div class="form-group" style="flex:1;">
+                    <label>Tasa que estoy utilizando (Bs.) *</label>
+                    <input type="number" step="0.01" id="txExchangeRate" value="${Number(tx.exchangeRate || rates.usdRate || 888.89).toFixed(2)}" oninput="updateTxEquivalentPreview()" title="Tasa que utilizas para esta transacción">
+                </div>
+                <div class="form-group" style="flex:1.5;">
+                    <label>Equivalencia Conciliada</label>
+                    <div id="txConversionPreview" style="padding:9px 12px;background:var(--bg-secondary);border:1px solid var(--border-primary);border-radius:8px;font-size:12px;color:var(--text-secondary);min-height:38px;display:flex;align-items:center;">
+                        <span id="txConversionText">...</span>
+                    </div>
+                </div>
             </div>
 
             <div class="form-row">
@@ -1559,22 +1770,24 @@ function handleTransactionEditSubmit(e, id) {
         const paymentMethod = document.getElementById('txPaymentMethod') ? document.getElementById('txPaymentMethod').value : (txs[idx].paymentMethod || '');
         const reference = document.getElementById('txReference') ? document.getElementById('txReference').value.trim() : (txs[idx].reference || '');
         const rates = getBcvExchangeRates();
-        const bcvRate = rates.usdRate || 888.8909;
+        const rateInput = document.getElementById('txExchangeRate');
+        const customRateVal = rateInput ? parseFloat(rateInput.value) : null;
+        const usedRate = (customRateVal && customRateVal > 0) ? customRateVal : (rates.usdRate || 888.89);
 
         let normalizedUSD = enteredAmount;
         let originalAmount = enteredAmount;
 
         if (currency === 'VES') {
-            normalizedUSD = roundCurrency(enteredAmount / bcvRate);
+            normalizedUSD = roundCurrency(enteredAmount / usedRate);
         } else if (currency === 'EUR') {
-            normalizedUSD = roundCurrency((enteredAmount * (rates.eurRate || 989.39)) / bcvRate);
+            normalizedUSD = (rates.eurParity !== false) ? enteredAmount : roundCurrency((enteredAmount * usedRate) / (rates.usdRate || 1));
         }
 
         txs[idx].concept = document.getElementById('txConcept').value.trim();
         txs[idx].amount = normalizedUSD;
         txs[idx].originalAmount = originalAmount;
         txs[idx].currency = currency;
-        txs[idx].exchangeRate = bcvRate;
+        txs[idx].exchangeRate = usedRate;
         txs[idx].paymentMethod = paymentMethod;
         txs[idx].reference = reference;
         txs[idx].date = document.getElementById('txDate').value;
@@ -1627,6 +1840,16 @@ function openBcvRateSettingsModal() {
                 </div>
             </div>
 
+            <div class="form-group" style="margin-bottom:14px;background:var(--bg-secondary);padding:10px 12px;border-radius:8px;border:1px solid var(--border-primary);">
+                <label class="checkbox-label" style="display:flex;align-items:center;gap:10px;font-size:13px;font-weight:600;cursor:pointer;">
+                    <input type="checkbox" id="cfgEurParityToggle" ${rates.eurParity !== false ? 'checked' : ''}>
+                    <span>Paridad 1:1 en Divisas (1 € Euro = 1 $ Dólar / Sin arbitraje de tasa)</span>
+                </label>
+                <div style="font-size:11.5px;color:var(--text-tertiary);margin-left:26px;margin-top:2px;">
+                    Evita que 10 Euros se conviertan artificialmente en 12 Dólares. Mantiene la misma tasa que utilizas para tus sesiones y cobros.
+                </div>
+            </div>
+
             <div id="bcvInputsContainer" style="display:flex;flex-direction:column;gap:12px;">
                 <div class="form-group">
                     <label>Precio Dólar BCV (Bs. / USD) *</label>
@@ -1670,6 +1893,7 @@ function toggleBcvManualInputs(isManual) {
 function handleBcvRateSettingsSubmit(e) {
     if (e && e.preventDefault) e.preventDefault();
     const isManual = document.getElementById('cfgBcvManualToggle') ? document.getElementById('cfgBcvManualToggle').checked : false;
+    const eurParity = document.getElementById('cfgEurParityToggle') ? document.getElementById('cfgEurParityToggle').checked : true;
     const usdVal = parseFloat(document.getElementById('cfgBcvUsd')?.value) || 888.8909;
     const eurVal = parseFloat(document.getElementById('cfgBcvEur')?.value) || 989.3889;
 
@@ -1677,6 +1901,7 @@ function handleBcvRateSettingsSubmit(e) {
         usdRate: usdVal,
         eurRate: eurVal,
         isManual: isManual,
+        eurParity: eurParity,
         source: isManual ? 'Tasa Manual Personalizada' : 'BCV (Oficial)',
         lastUpdated: new Date().toISOString()
     });
@@ -1793,11 +2018,16 @@ function getPendingPatientDebts() {
                 };
             }
             const appAmount = roundCurrency(app.price || app.rateAmount || (defaultRate && defaultRate.amount) || 45);
+            const appCurrency = app.currency || defaultRate.currency || 'USD';
+            const appExchangeRate = app.exchangeRate || defaultRate.customExchangeRate || null;
             debtsByPatient[pId].appointments.push({
                 ...app,
-                amount: appAmount
+                amount: appAmount,
+                currency: appCurrency,
+                exchangeRate: appExchangeRate
             });
             debtsByPatient[pId].totalDebt = roundCurrency(debtsByPatient[pId].totalDebt + appAmount);
+            debtsByPatient[pId].currency = appCurrency;
         });
 
         return Object.values(debtsByPatient);
@@ -1865,29 +2095,40 @@ function renderDebtsTabHtml() {
                                     </p>
                                 </div>
                                 <div style="text-align:right;">
-                                    <div style="font-size:20px;font-weight:800;color:#e16259;">
-                                        $${Number(d.totalDebt || 0).toFixed(2)} USD
-                                    </div>
-                                    <div style="font-size:12.5px;font-weight:700;color:var(--text-secondary);margin-top:2px;">
-                                        ≈ Bs. ${convertCurrency(d.totalDebt, 'USD', 'VES').toLocaleString('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                                    </div>
-                                    <div style="font-size:11px;font-weight:600;color:var(--text-tertiary);">Pendiente de pago (Tasa BCV)</div>
+                                    ${(() => {
+                                        const dCurr = d.currency || 'USD';
+                                        const dSym = dCurr === 'EUR' ? '€' : (dCurr === 'VES' ? 'Bs.' : '$');
+                                        return `
+                                            <div style="font-size:20px;font-weight:800;color:#e16259;">
+                                                ${dSym}${Number(d.totalDebt || 0).toFixed(2)} ${dCurr}
+                                            </div>
+                                            <div style="font-size:12.5px;font-weight:700;color:var(--text-secondary);margin-top:2px;">
+                                                ≈ Bs. ${convertCurrency(d.totalDebt, dCurr, 'VES').toLocaleString('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                                            </div>
+                                            <div style="font-size:11px;font-weight:600;color:var(--text-tertiary);">Pendiente de pago</div>
+                                        `;
+                                    })()}
                                 </div>
                             </div>
 
                             <!-- DETALLE DE SESIONES PENDIENTES -->
                             <div style="background:var(--bg-secondary);padding:10px 14px;border-radius:var(--radius-sm);display:flex;flex-direction:column;gap:6px;">
-                                ${(d.appointments || []).map(a => `
+                                ${(d.appointments || []).map(a => {
+                                    const aCurr = a.currency || d.currency || 'USD';
+                                    const aSym = aCurr === 'EUR' ? '€' : (aCurr === 'VES' ? 'Bs.' : '$');
+                                    const aVES = convertCurrency(a.amount, aCurr, 'VES', a.exchangeRate);
+                                    return `
                                     <div style="display:flex;justify-content:space-between;align-items:center;font-size:13px;">
                                         <span>🗓️ <strong>${formatDate(a.date)}</strong> (${a.time || 'Sesión'}) · ${a.type || 'Individual'}</span>
                                         <div style="display:flex;align-items:center;gap:8px;">
-                                            <strong style="color:var(--text-primary);">$${Number(a.amount || 0).toFixed(2)} <span style="font-size:11px;font-weight:500;color:var(--text-tertiary);">(≈ Bs. ${convertCurrency(a.amount, 'USD', 'VES').toLocaleString('es-VE', {minimumFractionDigits: 2})})</span></strong>
+                                            <strong style="color:var(--text-primary);">${aSym}${Number(a.amount || 0).toFixed(2)} <span style="font-size:11px;font-weight:500;color:var(--text-tertiary);">(≈ Bs. ${aVES.toLocaleString('es-VE', {minimumFractionDigits: 2, maximumFractionDigits: 2})})</span></strong>
                                             <button class="btn-secondary btn-sm" onclick="settlePatientDebt('${d.patientId}', '${a.id}')" title="Marcar esta sesión como pagada">
                                                 💵 Saldar Cita
                                             </button>
                                         </div>
                                     </div>
-                                `).join('')}
+                                `;
+                                }).join('')}
                             </div>
 
                             ${(() => {
@@ -2106,16 +2347,20 @@ function sendPaymentReminderWhatsApp(patientId) {
     if (!patientDebt) return;
 
     const bcv = getBcvExchangeRates();
-    const totalUSD = Number(patientDebt.totalDebt || 0);
-    const totalVES = convertCurrency(totalUSD, 'USD', 'VES');
+    const dCurr = patientDebt.currency || 'USD';
+    const dSym = dCurr === 'EUR' ? '€' : (dCurr === 'VES' ? 'Bs.' : '$');
+    const totalAmount = Number(patientDebt.totalDebt || 0);
+    const totalVES = convertCurrency(totalAmount, dCurr, 'VES');
     const therapistName = (typeof AppState !== 'undefined' && AppState && AppState.currentUser) ? AppState.currentUser.name : 'Su Terapeuta';
     const datesList = (patientDebt.appointments || []).map(a => {
-        const aUSD = Number(a.amount || 0);
-        const aVES = convertCurrency(aUSD, 'USD', 'VES');
-        return `${formatDate(a.date)} (${a.time || 'Sesión'}) - $${aUSD.toFixed(2)} USD (≈ Bs. ${aVES.toLocaleString('es-VE', {minimumFractionDigits:2})})`;
+        const aCurr = a.currency || dCurr;
+        const aSym = aCurr === 'EUR' ? '€' : (aCurr === 'VES' ? 'Bs.' : '$');
+        const aAmt = Number(a.amount || 0);
+        const aVES = convertCurrency(aAmt, aCurr, 'VES', a.exchangeRate);
+        return `${formatDate(a.date)} (${a.time || 'Sesión'}) - ${aSym}${aAmt.toFixed(2)} ${aCurr} (≈ Bs. ${aVES.toLocaleString('es-VE', {minimumFractionDigits:2, maximumFractionDigits:2})})`;
     }).join('\n• ');
 
-    const message = `Hola ${patientDebt.patientName}, espero que te encuentres muy bien. 👋\n\nTe escribo para hacer un cordial recordatorio sobre el pago pendiente de las siguientes sesiones de consulta psicológica con ${therapistName}:\n\n• ${datesList}\n\n📌 *Monto Total Pendiente: $${totalUSD.toFixed(2)} USD (o Bs. ${totalVES.toLocaleString('es-VE', {minimumFractionDigits: 2, maximumFractionDigits: 2})} a tasa oficial BCV: ${Number(bcv.usdRate || 888.89).toLocaleString('es-VE', {minimumFractionDigits:2, maximumFractionDigits:2})} Bs./USD)*\n\n💡 *Formas de Pago:*\n• Pago Móvil o Transferencia en Bolívares (a tasa oficial BCV)\n• Divisas en efectivo o Zelle\n\nPor favor infórmame al realizar el pago adjuntando el comprobante o referencia. ¡Quedo atento/a a tus comentarios! 😊`;
+    const message = `Hola ${patientDebt.patientName}, espero que te encuentres muy bien. 👋\n\nTe escribo para hacer un cordial recordatorio sobre el pago pendiente de las siguientes sesiones de consulta psicológica con ${therapistName}:\n\n• ${datesList}\n\n📌 *Monto Total Pendiente: ${dSym}${totalAmount.toFixed(2)} ${dCurr} (o Bs. ${totalVES.toLocaleString('es-VE', {minimumFractionDigits: 2, maximumFractionDigits: 2})} a la tasa de consulta: ${Number(bcv.usdRate || 888.89).toLocaleString('es-VE', {minimumFractionDigits:2, maximumFractionDigits:2})} Bs.)*\n\n💡 *Formas de Pago:*\n• Pago Móvil o Transferencia en Bolívares\n• Divisas en efectivo, Zelle o Transferencia\n\nPor favor infórmame al realizar el pago adjuntando el comprobante o referencia. ¡Quedo atento/a a tus comentarios! 😊`;
 
     const encodedMsg = encodeURIComponent(message);
     const rawPhone = (patientDebt.patientPhone || '').replace(/\D/g, '');
@@ -2134,16 +2379,20 @@ function copyPaymentReminderText(patientId) {
     if (!patientDebt) return;
 
     const bcv = getBcvExchangeRates();
-    const totalUSD = Number(patientDebt.totalDebt || 0);
-    const totalVES = convertCurrency(totalUSD, 'USD', 'VES');
+    const dCurr = patientDebt.currency || 'USD';
+    const dSym = dCurr === 'EUR' ? '€' : (dCurr === 'VES' ? 'Bs.' : '$');
+    const totalAmount = Number(patientDebt.totalDebt || 0);
+    const totalVES = convertCurrency(totalAmount, dCurr, 'VES');
     const therapistName = (typeof AppState !== 'undefined' && AppState && AppState.currentUser) ? AppState.currentUser.name : 'Su Terapeuta';
     const datesList = (patientDebt.appointments || []).map(a => {
-        const aUSD = Number(a.amount || 0);
-        const aVES = convertCurrency(aUSD, 'USD', 'VES');
-        return `${formatDate(a.date)} (${a.time || 'Sesión'}) - $${aUSD.toFixed(2)} USD (≈ Bs. ${aVES.toLocaleString('es-VE', {minimumFractionDigits:2})})`;
+        const aCurr = a.currency || dCurr;
+        const aSym = aCurr === 'EUR' ? '€' : (aCurr === 'VES' ? 'Bs.' : '$');
+        const aAmt = Number(a.amount || 0);
+        const aVES = convertCurrency(aAmt, aCurr, 'VES', a.exchangeRate);
+        return `${formatDate(a.date)} (${a.time || 'Sesión'}) - ${aSym}${aAmt.toFixed(2)} ${aCurr} (≈ Bs. ${aVES.toLocaleString('es-VE', {minimumFractionDigits:2, maximumFractionDigits:2})})`;
     }).join('\n• ');
 
-    const message = `Hola ${patientDebt.patientName}, espero que te encuentres muy bien. 👋\n\nTe escribo para hacer un cordial recordatorio sobre el pago pendiente de las siguientes sesiones de consulta psicológica con ${therapistName}:\n\n• ${datesList}\n\n📌 *Monto Total Pendiente: $${totalUSD.toFixed(2)} USD (o Bs. ${totalVES.toLocaleString('es-VE', {minimumFractionDigits: 2, maximumFractionDigits: 2})} a tasa oficial BCV: ${Number(bcv.usdRate || 888.89).toLocaleString('es-VE', {minimumFractionDigits:2, maximumFractionDigits:2})} Bs./USD)*\n\n💡 *Formas de Pago:*\n• Pago Móvil o Transferencia en Bolívares (a tasa oficial BCV)\n• Divisas en efectivo o Zelle\n\nPor favor infórmame al realizar el pago. ¡Quedo atento/a! 😊`;
+    const message = `Hola ${patientDebt.patientName}, espero que te encuentres muy bien. 👋\n\nTe escribo para hacer un cordial recordatorio sobre el pago pendiente de las siguientes sesiones de consulta psicológica con ${therapistName}:\n\n• ${datesList}\n\n📌 *Monto Total Pendiente: ${dSym}${totalAmount.toFixed(2)} ${dCurr} (o Bs. ${totalVES.toLocaleString('es-VE', {minimumFractionDigits: 2, maximumFractionDigits: 2})} a la tasa de consulta: ${Number(bcv.usdRate || 888.89).toLocaleString('es-VE', {minimumFractionDigits:2, maximumFractionDigits:2})} Bs.)*\n\n💡 *Formas de Pago:*\n• Pago Móvil o Transferencia en Bolívares\n• Divisas en efectivo, Zelle o Transferencia\n\nPor favor infórmame al realizar el pago. ¡Quedo atento/a! 😊`;
 
     navigator.clipboard.writeText(message);
     showToast('📋 Mensaje de cobro copiado al portapapeles', 'success');
@@ -2172,14 +2421,26 @@ function settlePatientDebt(patientId, appointmentId = null) {
     appsToSettle.forEach(app => {
         app.paymentStatus = 'pagado';
         const amt = parseFloat(app.price || app.rateAmount || (defaultRate && defaultRate.amount) || 45);
+        const curr = app.currency || defaultRate.currency || 'USD';
+        const bcvRates = getBcvExchangeRates();
+        const usedRate = app.exchangeRate || defaultRate.customExchangeRate || bcvRates.usdRate || 888.89;
         totalSettled += amt;
+
+        let normalizedAmt = amt;
+        if (curr === 'VES') {
+            normalizedAmt = roundCurrency(amt / usedRate);
+        } else if (curr === 'EUR' && bcvRates.eurParity !== false) {
+            normalizedAmt = amt;
+        }
 
         txs.push({
             id: generateId(),
             type: 'income',
             concept: `Honorarios Sesión ${formatDate(app.date)} - ${patient ? (patient.name || 'Paciente') : 'Paciente'}`,
-            amount: amt,
-            currency: 'USD',
+            amount: normalizedAmt,
+            originalAmount: amt,
+            currency: curr,
+            exchangeRate: usedRate,
             category: 'Consulta Clínica',
             patientId: patientId,
             appointmentId: app.id,
@@ -2190,7 +2451,9 @@ function settlePatientDebt(patientId, appointmentId = null) {
 
     saveFinanceTransactions(txs);
     if (typeof saveData === 'function') saveData();
-    showToast(`✅ Pago saldado: $${Number(totalSettled || 0).toFixed(2)} USD (${patient ? (patient.name || 'Paciente') : 'Paciente'})`, 'success');
+    const firstCurr = (appsToSettle[0] && appsToSettle[0].currency) ? appsToSettle[0].currency : 'USD';
+    const sym = firstCurr === 'EUR' ? '€' : (firstCurr === 'VES' ? 'Bs.' : '$');
+    showToast(`✅ Pago saldado: ${sym}${Number(totalSettled || 0).toFixed(2)} ${firstCurr} (${patient ? (patient.name || 'Paciente') : 'Paciente'})`, 'success');
 
     if (state.currentView === 'finance') renderFinanceView();
     if (state.currentView === 'patients' && typeof renderPatients === 'function') renderPatients();
@@ -2274,6 +2537,8 @@ if (_financeTargetScope) {
     _financeTargetScope.onTransactionCurrencyChange = onTransactionCurrencyChange;
     _financeTargetScope.updateTxEquivalentPreview = updateTxEquivalentPreview;
     _financeTargetScope.updateRateVesPreview = updateRateVesPreview;
+    _financeTargetScope.onRateCurrencyChange = onRateCurrencyChange;
+    _financeTargetScope.onRateExchangeRateTypeChange = onRateExchangeRateTypeChange;
 }
 if (typeof module !== 'undefined' && module.exports) {
     module.exports = {
@@ -2331,6 +2596,8 @@ if (typeof module !== 'undefined' && module.exports) {
         toggleBcvManualInputs,
         onTransactionCurrencyChange,
         updateTxEquivalentPreview,
-        updateRateVesPreview
+        updateRateVesPreview,
+        onRateCurrencyChange,
+        onRateExchangeRateTypeChange
     };
 }
