@@ -4473,8 +4473,8 @@ function generatePatientAlerts(patientId) {
 // ============================================
 // HISTORIAL DE SESIONES Y ASISTENCIA DEL PACIENTE
 // ============================================
-function calculatePatientSessionStats(patientId) {
-    const apps = (AppState.appointments || []).filter(a => String(a.patientId) === String(patientId));
+function calculatePatientSessionStats(patientId, stateObj = (typeof AppState !== 'undefined' ? AppState : {})) {
+    const apps = (stateObj?.appointments || []).filter(a => String(a.patientId) === String(patientId));
     const totalCount = apps.length;
 
     const completedApps = apps.filter(a => a.status === 'completada' || a.status === 'asistida');
@@ -4482,6 +4482,12 @@ function calculatePatientSessionStats(patientId) {
 
     const rescheduledApps = apps.filter(a => a.status === 'reprogramada');
     const rescheduledCount = rescheduledApps.length;
+
+    const cancelledByTherapistApps = apps.filter(a => a.status === 'cancelada' && (a.canceledBy === 'therapist' || (a.notes && a.notes.includes('Cancelada por Terapeuta'))));
+    const cancelledByTherapistCount = cancelledByTherapistApps.length;
+
+    const cancelledByPatientApps = apps.filter(a => a.status === 'cancelada' && !cancelledByTherapistApps.includes(a));
+    const cancelledByPatientCount = cancelledByPatientApps.length;
 
     const cancelledApps = apps.filter(a => a.status === 'cancelada');
     const cancelledCount = cancelledApps.length;
@@ -4492,13 +4498,13 @@ function calculatePatientSessionStats(patientId) {
     const scheduledApps = apps.filter(a => a.status === 'agendada' || (!a.status && (parseLocalDate(a.date) || new Date(0)) >= new Date()));
     const scheduledCount = scheduledApps.length;
 
-    // Evaluables: sesiones que debían ocurrir o concluyeron
-    const evaluableCount = completedCount + rescheduledCount + cancelledCount + noShowCount;
+    // Evaluables para el paciente: las cancelaciones motivadas por el terapeuta no penalizan al paciente
+    const evaluableCount = completedCount + rescheduledCount + cancelledByPatientCount + noShowCount;
     const baseForRate = evaluableCount > 0 ? evaluableCount : (totalCount > 0 ? totalCount : 0);
 
     const attendanceRate = baseForRate > 0 ? Math.round((completedCount / baseForRate) * 100) : (totalCount > 0 ? 0 : 100);
     const rescheduleRate = baseForRate > 0 ? Math.round((rescheduledCount / baseForRate) * 100) : 0;
-    const cancellationRate = baseForRate > 0 ? Math.round((cancelledCount / baseForRate) * 100) : 0;
+    const cancellationRate = baseForRate > 0 ? Math.round((cancelledByPatientCount / baseForRate) * 100) : 0;
     const noShowRate = baseForRate > 0 ? Math.round((noShowCount / baseForRate) * 100) : 0;
 
     let adherenceBadge = 'neutral';
@@ -4531,6 +4537,8 @@ function calculatePatientSessionStats(patientId) {
         completedCount,
         rescheduledCount,
         cancelledCount,
+        cancelledByPatientCount,
+        cancelledByTherapistCount,
         noShowCount,
         scheduledCount,
         attendanceRate,
@@ -4799,6 +4807,15 @@ function renderTabHistorialSesiones(patientId, activeFilter = 'all') {
                         agendada: 'fa-calendar-alt'
                     };
 
+                    const isCancelledByTherapist = status === 'cancelada' && (a.canceledBy === 'therapist' || (a.notes && a.notes.includes('Cancelada por Terapeuta')));
+                    const isCancelledByPatient = status === 'cancelada' && !isCancelledByTherapist;
+
+                    const statusBadgeHtml = isCancelledByTherapist 
+                        ? `<span class="session-status-badge badge-status-cancelada-therapist" style="background:rgba(99,102,241,0.12);color:#4f46e5;border:1px solid rgba(99,102,241,0.3);font-weight:600;"><i class="fas fa-user-md"></i> Cancelada (Terapeuta)</span>`
+                        : (isCancelledByPatient 
+                            ? `<span class="session-status-badge badge-status-cancelada"><i class="fas fa-user-times"></i> Cancelada (Paciente)</span>`
+                            : `<span class="session-status-badge badge-status-${status}"><i class="fas ${statusIcons[status] || 'fa-circle'}"></i> ${statusLabels[status] || status}</span>`);
+
                     const isConfirmed = Boolean(a.attendanceConfirmed || a.attendance_confirmed || status === 'confirmada');
                     const relatedNote = (AppState.notes || []).find(n => 
                         String(n.patientId) === String(patientId) && 
@@ -4817,9 +4834,7 @@ function renderTabHistorialSesiones(patientId, activeFilter = 'all') {
                                     <div class="session-history-title-row">
                                         <span class="session-history-time"><i class="far fa-clock"></i> ${a.time || 'Horario no esp.'} (${a.duration || 50} min)</span>
                                         <span class="session-type-chip">${a.type || 'Presencial'}</span>
-                                        <span class="session-status-badge badge-status-${status}">
-                                            <i class="fas ${statusIcons[status] || 'fa-circle'}"></i> ${statusLabels[status] || status}
-                                        </span>
+                                        ${statusBadgeHtml}
                                         ${isConfirmed ? `
                                             <span class="badge-attendance-check" title="Asistencia confirmada por el paciente en el portal">
                                                 <i class="fas fa-check-circle"></i> Confirmada por paciente
@@ -4827,6 +4842,7 @@ function renderTabHistorialSesiones(patientId, activeFilter = 'all') {
                                         ` : ''}
                                     </div>
                                     <div class="session-history-notes">
+                                        ${a.cancelReason ? `<div style="margin-bottom:3px;font-size:12px;color:var(--text-secondary);"><i class="fas fa-info-circle" style="color:var(--accent-warning);margin-right:4px;"></i><strong>Motivo de cancelación:</strong> ${a.cancelReason}</div>` : ''}
                                         ${a.notes ? `<span><i class="fas fa-comment-dots" style="color:var(--text-tertiary);margin-right:4px;"></i>${a.notes}</span>` : '<span style="color:var(--text-tertiary);font-style:italic;">Sin notas u observaciones específicas</span>'}
                                     </div>
                                 </div>
@@ -4880,6 +4896,11 @@ function renderTabHistorialSesiones(patientId, activeFilter = 'all') {
 function quickChangeSessionAttendance(appId, newStatus, patientId) {
     const app = (AppState.appointments || []).find(a => String(a.id) === String(appId));
     if (!app) return;
+
+    if (newStatus === 'reprogramada' || newStatus === 'cancelada') {
+        openAppointmentActionModal(appId);
+        return;
+    }
 
     const oldStatus = app.status;
     app.status = newStatus;
@@ -5748,8 +5769,10 @@ function syncPatientToPortalStorage(patient) {
             // Absorber citas solicitadas desde el puente del portal hacia AppState.appointments
             try {
                 const aptBridge = JSON.parse(localStorage.getItem('psico_portal_appointments_bridge') || '{}');
+                const deletedIds = JSON.parse(localStorage.getItem('psico_deleted_appointments') || '[]');
                 let newAptAdded = false;
                 Object.values(aptBridge).forEach(ba => {
+                    if (ba.deleted || deletedIds.includes(String(ba.id))) return;
                     if (String(ba.patientId || ba.patient_id) === String(patient.id)) {
                         const exists = (AppState.appointments || []).some(a => String(a.id) === String(ba.id));
                         if (!exists) {
@@ -5852,8 +5875,20 @@ async function syncPortalAppointmentsToTherapist() {
     // 1. Escanear el puente local de citas agendadas y confirmadas desde el portal
     try {
         const bridge = JSON.parse(localStorage.getItem('psico_portal_appointments_bridge') || '{}');
+        const deletedIds = JSON.parse(localStorage.getItem('psico_deleted_appointments') || '[]');
+
+        // Limpiar de AppState cualquier cita que haya sido eliminada definitivamente
+        if (deletedIds.length > 0 && Array.isArray(AppState.appointments)) {
+            const beforeLen = AppState.appointments.length;
+            AppState.appointments = AppState.appointments.filter(a => !deletedIds.includes(String(a.id)));
+            if (AppState.appointments.length !== beforeLen) {
+                hasNew = true;
+            }
+        }
+
         Object.values(bridge).forEach(ba => {
             if (!ba || !ba.id || !ba.date) return;
+            if (ba.deleted || deletedIds.includes(String(ba.id))) return;
             const isConfirmedInBridge = Boolean(ba.attendanceConfirmed || ba.attendance_confirmed || ba.status === 'confirmada');
             const exists = AppState.appointments.find(a => String(a.id) === String(ba.id));
             if (!exists) {
@@ -6072,15 +6107,20 @@ async function syncAppointmentStatusToPortalAndBackend(appId, newStatus, meta = 
         const time = meta.time || app?.time;
         const duration = meta.duration || app?.duration || 50;
         const isConfirmed = newStatus === 'confirmada';
+        const canceledBy = meta.canceledBy || app?.canceledBy || null;
+        const cancelReason = meta.cancelReason || app?.cancelReason || null;
+        const previousDate = meta.previousDate || app?.previousDate || null;
+        const previousTime = meta.previousTime || app?.previousTime || null;
 
         // 1. Actualizar el puente local de citas (psico_portal_appointments_bridge)
         try {
             const bridge = JSON.parse(localStorage.getItem('psico_portal_appointments_bridge') || '{}');
             if (meta.deleted) {
-                if (bridge[appId]) {
-                    bridge[appId].status = 'cancelada';
-                    bridge[appId].deleted = true;
-                    bridge[appId].updatedAt = new Date().toISOString();
+                delete bridge[appId];
+                const deletedIds = JSON.parse(localStorage.getItem('psico_deleted_appointments') || '[]');
+                if (!deletedIds.includes(String(appId))) {
+                    deletedIds.push(String(appId));
+                    localStorage.setItem('psico_deleted_appointments', JSON.stringify(deletedIds));
                 }
             } else {
                 if (!bridge[appId]) {
@@ -6094,6 +6134,10 @@ async function syncAppointmentStatusToPortalAndBackend(appId, newStatus, meta = 
                         status: newStatus,
                         attendanceConfirmed: isConfirmed,
                         attendance_confirmed: isConfirmed,
+                        canceledBy: canceledBy,
+                        cancelReason: cancelReason,
+                        previousDate: previousDate,
+                        previousTime: previousTime,
                         updatedAt: new Date().toISOString()
                     };
                 } else {
@@ -6106,6 +6150,10 @@ async function syncAppointmentStatusToPortalAndBackend(appId, newStatus, meta = 
                     if (notes !== undefined) bridge[appId].notes = notes;
                     if (date) bridge[appId].date = date;
                     if (time) bridge[appId].time = time;
+                    if (canceledBy) bridge[appId].canceledBy = canceledBy;
+                    if (cancelReason) bridge[appId].cancelReason = cancelReason;
+                    if (previousDate) bridge[appId].previousDate = previousDate;
+                    if (previousTime) bridge[appId].previousTime = previousTime;
                     bridge[appId].updatedAt = new Date().toISOString();
                 }
             }
@@ -6121,15 +6169,25 @@ async function syncAppointmentStatusToPortalAndBackend(appId, newStatus, meta = 
                 if (raw) {
                     const pData = JSON.parse(raw);
                     if (Array.isArray(pData.appointments)) {
-                        const targetIdx = pData.appointments.findIndex(a => String(a.id) === String(appId));
-                        if (targetIdx >= 0) {
-                            pData.appointments[targetIdx].status = newStatus;
-                            if (isConfirmed) {
-                                pData.appointments[targetIdx].attendanceConfirmed = true;
-                                pData.appointments[targetIdx].attendance_confirmed = true;
-                                pData.appointments[targetIdx].confirmedAt = new Date().toISOString();
+                        if (meta.deleted) {
+                            pData.appointments = pData.appointments.filter(a => String(a.id) !== String(appId));
+                        } else {
+                            const targetIdx = pData.appointments.findIndex(a => String(a.id) === String(appId));
+                            if (targetIdx >= 0) {
+                                pData.appointments[targetIdx].status = newStatus;
+                                if (isConfirmed) {
+                                    pData.appointments[targetIdx].attendanceConfirmed = true;
+                                    pData.appointments[targetIdx].attendance_confirmed = true;
+                                    pData.appointments[targetIdx].confirmedAt = new Date().toISOString();
+                                }
+                                if (notes !== undefined) pData.appointments[targetIdx].notes = notes;
+                                if (date) pData.appointments[targetIdx].date = date;
+                                if (time) pData.appointments[targetIdx].time = time;
+                                if (canceledBy) pData.appointments[targetIdx].canceledBy = canceledBy;
+                                if (cancelReason) pData.appointments[targetIdx].cancelReason = cancelReason;
+                                if (previousDate) pData.appointments[targetIdx].previousDate = previousDate;
+                                if (previousTime) pData.appointments[targetIdx].previousTime = previousTime;
                             }
-                            if (notes !== undefined) pData.appointments[targetIdx].notes = notes;
                         }
                     }
                     localStorage.setItem(key, JSON.stringify(pData));
@@ -8285,6 +8343,10 @@ function setAppointmentStatus(id, newStatus) {
         completeAppointment(id);
         return;
     }
+    if (newStatus === 'reprogramada' || newStatus === 'cancelada') {
+        openAppointmentActionModal(id);
+        return;
+    }
     a.status = newStatus;
     if (newStatus === 'confirmada') {
         a.attendanceConfirmed = true;
@@ -8590,20 +8652,424 @@ function completeAppointment(id) {
 }
 
 function deleteAppointment(id) {
-    showConfirmModal(
-        'Eliminar Cita',
-        '¿Está seguro/a de eliminar esta cita agendada?',
-        () => {
-            const target = (AppState.appointments || []).find(a => String(a.id) === String(id));
-            const pId = target ? target.patientId : null;
-            AppState.appointments = AppState.appointments.filter(a => String(a.id) !== String(id));
-            saveData(); renderCalendar(); renderAppointments(); updateCounts(); updateDashboard();
-            if (typeof syncAppointmentStatusToPortalAndBackend === 'function') {
-                syncAppointmentStatusToPortalAndBackend(id, 'cancelada', { patientId: pId, deleted: true });
+    openAppointmentActionModal(id);
+}
+
+function openAppointmentActionModal(id) {
+    const app = (AppState.appointments || []).find(a => String(a.id) === String(id));
+    if (!app) {
+        showToast('No se encontró la cita seleccionada', 'warning');
+        return;
+    }
+
+    const modal = document.getElementById('appointmentActionModal');
+    if (!modal) {
+        showConfirmModal(
+            'Eliminar Cita',
+            '¿Está seguro/a de eliminar esta cita agendada?',
+            () => {
+                const pId = app.patientId;
+                AppState.appointments = AppState.appointments.filter(a => String(a.id) !== String(id));
+                saveData(); renderCalendar(); renderAppointments(); updateCounts(); updateDashboard();
+                if (typeof syncAppointmentStatusToPortalAndBackend === 'function') {
+                    syncAppointmentStatusToPortalAndBackend(id, 'cancelada', { patientId: pId, deleted: true });
+                }
+                showToast('Cita eliminada', 'info');
             }
-            showToast('Cita cancelada y eliminada', 'info');
+        );
+        return;
+    }
+
+    const actionAppIdInput = document.getElementById('actionAppointmentId');
+    if (actionAppIdInput) actionAppIdInput.value = app.id;
+
+    const p = (AppState.patients || []).find(pt => String(pt.id) === String(app.patientId));
+    const pName = p ? p.name : 'Paciente';
+
+    const patEl = document.getElementById('actionAppPatientName');
+    const dateEl = document.getElementById('actionAppCurrentDate');
+    const timeEl = document.getElementById('actionAppCurrentTime');
+    if (patEl) patEl.textContent = pName;
+    if (dateEl) dateEl.textContent = formatDate(app.date) || app.date;
+    if (timeEl) timeEl.textContent = formatTime(app.time) || app.time || '—';
+
+    // Inicializar nueva fecha con la fecha de la cita o mañana
+    const newDateInput = document.getElementById('actionNewDate');
+    if (newDateInput) {
+        newDateInput.value = app.date || toDateInputValue(new Date());
+    }
+    const newTimeInput = document.getElementById('actionNewTime');
+    if (newTimeInput) {
+        newTimeInput.value = (app.time || '09:00').substring(0, 5);
+    }
+    const reasonInput = document.getElementById('actionRescheduleReason');
+    if (reasonInput) reasonInput.value = '';
+    const customReasonInput = document.getElementById('actionCancelCustomReason');
+    if (customReasonInput) customReasonInput.value = '';
+
+    // Marcar primer radio 'reprogramar' por defecto
+    const radios = document.getElementsByName('appointmentActionRadio');
+    for (const r of radios) {
+        r.checked = (r.value === 'reprogramar');
+    }
+
+    onAppointmentActionChange('reprogramar');
+    openModal('appointmentActionModal');
+}
+
+function onAppointmentActionChange(actionType) {
+    const secReagendar = document.getElementById('sectionReagendar');
+    const secCancelacion = document.getElementById('sectionCancelacion');
+    const btnConfirm = document.getElementById('btnConfirmAppointmentAction');
+    const cancelTitle = document.getElementById('cancelSectionHeading');
+    const presetSelect = document.getElementById('actionReasonPresetSelect');
+
+    if (!secReagendar || !secCancelacion || !btnConfirm) return;
+
+    if (actionType === 'reprogramar') {
+        secReagendar.style.display = 'block';
+        secCancelacion.style.display = 'none';
+        btnConfirm.innerHTML = '<i class="fas fa-sync-alt"></i> Reagendar Cita';
+        btnConfirm.className = 'btn-primary';
+        btnConfirm.style.background = '';
+        checkAvailabilityForActionModal();
+    } else if (actionType === 'cancel_therapist') {
+        secReagendar.style.display = 'none';
+        secCancelacion.style.display = 'block';
+        if (cancelTitle) {
+            cancelTitle.innerHTML = '<i class="fas fa-user-md" style="color:#6366f1;"></i> Motivo de Cancelación del Terapeuta';
         }
-    );
+        if (presetSelect) {
+            presetSelect.innerHTML = `
+                <option value="Imprevisto médico / de salud del profesional">Imprevisto médico / de salud del profesional</option>
+                <option value="Causa de fuerza mayor / Urgencia familiar">Causa de fuerza mayor / Urgencia familiar</option>
+                <option value="Compromiso académico / Congreso clínico">Compromiso académico / Congreso clínico</option>
+                <option value="Ajuste de agenda profesional">Ajuste de agenda profesional</option>
+                <option value="otro">Otro motivo personalizado...</option>
+            `;
+        }
+        btnConfirm.innerHTML = '<i class="fas fa-user-md"></i> Registrar Cancelación (Terapeuta)';
+        btnConfirm.className = 'btn-primary';
+        btnConfirm.style.background = '#4f46e5';
+    } else if (actionType === 'cancel_patient') {
+        secReagendar.style.display = 'none';
+        secCancelacion.style.display = 'block';
+        if (cancelTitle) {
+            cancelTitle.innerHTML = '<i class="fas fa-user-times" style="color:#ef4444;"></i> Motivo de Cancelación del Paciente';
+        }
+        if (presetSelect) {
+            presetSelect.innerHTML = `
+                <option value="Aviso previo del paciente (motivos personales)">Aviso previo del paciente (motivos personales)</option>
+                <option value="Problemas de salud del paciente">Problemas de salud del paciente</option>
+                <option value="Dificultades laborales / académicas del paciente">Dificultades laborales / académicas del paciente</option>
+                <option value="Dificultades económicas o de traslado">Dificultades económicas o de traslado</option>
+                <option value="Inasistencia comunicada">Inasistencia comunicada</option>
+                <option value="otro">Otro motivo personalizado...</option>
+            `;
+        }
+        btnConfirm.innerHTML = '<i class="fas fa-user-times"></i> Registrar Cancelación (Paciente)';
+        btnConfirm.className = 'btn-primary';
+        btnConfirm.style.background = '#dc2626';
+    } else if (actionType === 'delete_permanent') {
+        secReagendar.style.display = 'none';
+        secCancelacion.style.display = 'none';
+        btnConfirm.innerHTML = '<i class="fas fa-trash-alt"></i> Eliminar Definitivamente';
+        btnConfirm.className = 'btn-primary';
+        btnConfirm.style.background = '#dc2626';
+    }
+}
+
+function onActionReasonPresetChange() {
+    const preset = document.getElementById('actionReasonPresetSelect')?.value;
+    const custom = document.getElementById('actionCancelCustomReason');
+    if (!custom) return;
+    if (preset === 'otro') {
+        custom.placeholder = 'Escriba detalladamente el motivo de la cancelación...';
+        custom.focus();
+    } else if (preset) {
+        custom.placeholder = `Detalle adicional opcional sobre: ${preset}`;
+    }
+}
+
+function checkAvailabilityForActionModal() {
+    const dateInput = document.getElementById('actionNewDate');
+    const container = document.getElementById('actionSlotsGrid');
+    const collisionNotice = document.getElementById('actionSlotCollisionNotice');
+    if (!dateInput || !container) return;
+    
+    const dateVal = dateInput.value;
+    if (!dateVal) {
+        container.innerHTML = '<span style="font-size:12px;color:var(--text-secondary);">Selecciona una fecha para ver disponibilidad.</span>';
+        return;
+    }
+    
+    const activeAppId = document.getElementById('actionAppointmentId')?.value;
+    const targetDate = parseLocalDate(dateVal);
+    if (!targetDate || isNaN(targetDate.getTime())) {
+        container.innerHTML = '<span style="font-size:12px;color:var(--text-secondary);">Fecha no válida.</span>';
+        return;
+    }
+
+    const candidateSlots = ['08:00', '09:00', '10:00', '11:00', '12:00', '14:00', '15:00', '16:00', '17:00', '18:00'];
+    const dayApps = (AppState.appointments || []).filter(a => {
+        if (String(a.id) === String(activeAppId)) return false;
+        if (a.status === 'cancelada') return false;
+        return a.date === dateVal || isSameDay(parseLocalDate(a.date), targetDate);
+    });
+
+    const selectedTime = (document.getElementById('actionNewTime')?.value || '').substring(0, 5);
+
+    let html = '';
+    candidateSlots.forEach(time => {
+        const conflict = dayApps.find(a => (a.time || '').substring(0, 5) === time);
+        const isSelected = selectedTime === time;
+        if (conflict) {
+            const p = (AppState.patients || []).find(pt => pt.id === conflict.patientId);
+            const pName = p ? p.name.split(' ')[0] : 'Ocupado';
+            html += `
+                <button type="button" class="btn-slot occupied" 
+                    title="Ocupado con ${p ? p.name : 'otro paciente'}" 
+                    style="padding:4px 8px;font-size:11px;border-radius:12px;border:1px solid #fca5a5;background:rgba(239,68,68,0.1);color:#b91c1c;cursor:not-allowed;" disabled>
+                    <i class="fas fa-times"></i> ${time} (${pName})
+                </button>
+            `;
+        } else {
+            html += `
+                <button type="button" class="btn-slot available ${isSelected ? 'selected' : ''}" 
+                    onclick="selectActionTimeSlot('${time}')" 
+                    style="padding:4px 10px;font-size:11px;border-radius:12px;cursor:pointer;transition:all 0.15s;${isSelected ? 'background:var(--accent-primary);color:#fff;border:1px solid var(--accent-primary);font-weight:700;' : 'background:rgba(16,185,129,0.1);color:#047857;border:1px solid #6ee7b7;'}">
+                    <i class="fas ${isSelected ? 'fa-check' : 'fa-circle'}" style="font-size:9px;"></i> ${time} Libre
+                </button>
+            `;
+        }
+    });
+
+    container.innerHTML = html;
+    validateSelectedSlotCollision();
+}
+
+function selectActionTimeSlot(time) {
+    const timeInput = document.getElementById('actionNewTime');
+    if (timeInput) timeInput.value = time;
+    checkAvailabilityForActionModal();
+}
+
+function validateSelectedSlotCollision() {
+    const dateInput = document.getElementById('actionNewDate');
+    const timeInput = document.getElementById('actionNewTime');
+    const notice = document.getElementById('actionSlotCollisionNotice');
+    if (!dateInput || !timeInput || !notice) return;
+
+    const dateVal = dateInput.value;
+    const timeVal = (timeInput.value || '').substring(0, 5);
+    const activeAppId = document.getElementById('actionAppointmentId')?.value;
+    const targetDate = parseLocalDate(dateVal);
+
+    if (!dateVal || !timeVal || !targetDate) {
+        notice.style.display = 'none';
+        return;
+    }
+
+    const conflict = (AppState.appointments || []).find(a => {
+        if (String(a.id) === String(activeAppId)) return false;
+        if (a.status === 'cancelada') return false;
+        return (a.date === dateVal || isSameDay(parseLocalDate(a.date), targetDate)) && (a.time || '').substring(0, 5) === timeVal;
+    });
+
+    if (conflict) {
+        const p = (AppState.patients || []).find(pt => pt.id === conflict.patientId);
+        notice.innerHTML = `<i class="fas fa-exclamation-triangle"></i> ¡Atención! Ya tienes una cita programada a las <strong>${timeVal}</strong> con <strong>${p ? p.name : 'otro paciente'}</strong>. Puedes seleccionar otro horario libre arriba.`;
+        notice.style.display = 'block';
+    } else {
+        notice.style.display = 'none';
+    }
+}
+
+function executeAppointmentAction() {
+    const appId = document.getElementById('actionAppointmentId')?.value;
+    const app = (AppState.appointments || []).find(a => String(a.id) === String(appId));
+    if (!app) {
+        showToast('Cita no encontrada', 'error');
+        closeModal('appointmentActionModal');
+        return;
+    }
+
+    const radios = document.getElementsByName('appointmentActionRadio');
+    let actionType = 'reprogramar';
+    for (const r of radios) {
+        if (r.checked) {
+            actionType = r.value;
+            break;
+        }
+    }
+
+    const p = (AppState.patients || []).find(pt => String(pt.id) === String(app.patientId));
+    const pName = p ? p.name : 'el paciente';
+
+    if (actionType === 'reprogramar') {
+        const newDate = document.getElementById('actionNewDate')?.value;
+        const newTime = document.getElementById('actionNewTime')?.value;
+        const reason = (document.getElementById('actionRescheduleReason')?.value || '').trim();
+
+        if (!newDate || !newTime) {
+            showToast('Por favor especifica la nueva fecha y hora para reagendar', 'warning');
+            return;
+        }
+
+        const oldDate = app.date;
+        const oldTime = app.time;
+
+        app.date = newDate;
+        app.time = newTime;
+        app.status = 'reprogramada';
+        app.rescheduledBy = 'therapist';
+        app.rescheduledAt = new Date().toISOString();
+        app.previousDate = oldDate;
+        app.previousTime = oldTime;
+        const noteTag = `[Reprogramada: del ${formatDate(oldDate)} ${oldTime} al ${formatDate(newDate)} ${newTime}${reason ? ' · ' + reason : ''}]`;
+        app.notes = app.notes ? `${app.notes} · ${noteTag}` : noteTag;
+        app.updatedAt = new Date().toISOString();
+
+        saveData();
+        if (typeof syncAppointmentStatusToPortalAndBackend === 'function') {
+            syncAppointmentStatusToPortalAndBackend(app.id, 'reprogramada', { 
+                patientId: app.patientId, 
+                date: newDate, 
+                time: newTime, 
+                notes: app.notes,
+                rescheduled: true,
+                previousDate: oldDate,
+                previousTime: oldTime
+            });
+        }
+
+        AppState.selectedDate = parseLocalDate(newDate);
+        closeModal('appointmentActionModal');
+        renderCalendar();
+        renderAppointments();
+        updateCounts();
+        updateDashboard();
+
+        const tabSesiones = document.getElementById('tab-sesiones');
+        if (tabSesiones && typeof renderTabHistorialSesiones === 'function') {
+            tabSesiones.innerHTML = renderTabHistorialSesiones(app.patientId);
+        }
+
+        showToast(`Cita con ${pName} reagendada con éxito para el ${formatDate(newDate)} a las ${newTime}`, 'success');
+        return;
+    }
+
+    if (actionType === 'cancel_therapist') {
+        const preset = document.getElementById('actionReasonPresetSelect')?.value || '';
+        const custom = (document.getElementById('actionCancelCustomReason')?.value || '').trim();
+        const fullReason = custom ? (preset !== 'otro' ? `${preset}: ${custom}` : custom) : (preset !== 'otro' ? preset : 'Imprevisto profesional del terapeuta');
+
+        app.status = 'cancelada';
+        app.canceledBy = 'therapist';
+        app.cancelReason = fullReason;
+        app.canceledAt = new Date().toISOString();
+        const noteTag = `[Cancelada por Terapeuta: ${fullReason}]`;
+        app.notes = app.notes ? `${app.notes} · ${noteTag}` : noteTag;
+        app.updatedAt = new Date().toISOString();
+
+        saveData();
+        if (typeof syncAppointmentStatusToPortalAndBackend === 'function') {
+            syncAppointmentStatusToPortalAndBackend(app.id, 'cancelada', { 
+                patientId: app.patientId, 
+                canceledBy: 'therapist', 
+                cancelReason: fullReason,
+                notes: app.notes 
+            });
+        }
+
+        closeModal('appointmentActionModal');
+        renderCalendar();
+        renderAppointments();
+        updateCounts();
+        updateDashboard();
+
+        const tabSesiones = document.getElementById('tab-sesiones');
+        if (tabSesiones && typeof renderTabHistorialSesiones === 'function') {
+            tabSesiones.innerHTML = renderTabHistorialSesiones(app.patientId);
+        }
+
+        showToast(`Cita cancelada por el terapeuta registrada (no penaliza adherencia del paciente)`, 'info');
+        return;
+    }
+
+    if (actionType === 'cancel_patient') {
+        const preset = document.getElementById('actionReasonPresetSelect')?.value || '';
+        const custom = (document.getElementById('actionCancelCustomReason')?.value || '').trim();
+        const fullReason = custom ? (preset !== 'otro' ? `${preset}: ${custom}` : custom) : (preset !== 'otro' ? preset : 'Aviso del paciente');
+
+        app.status = 'cancelada';
+        app.canceledBy = 'patient';
+        app.cancelReason = fullReason;
+        app.canceledAt = new Date().toISOString();
+        const noteTag = `[Cancelada por Paciente: ${fullReason}]`;
+        app.notes = app.notes ? `${app.notes} · ${noteTag}` : noteTag;
+        app.updatedAt = new Date().toISOString();
+
+        saveData();
+        if (typeof syncAppointmentStatusToPortalAndBackend === 'function') {
+            syncAppointmentStatusToPortalAndBackend(app.id, 'cancelada', { 
+                patientId: app.patientId, 
+                canceledBy: 'patient', 
+                cancelReason: fullReason,
+                notes: app.notes 
+            });
+        }
+
+        closeModal('appointmentActionModal');
+        renderCalendar();
+        renderAppointments();
+        updateCounts();
+        updateDashboard();
+
+        const tabSesiones = document.getElementById('tab-sesiones');
+        if (tabSesiones && typeof renderTabHistorialSesiones === 'function') {
+            tabSesiones.innerHTML = renderTabHistorialSesiones(app.patientId);
+        }
+
+        showToast(`Cita cancelada por el paciente registrada en su historial`, 'info');
+        return;
+    }
+
+    if (actionType === 'delete_permanent') {
+        const pId = app.patientId;
+        AppState.appointments = (AppState.appointments || []).filter(a => String(a.id) !== String(app.id));
+        saveData();
+
+        try {
+            const deletedIds = JSON.parse(localStorage.getItem('psico_deleted_appointments') || '[]');
+            if (!deletedIds.includes(String(app.id))) {
+                deletedIds.push(String(app.id));
+                localStorage.setItem('psico_deleted_appointments', JSON.stringify(deletedIds));
+            }
+            const bridge = JSON.parse(localStorage.getItem('psico_portal_appointments_bridge') || '{}');
+            delete bridge[app.id];
+            localStorage.setItem('psico_portal_appointments_bridge', JSON.stringify(bridge));
+            localStorage.setItem('psico_portal_appointments_last_update', Date.now().toString());
+        } catch (e) {}
+
+        if (typeof syncAppointmentStatusToPortalAndBackend === 'function') {
+            syncAppointmentStatusToPortalAndBackend(app.id, 'eliminada', { patientId: pId, deleted: true });
+        }
+
+        closeModal('appointmentActionModal');
+        renderCalendar();
+        renderAppointments();
+        updateCounts();
+        updateDashboard();
+
+        const tabSesiones = document.getElementById('tab-sesiones');
+        if (tabSesiones && typeof renderTabHistorialSesiones === 'function') {
+            tabSesiones.innerHTML = renderTabHistorialSesiones(pId);
+        }
+
+        showToast('Cita eliminada definitivamente', 'info');
+        return;
+    }
 }
 
 // Sugerencia Inteligente de Horarios
@@ -10582,6 +11048,13 @@ if (typeof window !== 'undefined') {
     if (typeof openAppointmentModalWithSlot === 'function') window.openAppointmentModalWithSlot = openAppointmentModalWithSlot;
     if (typeof editAppointment === 'function') window.editAppointment = editAppointment;
     if (typeof deleteAppointment === 'function') window.deleteAppointment = deleteAppointment;
+    if (typeof openAppointmentActionModal === 'function') window.openAppointmentActionModal = openAppointmentActionModal;
+    if (typeof onAppointmentActionChange === 'function') window.onAppointmentActionChange = onAppointmentActionChange;
+    if (typeof onActionReasonPresetChange === 'function') window.onActionReasonPresetChange = onActionReasonPresetChange;
+    if (typeof checkAvailabilityForActionModal === 'function') window.checkAvailabilityForActionModal = checkAvailabilityForActionModal;
+    if (typeof selectActionTimeSlot === 'function') window.selectActionTimeSlot = selectActionTimeSlot;
+    if (typeof validateSelectedSlotCollision === 'function') window.validateSelectedSlotCollision = validateSelectedSlotCollision;
+    if (typeof executeAppointmentAction === 'function') window.executeAppointmentAction = executeAppointmentAction;
     if (typeof openNoteModal === 'function') window.openNoteModal = openNoteModal;
     if (typeof openReporteAtencionModal === 'function') window.openReporteAtencionModal = openReporteAtencionModal;
     if (typeof openReporteAtencionFromAppointment === 'function') window.openReporteAtencionFromAppointment = openReporteAtencionFromAppointment;

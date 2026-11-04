@@ -8308,6 +8308,112 @@ ClinicalTestSuite.add('TC-TIMEZONE-01', 'Mitigación de Desfase de Zona Horaria 
     }
 });
 
+// ============================================
+// TC-APPT-ACTION-01: Gestión Avanzada de Cancelación y Reagendamiento de Citas
+// ============================================
+ClinicalTestSuite.add('TC-APPT-ACTION-01', 'Gestión Avanzada de Eliminación y Cancelación (Reagendamiento, Disponibilidad y Cancelada por Terapeuta vs Paciente)', async () => {
+    const fs = await import('fs');
+    const path = await import('path');
+
+    // 1. Validar presencia del modal y elementos clave en index.html
+    const indexHtml = fs.readFileSync(path.resolve('./index.html'), 'utf8');
+    const requiredElements = [
+        'id="appointmentActionModal"',
+        'id="apptActionReschedule"',
+        'id="apptActionCancelTherapist"',
+        'id="apptActionCancelPatient"',
+        'id="apptActionDeletePermanent"',
+        'id="actionNewDate"',
+        'id="actionNewTime"',
+        'id="actionSlotsGrid"',
+        'id="actionReasonPresetSelect"',
+        'id="actionCancelCustomReason"'
+    ];
+    for (const el of requiredElements) {
+        if (!indexHtml.includes(el)) {
+            throw new Error('index.html debe contener el elemento ' + el);
+        }
+    }
+
+    // 2. Validar funciones de control en app.js
+    const appJs = fs.readFileSync(path.resolve('./app.js'), 'utf8');
+    const requiredFunctions = [
+        'openAppointmentActionModal',
+        'onAppointmentActionChange',
+        'onActionReasonPresetChange',
+        'checkAvailabilityForActionModal',
+        'selectActionTimeSlot',
+        'validateSelectedSlotCollision',
+        'executeAppointmentAction'
+    ];
+    for (const fn of requiredFunctions) {
+        if (!appJs.includes('function ' + fn)) {
+            throw new Error('app.js debe implementar la función ' + fn);
+        }
+        if (!appJs.includes('window.' + fn + ' = ' + fn)) {
+            throw new Error('app.js debe exponer globalmente ' + fn + ' en window');
+        }
+    }
+
+    // 3. Probar lógica de cálculo de estadísticas de adherencia en calculatePatientSessionStats
+    const startIdx = appJs.indexOf('function calculatePatientSessionStats(');
+    const endIdx = appJs.indexOf('function renderTabHistorialSesiones(');
+    const calcStatsFn = new Function(appJs.slice(startIdx, endIdx) + '\nreturn calculatePatientSessionStats;')();
+
+    // Caso A: Paciente con 1 sesión completada y 1 cancelada por el terapeuta -> Tasa 100%
+    const mockStateTherapist = {
+        appointments: [
+            { id: 'c1', patientId: 'p1', status: 'completada' },
+            { id: 'c2', patientId: 'p1', status: 'cancelada', canceledBy: 'therapist' }
+        ],
+        therapyRoadmapSessions: []
+    };
+    const statsA = calcStatsFn('p1', mockStateTherapist);
+    if (statsA.completedCount !== 1) {
+        throw new Error('statsA.completedCount esperado 1, obtenido ' + statsA.completedCount);
+    }
+    if (statsA.cancelledByTherapistCount !== 1) {
+        throw new Error('statsA.cancelledByTherapistCount esperado 1, obtenido ' + statsA.cancelledByTherapistCount);
+    }
+    if (statsA.attendanceRate !== 100) {
+        throw new Error('Cancelación por terapeuta no debe bajar la tasa de asistencia del paciente. Esperado 100%, obtenido ' + statsA.attendanceRate + '%');
+    }
+
+    // Caso B: Paciente con 1 sesión completada y 1 cancelada por el paciente -> Tasa 50%
+    const mockStatePatient = {
+        appointments: [
+            { id: 'c1', patientId: 'p2', status: 'completada' },
+            { id: 'c2', patientId: 'p2', status: 'cancelada', canceledBy: 'patient' }
+        ],
+        therapyRoadmapSessions: []
+    };
+    const statsB = calcStatsFn('p2', mockStatePatient);
+    if (statsB.cancelledByPatientCount !== 1) {
+        throw new Error('statsB.cancelledByPatientCount esperado 1, obtenido ' + statsB.cancelledByPatientCount);
+    }
+    if (statsB.attendanceRate !== 50) {
+        throw new Error('Cancelación por paciente debe reflejarse en la tasa. Esperado 50%, obtenido ' + statsB.attendanceRate + '%');
+    }
+
+    // 4. Probar eliminación definitiva en db.js
+    const { db } = await import('./db.js');
+    const dummyApptId = `dummy_del_${Date.now()}`;
+    if (!Array.isArray(db.localStore.appointments)) db.localStore.appointments = [];
+    db.localStore.appointments.push({
+        id: dummyApptId,
+        patientId: 'p_test',
+        date: '2026-11-20',
+        time: '10:00',
+        status: 'agendada'
+    });
+    const delResult = await db.deleteAppointment(dummyApptId);
+    if (!delResult) throw new Error('db.deleteAppointment debe retornar true');
+    const stillExists = db.localStore.appointments.some(a => String(a.id) === String(dummyApptId));
+    if (stillExists) {
+        throw new Error('db.deleteAppointment no debe mantener la cita con status cancelada, debe removerla de localStore');
+    }
+});
+
 // Auto-ejecución si se corre desde Node.js (CLI)
 if (typeof process !== 'undefined' && process.argv && process.argv[1] && process.argv[1].endsWith('tests.js')) {
     ClinicalTestSuite.runAll().then(res => {

@@ -3419,7 +3419,17 @@ function toggleKidAudioMute() {
 function mergeAppointmentsFromBridge() {
     try {
         const bridge = JSON.parse(localStorage.getItem('psico_portal_appointments_bridge') || '{}');
-        const patientAppointments = Object.values(bridge).filter(a => String(a.patientId || a.patient_id) === String(PortalState.patientId));
+        const deletedIds = JSON.parse(localStorage.getItem('psico_deleted_appointments') || '[]');
+
+        // Limpiar citas eliminadas permanentemente
+        if (deletedIds.length > 0 && Array.isArray(PortalState.appointments)) {
+            PortalState.appointments = PortalState.appointments.filter(a => !deletedIds.includes(String(a.id)));
+        }
+
+        const patientAppointments = Object.values(bridge).filter(a => {
+            if (a.deleted || deletedIds.includes(String(a.id))) return false;
+            return String(a.patientId || a.patient_id) === String(PortalState.patientId);
+        });
         patientAppointments.forEach(ba => {
             const idx = (PortalState.appointments || []).findIndex(a => String(a.id) === String(ba.id));
             if (idx >= 0) {
@@ -3660,12 +3670,19 @@ function renderSessionsView() {
                 const monthStr = isNaN(dateObj.getDate()) ? '' : dateObj.toLocaleDateString('es-ES', { month: 'short' });
                 const status = h.status || 'completada';
 
+                const isCancelledByTherapist = status === 'cancelada' && (h.canceledBy === 'therapist' || (h.notes && h.notes.toLowerCase().includes('cancelada por terapeuta')));
+                const isCancelledByPatient = status === 'cancelada' && !isCancelledByTherapist;
+
                 const statusBadges = {
                     completada: '<span class="portal-session-badge portal-badge-completada"><i class="fas fa-check-circle"></i> Asistida</span>',
                     reprogramada: '<span class="portal-session-badge portal-badge-reprogramada"><i class="fas fa-sync-alt"></i> Reprogramada</span>',
-                    cancelada: '<span class="portal-session-badge portal-badge-cancelada"><i class="fas fa-times-circle"></i> Cancelada</span>',
+                    cancelada: isCancelledByTherapist 
+                        ? '<span class="portal-session-badge" style="background:#e0e7ff;color:#3730a3;border:1px solid rgba(99,102,241,0.3);"><i class="fas fa-user-md"></i> Cancelada por el terapeuta</span>'
+                        : '<span class="portal-session-badge portal-badge-cancelada"><i class="fas fa-times-circle"></i> Cancelada</span>',
                     agendada: '<span class="portal-session-badge portal-badge-agendada"><i class="fas fa-calendar-alt"></i> Agendada</span>'
                 };
+
+                const reasonText = h.cancelReason || (h.notes && h.notes.includes('Cancelada') ? h.notes : '');
 
                 return `
                     <div class="portal-session-history-item">
@@ -3679,6 +3696,7 @@ function renderSessionsView() {
                                 </div>
                                 <div style="font-size: 11.5px; color: var(--text-secondary);">
                                     ${formatDateSafe(h.date)} (${h.duration || 50} min)
+                                    ${reasonText ? `<div style="margin-top:2px;color:var(--text-tertiary);font-style:italic;"><i class="fas fa-info-circle"></i> ${escapeHtml(reasonText)}</div>` : ''}
                                 </div>
                             </div>
                         </div>

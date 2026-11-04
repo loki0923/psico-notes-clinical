@@ -1078,17 +1078,16 @@ class DatabaseManager {
 
         if (this.isPostgresConnected && this.pgPool) {
             const res = await this.pgPool.query(
-                `UPDATE appointments SET status = 'cancelada' WHERE id = $1 RETURNING *`,
+                `DELETE FROM appointments WHERE id = $1 RETURNING *`,
                 [appointmentId]
             );
             return res.rows && res.rows.length > 0;
         }
 
         if (!Array.isArray(this.localStore.appointments)) return false;
-        const app = this.localStore.appointments.find(a => String(a.id) === String(appointmentId));
-        if (app) {
-            app.status = 'cancelada';
-            app.updatedAt = new Date().toISOString();
+        const initialCount = this.localStore.appointments.length;
+        this.localStore.appointments = this.localStore.appointments.filter(a => String(a.id) !== String(appointmentId));
+        if (this.localStore.appointments.length !== initialCount) {
             this._persistLocalStore();
             return true;
         }

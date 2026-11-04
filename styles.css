@@ -8563,6 +8563,36 @@ body.screen-locked .sidebar {
     border-color: #34d399;
 }
 
+/* ============================================
+   MODAL DE GESTIÓN, CANCELACIÓN Y REAGENDAMIENTO DE CITAS
+   ============================================ */
+.action-card-option {
+    border: 1px solid var(--border-color);
+    background: var(--bg-card);
+    transition: all 0.2s ease;
+}
+
+.action-card-option:hover {
+    border-color: var(--accent-primary) !important;
+    background: var(--bg-secondary) !important;
+}
+
+.action-card-option:has(input[type="radio"]:checked) {
+    border-color: var(--accent-primary) !important;
+    background: rgba(13, 148, 136, 0.08) !important;
+    box-shadow: 0 0 0 1px var(--accent-primary);
+}
+
+[data-theme="dark"] .action-card-option:has(input[type="radio"]:checked) {
+    background: rgba(45, 212, 191, 0.12) !important;
+}
+
+.btn-slot.available:hover {
+    filter: brightness(0.95);
+    transform: translateY(-1px);
+}
+
+
 
 
 

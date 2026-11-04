@@ -23,7 +23,7 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Montserrat:wght@400;500;600;700;800&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <link rel="stylesheet" href="styles.css?v=7.1.2-serena">
+    <link rel="stylesheet" href="styles.css?v=7.1.0-serena">
 </head>
 <body>
 
@@ -55,13 +55,7 @@
 <div class="auth-screen hidden" id="authScreen">
     <div class="auth-card">
         <div class="auth-logo">
-            <span class="logo-icon">
-                <svg viewBox="0 0 100 100" width="40" height="40" fill="none" role="img" aria-label="SERENA">
-                    <path d="M 22.5 69.5 A 34 34 0 0 1 69.5 22.5" stroke="#123F36" stroke-width="7.5" stroke-linecap="round"/>
-                    <path d="M 77.5 30.5 A 34 34 0 0 1 30.5 77.5" stroke="#7FA38F" stroke-width="7.5" stroke-linecap="round"/>
-                    <circle cx="50" cy="50" r="7.5" fill="#123F36"/>
-                </svg>
-            </span>
+            <span class="logo-icon"><img src="assets/brand/serena-symbol.svg" alt="SERENA" width="40" height="40"></span>
             <span class="logo-text">SERENA</span>
         </div>
         <p class="auth-subtitle">Tu práctica, en equilibrio · Gestión clínica para psicólogos</p>
@@ -226,13 +220,7 @@
 <aside class="sidebar" id="sidebar">
     <div class="sidebar-header">
         <div class="logo">
-            <span class="logo-icon">
-                <svg viewBox="0 0 100 100" width="28" height="28" fill="none" role="img" aria-label="SERENA">
-                    <path d="M 22.5 69.5 A 34 34 0 0 1 69.5 22.5" stroke="#123F36" stroke-width="7.5" stroke-linecap="round"/>
-                    <path d="M 77.5 30.5 A 34 34 0 0 1 30.5 77.5" stroke="#7FA38F" stroke-width="7.5" stroke-linecap="round"/>
-                    <circle cx="50" cy="50" r="7.5" fill="#123F36"/>
-                </svg>
-            </span>
+            <span class="logo-icon"><img src="assets/brand/serena-symbol.svg" alt="SERENA" width="28" height="28"></span>
             <span class="logo-text">SERENA</span>
         </div>
         <button class="sidebar-toggle" id="sidebarToggle" title="Plegar menú">
@@ -323,7 +311,7 @@
             </button>
         </div>
         <div class="user-info" onclick="openTherapistProfileModal()" style="cursor:pointer;" title="Click para editar nombre, especialidad y colegiatura">
-            <div class="user-avatar" id="sidebarUserAvatar" style="width:38px;height:38px;min-width:38px;max-width:38px;border-radius:50%;overflow:hidden;flex-shrink:0;"><img src="serena-avatar.jpg?v=7.2.0" alt="Terapeuta" style="width:38px;height:38px;border-radius:50%;object-fit:cover;display:block;" onerror="this.onerror=null; this.src='assets/avatar/serena-avatar.jpg';"></div>
+            <div class="user-avatar" id="sidebarUserAvatar" style="width:38px;height:38px;min-width:38px;max-width:38px;border-radius:50%;overflow:hidden;flex-shrink:0;"><img src="assets/avatar/serena-avatar.jpg?v=7.2.0" alt="Terapeuta" style="width:38px;height:38px;border-radius:50%;object-fit:cover;display:block;"></div>
             <div class="user-details">
                 <div class="user-name" id="sidebarUserName">Terapeuta</div>
                 <div class="user-role" id="sidebarUserEmail">Psicología Clínica</div>
@@ -366,7 +354,7 @@
                 <span class="reminder-badge" id="sessionReminderBadge" style="display:none;">0</span>
             </button>
             <button class="btn-icon" id="serenaAssistantToggleBtn" onclick="toggleSerenaAssistant()" title="Asistente Serena" style="display:inline-flex;align-items:center;justify-content:center;padding:3px;">
-                <img src="serena-avatar.jpg?v=7.2.0" alt="Serena" style="width:24px;height:24px;border-radius:50%;object-fit:cover;" onerror="this.onerror=null; this.src='assets/avatar/serena-avatar.jpg';">
+                <img src="assets/avatar/serena-avatar.jpg?v=7.2.0" alt="Serena" style="width:24px;height:24px;border-radius:50%;object-fit:cover;">
             </button>
             <button class="btn-icon" id="themeToggle" title="Cambiar tema">
                 <i class="fas fa-moon"></i>
@@ -401,7 +389,7 @@
             <!-- ASISTENTE VISUAL SERENA -->
             <div id="serenaAssistantBanner" class="serena-assistant-card" role="region" aria-label="Asistente Serena">
                 <div class="serena-assistant-avatar">
-                    <img src="serena-avatar.jpg?v=7.2.0" alt="Serena" width="52" height="52" style="width:52px;height:52px;border-radius:50%;object-fit:cover;" onerror="this.onerror=null; this.src='assets/avatar/serena-avatar.jpg';">
+                    <img src="assets/avatar/serena-avatar.jpg?v=7.2.0" alt="Serena" width="52" height="52" style="width:52px;height:52px;border-radius:50%;object-fit:cover;">
                 </div>
                 <div class="serena-assistant-body">
                     <div class="serena-assistant-title">
@@ -1050,8 +1038,11 @@
                     </div>
                 </div>
 
-                <input type="hidden" id="patientSchoolName">
                 <div class="form-row">
+                    <div class="form-group" style="flex:1;">
+                        <label>Nombre de la Escuela / Colegio</label>
+                        <input type="text" id="patientSchoolName" placeholder="Nombre de la institución educativa">
+                    </div>
                     <div class="form-group" style="flex:1;">
                         <label>Hitos del Neurodesarrollo / Observaciones</label>
                         <input type="text" id="patientDevelopmentalMilestones" placeholder="Marcha, lenguaje, esfínteres...">
@@ -1115,19 +1106,30 @@
                     </div>
                 </div>
 
-                <!-- Diagnóstico y Tratamiento Farmacológico omitidos en admisión inicial de ficha -->
-                <input type="hidden" id="patientDiagnosis">
-                <input type="hidden" id="patientDiagnosis2">
-                <input type="hidden" id="patientMedication">
+                <!-- Diagnóstico y Tratamiento Farmacológico / Clínico -->
                 <div class="form-row">
-                    <div class="form-group" style="flex:1;">
+                    <div class="form-group">
+                        <label>Diagnóstico Principal (DSM-5 / CIE-11)</label>
+                        <input type="text" id="patientDiagnosis" placeholder="Ej: F41.1 Trastorno de Ansiedad Generalizada">
+                    </div>
+                    <div class="form-group">
+                        <label>Diagnóstico Secundario / Comorbilidad</label>
+                        <input type="text" id="patientDiagnosis2" placeholder="Ej: F32.1 Episodio Depresivo Moderado">
+                    </div>
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>Tratamiento Farmacológico / Medicación</label>
+                        <input type="text" id="patientMedication" placeholder="Fármacos, dosis y médico tratante si aplica">
+                    </div>
+                    <div class="form-group">
                         <label>Antecedentes Médicos / Orgánicos</label>
                         <input type="text" id="patientMedical" placeholder="Enfermedades crónicas, intervenciones, alergias...">
                     </div>
-                    <div class="form-group" style="flex:1;">
-                        <label>Antecedentes Familiares Psiquiátricos / Psicológicos</label>
-                        <input type="text" id="patientFamilyHistory" placeholder="Historial familiar relevante...">
-                    </div>
+                </div>
+                <div class="form-group">
+                    <label>Antecedentes Familiares Psiquiátricos / Psicológicos</label>
+                    <input type="text" id="patientFamilyHistory" placeholder="Historial familiar relevante...">
                 </div>
 
                 <!-- Hipótesis Biopsicosociales y Factores Clínicos (Universal para Niño, Adolescente y Adulto) -->
@@ -1156,8 +1158,10 @@
                         <label>Factores de Protección</label>
                         <textarea id="patientProtectiveFactors" rows="2" placeholder="Fortalezas personales, recursos adaptativos, vínculos seguros y factores de resiliencia..."></textarea>
                     </div>
-                    <!-- Notas libres omitidas de la ficha en favor de Encuadre formal -->
-                    <div style="display:none;"><textarea id="patientNotes"></textarea></div>
+                    <div class="form-group">
+                        <label>Notas Clínicas Adicionales / Observaciones Generales</label>
+                        <textarea id="patientNotes" rows="2" placeholder="Observaciones generales o notas privadas del terapeuta..."></textarea>
+                    </div>
                 </div>
             </div>
 
@@ -1262,7 +1266,7 @@
                     </select>
                 </div>
                 <div class="form-group" style="flex: 1;">
-                    <label id="appointmentPriceLabel"><i class="fas fa-dollar-sign" style="color:#4dab87;"></i> Precio ($ USD) *</label>
+                    <label><i class="fas fa-dollar-sign" style="color:#4dab87;"></i> Precio ($ USD) *</label>
                     <input type="number" step="0.01" min="0" id="appointmentPrice" required placeholder="Ej: 45.00">
                 </div>
             </div>
@@ -1309,6 +1313,150 @@
                 </button>
             </div>
         </form>
+    </div>
+</div>
+
+<!-- APPOINTMENT ACTION MODAL (CANCELAR / REAGENDAR) -->
+<div class="modal" id="appointmentActionModal">
+    <div class="modal-overlay" onclick="closeModal('appointmentActionModal')"></div>
+    <div class="modal-content" style="max-width: 550px; padding: 24px; border-radius: var(--radius-lg); background: var(--bg-card); box-shadow: var(--shadow-lg);">
+        <div class="modal-header" style="margin-bottom: 14px; padding-bottom: 12px; border-bottom: 1px solid var(--border-color); display: flex; justify-content: space-between; align-items: flex-start;">
+            <div>
+                <h2 id="appointmentActionModalTitle" style="font-size: 18px; font-weight: 700; color: var(--text-primary); margin: 0; display: flex; align-items: center; gap: 8px;">
+                    <i class="fas fa-calendar-check" style="color: var(--accent-primary);"></i>
+                    Gestionar Cita — Cancelar o Reagendar
+                </h2>
+                <div id="actionModalAppDetails" style="font-size: 13px; color: var(--text-secondary); margin-top: 4px;">
+                    Paciente: <strong id="actionAppPatientName">—</strong> · Fecha actual: <strong id="actionAppCurrentDate">—</strong> a las <strong id="actionAppCurrentTime">—</strong>
+                </div>
+            </div>
+            <button class="btn-icon" type="button" onclick="closeModal('appointmentActionModal')" title="Cerrar">
+                <i class="fas fa-times"></i>
+            </button>
+        </div>
+
+        <input type="hidden" id="actionAppointmentId">
+
+        <div style="margin-bottom: 16px;">
+            <label style="display: block; font-size: 13px; font-weight: 600; color: var(--text-primary); margin-bottom: 8px;">
+                ¿Qué acción deseas realizar con esta cita?
+            </label>
+            <div style="display: flex; flex-direction: column; gap: 8px;">
+                
+                <!-- 1. Reagendar Cita -->
+                <label class="action-card-option" style="display: flex; align-items: flex-start; gap: 12px; padding: 12px 14px; border: 2px solid var(--border-color); border-radius: var(--radius-md); cursor: pointer; background: var(--bg-primary); transition: all 0.2s;">
+                    <input type="radio" name="appointmentActionRadio" id="apptActionReschedule" value="reprogramar" onchange="onAppointmentActionChange('reprogramar')" checked style="margin-top: 3px;">
+                    <div style="flex: 1;">
+                        <div style="font-size: 14px; font-weight: 700; color: var(--text-primary); display: flex; align-items: center; gap: 6px;">
+                            <i class="fas fa-sync-alt" style="color: #0284c7;"></i> Reagendar / Reprogramar Cita
+                        </div>
+                        <div style="font-size: 12px; color: var(--text-secondary); margin-top: 2px;">
+                            Seleccionar nueva fecha y hora consultando disponibilidad en tiempo real.
+                        </div>
+                    </div>
+                </label>
+
+                <!-- 2. Cancelada por el Terapeuta -->
+                <label class="action-card-option" style="display: flex; align-items: flex-start; gap: 12px; padding: 12px 14px; border: 2px solid var(--border-color); border-radius: var(--radius-md); cursor: pointer; background: var(--bg-primary); transition: all 0.2s;">
+                    <input type="radio" name="appointmentActionRadio" id="apptActionCancelTherapist" value="cancel_therapist" onchange="onAppointmentActionChange('cancel_therapist')" style="margin-top: 3px;">
+                    <div style="flex: 1;">
+                        <div style="font-size: 14px; font-weight: 700; color: var(--text-primary); display: flex; align-items: center; gap: 6px;">
+                            <i class="fas fa-user-md" style="color: #6366f1;"></i> Cancelada por el Terapeuta
+                        </div>
+                        <div style="font-size: 12px; color: var(--text-secondary); margin-top: 2px;">
+                            Cancelación profesional (imprevisto o fuerza mayor). <strong>No penaliza</strong> la adherencia del paciente.
+                        </div>
+                    </div>
+                </label>
+
+                <!-- 3. Cancelada por el Paciente -->
+                <label class="action-card-option" style="display: flex; align-items: flex-start; gap: 12px; padding: 12px 14px; border: 2px solid var(--border-color); border-radius: var(--radius-md); cursor: pointer; background: var(--bg-primary); transition: all 0.2s;">
+                    <input type="radio" name="appointmentActionRadio" id="apptActionCancelPatient" value="cancel_patient" onchange="onAppointmentActionChange('cancel_patient')" style="margin-top: 3px;">
+                    <div style="flex: 1;">
+                        <div style="font-size: 14px; font-weight: 700; color: var(--text-primary); display: flex; align-items: center; gap: 6px;">
+                            <i class="fas fa-user-times" style="color: #ef4444;"></i> Cancelada por el Paciente
+                        </div>
+                        <div style="font-size: 12px; color: var(--text-secondary); margin-top: 2px;">
+                            El paciente canceló o solicitó suspenderla. Se computa en su historial y adherencia.
+                        </div>
+                    </div>
+                </label>
+
+                <!-- 4. Eliminar del Registro -->
+                <label class="action-card-option" style="display: flex; align-items: flex-start; gap: 12px; padding: 10px 14px; border: 1px dashed var(--border-color); border-radius: var(--radius-md); cursor: pointer; background: var(--bg-primary); opacity: 0.85;">
+                    <input type="radio" name="appointmentActionRadio" id="apptActionDeletePermanent" value="delete_permanent" onchange="onAppointmentActionChange('delete_permanent')" style="margin-top: 3px;">
+                    <div style="flex: 1;">
+                        <div style="font-size: 13px; font-weight: 600; color: var(--accent-danger); display: flex; align-items: center; gap: 6px;">
+                            <i class="fas fa-trash-alt"></i> Eliminar definitivamente (Borrar)
+                        </div>
+                        <div style="font-size: 11.5px; color: var(--text-tertiary);">
+                            Borrar completamente del registro si fue un error o duplicado.
+                        </div>
+                    </div>
+                </label>
+
+            </div>
+        </div>
+
+        <!-- SECCIÓN DINÁMICA: REAGENDAR (NUEVA FECHA Y DISPONIBILIDAD) -->
+        <div id="sectionReagendar" style="display: block; background: var(--bg-secondary); padding: 14px 16px; border-radius: var(--radius-md); margin-bottom: 16px; border: 1px solid var(--border-color);">
+            <div style="font-size: 13px; font-weight: 700; color: var(--text-primary); margin-bottom: 10px; display: flex; align-items: center; gap: 6px;">
+                <i class="fas fa-calendar-day" style="color: var(--accent-primary);"></i>
+                Definir Nueva Fecha y Verificar Disponibilidad
+            </div>
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 10px;">
+                <div class="form-group" style="margin-bottom: 0;">
+                    <label style="font-size: 12px; font-weight: 600; color: var(--text-secondary); margin-bottom: 4px; display: block;">Nueva Fecha *</label>
+                    <input type="date" id="actionNewDate" style="width: 100%; font-size: 13px;" onchange="checkAvailabilityForActionModal()">
+                </div>
+                <div class="form-group" style="margin-bottom: 0;">
+                    <label style="font-size: 12px; font-weight: 600; color: var(--text-secondary); margin-bottom: 4px; display: block;">Nueva Hora *</label>
+                    <input type="time" id="actionNewTime" style="width: 100%; font-size: 13px;" value="09:00" onchange="validateSelectedSlotCollision()">
+                </div>
+            </div>
+
+            <!-- Panel de disponibilidad de horarios del día -->
+            <div id="actionAvailabilityContainer" style="margin-top: 8px; margin-bottom: 10px;">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
+                    <span style="font-size: 11.5px; font-weight: 600; color: var(--text-secondary);">
+                        <i class="fas fa-clock"></i> Disponibilidad en la fecha seleccionada:
+                    </span>
+                    <button type="button" class="btn-secondary btn-sm" onclick="checkAvailabilityForActionModal()" style="font-size: 11px; padding: 2px 8px;">
+                        <i class="fas fa-redo"></i> Actualizar
+                    </button>
+                </div>
+                <div id="actionSlotsGrid" style="display: flex; flex-wrap: wrap; gap: 6px; max-height: 120px; overflow-y: auto; padding: 4px 0;">
+                    <!-- Se puebla dinámicamente con chips de turnos libres y ocupados -->
+                </div>
+                <div id="actionSlotCollisionNotice" style="font-size: 12px; color: #dc2626; margin-top: 6px; display: none;"></div>
+            </div>
+
+            <div class="form-group" style="margin-bottom: 0;">
+                <label style="font-size: 12px; font-weight: 600; color: var(--text-secondary); margin-bottom: 4px; display: block;">Motivo de la reprogramación</label>
+                <input type="text" id="actionRescheduleReason" placeholder="Ej: Ajuste de horario acordado, viaje del paciente..." style="width: 100%; font-size: 13px;">
+            </div>
+        </div>
+
+        <!-- SECCIÓN DINÁMICA: CANCELACIÓN (TERAPEUTA O PACIENTE) -->
+        <div id="sectionCancelacion" style="display: none; background: var(--bg-secondary); padding: 14px 16px; border-radius: var(--radius-md); margin-bottom: 16px; border: 1px solid var(--border-color);">
+            <div id="cancelSectionHeading" style="font-size: 13px; font-weight: 700; color: var(--text-primary); margin-bottom: 10px; display: flex; align-items: center; gap: 6px;">
+                <i class="fas fa-comment-dots"></i> Motivo de la Cancelación
+            </div>
+            <div class="form-group" style="margin-bottom: 8px;">
+                <label style="font-size: 12px; font-weight: 600; color: var(--text-secondary); margin-bottom: 4px; display: block;">Motivo habitual (predeterminado):</label>
+                <select id="actionReasonPresetSelect" onchange="onActionReasonPresetChange()" style="width: 100%; font-size: 13px; margin-bottom: 8px;">
+                    <!-- Opciones dinámicas -->
+                </select>
+                <textarea id="actionCancelCustomReason" rows="2" placeholder="Detalle adicional o justificación clínica..." style="width: 100%; font-size: 13px;"></textarea>
+            </div>
+        </div>
+
+        <div class="modal-actions" style="margin-top: 16px; display: flex; justify-content: flex-end; gap: 10px;">
+            <button type="button" class="btn-secondary" onclick="closeModal('appointmentActionModal')">Cancelar</button>
+            <button type="button" id="btnConfirmAppointmentAction" class="btn-primary" onclick="executeAppointmentAction()">
+                <i class="fas fa-sync-alt"></i> Reagendar Cita
+            </button>
+        </div>
     </div>
 </div>
 
@@ -1642,20 +1790,6 @@
             </button>
         </div>
         <div class="modal-form" id="financeRateModalBody"></div>
-    </div>
-</div>
-
-<!-- FINANCE BCV RATE MODAL -->
-<div class="modal" id="financeBcvRateModal">
-    <div class="modal-overlay" onclick="closeModal('financeBcvRateModal')"></div>
-    <div class="modal-content" style="max-width: 520px;">
-        <div class="modal-header">
-            <h2 id="financeBcvRateModalTitle"><i class="fas fa-landmark" style="color:var(--accent-primary);"></i> Tasa Oficial BCV y Moneda Local</h2>
-            <button class="btn-icon" onclick="closeModal('financeBcvRateModal')">
-                <i class="fas fa-times"></i>
-            </button>
-        </div>
-        <div class="modal-form" id="financeBcvRateModalBody"></div>
     </div>
 </div>
 
@@ -2191,8 +2325,8 @@
                 </div>
             </div>
             <div class="modal-actions" style="display:flex;justify-content:space-between;align-items:center;">
-                <button type="button" class="btn-danger" id="btnDeleteCustomScale" style="display:none;" onclick="deleteCustomScale(document.getElementById('customScaleEditId').value)">
-                    <i class="fas fa-trash"></i> Eliminar Escala
+                <button type="button" id="btnDeleteCustomScale" class="btn-danger-outline" style="display:none;" onclick="deleteCustomScale(document.getElementById('customScaleEditId').value)">
+                    <i class="fas fa-trash-alt"></i> Eliminar Escala
                 </button>
                 <div style="display:flex;gap:10px;margin-left:auto;">
                     <button type="button" class="btn-secondary" onclick="closeModal('scaleEditorModal')">Cancelar</button>
@@ -2200,6 +2334,18 @@
                 </div>
             </div>
         </form>
+    </div>
+</div>
+
+<!-- MODAL DE CONFIGURACIÓN DE TASA BCV / DIVISAS -->
+<div class="modal" id="financeBcvRateModal">
+    <div class="modal-overlay" onclick="closeModal('financeBcvRateModal')"></div>
+    <div class="modal-content" style="max-width: 520px;">
+        <div class="modal-header">
+            <h2><i class="fas fa-coins"></i> Cotización y Tasas BCV</h2>
+            <button class="btn-icon" onclick="closeModal('financeBcvRateModal')"><i class="fas fa-times"></i></button>
+        </div>
+        <div class="modal-body" id="financeBcvRateModalBody"></div>
     </div>
 </div>
 
@@ -2330,8 +2476,7 @@
 <script src="psychoed.js?v=7.1.0-serena"></script>
 <script src="reports.js?v=7.1.0-serena"></script>
 <script src="vademecum.js?v=7.1.0-serena"></script>
-<script src="mental-exam.js?v=7.1.2-serena"></script>
-<script src="app.js?v=7.1.2-serena"></script>
+<script src="app.js?v=7.1.0-serena"></script>
 <script src="scales.js?v=7.1.0-serena"></script>
 <script src="finance.js?v=7.1.0-serena"></script>
 <script src="adm.js?v=7.1.0-serena"></script>
@@ -2341,6 +2486,7 @@
 <script src="consentimiento.js?v=7.1.0-serena"></script>
 <script src="historia-clinica.js?v=7.1.0-serena"></script>
 <script src="genogram.js?v=7.1.0-serena"></script>
+<script src="mental-exam.js?v=7.1.0-serena"></script>
 <script>
 if ('caches' in window) {
     caches.keys().then(names => {
