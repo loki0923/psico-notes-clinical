@@ -5931,8 +5931,8 @@ ClinicalTestSuite.add('TC-PORTAL-08', 'Selección inteligente de horarios y bloq
         throw new Error(`Sincronización de pacientes falló con status ${syncRes.status}`);
     }
 
-    // 5. Consultar disponibilidad en día laborable (Miércoles 2026-11-04)
-    const availRes1 = await fetch(`${baseUrl}/api/v1/portal/availability?token=${encodeURIComponent(portalToken1)}&date=2026-11-04`);
+    // 5. Consultar disponibilidad en día laborable (Miércoles 2026-11-18)
+    const availRes1 = await fetch(`${baseUrl}/api/v1/portal/availability?token=${encodeURIComponent(portalToken1)}&date=2026-11-18`);
     if (availRes1.status !== 200) {
         throw new Error(`GET /api/v1/portal/availability falló con status ${availRes1.status}`);
     }
@@ -5946,21 +5946,21 @@ ClinicalTestSuite.add('TC-PORTAL-08', 'Selección inteligente de horarios y bloq
         throw new Error('El horario 10:00 AM debe estar inicialmente disponible');
     }
 
-    // 6. Consultar disponibilidad en día Domingo (2026-11-08) -> Debe marcarse como no laborable
-    const sundayRes = await fetch(`${baseUrl}/api/v1/portal/availability?token=${encodeURIComponent(portalToken1)}&date=2026-11-08`);
+    // 6. Consultar disponibilidad en día Domingo (2026-11-22) -> Debe marcarse como no laborable
+    const sundayRes = await fetch(`${baseUrl}/api/v1/portal/availability?token=${encodeURIComponent(portalToken1)}&date=2026-11-22`);
     const sundayData = await sundayRes.json();
     if (sundayData.isWorkingDay !== false || sundayData.slots.some(s => s.available)) {
         throw new Error('Los domingos deben registrarse como no laborables y sin horarios disponibles');
     }
 
-    // 7. Paciente 1 agenda el turno de las 10:00 AM el 2026-11-04
+    // 7. Paciente 1 agenda el turno de las 10:00 AM el 2026-11-18
     const bookRes1 = await fetch(`${baseUrl}/api/v1/portal/appointments/request`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
             token: portalToken1,
             patientId: patient1Id,
-            date: '2026-11-04',
+            date: '2026-11-18',
             time: '10:00',
             duration: 50,
             type: 'Online',
@@ -5971,9 +5971,9 @@ ClinicalTestSuite.add('TC-PORTAL-08', 'Selección inteligente de horarios y bloq
         throw new Error(`Agendamiento inicial falló con status ${bookRes1.status}`);
     }
 
-    // 8. Paciente 2 consulta disponibilidad para el mismo día (2026-11-04)
+    // 8. Paciente 2 consulta disponibilidad para el mismo día (2026-11-18)
     // El horario de las 10:00 AM ahora debe aparecer bloqueado (available: false, reason: 'Horario ocupado')
-    const availRes2 = await fetch(`${baseUrl}/api/v1/portal/availability?token=${encodeURIComponent(portalToken2)}&date=2026-11-04`);
+    const availRes2 = await fetch(`${baseUrl}/api/v1/portal/availability?token=${encodeURIComponent(portalToken2)}&date=2026-11-18`);
     const availData2 = await availRes2.json();
     const slot10amAfter = availData2.slots.find(s => s.time === '10:00');
     if (!slot10amAfter || slot10amAfter.available !== false || slot10amAfter.reason !== 'Horario ocupado') {
@@ -5987,7 +5987,7 @@ ClinicalTestSuite.add('TC-PORTAL-08', 'Selección inteligente de horarios y bloq
         body: JSON.stringify({
             token: portalToken2,
             patientId: patient2Id,
-            date: '2026-11-04',
+            date: '2026-11-18',
             time: '10:00',
             duration: 50,
             type: 'Presencial',
@@ -6009,7 +6009,7 @@ ClinicalTestSuite.add('TC-PORTAL-08', 'Selección inteligente de horarios y bloq
         body: JSON.stringify({
             token: portalToken2,
             patientId: patient2Id,
-            date: '2026-11-04',
+            date: '2026-11-18',
             time: '11:00',
             duration: 50,
             type: 'Online',
@@ -8236,6 +8236,76 @@ ClinicalTestSuite.add('TC-FIN-BCV-03', 'Tarifas a la Tasa Utilizada y Paridad Ex
     saveFinanceRates(initialRates);
     saveFinanceTransactions(initialTxs);
     saveBcvExchangeRates(originalBcv);
+});
+
+// 150. TC-TIMEZONE-01: Mitigación de Desfase de Zona Horaria al Agendar Citas
+ClinicalTestSuite.add('TC-TIMEZONE-01', 'Mitigación de Desfase de Zona Horaria al Agendar Citas (Preservación del Día Exacto sin Rollover UTC)', async () => {
+    const fs = await import('fs');
+    const path = await import('path');
+    const appContent = fs.readFileSync(path.resolve('./app.js'), 'utf8');
+
+    // 1. Verificar presencia de parseLocalDate y manejo en isSameDay
+    if (!appContent.includes('function parseLocalDate(')) {
+        throw new Error('app.js debe implementar la función parseLocalDate para normalizar fechas sin desfase UTC');
+    }
+    if (!appContent.includes('window.parseLocalDate = parseLocalDate')) {
+        throw new Error('app.js debe exponer globalmente parseLocalDate en window');
+    }
+
+    // 2. Extraer y probar parseLocalDate directamente
+    const parseFn = new Function(`
+        ${appContent.slice(appContent.indexOf('function parseLocalDate('), appContent.indexOf('function formatDate('))}
+        return parseLocalDate;
+    `)();
+
+    const dt = parseFn('2026-11-06');
+    if (!dt || dt.getFullYear() !== 2026 || dt.getMonth() !== 10 || dt.getDate() !== 6) {
+        throw new Error(`parseLocalDate('2026-11-06') falló. Año: ${dt?.getFullYear()}, Mes: ${dt?.getMonth()}, Día: ${dt?.getDate()}`);
+    }
+
+    // 3. Probar que isSameDay acepte strings y Date correctamente sin retroceder al día anterior
+    const isSameDayFn = new Function(`
+        ${appContent.slice(appContent.indexOf('function parseLocalDate('), appContent.indexOf('function getMoodEmoji('))}
+        return isSameDay;
+    `)();
+
+    const isMatchSameDay = isSameDayFn('2026-11-06', new Date(2026, 10, 6));
+    const isMismatchPrevDay = isSameDayFn('2026-11-06', new Date(2026, 10, 5));
+
+    if (!isMatchSameDay) {
+        throw new Error('isSameDay debe retornar true para una cita del 2026-11-06 comparada con el día 6 de noviembre');
+    }
+    if (isMismatchPrevDay) {
+        throw new Error('isSameDay debe retornar false para una cita del 2026-11-06 comparada con el día anterior (5 de noviembre)');
+    }
+
+    // 4. Probar que parseLocalDate y toDateInputValue preserven objetos Date a medianoche UTC
+    const toDateInputFn = new Function(`
+        ${appContent.slice(appContent.indexOf('function parseLocalDate('), appContent.indexOf('function isSameDay('))}
+        return toDateInputValue;
+    `)();
+    const utcMidnightDate = new Date('2026-11-05T00:00:00.000Z');
+    const inputVal = toDateInputFn(utcMidnightDate);
+    if (inputVal !== '2026-11-05') {
+        throw new Error(`toDateInputValue(utcMidnightDate) falló: esperado '2026-11-05', obtenido '${inputVal}'`);
+    }
+
+    // 5. Verificar que db.js formatee correctamente columnas DATE de PostgreSQL a medianoche UTC
+    const dbContent = fs.readFileSync(path.resolve('./db.js'), 'utf8');
+    const formatDbDateFn = new Function(`
+        ${dbContent.slice(dbContent.indexOf('function formatDbDate('), dbContent.indexOf('class DatabaseManager'))}
+        return formatDbDate;
+    `)();
+    const formattedDb = formatDbDateFn(utcMidnightDate);
+    if (formattedDb !== '2026-11-05') {
+        throw new Error(`formatDbDate(utcMidnightDate) falló: esperado '2026-11-05', obtenido '${formattedDb}'`);
+    }
+
+    // 6. Verificar que openAppointmentModalWithSlot invoque openModal primero para no sobreescribir la fecha
+    if (!appContent.includes('openAppointmentModalWithSlot(dateStr, timeStr) {\r\n    openModal(\'appointmentModal\');') &&
+        !appContent.includes('openAppointmentModalWithSlot(dateStr, timeStr) {\n    openModal(\'appointmentModal\');')) {
+        throw new Error('openAppointmentModalWithSlot debe invocar openModal primero para preservar dateStr y timeStr');
+    }
 });
 
 // Auto-ejecución si se corre desde Node.js (CLI)

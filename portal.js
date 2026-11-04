@@ -1459,10 +1459,21 @@ function getInitials(name) {
     return name.split(' ').map(n => n[0]).slice(0, 2).join('').toUpperCase();
 }
 
+function getLocalDateStr(d = new Date()) {
+    const y = d.getFullYear();
+    const m = String(d.getMonth() + 1).padStart(2, '0');
+    const day = String(d.getDate()).padStart(2, '0');
+    return `${y}-${m}-${day}`;
+}
+
 function formatDateSafe(dateString) {
     if (!dateString) return 'Fecha no disponible';
     try {
-        const date = new Date(dateString);
+        const clean = String(dateString).trim();
+        const match = clean.match(/^(\d{4})-(\d{2})-(\d{2})/);
+        const date = match 
+            ? new Date(parseInt(match[1], 10), parseInt(match[2], 10) - 1, parseInt(match[3], 10))
+            : new Date(dateString);
         if (isNaN(date.getTime())) return 'Fecha no disponible';
         return date.toLocaleDateString('es-ES', { day: 'numeric', month: 'short', year: 'numeric' });
     } catch (e) {
@@ -3720,7 +3731,7 @@ async function fetchPortalAvailability(dateStr) {
     const dayName = dayNames[dayOfWeek] || '';
 
     const now = new Date();
-    const todayStr = now.toISOString().split('T')[0];
+    const todayStr = getLocalDateStr(now);
     const isToday = dateStr === todayStr;
     const currentMinutes = now.getHours() * 60 + now.getMinutes();
 
@@ -3951,8 +3962,8 @@ function openScheduleSessionModal() {
         if (tomorrow.getDay() === 0) {
             tomorrow.setDate(tomorrow.getDate() + 1); // Si mañana es domingo, abrir en lunes
         }
-        targetDateStr = tomorrow.toISOString().split('T')[0];
-        dateInput.min = new Date().toISOString().split('T')[0];
+        targetDateStr = getLocalDateStr(tomorrow);
+        dateInput.min = getLocalDateStr();
         dateInput.value = targetDateStr;
     }
 

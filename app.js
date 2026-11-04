@@ -2282,7 +2282,7 @@ function renderWelcome(today) {
     const userName = AppState.currentUser?.name || 'Terapeuta';
     const firstName = userName.split(' ')[0];
     document.getElementById('welcomeTitle').textContent = firstName;
-    const todayApps = AppState.appointments.filter(a => isSameDay(new Date(a.date), today) && a.status !== 'cancelada');
+    const todayApps = AppState.appointments.filter(a => isSameDay(parseLocalDate(a.date), today) && a.status !== 'cancelada');
     const priorityCount = calculatePriorityPatients().length;
     let subtitle = 'Tu consulta te espera';
     if (todayApps.length > 0) {
@@ -2297,7 +2297,7 @@ function renderWelcome(today) {
 }
 
 function renderDaySummary(today) {
-    const todayApps = AppState.appointments.filter(a => isSameDay(new Date(a.date), today) && a.status !== 'cancelada');
+    const todayApps = AppState.appointments.filter(a => isSameDay(parseLocalDate(a.date), today) && a.status !== 'cancelada');
     document.getElementById('todaySessions').textContent = todayApps.length;
     document.getElementById('todaySessionsLabel').textContent = todayApps.length === 1 ? 'Programada' : 'Programadas';
     const priority = calculatePriorityPatients();
@@ -2315,8 +2315,8 @@ function renderDaySummary(today) {
     const currentMonth = today.getMonth();
     const currentYear = today.getFullYear();
     const monthCompletedApps = AppState.appointments.filter(a => {
-        const d = new Date(a.date);
-        return d.getMonth() === currentMonth && d.getFullYear() === currentYear && a.status === 'completada';
+        const d = parseLocalDate(a.date);
+        return d && d.getMonth() === currentMonth && d.getFullYear() === currentYear && a.status === 'completada';
     }).length;
 
     const weekGoalsEl = document.getElementById('weekGoals');
@@ -2536,7 +2536,7 @@ function renderAttendanceChart() {
         weekStart.setDate(weekStart.getDate() - (i * 7) - weekStart.getDay());
         const weekEnd = new Date(weekStart);
         weekEnd.setDate(weekEnd.getDate() + 6);
-        const weekApps = AppState.appointments.filter(a => { const d = new Date(a.date); return d >= weekStart && d <= weekEnd; });
+        const weekApps = AppState.appointments.filter(a => { const d = parseLocalDate(a.date); return d && d >= weekStart && d <= weekEnd; });
         const completed = weekApps.filter(a => a.status === 'completada').length;
         const total = weekApps.length;
         const rate = total > 0 ? Math.round((completed / total) * 100) : 0;
@@ -2555,7 +2555,7 @@ function renderSessionsChart() {
         weekStart.setDate(weekStart.getDate() - (i * 7) - weekStart.getDay());
         const weekEnd = new Date(weekStart);
         weekEnd.setDate(weekEnd.getDate() + 6);
-        const count = AppState.appointments.filter(a => { const d = new Date(a.date); return d >= weekStart && d <= weekEnd && a.status === 'completada'; }).length;
+        const count = AppState.appointments.filter(a => { const d = parseLocalDate(a.date); return d && d >= weekStart && d <= weekEnd && a.status === 'completada'; }).length;
         weeks.push({ value: count, date: `S${4 - i}` });
     }
     const max = Math.max(...weeks.map(w => w.value), 1);
@@ -2593,7 +2593,7 @@ function renderMiniChart(container, data, maxVal, color) {
 function renderContextualAgenda(today) {
     const container = document.getElementById('contextualAgenda');
     if (!container) return;
-    const todayApps = AppState.appointments.filter(a => isSameDay(new Date(a.date), today) && a.status !== 'cancelada').sort((a, b) => a.time.localeCompare(b.time));
+    const todayApps = AppState.appointments.filter(a => isSameDay(parseLocalDate(a.date), today) && a.status !== 'cancelada').sort((a, b) => a.time.localeCompare(b.time));
     if (todayApps.length === 0) {
         container.innerHTML = `<div class="empty-state"><div class="empty-icon">📅</div><p>No hay sesiones hoy</p><button class="btn-primary" onclick="openModal('appointmentModal')">Agendar cita</button></div>`;
         return;
@@ -4489,7 +4489,7 @@ function calculatePatientSessionStats(patientId) {
     const noShowApps = apps.filter(a => a.status === 'no_asistio' || a.status === 'ausente');
     const noShowCount = noShowApps.length;
 
-    const scheduledApps = apps.filter(a => a.status === 'agendada' || (!a.status && new Date(a.date) >= new Date()));
+    const scheduledApps = apps.filter(a => a.status === 'agendada' || (!a.status && (parseLocalDate(a.date) || new Date(0)) >= new Date()));
     const scheduledCount = scheduledApps.length;
 
     // Evaluables: sesiones que debían ocurrir o concluyeron
@@ -4546,18 +4546,12 @@ function calculatePatientSessionStats(patientId) {
 }
 
 function openAppointmentModalForPatient(patientId) {
+    openModal('appointmentModal');
     document.getElementById('appointmentId').value = '';
-    const form = document.getElementById('appointmentForm');
-    if (form) form.reset();
-    const todayStr = new Date().toISOString().split('T')[0];
-    document.getElementById('appointmentDate').value = todayStr;
-    document.getElementById('appointmentTime').value = '10:00';
-    updatePatientSelects();
     const patSelect = document.getElementById('appointmentPatient');
     if (patSelect) patSelect.value = patientId;
     document.getElementById('appointmentModalTitle').textContent = 'Agendar / Registrar Sesión';
     if (typeof populateAppointmentRates === 'function') populateAppointmentRates();
-    openModal('appointmentModal');
 }
 
 function renderTabHistorialSesiones(patientId, activeFilter = 'all') {
@@ -7820,13 +7814,13 @@ function zoomIntoDay(dateStr) {
 }
 
 function openAppointmentModalWithSlot(dateStr, timeStr) {
+    openModal('appointmentModal');
     document.getElementById('appointmentId').value = '';
-    document.getElementById('appointmentForm').reset();
-    document.getElementById('appointmentDate').value = dateStr;
-    document.getElementById('appointmentTime').value = timeStr || '09:00';
+    if (dateStr) document.getElementById('appointmentDate').value = dateStr;
+    if (timeStr) document.getElementById('appointmentTime').value = timeStr;
     document.getElementById('appointmentModalTitle').textContent = `Agendar Cita — ${formatDate(dateStr)} ${timeStr || ''}`;
     updatePatientSelects();
-    openModal('appointmentModal');
+    if (typeof populateAppointmentRates === 'function') populateAppointmentRates();
 }
 
 function viewAppointmentDetail(appId) {
@@ -7864,8 +7858,8 @@ function renderCalendarMonth(container) {
     }
 
     const monthApps = AppState.appointments.filter(a => {
-        const d = new Date(a.date);
-        return d.getFullYear() === year && d.getMonth() === month && a.status !== 'cancelada';
+        const d = parseLocalDate(a.date);
+        return d && d.getFullYear() === year && d.getMonth() === month && a.status !== 'cancelada';
     });
 
     const metricsEl = document.getElementById('calendarQuickMetrics');
@@ -7905,7 +7899,7 @@ function renderCalendarMonth(container) {
         const dateStr = toDateInputValue(date);
         const isToday = isSameDay(date, today);
         const isSelected = isSameDay(date, AppState.selectedDate);
-        const dayApps = AppState.appointments.filter(a => isSameDay(new Date(a.date), date) && a.status !== 'cancelada').sort((a, b) => a.time.localeCompare(b.time));
+        const dayApps = AppState.appointments.filter(a => isSameDay(parseLocalDate(a.date), date) && a.status !== 'cancelada').sort((a, b) => a.time.localeCompare(b.time));
 
         let eventsHtml = '';
         const visibleApps = dayApps.slice(0, 3);
@@ -7975,8 +7969,8 @@ function renderCalendarWeek(container) {
     }
 
     const weekApps = AppState.appointments.filter(a => {
-        const d = new Date(a.date);
-        return d >= new Date(monday.getFullYear(), monday.getMonth(), monday.getDate(), 0, 0, 0) &&
+        const d = parseLocalDate(a.date);
+        return d && d >= new Date(monday.getFullYear(), monday.getMonth(), monday.getDate(), 0, 0, 0) &&
                d <= new Date(sunday.getFullYear(), sunday.getMonth(), sunday.getDate(), 23, 59, 59) &&
                a.status !== 'cancelada';
     });
@@ -7997,7 +7991,7 @@ function renderCalendarWeek(container) {
         const dateStr = toDateInputValue(colDate);
         const isToday = isSameDay(colDate, today);
         const isSelected = isSameDay(colDate, AppState.selectedDate);
-        const dayApps = AppState.appointments.filter(a => isSameDay(new Date(a.date), colDate) && a.status !== 'cancelada').sort((a, b) => a.time.localeCompare(b.time));
+        const dayApps = AppState.appointments.filter(a => isSameDay(parseLocalDate(a.date), colDate) && a.status !== 'cancelada').sort((a, b) => a.time.localeCompare(b.time));
 
         html += `
             <div class="cal-week-col ${isToday ? 'today' : ''} ${isSelected ? 'selected' : ''}">
@@ -8051,7 +8045,7 @@ function renderCalendarDay(container) {
         titleEl.textContent = selDate.toLocaleDateString('es-ES', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
     }
 
-    const dayApps = AppState.appointments.filter(a => isSameDay(new Date(a.date), selDate) && a.status !== 'cancelada').sort((a, b) => a.time.localeCompare(b.time));
+    const dayApps = AppState.appointments.filter(a => isSameDay(parseLocalDate(a.date), selDate) && a.status !== 'cancelada').sort((a, b) => a.time.localeCompare(b.time));
 
     const metricsEl = document.getElementById('calendarQuickMetrics');
     if (metricsEl) {
@@ -8154,8 +8148,8 @@ function renderCalendarYear(container) {
     }
 
     const yearApps = AppState.appointments.filter(a => {
-        const d = new Date(a.date);
-        return d.getFullYear() === year && a.status !== 'cancelada';
+        const d = parseLocalDate(a.date);
+        return d && d.getFullYear() === year && a.status !== 'cancelada';
     });
 
     const metricsEl = document.getElementById('calendarQuickMetrics');
@@ -8170,7 +8164,10 @@ function renderCalendarYear(container) {
 
     for (let m = 0; m < 12; m++) {
         const isCurrentMonth = today.getFullYear() === year && today.getMonth() === m;
-        const monthApps = yearApps.filter(a => new Date(a.date).getMonth() === m);
+        const monthApps = yearApps.filter(a => {
+            const d = parseLocalDate(a.date);
+            return d && d.getMonth() === m;
+        });
         const daysInMonth = new Date(year, m + 1, 0).getDate();
         let startDay = new Date(year, m, 1).getDay();
         let startPadding = (startDay === 0) ? 6 : startDay - 1;
@@ -8202,7 +8199,7 @@ function renderCalendarYear(container) {
         for (let d = 1; d <= daysInMonth; d++) {
             const checkDate = new Date(year, m, d);
             const isDayToday = isSameDay(checkDate, today);
-            const hasApps = monthApps.some(a => isSameDay(new Date(a.date), checkDate));
+            const hasApps = monthApps.some(a => isSameDay(parseLocalDate(a.date), checkDate));
             const dateStr = toDateInputValue(checkDate);
             html += `
                 <div class="cal-mini-day ${hasApps ? 'has-app' : ''} ${isDayToday ? 'today' : ''}" 
@@ -8228,7 +8225,7 @@ function renderAppointments() {
     const subtitleEl = document.getElementById('dayDetailsSubtitle');
     if (titleEl) titleEl.textContent = `Citas del ${dateFormatted}`;
 
-    const apps = AppState.appointments.filter(a => isSameDay(new Date(a.date), AppState.selectedDate)).sort((a, b) => a.time.localeCompare(b.time));
+    const apps = AppState.appointments.filter(a => isSameDay(parseLocalDate(a.date), AppState.selectedDate)).sort((a, b) => a.time.localeCompare(b.time));
     if (subtitleEl) subtitleEl.textContent = `${apps.length} cita${apps.length === 1 ? '' : 's'} registrada${apps.length === 1 ? '' : 's'}`;
 
     if (apps.length === 0) {
@@ -8611,23 +8608,33 @@ function deleteAppointment(id) {
 
 // Sugerencia Inteligente de Horarios
 function suggestAppointmentSlots() {
-    const patientId = document.getElementById('appointmentPatient').value;
+    const patientId = document.getElementById('appointmentPatient')?.value;
     const container = document.getElementById('aiSuggestResults');
     if (!container) return;
     
-    const today = new Date();
+    const currentDateVal = document.getElementById('appointmentDate')?.value;
+    const baseDate = currentDateVal ? parseLocalDate(currentDateVal) : (AppState.selectedDate ? new Date(AppState.selectedDate) : new Date());
+    const validBase = (baseDate && !isNaN(baseDate.getTime())) ? baseDate : new Date();
     const suggestions = [];
+    const now = new Date();
     
-    for (let d = 1; d <= 5; d++) {
-        const checkDate = new Date(today);
-        checkDate.setDate(checkDate.getDate() + d);
+    for (let d = 0; d <= 5; d++) {
+        const checkDate = new Date(validBase.getFullYear(), validBase.getMonth(), validBase.getDate() + d);
         if (checkDate.getDay() === 0) continue; // omitir domingo
         
         const dateStr = toDateInputValue(checkDate);
-        const dayApps = AppState.appointments.filter(a => a.date === dateStr && a.status !== 'cancelada');
+        const dayApps = (AppState.appointments || []).filter(a => {
+            if (a.status === 'cancelada') return false;
+            return a.date === dateStr || isSameDay(parseLocalDate(a.date), checkDate);
+        });
         
         const candidateHours = ['09:00', '11:00', '15:00', '17:00'];
         for (const hour of candidateHours) {
+            // Si la fecha coincide con hoy en hora local, descartar bloques pasados
+            if (isSameDay(checkDate, now)) {
+                const [h] = hour.split(':').map(Number);
+                if (h <= now.getHours()) continue;
+            }
             const conflict = dayApps.some(a => a.time === hour);
             if (!conflict) {
                 const dayName = checkDate.toLocaleDateString('es-ES', { weekday: 'short', day: 'numeric', month: 'short' });
@@ -8636,7 +8643,7 @@ function suggestAppointmentSlots() {
                     time: hour,
                     display: `${dayName} a las ${hour}`,
                     score: 95 - d * 2,
-                    reason: 'Horario con alta disponibilidad y espacio ideal'
+                    reason: d === 0 ? 'Horario óptimo para la fecha seleccionada' : 'Horario con alta disponibilidad y espacio ideal'
                 });
                 if (suggestions.length >= 3) break;
             }
@@ -9634,7 +9641,7 @@ function updateStats() {
     const ms = new Date(today.getFullYear(), today.getMonth(), 1);
     const me = new Date(today.getFullYear(), today.getMonth() + 1, 0);
     const ap = new Set(); AppState.appointments.forEach(a => ap.add(a.patientId));
-    const ma = AppState.appointments.filter(a => { const d = new Date(a.date); return d >= ms && d <= me; });
+    const ma = AppState.appointments.filter(a => { const d = parseLocalDate(a.date); return d && d >= ms && d <= me; });
     const th = ma.reduce((s, a) => s + parseInt(a.duration || 50, 10), 0) / 60;
     document.getElementById('activePatients').textContent = ap.size;
     document.getElementById('monthAppointments').textContent = ma.length;
@@ -9642,7 +9649,7 @@ function updateStats() {
     document.getElementById('consultationHours').textContent = Math.round(th);
     const wd = ['Dom', 'Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb'];
     const wc = [0, 0, 0, 0, 0, 0, 0];
-    AppState.appointments.forEach(a => wc[new Date(a.date).getDay()]++);
+    AppState.appointments.forEach(a => { const d = parseLocalDate(a.date); if (d) wc[d.getDay()]++; });
     const mc = Math.max(...wc, 1);
     document.getElementById('weekdayChart').innerHTML = wd.map((d, i) => `<div class="bar-item"><div class="bar-fill" style="height:${(wc[i] / mc * 100) || 4}%"></div><div class="bar-label">${d}</div></div>`).join('');
     renderAgendaHeatmap();
@@ -9874,7 +9881,8 @@ function openModal(id) {
             document.getElementById('appointmentForm').reset();
             document.getElementById('appointmentId').value = '';
             document.getElementById('appointmentModalTitle').textContent = 'Agendar Cita';
-            document.getElementById('appointmentDate').value = toDateInputValue(new Date());
+            const defaultDate = AppState.selectedDate || new Date();
+            document.getElementById('appointmentDate').value = toDateInputValue(defaultDate);
             updatePatientSelects();
             if (typeof populateAppointmentRates === 'function') populateAppointmentRates();
         }
@@ -9992,11 +10000,45 @@ function showConfirmModal(title, message, onConfirm, isDanger = true) {
 
 function generateId() { return Date.now().toString(36) + Math.random().toString(36).substr(2); }
 function getInitials(n) { return n ? n.split(' ').map(x => x[0]).join('').toUpperCase().substring(0, 2) : '?'; }
-function formatDate(ds) { if (!ds) return ''; const d = new Date(ds.includes('T') ? ds : ds + 'T00:00:00'); return d.toLocaleDateString('es-ES', { day: 'numeric', month: 'short', year: 'numeric' }); }
+function parseLocalDate(input) {
+    if (!input) return null;
+    if (input instanceof Date) {
+        if (isNaN(input.getTime())) return null;
+        if (input.getUTCHours() === 0 && input.getUTCMinutes() === 0 && input.getUTCSeconds() === 0 && input.getUTCMilliseconds() === 0) {
+            return new Date(input.getUTCFullYear(), input.getUTCMonth(), input.getUTCDate());
+        }
+        return new Date(input.getFullYear(), input.getMonth(), input.getDate());
+    }
+    if (typeof input === 'string') {
+        const clean = input.trim();
+        const match = clean.match(/^(\d{4})-(\d{2})-(\d{2})/);
+        if (match) {
+            return new Date(parseInt(match[1], 10), parseInt(match[2], 10) - 1, parseInt(match[3], 10));
+        }
+    }
+    const fallback = new Date(input);
+    if (isNaN(fallback.getTime())) return null;
+    return fallback;
+}
+function formatDate(ds) {
+    if (!ds) return '';
+    const d = parseLocalDate(ds);
+    return d && !isNaN(d.getTime()) ? d.toLocaleDateString('es-ES', { day: 'numeric', month: 'short', year: 'numeric' }) : '';
+}
 function formatTime(ts) { if (!ts) return ''; const [h, m] = ts.split(':'); return `${h}:${m}`; }
-function calculateAge(bd) { if (!bd) return ''; const b = new Date(bd); const t = new Date(); let a = t.getFullYear() - b.getFullYear(); const m = t.getMonth() - b.getMonth(); if (m < 0 || (m === 0 && t.getDate() < b.getDate())) a--; return a; }
-function toDateInputValue(d) { return `${d.getFullYear()}-${(d.getMonth() + 1).toString().padStart(2, '0')}-${d.getDate().toString().padStart(2, '0')}`; }
-function isSameDay(d1, d2) { return d1.getFullYear() === d2.getFullYear() && d1.getMonth() === d2.getMonth() && d1.getDate() === d2.getDate(); }
+function calculateAge(bd) { if (!bd) return ''; const b = parseLocalDate(bd) || new Date(bd); const t = new Date(); let a = t.getFullYear() - b.getFullYear(); const m = t.getMonth() - b.getMonth(); if (m < 0 || (m === 0 && t.getDate() < b.getDate())) a--; return a; }
+function toDateInputValue(d) {
+    if (!d) return '';
+    const dt = parseLocalDate(d);
+    if (!dt || isNaN(dt.getTime())) return '';
+    return `${dt.getFullYear()}-${(dt.getMonth() + 1).toString().padStart(2, '0')}-${dt.getDate().toString().padStart(2, '0')}`;
+}
+function isSameDay(d1, d2) {
+    const dt1 = parseLocalDate(d1);
+    const dt2 = parseLocalDate(d2);
+    if (!dt1 || !dt2 || isNaN(dt1.getTime()) || isNaN(dt2.getTime())) return false;
+    return dt1.getFullYear() === dt2.getFullYear() && dt1.getMonth() === dt2.getMonth() && dt1.getDate() === dt2.getDate();
+}
 function getMoodEmoji(mood) { return { 'muy-bueno': 'Eutímico 😊', 'bueno': 'Estable 🙂', 'neutral': 'Aplanado 😐', 'bajo': 'Ansioso 😔', 'muy-bajo': 'Depresivo 😞' }[mood] || mood; }
 
 // ============================================
@@ -10569,6 +10611,8 @@ if (typeof window !== 'undefined') {
     if (typeof clearTherapistSignaturePad === 'function') window.clearTherapistSignaturePad = clearTherapistSignaturePad;
     if (typeof showToast === 'function') window.showToast = showToast;
     if (typeof formatDate === 'function') window.formatDate = formatDate;
+    if (typeof parseLocalDate === 'function') window.parseLocalDate = parseLocalDate;
+    if (typeof isSameDay === 'function') window.isSameDay = isSameDay;
     if (typeof toDateInputValue === 'function') window.toDateInputValue = toDateInputValue;
     if (typeof updateDashboard === 'function') window.updateDashboard = updateDashboard;
     if (typeof renderPatients === 'function') window.renderPatients = renderPatients;

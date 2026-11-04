@@ -20,6 +20,27 @@ if (!fs.existsSync(DATA_DIR)) {
     fs.mkdirSync(DATA_DIR, { recursive: true });
 }
 
+function formatDbDate(val) {
+    if (!val) return '';
+    if (val instanceof Date) {
+        if (isNaN(val.getTime())) return '';
+        // En PostgreSQL las columnas DATE se deserializan típicamente a medianoche UTC (00:00:00.000Z).
+        // En zonas horarias occidentales (UTC-4 Venezuela, UTC-5, etc.), usar getDate() local
+        // resta 1 día por desfase de huso horario. Usamos UTC cuando la hora es medianoche UTC.
+        if (val.getUTCHours() === 0 && val.getUTCMinutes() === 0 && val.getUTCSeconds() === 0) {
+            const y = val.getUTCFullYear();
+            const m = String(val.getUTCMonth() + 1).padStart(2, '0');
+            const d = String(val.getUTCDate()).padStart(2, '0');
+            return `${y}-${m}-${d}`;
+        }
+        const y = val.getFullYear();
+        const m = String(val.getMonth() + 1).padStart(2, '0');
+        const d = String(val.getDate()).padStart(2, '0');
+        return `${y}-${m}-${d}`;
+    }
+    return String(val).split('T')[0];
+}
+
 class DatabaseManager {
     constructor() {
         this.isPostgresConnected = false;
@@ -183,6 +204,9 @@ class DatabaseManager {
                         idleTimeoutMillis: 30000,
                         connectionTimeoutMillis: 10000
                     };
+                    if (pg && pg.types && typeof pg.types.setTypeParser === 'function') {
+                        pg.types.setTypeParser(1082, (str) => str);
+                    }
                     pgAdapter = new pg.Pool(poolConfig);
                 }
 
@@ -271,7 +295,7 @@ class DatabaseManager {
                 id: r.id,
                 patientId: r.patient_id,
                 patient_id: r.patient_id,
-                date: r.appointment_date instanceof Date ? r.appointment_date.toISOString().split('T')[0] : String(r.appointment_date).split('T')[0],
+                date: formatDbDate(r.appointment_date),
                 time: String(r.appointment_time || '').substring(0, 5),
                 duration: Number(r.duration) || 50,
                 status: r.status || 'agendada',
@@ -564,7 +588,10 @@ class DatabaseManager {
         if (!dateStr) {
             const tmrw = new Date();
             tmrw.setDate(tmrw.getDate() + 1);
-            dateStr = tmrw.toISOString().split('T')[0];
+            const tmrwY = tmrw.getFullYear();
+            const tmrwM = String(tmrw.getMonth() + 1).padStart(2, '0');
+            const tmrwD = String(tmrw.getDate()).padStart(2, '0');
+            dateStr = `${tmrwY}-${tmrwM}-${tmrwD}`;
         }
 
         const candidateSlots = [
@@ -589,7 +616,10 @@ class DatabaseManager {
         const dayName = dayNames[dayOfWeek] || '';
 
         const now = new Date();
-        const todayStr = now.toISOString().split('T')[0];
+        const nowY = now.getFullYear();
+        const nowM = String(now.getMonth() + 1).padStart(2, '0');
+        const nowD = String(now.getDate()).padStart(2, '0');
+        const todayStr = `${nowY}-${nowM}-${nowD}`;
         const isToday = dateStr === todayStr;
         const currentMinutes = now.getHours() * 60 + now.getMinutes();
 
@@ -721,7 +751,7 @@ class DatabaseManager {
                     id: r.id,
                     patientId: r.patient_id,
                     patient_id: r.patient_id,
-                    date: r.appointment_date instanceof Date ? r.appointment_date.toISOString().split('T')[0] : String(r.appointment_date).split('T')[0],
+                    date: formatDbDate(r.appointment_date),
                     time: String(r.appointment_time || '').substring(0, 5),
                     duration: Number(r.duration) || 50,
                     status: r.status || 'agendada',
@@ -782,7 +812,7 @@ class DatabaseManager {
                 id: r.id,
                 patientId: r.patient_id,
                 patient_id: r.patient_id,
-                date: r.appointment_date instanceof Date ? r.appointment_date.toISOString().split('T')[0] : String(r.appointment_date).split('T')[0],
+                date: formatDbDate(r.appointment_date),
                 time: String(r.appointment_time || '').substring(0, 5),
                 duration: Number(r.duration) || 50,
                 status: r.status,
@@ -943,7 +973,7 @@ class DatabaseManager {
                 return {
                     id: r.id,
                     patientId: r.patient_id,
-                    date: r.appointment_date instanceof Date ? r.appointment_date.toISOString().split('T')[0] : String(r.appointment_date).split('T')[0],
+                    date: formatDbDate(r.appointment_date),
                     time: String(r.appointment_time || '').substring(0, 5),
                     duration: Number(r.duration) || 50,
                     status: r.status,
@@ -1007,7 +1037,7 @@ class DatabaseManager {
                         id: r.id,
                         patientId: r.patient_id,
                         patient_id: r.patient_id,
-                        date: r.appointment_date instanceof Date ? r.appointment_date.toISOString().split('T')[0] : String(r.appointment_date).split('T')[0],
+                        date: formatDbDate(r.appointment_date),
                         time: String(r.appointment_time || '').substring(0, 5),
                         duration: Number(r.duration) || 50,
                         status: r.status,
@@ -2063,7 +2093,7 @@ class DatabaseManager {
                 patientId: r.patient_id,
                 sessionNumber: r.session_number,
                 title: r.title,
-                date: r.session_date ? (r.session_date.toISOString ? r.session_date.toISOString().split('T')[0] : String(r.session_date).split('T')[0]) : '',
+                date: formatDbDate(r.session_date),
                 focusSummary: r.focus_summary || '',
                 status: r.status || 'pendiente',
                 clinicalNoteId: r.clinical_note_id || null,
