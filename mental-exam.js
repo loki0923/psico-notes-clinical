@@ -571,9 +571,12 @@ const MentalExamModule = {
 
     // Generador de resumen breve para cada cabecera de tarjeta (Dashboard visible al colapsar)
     getCardSummary(cardNum, s) {
+        const isSi = (val) => val === 'SI' || (typeof val === 'string' && /^s[íi]/i.test(val.trim()));
+        const isNo = (val) => val === 'NO' || (typeof val === 'string' && /^no/i.test(val.trim()));
+
         switch (cardNum) {
             case 1:
-                return `${s.sexo || 'Paciente'}, ${s.edad || '—'} años · ${s.edadAparenteCronologica === 'SI' ? 'Edad aparente acorde' : 'Edad no acorde'}`;
+                return `${s.sexo || 'Paciente'}, ${s.edad || '—'} años · ${isSi(s.edadAparenteCronologica) ? 'Edad aparente acorde' : 'Edad no acorde'}`;
             case 2: {
                 const list = s.aspectoVestimenta || [];
                 if (list.length === 0) return 'Presentación adecuada';
@@ -585,23 +588,26 @@ const MentalExamModule = {
                 return list.slice(0, 2).join(', ') + (list.length > 2 ? ` (+${list.length - 2})` : '');
             }
             case 4:
-                return s.concienciaAlterada === 'SI' ? '⚠️ Alterada' : '✓ Conservado';
+                return isSi(s.concienciaAlterada) ? '⚠️ Alterada' : '✓ Conservado';
             case 5:
-                return s.atencionAlterada === 'SI' ? '⚠️ Alterada' : '✓ Conservada';
-            case 6:
-                if (s.orientacionAlopsiquica === 'SI' && s.orientacionAutopsiquica === 'SI') return '✓ Orientado globalmente';
-                if (s.orientacionAutopsiquica === 'SI') return 'Autopsíquica conservada';
-                if (s.orientacionAlopsiquica === 'SI') return 'Alopsíquica conservada';
+                return isSi(s.atencionAlterada) ? '⚠️ Alterada' : '✓ Conservada';
+            case 6: {
+                const auto = isSi(s.orientacionAutopsiquica);
+                const alo = isSi(s.orientacionAlopsiquica);
+                if (auto && alo) return '✓ Orientado globalmente';
+                if (auto && !alo) return '⚠️ Desorientado alopsíquicamente';
+                if (!auto && alo) return '⚠️ Desorientado autopsíquicamente';
                 return '⚠️ Desorientado';
+            }
             case 7:
-                return s.memoriaConservada === 'SI' ? '✓ Conservada' : '⚠️ Alterada';
+                return isSi(s.memoriaConservada) ? '✓ Conservada' : '⚠️ Alterada';
             case 8:
                 return s.juicioPractico === 'Conservado' ? '✓ Conservado' : `⚠️ ${s.juicioPractico}`;
             case 9:
                 return s.inteligencia === 'Promedio' ? '✓ Normal / Promedio' : s.inteligencia;
             case 10:
                 if (s.pensamientoVelocidad && s.pensamientoVelocidad !== 'Normal') return `⚠️ ${s.pensamientoVelocidad}`;
-                if (s.pensamientoDelirios === 'SI') return '⚠️ Delirios';
+                if (isSi(s.pensamientoDelirios)) return '⚠️ Delirios';
                 return '✓ Lógico y conservado';
             case 11:
                 if ((s.lenguajeOrganico && s.lenguajeOrganico.length > 0) || (s.lenguajePsicogeno && s.lenguajePsicogeno.length > 0)) {
@@ -609,14 +615,14 @@ const MentalExamModule = {
                 }
                 return '✓ Articulado y fluido';
             case 12:
-                if (s.hipertimiaPresenta === 'SI') {
+                if (isSi(s.hipertimiaPresenta)) {
                     return `⚠️ ${s.hipertimiaTipo || 'Hipertimia'}`;
                 }
                 return s.afectoBase ? `✓ ${s.afectoBase}` : '✓ Eutímico';
             case 13:
                 if (s.sensopercepcionCuantitativa && s.sensopercepcionCuantitativa !== 'Conservada') return `⚠️ ${s.sensopercepcionCuantitativa}`;
-                if (s.alucinacionesPresenta === 'SI') return '⚠️ Alucinaciones';
-                if (s.ilusionesPresenta === 'SI') return '⚠️ Ilusiones';
+                if (isSi(s.alucinacionesPresenta)) return '⚠️ Alucinaciones';
+                if (isSi(s.ilusionesPresenta)) return '⚠️ Ilusiones';
                 return '✓ Conservada';
             case 14:
                 if ((s.psicomotricidadOrganico && s.psicomotricidadOrganico.length > 0) || (s.psicomotricidadNoOrganico && s.psicomotricidadNoOrganico.length > 0)) {
@@ -624,7 +630,7 @@ const MentalExamModule = {
                 }
                 return '✓ Postura y motricidad estable';
             case 15:
-                return s.vidaInstintivaAlterada === 'SI' ? `⚠️ Alterada (${(s.vidaInstintivaLista || []).slice(0, 2).join(', ')})` : '✓ Conservada';
+                return isSi(s.vidaInstintivaAlterada) ? `⚠️ Alterada (${(s.vidaInstintivaLista || []).slice(0, 2).join(', ')})` : '✓ Conservada';
             case 16:
                 return s.volicion === 'Normobulia' ? '✓ Normobulia' : `⚠️ ${s.volicion}`;
             case 17:
@@ -634,6 +640,15 @@ const MentalExamModule = {
             default:
                 return '';
         }
+    },
+
+    // Genera la insignia de resumen con su clase correspondiente (success, alert, neutral)
+    renderSummaryBadge(cardNum, s) {
+        const sum = this.getCardSummary(cardNum, s);
+        let cls = 'me-card-summary';
+        if (sum.startsWith('⚠️')) cls += ' alert';
+        else if (sum.startsWith('✓')) cls += ' success';
+        return `<span class="${cls}" id="me_summary_${cardNum}">${sum}</span>`;
     },
 
     // Render de cada una de las 18 secciones
@@ -651,7 +666,7 @@ const MentalExamModule = {
                         <span class="me-card-tag">General</span>
                     </div>
                     <div class="me-header-right">
-                        <span class="me-card-summary" id="me_summary_1">${this.getCardSummary(1, s)}</span>
+                        ${this.renderSummaryBadge(1, s)}
                         <i class="fas fa-chevron-down me-accordion-chevron" id="me_chevron_1"></i>
                     </div>
                 </div>
@@ -660,7 +675,7 @@ const MentalExamModule = {
                         <div class="me-field-block">
                             <label class="me-field-label">Sexo:</label>
                             <div class="me-chips-group" data-field="sexo" data-type="single">
-                                ${['Femenino', 'Masculino', 'No Binario', 'Otro'].map(opt => `<span class="me-chip ${s.sexo === opt ? 'active' : ''}" onclick="MentalExamModule.onChipSelect(this, 'sexo', '${opt}')">${opt}</span>`).join('')}
+                                ${['Femenino', 'Masculino', 'No Binario', 'Otro'].map(opt => `<span class="me-chip ${s.sexo === opt ? 'active' : ''}" data-value="${opt}" onclick="MentalExamModule.onChipSelect(this, 'sexo', '${opt}')">${opt}</span>`).join('')}
                             </div>
                         </div>
                         <div class="me-field-block">
@@ -675,14 +690,14 @@ const MentalExamModule = {
                         <div class="me-field-block">
                             <label class="me-field-label">¿Edad aparente a edad cronológica?:</label>
                             <div class="me-chips-group me-segmented" data-field="edadAparenteCronologica" data-type="single">
-                                <span class="me-chip ${s.edadAparenteCronologica === 'SI' ? 'active' : ''}" onclick="MentalExamModule.onChipSelect(this, 'edadAparenteCronologica', 'SI')">SÍ</span>
-                                <span class="me-chip ${s.edadAparenteCronologica === 'NO' ? 'active' : ''}" onclick="MentalExamModule.onChipSelect(this, 'edadAparenteCronologica', 'NO')">NO</span>
+                                <span class="me-chip ${s.edadAparenteCronologica === 'SI' ? 'active' : ''}" data-value="SI" onclick="MentalExamModule.onChipSelect(this, 'edadAparenteCronologica', 'SI')">SÍ</span>
+                                <span class="me-chip ${s.edadAparenteCronologica === 'NO' ? 'active' : ''}" data-value="NO" onclick="MentalExamModule.onChipSelect(this, 'edadAparenteCronologica', 'NO')">NO</span>
                             </div>
                         </div>
                         <div class="me-field-block">
                             <label class="me-field-label">Biotipo Morfológico:</label>
                             <div class="me-chips-group" data-field="biotipo" data-type="single">
-                                ${['Leptosómico', 'Mesomorfo', 'Endomorfo'].map(opt => `<span class="me-chip ${s.biotipo === opt ? 'active' : ''}" onclick="MentalExamModule.onChipSelect(this, 'biotipo', '${opt}')">${opt}</span>`).join('')}
+                                ${['Leptosómico', 'Mesomorfo', 'Endomorfo'].map(opt => `<span class="me-chip ${s.biotipo === opt ? 'active' : ''}" data-value="${opt}" onclick="MentalExamModule.onChipSelect(this, 'biotipo', '${opt}')">${opt}</span>`).join('')}
                             </div>
                         </div>
                     </div>
@@ -698,7 +713,7 @@ const MentalExamModule = {
                         <span class="me-card-tag">General</span>
                     </div>
                     <div class="me-header-right">
-                        <span class="me-card-summary" id="me_summary_2">${this.getCardSummary(2, s)}</span>
+                        ${this.renderSummaryBadge(2, s)}
                         <i class="fas fa-chevron-down me-accordion-chevron" id="me_chevron_2"></i>
                     </div>
                 </div>
@@ -717,7 +732,7 @@ const MentalExamModule = {
                         <span class="me-card-tag">General</span>
                     </div>
                     <div class="me-header-right">
-                        <span class="me-card-summary" id="me_summary_3">${this.getCardSummary(3, s)}</span>
+                        ${this.renderSummaryBadge(3, s)}
                         <i class="fas fa-chevron-down me-accordion-chevron" id="me_chevron_3"></i>
                     </div>
                 </div>
@@ -736,7 +751,7 @@ const MentalExamModule = {
                         <span class="me-card-tag">Cognición</span>
                     </div>
                     <div class="me-header-right">
-                        <span class="me-card-summary" id="me_summary_4">${this.getCardSummary(4, s)}</span>
+                        ${this.renderSummaryBadge(4, s)}
                         <i class="fas fa-chevron-down me-accordion-chevron" id="me_chevron_4"></i>
                     </div>
                 </div>
@@ -744,8 +759,8 @@ const MentalExamModule = {
                     <div class="me-toggle-row">
                         <label class="me-field-label" style="margin:0;">¿Presenta alteraciones?:</label>
                         <div class="me-chips-group me-segmented" data-field="concienciaAlterada" data-type="single">
-                            <span class="me-chip ${s.concienciaAlterada === 'NO' ? 'active' : ''}" onclick="MentalExamModule.onChipSelect(this, 'concienciaAlterada', 'NO')">NO (Conservado)</span>
-                            <span class="me-chip ${s.concienciaAlterada === 'SI' ? 'active' : ''}" onclick="MentalExamModule.onChipSelect(this, 'concienciaAlterada', 'SI')">SÍ</span>
+                            <span class="me-chip ${s.concienciaAlterada === 'NO' ? 'active' : ''}" data-value="NO" onclick="MentalExamModule.onChipSelect(this, 'concienciaAlterada', 'NO')">NO (Conservado)</span>
+                            <span class="me-chip ${s.concienciaAlterada === 'SI' ? 'active' : ''}" data-value="SI" onclick="MentalExamModule.onChipSelect(this, 'concienciaAlterada', 'SI')">SÍ</span>
                         </div>
                     </div>
                     <div id="me_conciencia_details" class="me-alert-subpanel" style="display:${s.concienciaAlterada === 'SI' ? 'block' : 'none'};">
@@ -775,7 +790,7 @@ const MentalExamModule = {
                         <span class="me-card-tag">Cognición</span>
                     </div>
                     <div class="me-header-right">
-                        <span class="me-card-summary" id="me_summary_5">${this.getCardSummary(5, s)}</span>
+                        ${this.renderSummaryBadge(5, s)}
                         <i class="fas fa-chevron-down me-accordion-chevron" id="me_chevron_5"></i>
                     </div>
                 </div>
@@ -783,8 +798,8 @@ const MentalExamModule = {
                     <div class="me-toggle-row">
                         <label class="me-field-label" style="margin:0;">¿Presenta alteraciones?:</label>
                         <div class="me-chips-group me-segmented" data-field="atencionAlterada" data-type="single">
-                            <span class="me-chip ${s.atencionAlterada === 'NO' ? 'active' : ''}" onclick="MentalExamModule.onChipSelect(this, 'atencionAlterada', 'NO')">NO (Euprosexia / Conservada)</span>
-                            <span class="me-chip ${s.atencionAlterada === 'SI' ? 'active' : ''}" onclick="MentalExamModule.onChipSelect(this, 'atencionAlterada', 'SI')">SÍ</span>
+                            <span class="me-chip ${s.atencionAlterada === 'NO' ? 'active' : ''}" data-value="NO" onclick="MentalExamModule.onChipSelect(this, 'atencionAlterada', 'NO')">NO (Euprosexia / Conservada)</span>
+                            <span class="me-chip ${s.atencionAlterada === 'SI' ? 'active' : ''}" data-value="SI" onclick="MentalExamModule.onChipSelect(this, 'atencionAlterada', 'SI')">SÍ</span>
                         </div>
                     </div>
                     <div id="me_atencion_details" class="me-alert-subpanel" style="display:${s.atencionAlterada === 'SI' ? 'block' : 'none'};">
@@ -805,7 +820,7 @@ const MentalExamModule = {
                         <span class="me-card-tag">Cognición</span>
                     </div>
                     <div class="me-header-right">
-                        <span class="me-card-summary" id="me_summary_6">${this.getCardSummary(6, s)}</span>
+                        ${this.renderSummaryBadge(6, s)}
                         <i class="fas fa-chevron-down me-accordion-chevron" id="me_chevron_6"></i>
                     </div>
                 </div>
@@ -814,15 +829,15 @@ const MentalExamModule = {
                         <div class="me-field-block">
                             <label class="me-field-label">Orientado Autopsíquicamente (Persona):</label>
                             <div class="me-chips-group me-segmented" data-field="orientacionAutopsiquica" data-type="single">
-                                <span class="me-chip ${s.orientacionAutopsiquica === 'SI' ? 'active' : ''}" onclick="MentalExamModule.onChipSelect(this, 'orientacionAutopsiquica', 'SI')">SÍ</span>
-                                <span class="me-chip ${s.orientacionAutopsiquica === 'NO' ? 'active' : ''}" onclick="MentalExamModule.onChipSelect(this, 'orientacionAutopsiquica', 'NO')">NO</span>
+                                <span class="me-chip ${s.orientacionAutopsiquica === 'SI' ? 'active' : ''}" data-value="SI" onclick="MentalExamModule.onChipSelect(this, 'orientacionAutopsiquica', 'SI')">SÍ</span>
+                                <span class="me-chip ${s.orientacionAutopsiquica === 'NO' ? 'active' : ''}" data-value="NO" onclick="MentalExamModule.onChipSelect(this, 'orientacionAutopsiquica', 'NO')">NO</span>
                             </div>
                         </div>
                         <div class="me-field-block">
                             <label class="me-field-label">Orientado Alopsíquicamente (Tiempo/Espacio):</label>
                             <div class="me-chips-group me-segmented" data-field="orientacionAlopsiquica" data-type="single">
-                                <span class="me-chip ${s.orientacionAlopsiquica === 'SI' ? 'active' : ''}" onclick="MentalExamModule.onChipSelect(this, 'orientacionAlopsiquica', 'SI')">SÍ</span>
-                                <span class="me-chip ${s.orientacionAlopsiquica === 'NO' ? 'active' : ''}" onclick="MentalExamModule.onChipSelect(this, 'orientacionAlopsiquica', 'NO')">NO</span>
+                                <span class="me-chip ${s.orientacionAlopsiquica === 'SI' ? 'active' : ''}" data-value="SI" onclick="MentalExamModule.onChipSelect(this, 'orientacionAlopsiquica', 'SI')">SÍ</span>
+                                <span class="me-chip ${s.orientacionAlopsiquica === 'NO' ? 'active' : ''}" data-value="NO" onclick="MentalExamModule.onChipSelect(this, 'orientacionAlopsiquica', 'NO')">NO</span>
                             </div>
                         </div>
                     </div>
@@ -844,7 +859,7 @@ const MentalExamModule = {
                         <span class="me-card-tag">Cognición</span>
                     </div>
                     <div class="me-header-right">
-                        <span class="me-card-summary" id="me_summary_7">${this.getCardSummary(7, s)}</span>
+                        ${this.renderSummaryBadge(7, s)}
                         <i class="fas fa-chevron-down me-accordion-chevron" id="me_chevron_7"></i>
                     </div>
                 </div>
@@ -852,8 +867,8 @@ const MentalExamModule = {
                     <div class="me-toggle-row">
                         <label class="me-field-label" style="margin:0;">¿Memoria conservada?:</label>
                         <div class="me-chips-group me-segmented" data-field="memoriaConservada" data-type="single">
-                            <span class="me-chip ${s.memoriaConservada === 'SI' ? 'active' : ''}" onclick="MentalExamModule.onChipSelect(this, 'memoriaConservada', 'SI')">SÍ (Conservada)</span>
-                            <span class="me-chip ${s.memoriaConservada === 'NO' ? 'active' : ''}" onclick="MentalExamModule.onChipSelect(this, 'memoriaConservada', 'NO')">NO (Alteraciones)</span>
+                            <span class="me-chip ${s.memoriaConservada === 'SI' ? 'active' : ''}" data-value="SI" onclick="MentalExamModule.onChipSelect(this, 'memoriaConservada', 'SI')">SÍ (Conservada)</span>
+                            <span class="me-chip ${s.memoriaConservada === 'NO' ? 'active' : ''}" data-value="NO" onclick="MentalExamModule.onChipSelect(this, 'memoriaConservada', 'NO')">NO (Alteraciones)</span>
                         </div>
                     </div>
                     <div id="me_memoria_details" class="me-alert-subpanel" style="display:${s.memoriaConservada === 'NO' ? 'block' : 'none'};">
@@ -878,13 +893,13 @@ const MentalExamModule = {
                         <span class="me-card-tag">Cognición</span>
                     </div>
                     <div class="me-header-right">
-                        <span class="me-card-summary" id="me_summary_8">${this.getCardSummary(8, s)}</span>
+                        ${this.renderSummaryBadge(8, s)}
                         <i class="fas fa-chevron-down me-accordion-chevron" id="me_chevron_8"></i>
                     </div>
                 </div>
                 <div class="me-card-body" id="me_body_8">
                     <div class="me-chips-group" data-field="juicioPractico" data-type="single">
-                        ${['Conservado', 'Parcial', 'Desviado'].map(opt => `<span class="me-chip ${s.juicioPractico === opt ? 'active' : ''}" onclick="MentalExamModule.onChipSelect(this, 'juicioPractico', '${opt}')">${opt}</span>`).join('')}
+                        ${['Conservado', 'Parcial', 'Desviado'].map(opt => `<span class="me-chip ${s.juicioPractico === opt ? 'active' : ''}" data-value="${opt}" onclick="MentalExamModule.onChipSelect(this, 'juicioPractico', '${opt}')">${opt}</span>`).join('')}
                     </div>
                 </div>
             </div>
@@ -898,19 +913,19 @@ const MentalExamModule = {
                         <span class="me-card-tag">Cognición</span>
                     </div>
                     <div class="me-header-right">
-                        <span class="me-card-summary" id="me_summary_9">${this.getCardSummary(9, s)}</span>
+                        ${this.renderSummaryBadge(9, s)}
                         <i class="fas fa-chevron-down me-accordion-chevron" id="me_chevron_9"></i>
                     </div>
                 </div>
                 <div class="me-card-body" id="me_body_9">
                     <div class="me-chips-group" data-field="inteligencia" data-type="single">
-                        ${['Inferior al promedio', 'Promedio', 'Superior al promedio'].map(opt => `<span class="me-chip ${s.inteligencia === opt ? 'active' : ''}" onclick="MentalExamModule.onChipSelect(this, 'inteligencia', '${opt}')">${opt}</span>`).join('')}
+                        ${['Inferior al promedio', 'Promedio', 'Superior al promedio'].map(opt => `<span class="me-chip ${s.inteligencia === opt ? 'active' : ''}" data-value="${opt}" onclick="MentalExamModule.onChipSelect(this, 'inteligencia', '${opt}')">${opt}</span>`).join('')}
                     </div>
                     <div class="me-field-row" style="margin-top:12px;align-items:center;">
                         <label class="me-field-label" style="margin:0;">¿Se realizaron pruebas psicométricas?:</label>
                         <div class="me-chips-group me-segmented" data-field="pruebasRealizadas" data-type="single">
-                            <span class="me-chip ${s.pruebasRealizadas === 'SI' ? 'active' : ''}" onclick="MentalExamModule.onChipSelect(this, 'pruebasRealizadas', 'SI')">SÍ</span>
-                            <span class="me-chip ${s.pruebasRealizadas === 'NO' ? 'active' : ''}" onclick="MentalExamModule.onChipSelect(this, 'pruebasRealizadas', 'NO')">NO</span>
+                            <span class="me-chip ${s.pruebasRealizadas === 'SI' ? 'active' : ''}" data-value="SI" onclick="MentalExamModule.onChipSelect(this, 'pruebasRealizadas', 'SI')">SÍ</span>
+                            <span class="me-chip ${s.pruebasRealizadas === 'NO' ? 'active' : ''}" data-value="NO" onclick="MentalExamModule.onChipSelect(this, 'pruebasRealizadas', 'NO')">NO</span>
                         </div>
                         <div id="me_pruebas_box" style="display:${s.pruebasRealizadas === 'SI' ? 'inline-block' : 'none'};flex:1;min-width:180px;">
                             <input type="text" id="me_pruebas_cual" class="me-clean-input" placeholder="¿Qué pruebas? Ej: Raven, WAIS..." value="${s.pruebasCual || ''}" oninput="MentalExamModule.onFieldChange('pruebasCual', this.value)">
@@ -928,14 +943,14 @@ const MentalExamModule = {
                         <span class="me-card-tag">Pensamiento</span>
                     </div>
                     <div class="me-header-right">
-                        <span class="me-card-summary" id="me_summary_10">${this.getCardSummary(10, s)}</span>
+                        ${this.renderSummaryBadge(10, s)}
                         <i class="fas fa-chevron-down me-accordion-chevron" id="me_chevron_10"></i>
                     </div>
                 </div>
                 <div class="me-card-body" id="me_body_10">
                     <label class="me-field-label">A. Velocidad:</label>
                     <div class="me-chips-group" data-field="pensamientoVelocidad" data-type="single">
-                        ${['Normal', 'Taquipsiquia', 'Pensamiento Ideofugal', 'Fuga de Ideas', 'Bradipsiquia', 'Inhibición del Pensamiento'].map(opt => `<span class="me-chip ${s.pensamientoVelocidad === opt ? 'active' : ''}" onclick="MentalExamModule.onChipSelect(this, 'pensamientoVelocidad', '${opt}')">${opt}</span>`).join('')}
+                        ${['Normal', 'Taquipsiquia', 'Pensamiento Ideofugal', 'Fuga de Ideas', 'Bradipsiquia', 'Inhibición del Pensamiento'].map(opt => `<span class="me-chip ${s.pensamientoVelocidad === opt ? 'active' : ''}" data-value="${opt}" onclick="MentalExamModule.onChipSelect(this, 'pensamientoVelocidad', '${opt}')">${opt}</span>`).join('')}
                     </div>
 
                     <label class="me-field-label" style="margin-top:12px;">B. Estructura o Curso:</label>
@@ -946,8 +961,8 @@ const MentalExamModule = {
                     <div class="me-toggle-row" style="margin-top:12px;">
                         <label class="me-field-label" style="margin:0;">C. Contenido — ¿Presenta Ideas Delirantes?:</label>
                         <div class="me-chips-group me-segmented" data-field="pensamientoDelirios" data-type="single">
-                            <span class="me-chip ${s.pensamientoDelirios === 'NO' ? 'active' : ''}" onclick="MentalExamModule.onChipSelect(this, 'pensamientoDelirios', 'NO')">NO</span>
-                            <span class="me-chip ${s.pensamientoDelirios === 'SI' ? 'active' : ''}" onclick="MentalExamModule.onChipSelect(this, 'pensamientoDelirios', 'SI')">SÍ</span>
+                            <span class="me-chip ${s.pensamientoDelirios === 'NO' ? 'active' : ''}" data-value="NO" onclick="MentalExamModule.onChipSelect(this, 'pensamientoDelirios', 'NO')">NO</span>
+                            <span class="me-chip ${s.pensamientoDelirios === 'SI' ? 'active' : ''}" data-value="SI" onclick="MentalExamModule.onChipSelect(this, 'pensamientoDelirios', 'SI')">SÍ</span>
                         </div>
                     </div>
                     <div id="me_delirios_details" class="me-alert-subpanel" style="display:${s.pensamientoDelirios === 'SI' ? 'block' : 'none'};">
@@ -973,7 +988,7 @@ const MentalExamModule = {
                         <span class="me-card-tag">Lenguaje</span>
                     </div>
                     <div class="me-header-right">
-                        <span class="me-card-summary" id="me_summary_11">${this.getCardSummary(11, s)}</span>
+                        ${this.renderSummaryBadge(11, s)}
                         <i class="fas fa-chevron-down me-accordion-chevron" id="me_chevron_11"></i>
                     </div>
                 </div>
@@ -1004,33 +1019,33 @@ const MentalExamModule = {
                         <span class="me-card-tag">Afecto</span>
                     </div>
                     <div class="me-header-right">
-                        <span class="me-card-summary" id="me_summary_12">${this.getCardSummary(12, s)}</span>
+                        ${this.renderSummaryBadge(12, s)}
                         <i class="fas fa-chevron-down me-accordion-chevron" id="me_chevron_12"></i>
                     </div>
                 </div>
                 <div class="me-card-body" id="me_body_12">
                     <label class="me-field-label">Afecto basal:</label>
                     <div class="me-chips-group" data-field="afectoBase" data-type="single">
-                        ${['Modulado / Eutímico', 'Furor Maníaco', 'Beatitud', 'Éxtasis', 'Hipotimia', 'Atimia'].map(opt => `<span class="me-chip ${s.afectoBase === opt ? 'active' : ''}" onclick="MentalExamModule.onChipSelect(this, 'afectoBase', '${opt}')">${opt}</span>`).join('')}
+                        ${['Modulado / Eutímico', 'Furor Maníaco', 'Beatitud', 'Éxtasis', 'Hipotimia', 'Atimia'].map(opt => `<span class="me-chip ${s.afectoBase === opt ? 'active' : ''}" data-value="${opt}" onclick="MentalExamModule.onChipSelect(this, 'afectoBase', '${opt}')">${opt}</span>`).join('')}
                     </div>
 
                     <div class="me-toggle-row" style="margin-top:12px;">
                         <label class="me-field-label" style="margin:0;">¿Presenta Hipertimia / Alteración Cuantitativa?:</label>
                         <div class="me-chips-group me-segmented" data-field="hipertimiaPresenta" data-type="single">
-                            <span class="me-chip ${s.hipertimiaPresenta === 'NO' ? 'active' : ''}" onclick="MentalExamModule.onChipSelect(this, 'hipertimiaPresenta', 'NO')">NO</span>
-                            <span class="me-chip ${s.hipertimiaPresenta === 'SI' ? 'active' : ''}" onclick="MentalExamModule.onChipSelect(this, 'hipertimiaPresenta', 'SI')">SÍ</span>
+                            <span class="me-chip ${s.hipertimiaPresenta === 'NO' ? 'active' : ''}" data-value="NO" onclick="MentalExamModule.onChipSelect(this, 'hipertimiaPresenta', 'NO')">NO</span>
+                            <span class="me-chip ${s.hipertimiaPresenta === 'SI' ? 'active' : ''}" data-value="SI" onclick="MentalExamModule.onChipSelect(this, 'hipertimiaPresenta', 'SI')">SÍ</span>
                         </div>
                     </div>
 
                     <div id="me_afecto_details" class="me-alert-subpanel" style="display:${s.hipertimiaPresenta === 'SI' ? 'block' : 'none'};">
                         <label class="me-field-label">Tipo de Hipertimia:</label>
                         <div class="me-chips-group" data-field="hipertimiaTipo" data-type="single">
-                            ${['Hipertimia Placentera', 'Hipertimia Displacentera', 'Hipertimia Mixta Agitada', 'Hipertimia con Fuga de Ideas'].map(opt => `<span class="me-chip ${s.hipertimiaTipo === opt ? 'active' : ''}" onclick="MentalExamModule.onChipSelect(this, 'hipertimiaTipo', '${opt}')">${opt}</span>`).join('')}
+                            ${['Hipertimia Placentera', 'Hipertimia Displacentera', 'Hipertimia Mixta Agitada', 'Hipertimia con Fuga de Ideas'].map(opt => `<span class="me-chip ${s.hipertimiaTipo === opt ? 'active' : ''}" data-value="${opt}" onclick="MentalExamModule.onChipSelect(this, 'hipertimiaTipo', '${opt}')">${opt}</span>`).join('')}
                         </div>
 
                         <label class="me-field-label" style="margin-top:10px;">Orientada al Polo:</label>
                         <div class="me-chips-group" data-field="hipertimiaPolo" data-type="single">
-                            ${['De la Tristeza', 'De la Alegría', 'De la Ira', 'Miedo', 'Pesimismo'].map(opt => `<span class="me-chip ${s.hipertimiaPolo === opt ? 'active' : ''}" onclick="MentalExamModule.onChipSelect(this, 'hipertimiaPolo', '${opt}')">${opt}</span>`).join('')}
+                            ${['De la Tristeza', 'De la Alegría', 'De la Ira', 'Miedo', 'Pesimismo'].map(opt => `<span class="me-chip ${s.hipertimiaPolo === opt ? 'active' : ''}" data-value="${opt}" onclick="MentalExamModule.onChipSelect(this, 'hipertimiaPolo', '${opt}')">${opt}</span>`).join('')}
                         </div>
 
                         <label class="me-field-label" style="margin-top:10px;">Con Sentimientos de:</label>
@@ -1055,21 +1070,21 @@ const MentalExamModule = {
                         <span class="me-card-tag">Percepción</span>
                     </div>
                     <div class="me-header-right">
-                        <span class="me-card-summary" id="me_summary_13">${this.getCardSummary(13, s)}</span>
+                        ${this.renderSummaryBadge(13, s)}
                         <i class="fas fa-chevron-down me-accordion-chevron" id="me_chevron_13"></i>
                     </div>
                 </div>
                 <div class="me-card-body" id="me_body_13">
                     <label class="me-field-label">Cuantitativo:</label>
                     <div class="me-chips-group" data-field="sensopercepcionCuantitativa" data-type="single">
-                        ${['Conservada', 'Aceleración de la Percepción', 'Retardo de la Percepción', 'Abolición de la Percepción'].map(opt => `<span class="me-chip ${s.sensopercepcionCuantitativa === opt ? 'active' : ''}" onclick="MentalExamModule.onChipSelect(this, 'sensopercepcionCuantitativa', '${opt}')">${opt}</span>`).join('')}
+                        ${['Conservada', 'Aceleración de la Percepción', 'Retardo de la Percepción', 'Abolición de la Percepción'].map(opt => `<span class="me-chip ${s.sensopercepcionCuantitativa === opt ? 'active' : ''}" data-value="${opt}" onclick="MentalExamModule.onChipSelect(this, 'sensopercepcionCuantitativa', '${opt}')">${opt}</span>`).join('')}
                     </div>
 
                     <div class="me-toggle-row" style="margin-top:12px;">
                         <label class="me-field-label" style="margin:0;">¿Presenta Ilusiones?:</label>
                         <div class="me-chips-group me-segmented" data-field="ilusionesPresenta" data-type="single">
-                            <span class="me-chip ${s.ilusionesPresenta === 'NO' ? 'active' : ''}" onclick="MentalExamModule.onChipSelect(this, 'ilusionesPresenta', 'NO')">NO</span>
-                            <span class="me-chip ${s.ilusionesPresenta === 'SI' ? 'active' : ''}" onclick="MentalExamModule.onChipSelect(this, 'ilusionesPresenta', 'SI')">SÍ</span>
+                            <span class="me-chip ${s.ilusionesPresenta === 'NO' ? 'active' : ''}" data-value="NO" onclick="MentalExamModule.onChipSelect(this, 'ilusionesPresenta', 'NO')">NO</span>
+                            <span class="me-chip ${s.ilusionesPresenta === 'SI' ? 'active' : ''}" data-value="SI" onclick="MentalExamModule.onChipSelect(this, 'ilusionesPresenta', 'SI')">SÍ</span>
                         </div>
                     </div>
                     <div id="me_ilusiones_box" class="me-alert-subpanel" style="display:${s.ilusionesPresenta === 'SI' ? 'block' : 'none'};">
@@ -1082,8 +1097,8 @@ const MentalExamModule = {
                     <div class="me-toggle-row" style="margin-top:12px;">
                         <label class="me-field-label" style="margin:0;">¿Presenta Alucinaciones?:</label>
                         <div class="me-chips-group me-segmented" data-field="alucinacionesPresenta" data-type="single">
-                            <span class="me-chip ${s.alucinacionesPresenta === 'NO' ? 'active' : ''}" onclick="MentalExamModule.onChipSelect(this, 'alucinacionesPresenta', 'NO')">NO</span>
-                            <span class="me-chip ${s.alucinacionesPresenta === 'SI' ? 'active' : ''}" onclick="MentalExamModule.onChipSelect(this, 'alucinacionesPresenta', 'SI')">SÍ</span>
+                            <span class="me-chip ${s.alucinacionesPresenta === 'NO' ? 'active' : ''}" data-value="NO" onclick="MentalExamModule.onChipSelect(this, 'alucinacionesPresenta', 'NO')">NO</span>
+                            <span class="me-chip ${s.alucinacionesPresenta === 'SI' ? 'active' : ''}" data-value="SI" onclick="MentalExamModule.onChipSelect(this, 'alucinacionesPresenta', 'SI')">SÍ</span>
                         </div>
                     </div>
                     <div id="me_alucinaciones_box" class="me-alert-subpanel" style="display:${s.alucinacionesPresenta === 'SI' ? 'block' : 'none'};">
@@ -1094,8 +1109,8 @@ const MentalExamModule = {
                         <div class="me-toggle-row" style="margin-top:10px;">
                             <label class="me-field-label" style="margin:0;">Pseudoalucinaciones:</label>
                             <div class="me-chips-group me-segmented" data-field="pseudoalucinaciones" data-type="single">
-                                <span class="me-chip ${s.pseudoalucinaciones === 'NO' ? 'active' : ''}" onclick="MentalExamModule.onChipSelect(this, 'pseudoalucinaciones', 'NO')">NO</span>
-                                <span class="me-chip ${s.pseudoalucinaciones === 'SI' ? 'active' : ''}" onclick="MentalExamModule.onChipSelect(this, 'pseudoalucinaciones', 'SI')">SÍ</span>
+                                <span class="me-chip ${s.pseudoalucinaciones === 'NO' ? 'active' : ''}" data-value="NO" onclick="MentalExamModule.onChipSelect(this, 'pseudoalucinaciones', 'NO')">NO</span>
+                                <span class="me-chip ${s.pseudoalucinaciones === 'SI' ? 'active' : ''}" data-value="SI" onclick="MentalExamModule.onChipSelect(this, 'pseudoalucinaciones', 'SI')">SÍ</span>
                             </div>
                         </div>
                     </div>
@@ -1111,7 +1126,7 @@ const MentalExamModule = {
                         <span class="me-card-tag">Conducta</span>
                     </div>
                     <div class="me-header-right">
-                        <span class="me-card-summary" id="me_summary_14">${this.getCardSummary(14, s)}</span>
+                        ${this.renderSummaryBadge(14, s)}
                         <i class="fas fa-chevron-down me-accordion-chevron" id="me_chevron_14"></i>
                     </div>
                 </div>
@@ -1137,7 +1152,7 @@ const MentalExamModule = {
                         <span class="me-card-tag">Instinto</span>
                     </div>
                     <div class="me-header-right">
-                        <span class="me-card-summary" id="me_summary_15">${this.getCardSummary(15, s)}</span>
+                        ${this.renderSummaryBadge(15, s)}
                         <i class="fas fa-chevron-down me-accordion-chevron" id="me_chevron_15"></i>
                     </div>
                 </div>
@@ -1145,8 +1160,8 @@ const MentalExamModule = {
                     <div class="me-toggle-row">
                         <label class="me-field-label" style="margin:0;">¿Presenta alteraciones?:</label>
                         <div class="me-chips-group me-segmented" data-field="vidaInstintivaAlterada" data-type="single">
-                            <span class="me-chip ${s.vidaInstintivaAlterada === 'NO' ? 'active' : ''}" onclick="MentalExamModule.onChipSelect(this, 'vidaInstintivaAlterada', 'NO')">NO (Conservada)</span>
-                            <span class="me-chip ${s.vidaInstintivaAlterada === 'SI' ? 'active' : ''}" onclick="MentalExamModule.onChipSelect(this, 'vidaInstintivaAlterada', 'SI')">SÍ</span>
+                            <span class="me-chip ${s.vidaInstintivaAlterada === 'NO' ? 'active' : ''}" data-value="NO" onclick="MentalExamModule.onChipSelect(this, 'vidaInstintivaAlterada', 'NO')">NO (Conservada)</span>
+                            <span class="me-chip ${s.vidaInstintivaAlterada === 'SI' ? 'active' : ''}" data-value="SI" onclick="MentalExamModule.onChipSelect(this, 'vidaInstintivaAlterada', 'SI')">SÍ</span>
                         </div>
                     </div>
                     <div id="me_instintiva_box" class="me-alert-subpanel" style="display:${s.vidaInstintivaAlterada === 'SI' ? 'block' : 'none'};">
@@ -1167,13 +1182,13 @@ const MentalExamModule = {
                         <span class="me-card-tag">Volición</span>
                     </div>
                     <div class="me-header-right">
-                        <span class="me-card-summary" id="me_summary_16">${this.getCardSummary(16, s)}</span>
+                        ${this.renderSummaryBadge(16, s)}
                         <i class="fas fa-chevron-down me-accordion-chevron" id="me_chevron_16"></i>
                     </div>
                 </div>
                 <div class="me-card-body" id="me_body_16">
                     <div class="me-chips-group" data-field="volicion" data-type="single">
-                        ${['Normobulia', 'Abulia', 'Hipobulia', 'Hiperbulia', 'Apatía'].map(opt => `<span class="me-chip ${s.volicion === opt ? 'active' : ''}" onclick="MentalExamModule.onChipSelect(this, 'volicion', '${opt}')">${opt}</span>`).join('')}
+                        ${['Normobulia', 'Abulia', 'Hipobulia', 'Hiperbulia', 'Apatía'].map(opt => `<span class="me-chip ${s.volicion === opt ? 'active' : ''}" data-value="${opt}" onclick="MentalExamModule.onChipSelect(this, 'volicion', '${opt}')">${opt}</span>`).join('')}
                     </div>
                 </div>
             </div>
@@ -1187,13 +1202,13 @@ const MentalExamModule = {
                         <span class="me-card-tag">Insight</span>
                     </div>
                     <div class="me-header-right">
-                        <span class="me-card-summary" id="me_summary_17">${this.getCardSummary(17, s)}</span>
+                        ${this.renderSummaryBadge(17, s)}
                         <i class="fas fa-chevron-down me-accordion-chevron" id="me_chevron_17"></i>
                     </div>
                 </div>
                 <div class="me-card-body" id="me_body_17">
                     <div class="me-chips-group" data-field="concienciaEnfermedad" data-type="single">
-                        ${['Presente', 'Parcial', 'Ausente'].map(opt => `<span class="me-chip ${s.concienciaEnfermedad === opt ? 'active' : ''}" onclick="MentalExamModule.onChipSelect(this, 'concienciaEnfermedad', '${opt}')">${opt}</span>`).join('')}
+                        ${['Presente', 'Parcial', 'Ausente'].map(opt => `<span class="me-chip ${s.concienciaEnfermedad === opt ? 'active' : ''}" data-value="${opt}" onclick="MentalExamModule.onChipSelect(this, 'concienciaEnfermedad', '${opt}')">${opt}</span>`).join('')}
                     </div>
                 </div>
             </div>
@@ -1207,13 +1222,13 @@ const MentalExamModule = {
                         <span class="me-card-tag">Realidad</span>
                     </div>
                     <div class="me-header-right">
-                        <span class="me-card-summary" id="me_summary_18">${this.getCardSummary(18, s)}</span>
+                        ${this.renderSummaryBadge(18, s)}
                         <i class="fas fa-chevron-down me-accordion-chevron" id="me_chevron_18"></i>
                     </div>
                 </div>
                 <div class="me-card-body" id="me_body_18">
                     <div class="me-chips-group" data-field="juicioRealidad" data-type="single">
-                        ${['Conservado', 'Parcial', 'Desviado'].map(opt => `<span class="me-chip ${s.juicioRealidad === opt ? 'active' : ''}" onclick="MentalExamModule.onChipSelect(this, 'juicioRealidad', '${opt}')">${opt}</span>`).join('')}
+                        ${['Conservado', 'Parcial', 'Desviado'].map(opt => `<span class="me-chip ${s.juicioRealidad === opt ? 'active' : ''}" data-value="${opt}" onclick="MentalExamModule.onChipSelect(this, 'juicioRealidad', '${opt}')">${opt}</span>`).join('')}
                     </div>
                 </div>
             </div>
@@ -1225,6 +1240,7 @@ const MentalExamModule = {
         const group = el.parentElement;
         group.querySelectorAll('.me-chip').forEach(c => c.classList.remove('active'));
         el.classList.add('active');
+        if (value) el.setAttribute('data-value', value);
 
         // Si cambia el sexo, adaptar automáticamente las terminaciones de adjetivos de aspecto
         if (field === 'sexo') {
@@ -1430,7 +1446,14 @@ const MentalExamModule = {
     collectCurrentState() {
         const getSingle = (field) => {
             const group = document.querySelector(`.me-chips-group[data-field="${field}"]`);
-            return group?.querySelector('.me-chip.active')?.textContent.trim() || '';
+            const active = group?.querySelector('.me-chip.active');
+            if (!active) return '';
+            if (active.hasAttribute('data-value')) return active.getAttribute('data-value');
+            const txt = active.textContent.trim();
+            // Normalizar valores binarios SI / NO independientemente de tildes o sufijos
+            if (/^s[íi]/i.test(txt)) return 'SI';
+            if (/^no/i.test(txt)) return 'NO';
+            return txt;
         };
 
         const getMultiple = (field) => {
