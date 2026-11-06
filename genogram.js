@@ -15,23 +15,32 @@
  */
 
 const GenogramModule = {
-    // Tipos de relaciones emocionales según Bowen
+    // Tipos de relaciones interpersonales
     RELATIONSHIP_TYPES: {
-        harmonious: { label: 'Armónica / Cercana', color: '#10b981', stroke: '4', strokeDash: 'none', lines: 2, icon: 'fa-heart', desc: 'Vínculo cálido, apoyo mutuo y comunicación fluida' },
-        enmeshed: { label: 'Fusionada / Muy Estrecha', color: '#0d9488', stroke: '6', strokeDash: 'none', lines: 3, icon: 'fa-link', desc: 'Sobreinvolucramiento emocional, límites difusos (Bowen)' },
-        enmeshed_conflict: { label: 'Fusionada y Conflictiva', color: '#f59e0b', stroke: '5', strokeDash: 'none', lines: 3, zigzag: true, icon: 'fa-bolt', desc: 'Vínculo absorbente con alta reactividad y disputas recurrentes' },
-        conflictual: { label: 'Conflictiva / Tensa', color: '#ef4444', stroke: '3', strokeDash: 'none', zigzag: true, lines: 1, icon: 'fa-fire', desc: 'Hostilidad manifiesta, discusiones frecuentes o tensión latente' },
-        distant: { label: 'Distante / Fría', color: '#64748b', stroke: '2', strokeDash: '4,4', lines: 1, icon: 'fa-snowflake', desc: 'Contacto escaso, falta de calidez o indiferencia afectiva' },
-        cutoff: { label: 'Quiebre / Corte Emocional', color: '#dc2626', stroke: '3', cutoff: true, lines: 1, icon: 'fa-cut', desc: 'Ruptura total de comunicación por conflicto insalvable (Cut-off)' },
+        very_close: { label: 'Muy estrecha', color: '#0d9488', stroke: '6', strokeDash: 'none', lines: 3, icon: 'fa-bars', desc: 'Tres líneas paralelas' },
+        very_close_conflict: { label: 'Muy estrecha, pero conflictiva', color: '#f59e0b', stroke: '5', strokeDash: 'none', lines: 3, zigzag: true, icon: 'fa-bolt', desc: 'Tres líneas paralelas con zigzag' },
+        conflictual: { label: 'Conflictiva', color: '#ef4444', stroke: '3', strokeDash: 'none', zigzag: true, lines: 1, icon: 'fa-fire', desc: 'Línea en zigzag' },
+        close: { label: 'Cercana', color: '#10b981', stroke: '4', strokeDash: 'none', lines: 2, icon: 'fa-equals', desc: 'Dos líneas paralelas' },
+        cutoff: { label: 'Quiebre', color: '#dc2626', stroke: '3', cutoff: true, lines: 1, icon: 'fa-cut', desc: 'Línea interrumpida con barras paralelas (||)' },
+        distant: { label: 'Distante', color: '#64748b', stroke: '2', strokeDash: '6,6', lines: 1, icon: 'fa-ellipsis-h', desc: 'Línea discontinua (- - - -)' },
+        // Compatibilidad con registros previos y tests
+        enmeshed: { aliasOf: 'very_close', label: 'Muy estrecha', color: '#0d9488', stroke: '6', strokeDash: 'none', lines: 3, icon: 'fa-bars', desc: 'Tres líneas paralelas' },
+        enmeshed_conflict: { aliasOf: 'very_close_conflict', label: 'Muy estrecha, pero conflictiva', color: '#f59e0b', stroke: '5', strokeDash: 'none', lines: 3, zigzag: true, icon: 'fa-bolt', desc: 'Tres líneas paralelas con zigzag' },
+        harmonious: { aliasOf: 'close', label: 'Cercana', color: '#10b981', stroke: '4', strokeDash: 'none', lines: 2, icon: 'fa-equals', desc: 'Dos líneas paralelas' },
         abusive: { label: 'Abuso / Violencia', color: '#991b1b', stroke: '3', arrow: true, lines: 1, icon: 'fa-exclamation-triangle', desc: 'Relación con asimetría de poder, maltrato físico, verbal o psicológico' }
     },
 
-    // Tipos de uniones conyugales
+    // Tipos de uniones y vínculos familiares
     UNION_TYPES: {
         married: { label: 'Matrimonio Formal', strokeDash: 'none', marks: 0 },
         cohabiting: { label: 'Convivencia / Unión Libre', strokeDash: '6,4', marks: 0 },
         separated: { label: 'Separación', strokeDash: 'none', marks: 1 },
-        divorced: { label: 'Divorcio Legal', strokeDash: 'none', marks: 2 }
+        divorced: { label: 'Divorcio Legal', strokeDash: 'none', marks: 2 },
+        // Otros Vínculos
+        sibling: { label: 'Hermano', isOther: true },
+        child: { label: 'Hijo', isOther: true },
+        half_sibling: { label: 'Medio hermano', isOther: true },
+        step_sibling: { label: 'Hermanastro', isOther: true }
     },
 
     // Marcadores clínicos transgeneracionales
@@ -307,17 +316,49 @@ const GenogramModule = {
         </g>`;
     },
 
-    // Renderizado de la Línea de Unión Conyugal (Matrimonio, Divorcio, etc.)
+    // Renderizado de la Línea de Unión Conyugal y Otros Vínculos
     renderUnionLine(union, members) {
         const p1 = members.find(m => m.id === union.partner1Id);
         const p2 = members.find(m => m.id === union.partner2Id);
         if (!p1 || !p2) return '';
 
-        // Conectar desde la base inferior de cada figura
-        const yDrop = Math.max(p1.y, p2.y) + 38;
         const typeInfo = this.UNION_TYPES[union.type] || this.UNION_TYPES.married;
 
-        // Camino en U invertida cuadrangular: p1 -> baja a yDrop -> horizontal hasta p2 -> sube a p2
+        // Vínculo filial directo (Hijo)
+        if (union.type === 'child') {
+            const startX = p1.x;
+            const startY = p1.y + 26;
+            const endX = p2.x;
+            const endY = p2.y - 26;
+            const midY = (startY + endY) / 2;
+            const pathData = Math.abs(startX - endX) < 4
+                ? `M ${startX} ${startY} L ${endX} ${endY}`
+                : `M ${startX} ${startY} L ${startX} ${midY} L ${endX} ${midY} L ${endX} ${endY}`;
+
+            return `
+            <g class="union-link" data-union-id="${union.id}" onclick="GenogramModule.openUnionModal('${union.id}')" style="cursor:pointer;" title="Vínculo Filial (Hijo)">
+                <path d="${pathData}" fill="none" stroke="var(--border-secondary, #475569)" stroke-width="1.8" />
+                <text x="${(startX + endX) / 2}" y="${midY - 4}" text-anchor="middle" font-size="9" fill="var(--text-tertiary, #64748b)">Hijo/a</text>
+            </g>`;
+        }
+
+        // Vínculos de hermanos (Hermano, Medio hermano, Hermanastro) - Barra superior
+        if (union.type === 'sibling' || union.type === 'half_sibling' || union.type === 'step_sibling') {
+            const yRise = Math.min(p1.y, p2.y) - 34;
+            const pathData = `M ${p1.x} ${p1.y - 26} L ${p1.x} ${yRise} L ${p2.x} ${yRise} L ${p2.x} ${p2.y - 26}`;
+            const midX = (p1.x + p2.x) / 2;
+            const strokeDash = union.type === 'half_sibling' ? '6,4' : union.type === 'step_sibling' ? '2,3' : 'none';
+            const labelText = union.type === 'sibling' ? 'Hermano' : union.type === 'half_sibling' ? 'Medio hermano' : 'Hermanastro';
+
+            return `
+            <g class="union-link" data-union-id="${union.id}" onclick="GenogramModule.openUnionModal('${union.id}')" style="cursor:pointer;" title="${labelText}">
+                <path d="${pathData}" fill="none" stroke="var(--border-secondary, #475569)" stroke-width="1.8" stroke-dasharray="${strokeDash}" />
+                <text x="${midX}" y="${yRise - 4}" text-anchor="middle" font-size="9" fill="var(--text-tertiary, #64748b)">${labelText}</text>
+            </g>`;
+        }
+
+        // Uniones Conyugales (Matrimonio, Convivencia, Separación, Divorcio) - Barra inferior estándar
+        const yDrop = Math.max(p1.y, p2.y) + 38;
         const pathData = `M ${p1.x} ${p1.y + 26} L ${p1.x} ${yDrop} L ${p2.x} ${yDrop} L ${p2.x} ${p2.y + 26}`;
         const midX = (p1.x + p2.x) / 2;
 
@@ -341,7 +382,7 @@ const GenogramModule = {
 
         return `
         <g class="union-link" data-union-id="${union.id}" onclick="GenogramModule.openUnionModal('${union.id}')" style="cursor:pointer;">
-            <path d="${pathData}" fill="none" stroke="var(--border-secondary, #475569)" stroke-width="2" stroke-dasharray="${typeInfo.strokeDash}" />
+            <path d="${pathData}" fill="none" stroke="var(--border-secondary, #475569)" stroke-width="2" stroke-dasharray="${typeInfo.strokeDash || 'none'}" />
             ${marksSvg}
             ${labelSvg}
         </g>`;
@@ -349,41 +390,71 @@ const GenogramModule = {
 
     // Renderizado de la Línea de Descendencia Filial
     renderChildLine(childLink, unions, members) {
-        const union = unions.find(u => u.id === childLink.unionId);
         const child = members.find(m => m.id === childLink.childId);
-        if (!union || !child) return '';
+        if (!child) return '';
 
-        const p1 = members.find(m => m.id === union.partner1Id);
-        const p2 = members.find(m => m.id === union.partner2Id);
-        if (!p1 || !p2) return '';
-
-        const midUnionX = (p1.x + p2.x) / 2;
-        const unionY = Math.max(p1.y, p2.y) + 38;
-        const childTopY = child.y - 26;
-        const splitY = unionY + ((childTopY - unionY) * 0.45);
-
-        // Línea que desciende de la unión, quiebra horizontal hasta la coordenada X del hijo y desciende
-        let pathData = `M ${midUnionX} ${unionY} L ${midUnionX} ${splitY} L ${child.x} ${splitY} L ${child.x} ${childTopY}`;
-        let strokeDash = 'none';
-
-        if (childLink.type === 'adopted') {
-            strokeDash = '4,4';
+        let startX, startY;
+        if (childLink.unionId) {
+            const union = unions.find(u => u.id === childLink.unionId);
+            if (union) {
+                const p1 = members.find(m => m.id === union.partner1Id);
+                const p2 = members.find(m => m.id === union.partner2Id);
+                if (p1 && p2) {
+                    startX = (p1.x + p2.x) / 2;
+                    startY = Math.max(p1.y, p2.y) + 38;
+                } else if (p1) {
+                    startX = p1.x;
+                    startY = p1.y + 26;
+                }
+            }
         }
 
+        if (startX === undefined && childLink.parentId) {
+            const parent = members.find(m => m.id === childLink.parentId);
+            if (parent) {
+                startX = parent.x;
+                startY = parent.y + 26;
+            }
+        }
+
+        if (startX === undefined) return '';
+
+        // Determinar punto de anclaje superior según la figura del hijo
+        let childTopY = child.y - 26;
+        const isSpecialLoss = child.role === 'miscarriage' || child.subtype === 'miscarriage' || child.role === 'abortion' || child.subtype === 'abortion';
+        const isPregnancy = child.role === 'pregnancy' || child.subtype === 'pregnancy';
+
+        if (isSpecialLoss) {
+            childTopY = child.y - 10;
+        } else if (isPregnancy) {
+            childTopY = child.y - 20;
+        }
+
+        const splitY = startY + ((childTopY - startY) * 0.45);
+        let pathData = '';
+        if (Math.abs(startX - child.x) < 4) {
+            pathData = `M ${startX} ${startY} L ${child.x} ${childTopY}`;
+        } else {
+            pathData = `M ${startX} ${startY} L ${startX} ${splitY} L ${child.x} ${splitY} L ${child.x} ${childTopY}`;
+        }
+
+        const isAdopted = childLink.type === 'adopted' || child.role === 'adopted' || child.subtype === 'adopted' || child.isAdopted;
+        const strokeDash = isAdopted ? '5,4' : 'none';
+
         return `
-        <g class="child-link">
+        <g class="child-link" data-child-id="${child.id}">
             <path d="${pathData}" fill="none" stroke="var(--border-secondary, #475569)" stroke-width="1.8" stroke-dasharray="${strokeDash}" />
-            ${childLink.type === 'adopted' ? `<text x="${child.x}" y="${childTopY - 6}" font-size="9.5" text-anchor="middle" fill="#0d9488">[Adopción]</text>` : ''}
+            ${isAdopted ? `<text x="${child.x}" y="${childTopY - 6}" font-size="9" text-anchor="middle" fill="#0d9488">[Adopción]</text>` : ''}
         </g>`;
     },
 
-    // Renderizado de las Pautas Relacionales de Bowen (Afectivas)
+    // Renderizado de Relaciones Interpersonales
     renderRelationshipPath(rel, members) {
         const from = members.find(m => m.id === rel.fromId);
         const to = members.find(m => m.id === rel.toId);
         if (!from || !to) return '';
 
-        const relInfo = this.RELATIONSHIP_TYPES[rel.type] || this.RELATIONSHIP_TYPES.harmonious;
+        const relInfo = this.RELATIONSHIP_TYPES[rel.type] || this.RELATIONSHIP_TYPES.close || this.RELATIONSHIP_TYPES.harmonious;
         const dx = to.x - from.x;
         const dy = to.y - from.y;
         const dist = Math.hypot(dx, dy) || 1;
@@ -409,24 +480,62 @@ const GenogramModule = {
         let content = '';
 
         if (relInfo.lines === 2) {
-            // Armónica: 2 líneas paralelas
+            // Cercana / Armónica: 2 líneas paralelas
+            const pathD1 = `M ${startX - 3 * nx} ${startY - 3 * ny} Q ${ctrlX - 3 * nx} ${ctrlY - 3 * ny} ${endX - 3 * nx} ${endY - 3 * ny}`;
+            const pathD2 = `M ${startX + 3 * nx} ${startY + 3 * ny} Q ${ctrlX + 3 * nx} ${ctrlY + 3 * ny} ${endX + 3 * nx} ${endY + 3 * ny}`;
             content = `
-                <path d="${pathD}" fill="none" stroke="${relInfo.color}" stroke-width="4.5" opacity="0.3" />
-                <path d="${pathD}" fill="none" stroke="${relInfo.color}" stroke-width="1.8" />`;
+                <path d="${pathD}" fill="none" stroke="${relInfo.color}" stroke-width="4.5" opacity="0.25" />
+                <path d="${pathD1}" fill="none" stroke="${relInfo.color}" stroke-width="1.8" />
+                <path d="${pathD2}" fill="none" stroke="${relInfo.color}" stroke-width="1.8" />`;
         } else if (relInfo.lines === 3 && !relInfo.zigzag) {
-            // Fusionada / Enmeshed: 3 líneas paralelas sólidas
+            // Muy estrecha: 3 líneas paralelas sólidas
+            const pathD1 = `M ${startX - 5 * nx} ${startY - 5 * ny} Q ${ctrlX - 5 * nx} ${ctrlY - 5 * ny} ${endX - 5 * nx} ${endY - 5 * ny}`;
+            const pathD2 = `M ${startX + 5 * nx} ${startY + 5 * ny} Q ${ctrlX + 5 * nx} ${ctrlY + 5 * ny} ${endX + 5 * nx} ${endY + 5 * ny}`;
             content = `
-                <path d="${pathD}" fill="none" stroke="${relInfo.color}" stroke-width="7" opacity="0.2" />
+                <path d="${pathD}" fill="none" stroke="${relInfo.color}" stroke-width="7" opacity="0.15" />
                 <path d="${pathD}" fill="none" stroke="${relInfo.color}" stroke-width="4" stroke-dasharray="none" />
-                <path d="${pathD}" fill="none" stroke="#ffffff" stroke-width="1.5" />`;
-        } else if (relInfo.zigzag) {
-            // Conflictiva / Fusión conflictiva: Zigzag enérgico
+                <path d="${pathD1}" fill="none" stroke="${relInfo.color}" stroke-width="1.8" />
+                <path d="${pathD}" fill="none" stroke="${relInfo.color}" stroke-width="1.8" />
+                <path d="${pathD2}" fill="none" stroke="${relInfo.color}" stroke-width="1.8" />`;
+        } else if (relInfo.lines === 3 && relInfo.zigzag) {
+            // Muy estrecha, pero conflictiva: 3 líneas paralelas con zigzag superpuesto
+            const pathD1 = `M ${startX - 5 * nx} ${startY - 5 * ny} Q ${ctrlX - 5 * nx} ${ctrlY - 5 * ny} ${endX - 5 * nx} ${endY - 5 * ny}`;
+            const pathD2 = `M ${startX + 5 * nx} ${startY + 5 * ny} Q ${ctrlX + 5 * nx} ${ctrlY + 5 * ny} ${endX + 5 * nx} ${endY + 5 * ny}`;
+            const numTeeth = Math.max(6, Math.min(14, Math.floor(dist / 25)));
+            let zigzagPts = [];
+            for (let i = 0; i <= numTeeth; i++) {
+                const t = i / numTeeth;
+                const bx = (1 - t) * (1 - t) * startX + 2 * (1 - t) * t * ctrlX + t * t * endX;
+                const by = (1 - t) * (1 - t) * startY + 2 * (1 - t) * t * ctrlY + t * t * endY;
+                const toothAmp = (i === 0 || i === numTeeth) ? 0 : (i % 2 === 1 ? 9 : -9);
+                zigzagPts.push(`${i === 0 ? 'M' : 'L'} ${bx + nx * toothAmp} ${by + ny * toothAmp}`);
+            }
+            const zigzagD = zigzagPts.join(' ');
             content = `
-                <path d="${pathD}" fill="none" stroke="${relInfo.color}" stroke-width="2.5" stroke-dasharray="5,4" />
+                <path d="${pathD1}" fill="none" stroke="${relInfo.color}" stroke-width="1.8" />
+                <path d="${pathD}" fill="none" stroke="${relInfo.color}" stroke-width="1.8" />
+                <path d="${pathD2}" fill="none" stroke="${relInfo.color}" stroke-width="1.8" />
+                <path d="${zigzagD}" fill="none" stroke="${relInfo.color}" stroke-width="2.2" stroke-linejoin="round" stroke-dasharray="5,4" />
+                <circle cx="${midX}" cy="${midY}" r="11" fill="var(--bg-card, #ffffff)" stroke="${relInfo.color}" stroke-width="1.8" />
+                <text x="${midX}" y="${midY + 4}" text-anchor="middle" font-size="11" font-weight="bold" fill="${relInfo.color}">⚡</text>`;
+        } else if (relInfo.zigzag) {
+            // Conflictiva: Zigzag enérgico
+            const numTeeth = Math.max(8, Math.min(16, Math.floor(dist / 20)));
+            let zigzagPts = [];
+            for (let i = 0; i <= numTeeth; i++) {
+                const t = i / numTeeth;
+                const bx = (1 - t) * (1 - t) * startX + 2 * (1 - t) * t * ctrlX + t * t * endX;
+                const by = (1 - t) * (1 - t) * startY + 2 * (1 - t) * t * ctrlY + t * t * endY;
+                const toothAmp = (i === 0 || i === numTeeth) ? 0 : (i % 2 === 1 ? 8 : -8);
+                zigzagPts.push(`${i === 0 ? 'M' : 'L'} ${bx + nx * toothAmp} ${by + ny * toothAmp}`);
+            }
+            const zigzagD = zigzagPts.join(' ');
+            content = `
+                <path d="${zigzagD}" fill="none" stroke="${relInfo.color}" stroke-width="2.4" stroke-linejoin="round" stroke-dasharray="5,4" />
                 <circle cx="${midX}" cy="${midY}" r="11" fill="var(--bg-card, #ffffff)" stroke="${relInfo.color}" stroke-width="1.8" />
                 <text x="${midX}" y="${midY + 4}" text-anchor="middle" font-size="11" font-weight="bold" fill="${relInfo.color}">⚡</text>`;
         } else if (relInfo.cutoff) {
-            // Corte emocional (Cut-off): Doble barra perpendicular de interrupción
+            // Quiebre: Doble barra perpendicular de interrupción (Cut-off)
             content = `
                 <path d="${pathD}" fill="none" stroke="${relInfo.color}" stroke-width="2" />
                 <line x1="${midX - 7 * nx - 8 * ny}" y1="${midY - 7 * ny + 8 * nx}" x2="${midX - 7 * nx + 8 * ny}" y2="${midY - 7 * ny - 8 * nx}" stroke="${relInfo.color}" stroke-width="3" />
@@ -438,8 +547,8 @@ const GenogramModule = {
                 <circle cx="${midX}" cy="${midY}" r="10" fill="#fee2e2" stroke="${relInfo.color}" stroke-width="1.5" />
                 <text x="${midX}" y="${midY + 3.5}" text-anchor="middle" font-size="10" fill="${relInfo.color}">⚠️</text>`;
         } else {
-            // Distante / Fría: Punteada
-            content = `<path d="${pathD}" fill="none" stroke="${relInfo.color}" stroke-width="2" stroke-dasharray="4,5" />`;
+            // Distante: Punteada
+            content = `<path d="${pathD}" fill="none" stroke="${relInfo.color}" stroke-width="2" stroke-dasharray="6,5" />`;
         }
 
         return `
@@ -455,15 +564,39 @@ const GenogramModule = {
         const isMale = m.gender === 'M';
         const isFemale = m.gender === 'F';
         const isNonBinary = !isMale && !isFemale;
+        const isPregnancy = m.role === 'pregnancy' || m.subtype === 'pregnancy';
+        const isMiscarriage = m.role === 'miscarriage' || m.subtype === 'miscarriage';
+        const isAbortion = m.role === 'abortion' || m.subtype === 'abortion';
+        const isAdopted = m.role === 'adopted' || m.subtype === 'adopted' || m.isAdopted;
 
         // Base de color y relleno
-        const strokeColor = m.isIndex ? 'var(--brand-deep, #053f5c)' : 'var(--text-primary, #1e293b)';
+        const strokeColor = m.isIndex ? 'var(--brand-deep, #053f5c)' : ((isMiscarriage || isAbortion || isPregnancy) ? '#0d9488' : 'var(--text-primary, #1e293b)');
         const fillColor = 'var(--bg-card, #ffffff)';
         const strokeWidth = m.isIndex ? 3 : 2;
 
         let shapeSvg = '';
 
-        if (isMale) {
+        if (isPregnancy) {
+            // Triángulo para Embarazo
+            shapeSvg = `
+                <polygon points="0,-20 22,18 -22,18"
+                         fill="${fillColor}" stroke="${strokeColor}" stroke-width="${strokeWidth}" />`;
+            if (m.isIndex) {
+                shapeSvg += `
+                <polygon points="0,-14 16,14 -16,14"
+                         fill="none" stroke="${strokeColor}" stroke-width="1.5" />`;
+            }
+        } else if (isMiscarriage) {
+            // Círculo relleno (punto sólido) para Aborto Espontáneo
+            shapeSvg = `
+                <circle cx="0" cy="0" r="10"
+                        fill="${strokeColor}" stroke="${strokeColor}" stroke-width="2" />`;
+        } else if (isAbortion) {
+            // Cruz X para Aborto Inducido
+            shapeSvg = `
+                <line x1="-10" y1="-10" x2="10" y2="10" stroke="${strokeColor}" stroke-width="3" stroke-linecap="round" />
+                <line x1="-10" y1="10" x2="10" y2="-10" stroke="${strokeColor}" stroke-width="3" stroke-linecap="round" />`;
+        } else if (isMale) {
             // Cuadrado
             shapeSvg = `
                 <rect x="${-half}" y="${-half}" width="${size}" height="${size}" rx="4"
@@ -497,54 +630,72 @@ const GenogramModule = {
             }
         }
 
-        // Marcadores clínicos y sombreados dentro de la figura
+        // Marcadores clínicos y sombreados dentro de la figura (solo para miembros corporales)
         let markersSvg = '';
         const conditions = m.clinicalConditions || [];
 
-        if (conditions.includes('alcoholism')) {
-            // Mitad inferior sombreada
-            if (isMale) {
-                markersSvg += `<rect x="${-half}" y="0" width="${size}" height="${half}" fill="#8b5cf6" opacity="0.65" rx="1" />`;
-            } else if (isFemale) {
-                markersSvg += `<path d="M ${-half} 0 A ${half} ${half} 0 0 0 ${half} 0 Z" fill="#8b5cf6" opacity="0.65" />`;
+        if (!isPregnancy && !isMiscarriage && !isAbortion) {
+            if (conditions.includes('alcoholism')) {
+                // Mitad inferior sombreada
+                if (isMale) {
+                    markersSvg += `<rect x="${-half}" y="0" width="${size}" height="${half}" fill="#8b5cf6" opacity="0.65" rx="1" />`;
+                } else if (isFemale) {
+                    markersSvg += `<path d="M ${-half} 0 A ${half} ${half} 0 0 0 ${half} 0 Z" fill="#8b5cf6" opacity="0.65" />`;
+                }
             }
-        }
 
-        if (conditions.includes('depression')) {
-            // Mitad superior sombreada
-            if (isMale) {
-                markersSvg += `<rect x="${-half}" y="${-half}" width="${size}" height="${half}" fill="#3b82f6" opacity="0.55" rx="1" />`;
-            } else if (isFemale) {
-                markersSvg += `<path d="M ${-half} 0 A ${half} ${half} 0 0 1 ${half} 0 Z" fill="#3b82f6" opacity="0.55" />`;
+            if (conditions.includes('depression')) {
+                // Mitad superior sombreada
+                if (isMale) {
+                    markersSvg += `<rect x="${-half}" y="${-half}" width="${size}" height="${half}" fill="#3b82f6" opacity="0.55" rx="1" />`;
+                } else if (isFemale) {
+                    markersSvg += `<path d="M ${-half} 0 A ${half} ${half} 0 0 1 ${half} 0 Z" fill="#3b82f6" opacity="0.55" />`;
+                }
             }
-        }
 
-        if (conditions.includes('anxiety')) {
-            markersSvg += `<circle cx="${half - 6}" cy="${-half + 6}" r="5" fill="#f59e0b" stroke="#ffffff" stroke-width="1" />`;
-        }
+            if (conditions.includes('anxiety')) {
+                markersSvg += `<circle cx="${half - 6}" cy="${-half + 6}" r="5" fill="#f59e0b" stroke="#ffffff" stroke-width="1" />`;
+            }
 
-        if (conditions.includes('suicide')) {
-            markersSvg += `<text x="0" y="4" text-anchor="middle" font-size="16" fill="#1e293b" font-weight="900">✞</text>`;
+            if (conditions.includes('suicide')) {
+                markersSvg += `<text x="0" y="4" text-anchor="middle" font-size="16" fill="#1e293b" font-weight="900">✞</text>`;
+            }
         }
 
         // Estado vital: Fallecido (Cruz diagonal tachando el símbolo)
         let deceasedSvg = '';
-        if (m.isDeceased) {
+        if (m.isDeceased && !isMiscarriage && !isAbortion) {
             deceasedSvg = `
                 <line x1="${-half - 4}" y1="${-half - 4}" x2="${half + 4}" y2="${half + 4}" stroke="#dc2626" stroke-width="2.4" />
                 <line x1="${-half - 4}" y1="${half + 4}" x2="${half + 4}" y2="${-half - 4}" stroke="#dc2626" stroke-width="2.4" />`;
         }
 
         // Edad o texto dentro del símbolo
-        const centerText = m.isDeceased ? (m.deathYear ? `m.${m.deathYear}` : '†') : (m.age ? `${m.age}` : '');
+        const centerText = (!isPregnancy && !isMiscarriage && !isAbortion) ? (m.isDeceased ? (m.deathYear ? `m.${m.deathYear}` : '†') : (m.age ? `${m.age}` : '')) : '';
         const textSvg = centerText ? `
             <text x="0" y="4.5" text-anchor="middle" font-size="13" font-weight="700"
                   fill="var(--text-primary, #0f172a)">${centerText}</text>` : '';
 
-        // Etiquetas inferiores (Nombre, ocupación, notas clínicas)
-        const nameLabel = m.name || 'Familiar';
-        const truncatedName = nameLabel.length > 18 ? nameLabel.substring(0, 16) + '…' : nameLabel;
-        const subLabel = m.isIndex ? '★ Paciente' : (m.occupation || '');
+        // Etiquetas inferiores (Nombre, rol especial, sin campo ocupación)
+        const defaultName = isPregnancy ? 'Embarazo' : isMiscarriage ? 'Espontáneo' : isAbortion ? 'Inducido' : 'Familiar';
+        const nameLabel = m.name || defaultName;
+        const truncatedName = nameLabel.length > 20 ? nameLabel.substring(0, 18) + '…' : nameLabel;
+        
+        let subLabel = '';
+        if (m.isIndex) {
+            subLabel = '★ Paciente';
+        } else if (isAdopted) {
+            subLabel = 'Hijo de crianza';
+        } else if (isPregnancy) {
+            subLabel = 'Embarazo';
+        } else if (isMiscarriage) {
+            subLabel = 'Espontáneo';
+        } else if (isAbortion) {
+            subLabel = 'Inducido';
+        }
+
+        const labelY = (isMiscarriage || isAbortion) ? 22 : (half + 16);
+        const subLabelY = (isMiscarriage || isAbortion) ? 34 : (half + 29);
 
         return `
         <g class="member-node ${m.isIndex ? 'is-index' : ''} ${interactive ? 'draggable' : ''}"
@@ -561,13 +712,13 @@ const GenogramModule = {
             ${deceasedSvg}
 
             <!-- Etiqueta Nombre -->
-            <text x="0" y="${half + 16}" text-anchor="middle" font-size="11.5" font-weight="600"
+            <text x="0" y="${labelY}" text-anchor="middle" font-size="11.5" font-weight="600"
                   fill="var(--text-primary, #0f172a)">${truncatedName}</text>
             
-            <!-- Etiqueta Subtítulo / Ocupación -->
-            ${subLabel ? `<text x="0" y="${half + 29}" text-anchor="middle" font-size="10"
-                                fill="${m.isIndex ? 'var(--brand-deep, #0d9488)' : 'var(--text-tertiary, #64748b)'}"
-                                font-weight="${m.isIndex ? '700' : '400'}">${subLabel}</text>` : ''}
+            <!-- Etiqueta Subtítulo / Rol Clínico -->
+            ${subLabel ? `<text x="0" y="${subLabelY}" text-anchor="middle" font-size="10"
+                                fill="${m.isIndex ? 'var(--brand-deep, #0d9488)' : (isAdopted || isPregnancy || isMiscarriage || isAbortion) ? '#0d9488' : 'var(--text-tertiary, #64748b)'}"
+                                font-weight="${(m.isIndex || isAdopted) ? '700' : '500'}">${subLabel}</text>` : ''}
         </g>`;
     },
 
@@ -763,8 +914,8 @@ const GenogramModule = {
                     <button class="btn-sm btn-secondary" onclick="GenogramModule.openAddUnionModal()" title="Vincular matrimonio, convivencia, separación o divorcio">
                         <i class="fas fa-ring"></i> + Unión
                     </button>
-                    <button class="btn-sm btn-secondary" onclick="GenogramModule.openAddRelationshipModal()" title="Definir vínculo afectivo o relacional de Bowen">
-                        <i class="fas fa-project-diagram"></i> + Dinámica Bowen
+                    <button class="btn-sm btn-secondary" onclick="GenogramModule.openAddRelationshipModal()" title="Definir vínculo afectivo o relacional">
+                        <i class="fas fa-project-diagram"></i> + Relaciones
                     </button>
                 </div>
 
@@ -784,36 +935,42 @@ const GenogramModule = {
                 </div>
             </div>
 
-            <!-- Leyenda Plegable de Simbología McGoldrick & Bowen -->
+            <!-- Leyenda Plegable de Simbología Oficial -->
             <div id="genogramLegendPanel" class="genogram-legend-panel" style="display:none;">
                 <div class="legend-header">
-                    <h4><i class="fas fa-book-open"></i> Simbología Oficial del Genograma (McGoldrick & Bowen)</h4>
+                    <h4><i class="fas fa-book-open"></i> Simbología Oficial del Genograma</h4>
                     <button class="btn-icon" onclick="GenogramModule.toggleLegend()"><i class="fas fa-times"></i></button>
                 </div>
                 <div class="legend-grid">
                     <div class="legend-col">
                         <div class="legend-title">Figuras Anatómicas</div>
-                        <div class="legend-item"><span class="legend-sym sym-square"></span> Varón</div>
-                        <div class="legend-item"><span class="legend-sym sym-circle"></span> Mujer</div>
-                        <div class="legend-item"><span class="legend-sym sym-diamond"></span> No Binario / Otro</div>
+                        <div class="legend-item"><span class="legend-sym sym-square"></span> Varón (Cuadrado)</div>
+                        <div class="legend-item"><span class="legend-sym sym-circle"></span> Mujer (Círculo)</div>
+                        <div class="legend-item"><span class="legend-sym sym-diamond"></span> No Binario / Otro (Rombo)</div>
+                        <div class="legend-item"><span class="legend-sym sym-triangle">△</span> Embarazo (Triángulo)</div>
+                        <div class="legend-item"><span class="legend-sym sym-dot">●</span> Aborto espontáneo (Punto sólido)</div>
+                        <div class="legend-item"><span class="legend-sym sym-cross">✕</span> Aborto inducido (Cruz)</div>
+                        <div class="legend-item"><span class="legend-line line-cohab" style="width:22px;border-top-width:2px;"></span> Hijo/a adoptado (Hijo de crianza)</div>
                         <div class="legend-item"><span class="legend-sym sym-index"></span> Paciente Identificado (Doble borde)</div>
                         <div class="legend-item"><span class="legend-sym sym-deceased">✞</span> Fallecido (Cruz diagonal)</div>
                         <div class="legend-item"><span class="legend-sym sym-household">---</span> Límite del Hogar (Convivientes)</div>
                     </div>
                     <div class="legend-col">
-                        <div class="legend-title">Uniones Conyugales</div>
+                        <div class="legend-title">Uniones y Otros Vínculos</div>
                         <div class="legend-item"><span class="legend-line line-married"></span> Matrimonio (Línea continua)</div>
-                        <div class="legend-item"><span class="legend-line line-cohab"></span> Unión libre / Convivencia (Línea de trazos)</div>
+                        <div class="legend-item"><span class="legend-line line-cohab"></span> Unión libre / Convivencia (Discontinua)</div>
                         <div class="legend-item"><span class="legend-line line-sep">/</span> Separación (Una barra)</div>
                         <div class="legend-item"><span class="legend-line line-div">//</span> Divorcio (Dos barras)</div>
+                        <div class="legend-item"><span class="legend-line line-sibling"></span> Hermano / Hijo / Otros vínculos</div>
                     </div>
                     <div class="legend-col">
-                        <div class="legend-title">Pautas Afectivas (Bowen)</div>
-                        <div class="legend-item"><span class="legend-line line-harmonious"></span> Armónica / Muy unida (Doble línea)</div>
-                        <div class="legend-item"><span class="legend-line line-enmeshed"></span> Fusionada (Tres líneas sólidas)</div>
-                        <div class="legend-item"><span class="legend-line line-conflict">⚡</span> Conflictiva / Fusión conflictiva</div>
-                        <div class="legend-item"><span class="legend-line line-distant">••••</span> Distante / Fría (Punteada)</div>
-                        <div class="legend-item"><span class="legend-line line-cutoff">||</span> Corte Emocional (Cut-off)</div>
+                        <div class="legend-title">Relaciones interpersonales</div>
+                        <div class="legend-item"><span class="legend-line line-very-close"></span> Muy estrecha (Tres líneas)</div>
+                        <div class="legend-item"><span class="legend-line line-very-close-conflict"></span> Muy estrecha, pero conflictiva</div>
+                        <div class="legend-item"><span class="legend-line line-conflict">⚡</span> Conflictiva (Zigzag)</div>
+                        <div class="legend-item"><span class="legend-line line-close"></span> Cercana (Dos líneas)</div>
+                        <div class="legend-item"><span class="legend-line line-cutoff">||</span> Quiebre</div>
+                        <div class="legend-item"><span class="legend-line line-distant">••••</span> Distante (Línea discontinua)</div>
                     </div>
                 </div>
             </div>
@@ -823,16 +980,16 @@ const GenogramModule = {
                 ${this.renderSVG(genogram, { width: 960, height: 540, interactive: true })}
             </div>
 
-            <!-- Panel de Notas Sistémicas y Formulación Familiar -->
+            <!-- Panel de Observaciones Clínicas -->
             <div class="genogram-notes-section">
                 <div class="notes-header">
-                    <h4><i class="fas fa-clipboard-list"></i> Formulación e Hipótesis Sistémica Transgeneracional</h4>
+                    <h4><i class="fas fa-clipboard-list"></i> Observaciones</h4>
                     <button class="btn-sm btn-secondary" onclick="GenogramModule.saveNotes('${patient.id}')">
-                        <i class="fas fa-save"></i> Guardar Formulación
+                        <i class="fas fa-save"></i> Guardar Observaciones
                     </button>
                 </div>
                 <textarea id="genogramSystemicNotes" rows="3" class="form-control"
-                          placeholder="Registra aquí observaciones clínicas: triangulaciones observadas, lealtades invisibles, duelos no resueltos o mandatos familiares...">${genogram.notes || ''}</textarea>
+                          placeholder="Registra aquí observaciones clínicas: dinámicas observadas, lealtades, pautas relacionales o notas de sesión...">${genogram.notes || ''}</textarea>
             </div>
 
             <!-- Panel de Resultados del Copiloto SERENA (IA) -->
@@ -861,6 +1018,7 @@ const GenogramModule = {
     // =============================================================
     openAddMemberModal() {
         if (!this.currentGenogram) return;
+        const members = this.currentGenogram.members || [];
         const modalHtml = `
         <div class="modal active" id="modalGenoMember">
             <div class="modal-overlay" onclick="GenogramModule.closeModal('modalGenoMember')"></div>
@@ -872,23 +1030,44 @@ const GenogramModule = {
                 <div class="modal-body" style="padding: 16px;">
                     <div class="form-row">
                         <div class="form-group">
-                            <label>Nombre Completo *</label>
+                            <label>Nombre / Identificador *</label>
                             <input type="text" id="gMemName" class="form-control" placeholder="Ej. Carlos Pérez" required>
                         </div>
                         <div class="form-group">
-                            <label>Parentesco / Rol</label>
+                            <label>Parentesco / Rol *</label>
                             <select id="gMemRole" class="form-control" onchange="GenogramModule.onRoleChange(this.value)">
-                                <option value="parent">Padre / Madre (Gen II)</option>
-                                <option value="sibling">Hermano/a (Gen III)</option>
-                                <option value="partner">Pareja / Cónyuge (Gen III)</option>
-                                <option value="child">Hijo/a (Gen IV)</option>
-                                <option value="grandparent">Abuelo/a (Gen I)</option>
-                                <option value="other">Otro Familiar</option>
+                                <optgroup label="Familiares">
+                                    <option value="parent">Padre / Madre (Gen II)</option>
+                                    <option value="sibling">Hermano/a (Gen III)</option>
+                                    <option value="partner">Pareja / Cónyuge (Gen III)</option>
+                                    <option value="child">Hijo/a biológico/a (Gen IV)</option>
+                                    <option value="adopted">Hijo/a adoptado (Hijo de crianza)</option>
+                                    <option value="grandparent">Abuelo/a (Gen I)</option>
+                                    <option value="other">Otro Familiar</option>
+                                </optgroup>
+                                <optgroup label="Embarazo y Pérdidas Gestacionales">
+                                    <option value="pregnancy">Embarazo (Triángulo △)</option>
+                                    <option value="miscarriage">Aborto espontáneo (Punto sólido ●)</option>
+                                    <option value="abortion">Aborto inducido (Cruz ✕)</option>
+                                </optgroup>
                             </select>
                         </div>
                     </div>
-                    <div class="form-row">
-                        <div class="form-group">
+
+                    <!-- Selector para enlazar a un miembro existente -->
+                    <div class="form-group" id="gMemLinkGroup">
+                        <label id="gMemLinkLabel" style="font-weight:600;">Enlazar con familiar (Madre / Padre / Tutor)</label>
+                        <select id="gMemLinkedParent" class="form-control">
+                            <option value="">-- Sin enlace directo (ubicar libremente) --</option>
+                            ${members.map(m => `<option value="${m.id}">${m.name} (${m.gender === 'M' ? 'Varón' : m.gender === 'F' ? 'Mujer' : 'Otro'}${m.isIndex ? ' - Paciente' : ''})</option>`).join('')}
+                        </select>
+                        <small id="gMemLinkHelp" style="color:var(--text-tertiary);display:block;margin-top:4px;">
+                            Selecciona a un miembro para conectar automáticamente la descendencia o embarazo.
+                        </small>
+                    </div>
+
+                    <div class="form-row" id="gMemGenderAgeRow">
+                        <div class="form-group" id="gMemGenderGroup">
                             <label>Género *</label>
                             <select id="gMemGender" class="form-control">
                                 <option value="M">Masculino (Cuadrado)</option>
@@ -896,30 +1075,27 @@ const GenogramModule = {
                                 <option value="NB">No Binario / Otro (Rombo)</option>
                             </select>
                         </div>
-                        <div class="form-group">
+                        <div class="form-group" id="gMemAgeGroup">
                             <label>Edad</label>
                             <input type="number" id="gMemAge" class="form-control" placeholder="Ej. 45" min="0" max="120">
                         </div>
                     </div>
-                    <div class="form-row">
-                        <div class="form-group">
-                            <label>Ocupación / Profesión</label>
-                            <input type="text" id="gMemOccupation" class="form-control" placeholder="Ej. Docente">
-                        </div>
-                        <div class="form-group" style="display:flex;align-items:center;padding-top:24px;gap:16px;">
-                            <label style="display:inline-flex;align-items:center;gap:6px;cursor:pointer;">
-                                <input type="checkbox" id="gMemHousehold" checked> Conviviente en el hogar
-                            </label>
-                            <label style="display:inline-flex;align-items:center;gap:6px;cursor:pointer;">
-                                <input type="checkbox" id="gMemDeceased" onchange="document.getElementById('gMemDeathYearGroup').style.display = this.checked ? 'block' : 'none'"> Fallecido
-                            </label>
-                        </div>
+
+                    <div class="form-row" id="gMemStatusRow" style="align-items:center;padding:10px 0;gap:20px;">
+                        <label id="gMemHouseholdLabel" style="display:inline-flex;align-items:center;gap:6px;cursor:pointer;">
+                            <input type="checkbox" id="gMemHousehold" checked> Conviviente en el hogar
+                        </label>
+                        <label id="gMemDeceasedLabel" style="display:inline-flex;align-items:center;gap:6px;cursor:pointer;">
+                            <input type="checkbox" id="gMemDeceased" onchange="document.getElementById('gMemDeathYearGroup').style.display = this.checked ? 'block' : 'none'"> Fallecido
+                        </label>
                     </div>
+
                     <div class="form-group" id="gMemDeathYearGroup" style="display:none;">
                         <label>Año de Fallecimiento</label>
                         <input type="number" id="gMemDeathYear" class="form-control" placeholder="Ej. 2018">
                     </div>
-                    <div class="form-group">
+
+                    <div class="form-group" id="gMemMarkersGroup">
                         <label>Condiciones Clínicas / Marcadores de Salud Mental</label>
                         <div class="markers-checkbox-grid">
                             ${Object.keys(this.CLINICAL_MARKERS).map(key => `
@@ -941,32 +1117,104 @@ const GenogramModule = {
         this.injectModal(modalHtml);
     },
 
+    onRoleChange(role) {
+        const isSpecialRep = (role === 'pregnancy' || role === 'miscarriage' || role === 'abortion');
+        const isAdopted = (role === 'adopted');
+        const genderGroup = document.getElementById('gMemGenderGroup');
+        const ageGroup = document.getElementById('gMemAgeGroup');
+        const statusRow = document.getElementById('gMemStatusRow');
+        const deathYearGroup = document.getElementById('gMemDeathYearGroup');
+        const markersGroup = document.getElementById('gMemMarkersGroup');
+        const nameInput = document.getElementById('gMemName');
+        const linkHelp = document.getElementById('gMemLinkHelp');
+        const linkLabel = document.getElementById('gMemLinkLabel');
+
+        if (isSpecialRep) {
+            if (genderGroup) genderGroup.style.display = 'none';
+            if (ageGroup) ageGroup.style.display = 'none';
+            if (statusRow) statusRow.style.display = 'none';
+            if (deathYearGroup) deathYearGroup.style.display = 'none';
+            if (markersGroup) markersGroup.style.display = 'none';
+            if (linkLabel) linkLabel.innerHTML = 'Seleccionar familiar para enlazarlo * <span style="color:#0d9488;font-weight:700;">(Requerido)</span>';
+            if (linkHelp) {
+                if (role === 'pregnancy') linkHelp.innerHTML = '<strong>Embarazo:</strong> Se representará con un <em>triángulo (△)</em> enlazado al progenitor seleccionado.';
+                else if (role === 'miscarriage') linkHelp.innerHTML = '<strong>Aborto espontáneo:</strong> Se representará con un <em>círculo relleno (●)</em> enlazado al progenitor seleccionado.';
+                else if (role === 'abortion') linkHelp.innerHTML = '<strong>Aborto inducido:</strong> Se representará con una <em>cruz (✕)</em> enlazada al progenitor seleccionado.';
+            }
+            if (nameInput && (!nameInput.value || nameInput.value === 'Carlos Pérez')) {
+                if (role === 'pregnancy') nameInput.value = 'Embarazo';
+                else if (role === 'miscarriage') nameInput.value = 'Aborto espontáneo';
+                else if (role === 'abortion') nameInput.value = 'Aborto inducido';
+            }
+        } else {
+            if (genderGroup) genderGroup.style.display = '';
+            if (ageGroup) ageGroup.style.display = '';
+            if (statusRow) statusRow.style.display = 'flex';
+            if (markersGroup) markersGroup.style.display = '';
+            if (linkLabel) linkLabel.textContent = isAdopted ? 'Enlazar con familiar (Madre / Padre adoptante) *' : 'Enlazar con familiar (Madre / Padre / Tutor)';
+            if (linkHelp) linkHelp.textContent = isAdopted ? 'Hijo/a adoptado: Se representará con línea discontinua y la etiqueta "Hijo de crianza".' : 'Selecciona a un miembro para conectar automáticamente la descendencia.';
+            if (nameInput && (nameInput.value === 'Embarazo' || nameInput.value === 'Aborto espontáneo' || nameInput.value === 'Aborto inducido')) {
+                nameInput.value = '';
+            }
+        }
+    },
+
     saveNewMember() {
-        const name = document.getElementById('gMemName')?.value.trim();
+        const role = document.getElementById('gMemRole')?.value || 'other';
+        const isSpecialRep = (role === 'pregnancy' || role === 'miscarriage' || role === 'abortion');
+        const isAdopted = (role === 'adopted');
+
+        let name = document.getElementById('gMemName')?.value.trim();
         if (!name) {
-            alert('Por favor indica el nombre del familiar.');
+            if (role === 'pregnancy') name = 'Embarazo';
+            else if (role === 'miscarriage') name = 'Aborto espontáneo';
+            else if (role === 'abortion') name = 'Aborto inducido';
+            else if (role === 'adopted') name = 'Hijo/a adoptado';
+            else {
+                alert('Por favor indica el nombre del familiar.');
+                return;
+            }
+        }
+
+        const linkedParentId = document.getElementById('gMemLinkedParent')?.value || null;
+        if (isSpecialRep && !linkedParentId) {
+            alert('Por favor selecciona un miembro de la familia para enlazar la figura de embarazo o aborto.');
             return;
         }
 
-        const gender = document.getElementById('gMemGender')?.value || 'M';
-        const age = parseInt(document.getElementById('gMemAge')?.value, 10) || null;
-        const occupation = document.getElementById('gMemOccupation')?.value.trim() || '';
-        const inHousehold = Boolean(document.getElementById('gMemHousehold')?.checked);
-        const isDeceased = Boolean(document.getElementById('gMemDeceased')?.checked);
+        const gender = isSpecialRep ? 'NB' : (document.getElementById('gMemGender')?.value || 'M');
+        const age = isSpecialRep ? null : (parseInt(document.getElementById('gMemAge')?.value, 10) || null);
+        const inHousehold = isSpecialRep ? false : Boolean(document.getElementById('gMemHousehold')?.checked);
+        const isDeceased = isSpecialRep ? false : Boolean(document.getElementById('gMemDeceased')?.checked);
         const deathYear = isDeceased ? parseInt(document.getElementById('gMemDeathYear')?.value, 10) || null : null;
-        const role = document.getElementById('gMemRole')?.value || 'other';
 
-        const markers = Array.from(document.querySelectorAll('input[name="gMemMarkers"]:checked')).map(el => el.value);
+        const markers = isSpecialRep ? [] : Array.from(document.querySelectorAll('input[name="gMemMarkers"]:checked')).map(el => el.value);
 
-        // Asignar generación según el rol
+        // Asignar generación y coordenadas según el rol o el miembro enlazado
         let generation = 1;
         let yPos = 350;
-        if (role === 'grandparent') { generation = -1; yPos = 80; }
-        else if (role === 'parent') { generation = 0; yPos = 200; }
-        else if (role === 'child') { generation = 2; yPos = 480; }
+        let xPos = 200;
 
-        const existingCount = this.currentGenogram.members.filter(m => m.generation === generation).length;
-        const xPos = 200 + (existingCount * 130);
+        const parent = linkedParentId ? this.currentGenogram.members.find(m => m.id === linkedParentId) : null;
+        if (parent) {
+            generation = (parent.generation !== undefined ? parent.generation : 0) + 1;
+            yPos = parent.y + 130;
+            // Desplazar en X en función de los miembros existentes en esa generación
+            const sameGen = this.currentGenogram.members.filter(m => m.generation === generation);
+            if (sameGen.length > 0) {
+                const maxX = Math.max(...sameGen.map(m => m.x));
+                xPos = maxX + 110;
+            } else {
+                xPos = parent.x;
+            }
+        } else {
+            if (role === 'grandparent') { generation = -1; yPos = 80; }
+            else if (role === 'parent') { generation = 0; yPos = 200; }
+            else if (role === 'child' || isAdopted || isSpecialRep) { generation = 2; yPos = 480; }
+
+            const existingCount = this.currentGenogram.members.filter(m => m.generation === generation).length;
+            xPos = 200 + (existingCount * 130);
+        }
 
         const newMember = {
             id: `m_${Date.now()}_${Math.random().toString(36).substr(2, 4)}`,
@@ -978,15 +1226,34 @@ const GenogramModule = {
             deathYear,
             isIndex: false,
             generation,
+            role,
+            subtype: role,
+            isAdopted,
             x: xPos,
             y: yPos,
             inHousehold,
             clinicalConditions: markers,
-            occupation,
+            occupation: '',
             notes: ''
         };
 
         this.currentGenogram.members.push(newMember);
+
+        // Si se seleccionó familiar para enlazarlo, crear el vínculo filial correspondiente
+        if (parent) {
+            const parentUnion = (this.currentGenogram.unions || []).find(u => u.partner1Id === linkedParentId || u.partner2Id === linkedParentId);
+            if (!Array.isArray(this.currentGenogram.children)) {
+                this.currentGenogram.children = [];
+            }
+            this.currentGenogram.children.push({
+                id: `c_${Date.now()}`,
+                unionId: parentUnion ? parentUnion.id : null,
+                parentId: parentUnion ? null : parent.id,
+                childId: newMember.id,
+                type: isAdopted ? 'adopted' : (role === 'pregnancy' ? 'pregnancy' : (role === 'miscarriage' ? 'miscarriage' : (role === 'abortion' ? 'abortion' : 'biological')))
+            });
+        }
+
         this.closeModal('modalGenoMember');
         this.refreshCanvasFast();
         this.saveCurrentGenogram(true);
@@ -997,6 +1264,8 @@ const GenogramModule = {
         if (!this.currentGenogram) return;
         const member = this.currentGenogram.members.find(m => m.id === memberId);
         if (!member) return;
+
+        const isSpecialRep = member.role === 'pregnancy' || member.subtype === 'pregnancy' || member.role === 'miscarriage' || member.subtype === 'miscarriage' || member.role === 'abortion' || member.subtype === 'abortion';
 
         const modalHtml = `
         <div class="modal active" id="modalEditMember">
@@ -1012,6 +1281,7 @@ const GenogramModule = {
                             <label>Nombre Completo *</label>
                             <input type="text" id="gEditName" class="form-control" value="${member.name || ''}" required>
                         </div>
+                        ${!isSpecialRep ? `
                         <div class="form-group">
                             <label>Género</label>
                             <select id="gEditGender" class="form-control">
@@ -1019,16 +1289,13 @@ const GenogramModule = {
                                 <option value="F" ${member.gender === 'F' ? 'selected' : ''}>Femenino</option>
                                 <option value="NB" ${member.gender === 'NB' ? 'selected' : ''}>No Binario / Otro</option>
                             </select>
-                        </div>
+                        </div>` : ''}
                     </div>
+                    ${!isSpecialRep ? `
                     <div class="form-row">
                         <div class="form-group">
                             <label>Edad</label>
                             <input type="number" id="gEditAge" class="form-control" value="${member.age || ''}">
-                        </div>
-                        <div class="form-group">
-                            <label>Ocupación</label>
-                            <input type="text" id="gEditOccupation" class="form-control" value="${member.occupation || ''}">
                         </div>
                     </div>
                     <div class="form-row" style="align-items:center;padding:10px 0;">
@@ -1056,7 +1323,7 @@ const GenogramModule = {
                                 </label>
                             `).join('')}
                         </div>
-                    </div>
+                    </div>` : ''}
                     <div class="form-group">
                         <label>Notas Clínicas / Relacionales</label>
                         <textarea id="gEditNotes" class="form-control" rows="2" placeholder="Observaciones particulares">${member.notes || ''}</textarea>
@@ -1082,18 +1349,26 @@ const GenogramModule = {
         if (!member) return;
 
         member.name = document.getElementById('gEditName')?.value.trim() || member.name;
-        member.gender = document.getElementById('gEditGender')?.value || member.gender;
-        member.age = parseInt(document.getElementById('gEditAge')?.value, 10) || null;
-        member.occupation = document.getElementById('gEditOccupation')?.value.trim() || '';
-        member.inHousehold = Boolean(document.getElementById('gEditHousehold')?.checked);
+        if (document.getElementById('gEditGender')) {
+            member.gender = document.getElementById('gEditGender')?.value || member.gender;
+        }
+        if (document.getElementById('gEditAge')) {
+            member.age = parseInt(document.getElementById('gEditAge')?.value, 10) || null;
+        }
+        if (document.getElementById('gEditHousehold')) {
+            member.inHousehold = Boolean(document.getElementById('gEditHousehold')?.checked);
+        }
         member.notes = document.getElementById('gEditNotes')?.value.trim() || '';
 
-        if (!member.isIndex) {
+        if (!member.isIndex && document.getElementById('gEditDeceased')) {
             member.isDeceased = Boolean(document.getElementById('gEditDeceased')?.checked);
             member.deathYear = member.isDeceased ? parseInt(document.getElementById('gEditDeathYear')?.value, 10) || null : null;
         }
 
-        member.clinicalConditions = Array.from(document.querySelectorAll('input[name="gEditMarkers"]:checked')).map(el => el.value);
+        const checkedMarkers = document.querySelectorAll('input[name="gEditMarkers"]:checked');
+        if (checkedMarkers.length > 0) {
+            member.clinicalConditions = Array.from(checkedMarkers).map(el => el.value);
+        }
 
         this.closeModal('modalEditMember');
         this.refreshCanvasFast();
@@ -1115,7 +1390,7 @@ const GenogramModule = {
         if (typeof showToast === 'function') showToast('Familiar eliminado', 'info');
     },
 
-    // Modal para registrar una unión conyugal
+    // Modal para registrar una unión o vínculo
     openAddUnionModal() {
         if (!this.currentGenogram || this.currentGenogram.members.length < 2) {
             alert('Debes tener al menos 2 personas en el genograma para crear una unión.');
@@ -1128,32 +1403,40 @@ const GenogramModule = {
             <div class="modal-overlay" onclick="GenogramModule.closeModal('modalAddUnion')"></div>
             <div class="modal-content modal-large" style="max-width: 540px; margin: auto;">
                 <div class="modal-header">
-                    <h3 class="modal-title"><i class="fas fa-ring"></i> Conectar Unión de Pareja</h3>
+                    <h3 class="modal-title"><i class="fas fa-link"></i> Agregar Unión</h3>
                     <button class="btn-icon" onclick="GenogramModule.closeModal('modalAddUnion')"><i class="fas fa-times"></i></button>
                 </div>
                 <div class="modal-body" style="padding: 16px;">
                     <div class="form-group">
-                        <label>Pareja 1 *</label>
+                        <label>Persona 1 *</label>
                         <select id="uPartner1" class="form-control">
-                            ${members.map(m => `<option value="${m.id}">${m.name} (${m.gender === 'M' ? 'Varón' : 'Mujer'})</option>`).join('')}
+                            ${members.map(m => `<option value="${m.id}">${m.name} (${m.gender === 'M' ? 'Varón' : m.gender === 'F' ? 'Mujer' : 'Otro'}${m.isIndex ? ' - Paciente' : ''})</option>`).join('')}
                         </select>
                     </div>
                     <div class="form-group">
-                        <label>Pareja 2 *</label>
+                        <label>Persona 2 *</label>
                         <select id="uPartner2" class="form-control">
-                            ${members.map((m, idx) => `<option value="${m.id}" ${idx === 1 ? 'selected' : ''}>${m.name} (${m.gender === 'M' ? 'Varón' : 'Mujer'})</option>`).join('')}
+                            ${members.map((m, idx) => `<option value="${m.id}" ${idx === 1 ? 'selected' : ''}>${m.name} (${m.gender === 'M' ? 'Varón' : 'Mujer'}${m.isIndex ? ' - Paciente' : ''})</option>`).join('')}
                         </select>
                     </div>
                     <div class="form-group">
-                        <label>Tipo de Vínculo Legal / Conyugal *</label>
-                        <select id="uType" class="form-control">
-                            <option value="married">Matrimonio Formal (Línea sólida)</option>
-                            <option value="cohabiting">Unión Libre / Convivencia (Línea discontinua)</option>
-                            <option value="separated">Separación (Línea con una barra /)</option>
-                            <option value="divorced">Divorcio Legal (Línea con dos barras //)</option>
+                        <label>Tipo de Vínculo *</label>
+                        <select id="uType" class="form-control" onchange="GenogramModule.onUnionTypeChange(this.value)">
+                            <optgroup label="Vínculos Conyugales / Pareja">
+                                <option value="married">Matrimonio Formal (Línea sólida)</option>
+                                <option value="cohabiting">Unión Libre / Convivencia (Línea discontinua)</option>
+                                <option value="separated">Separación (Línea con una barra /)</option>
+                                <option value="divorced">Divorcio Legal (Línea con dos barras //)</option>
+                            </optgroup>
+                            <optgroup label="Otros Vínculos">
+                                <option value="sibling">Hermano</option>
+                                <option value="child">Hijo</option>
+                                <option value="half_sibling">Medio hermano</option>
+                                <option value="step_sibling">Hermanastro</option>
+                            </optgroup>
                         </select>
                     </div>
-                    <div class="form-row">
+                    <div class="form-row" id="uDatesRow">
                         <div class="form-group">
                             <label>Año de Unión</label>
                             <input type="text" id="uYear" class="form-control" placeholder="Ej. 2010">
@@ -1171,6 +1454,14 @@ const GenogramModule = {
             </div>
         </div>`;
         this.injectModal(modalHtml);
+    },
+
+    onUnionTypeChange(type) {
+        const datesRow = document.getElementById('uDatesRow');
+        const isOther = ['sibling', 'child', 'half_sibling', 'step_sibling'].includes(type);
+        if (datesRow) {
+            datesRow.style.display = isOther ? 'none' : 'flex';
+        }
     },
 
     saveNewUnion() {
@@ -1198,13 +1489,13 @@ const GenogramModule = {
         this.closeModal('modalAddUnion');
         this.refreshCanvasFast();
         this.saveCurrentGenogram(true);
-        if (typeof showToast === 'function') showToast('Unión conyugal registrada', 'success');
+        if (typeof showToast === 'function') showToast('Unión registrada', 'success');
     },
 
-    // Modal para registrar una dinámica afectiva de Bowen
+    // Modal para registrar una relación interpersonal
     openAddRelationshipModal() {
         if (!this.currentGenogram || this.currentGenogram.members.length < 2) {
-            alert('Debes tener al menos 2 personas en el genograma para trazar una dinámica afectiva.');
+            alert('Debes tener al menos 2 personas en el genograma para trazar una relación.');
             return;
         }
 
@@ -1214,30 +1505,33 @@ const GenogramModule = {
             <div class="modal-overlay" onclick="GenogramModule.closeModal('modalAddRel')"></div>
             <div class="modal-content modal-large" style="max-width: 580px; margin: auto;">
                 <div class="modal-header">
-                    <h3 class="modal-title"><i class="fas fa-project-diagram"></i> Registrar Pauta Relacional (Bowen)</h3>
+                    <h3 class="modal-title"><i class="fas fa-project-diagram"></i> Registrar Relación</h3>
                     <button class="btn-icon" onclick="GenogramModule.closeModal('modalAddRel')"><i class="fas fa-times"></i></button>
                 </div>
                 <div class="modal-body" style="padding: 16px;">
                     <div class="form-row">
                         <div class="form-group">
-                            <label>Desde *</label>
+                            <label>Persona 1 *</label>
                             <select id="rFrom" class="form-control">
                                 ${members.map(m => `<option value="${m.id}">${m.name}</option>`).join('')}
                             </select>
                         </div>
                         <div class="form-group">
-                            <label>Hacia *</label>
+                            <label>Persona 2 *</label>
                             <select id="rTo" class="form-control">
                                 ${members.map((m, idx) => `<option value="${m.id}" ${idx === 1 ? 'selected' : ''}>${m.name}</option>`).join('')}
                             </select>
                         </div>
                     </div>
                     <div class="form-group">
-                        <label>Tipo de Vínculo Afectivo / Interpersonal *</label>
+                        <label>Tipo de Relación *</label>
                         <select id="rType" class="form-control">
-                            ${Object.keys(this.RELATIONSHIP_TYPES).map(key => `
-                                <option value="${key}">${this.RELATIONSHIP_TYPES[key].label} — ${this.RELATIONSHIP_TYPES[key].desc}</option>
-                            `).join('')}
+                            <option value="very_close">Muy estrecha (Tres líneas paralelas)</option>
+                            <option value="very_close_conflict">Muy estrecha, pero conflictiva (Tres líneas paralelas con zigzag)</option>
+                            <option value="conflictual">Conflictiva (Línea en zigzag)</option>
+                            <option value="close">Cercana (Dos líneas paralelas)</option>
+                            <option value="cutoff">Quiebre (Línea interrumpida con barras paralelas ||)</option>
+                            <option value="distant">Distante (Línea discontinua)</option>
                         </select>
                     </div>
                     <div class="form-group">
@@ -1247,7 +1541,7 @@ const GenogramModule = {
                 </div>
                 <div class="modal-footer" style="padding: 16px; border-top: 1px solid var(--border-primary); display: flex; justify-content: flex-end; gap: 10px;">
                     <button class="btn-secondary" onclick="GenogramModule.closeModal('modalAddRel')">Cancelar</button>
-                    <button class="btn-primary" onclick="GenogramModule.saveNewRelationship()">Trazar Dinámica</button>
+                    <button class="btn-primary" onclick="GenogramModule.saveNewRelationship()">Trazar Relación</button>
                 </div>
             </div>
         </div>`;
@@ -1262,7 +1556,7 @@ const GenogramModule = {
             return;
         }
 
-        const type = document.getElementById('rType')?.value || 'harmonious';
+        const type = document.getElementById('rType')?.value || 'close';
         const notes = document.getElementById('rNotes')?.value.trim() || '';
 
         const newRel = {
@@ -1280,7 +1574,7 @@ const GenogramModule = {
         this.closeModal('modalAddRel');
         this.refreshCanvasFast();
         this.saveCurrentGenogram(true);
-        if (typeof showToast === 'function') showToast('Dinámica relacional registrada', 'success');
+        if (typeof showToast === 'function') showToast('Relación registrada', 'success');
     },
 
     // Modal de edición o borrado de una relación existente al hacer clic en ella
@@ -1290,20 +1584,31 @@ const GenogramModule = {
         const fromM = this.currentGenogram.members.find(m => m.id === rel.fromId);
         const toM = this.currentGenogram.members.find(m => m.id === rel.toId);
 
+        const activeOptions = [
+            { key: 'very_close', label: 'Muy estrecha (Tres líneas paralelas)' },
+            { key: 'very_close_conflict', label: 'Muy estrecha, pero conflictiva (Tres líneas con zigzag)' },
+            { key: 'conflictual', label: 'Conflictiva (Línea en zigzag)' },
+            { key: 'close', label: 'Cercana (Dos líneas paralelas)' },
+            { key: 'cutoff', label: 'Quiebre (Línea interrumpida con barras ||)' },
+            { key: 'distant', label: 'Distante (Línea discontinua)' }
+        ];
+
+        const currentKey = (rel.type === 'enmeshed' ? 'very_close' : rel.type === 'enmeshed_conflict' ? 'very_close_conflict' : rel.type === 'harmonious' ? 'close' : rel.type);
+
         const modalHtml = `
         <div class="modal active" id="modalEditRel">
             <div class="modal-overlay" onclick="GenogramModule.closeModal('modalEditRel')"></div>
             <div class="modal-content modal-large" style="max-width: 540px; margin: auto;">
                 <div class="modal-header">
-                    <h3 class="modal-title"><i class="fas fa-link"></i> Dinámica: ${fromM?.name} ↔ ${toM?.name}</h3>
+                    <h3 class="modal-title"><i class="fas fa-link"></i> Relación: ${fromM?.name} ↔ ${toM?.name}</h3>
                     <button class="btn-icon" onclick="GenogramModule.closeModal('modalEditRel')"><i class="fas fa-times"></i></button>
                 </div>
                 <div class="modal-body" style="padding: 16px;">
                     <div class="form-group">
-                        <label>Tipo de Vínculo</label>
+                        <label>Tipo de Relación</label>
                         <select id="rEditType" class="form-control">
-                            ${Object.keys(this.RELATIONSHIP_TYPES).map(key => `
-                                <option value="${key}" ${rel.type === key ? 'selected' : ''}>${this.RELATIONSHIP_TYPES[key].label}</option>
+                            ${activeOptions.map(opt => `
+                                <option value="${opt.key}" ${currentKey === opt.key ? 'selected' : ''}>${opt.label}</option>
                             `).join('')}
                         </select>
                     </div>
@@ -1341,7 +1646,7 @@ const GenogramModule = {
         this.closeModal('modalEditRel');
         this.refreshCanvasFast();
         this.saveCurrentGenogram(true);
-        if (typeof showToast === 'function') showToast('Dinámica relacional eliminada', 'info');
+        if (typeof showToast === 'function') showToast('Relación eliminada', 'info');
     },
 
     openUnionModal(unionId) {
@@ -1355,20 +1660,28 @@ const GenogramModule = {
             <div class="modal-overlay" onclick="GenogramModule.closeModal('modalEditUnion')"></div>
             <div class="modal-content modal-large" style="max-width: 540px; margin: auto;">
                 <div class="modal-header">
-                    <h3 class="modal-title"><i class="fas fa-ring"></i> Unión: ${p1?.name} & ${p2?.name}</h3>
+                    <h3 class="modal-title"><i class="fas fa-link"></i> Unión / Vínculo: ${p1?.name} & ${p2?.name}</h3>
                     <button class="btn-icon" onclick="GenogramModule.closeModal('modalEditUnion')"><i class="fas fa-times"></i></button>
                 </div>
                 <div class="modal-body" style="padding: 16px;">
                     <div class="form-group">
-                        <label>Estado de la Unión</label>
-                        <select id="uEditType" class="form-control">
-                            <option value="married" ${union.type === 'married' ? 'selected' : ''}>Matrimonio Formal</option>
-                            <option value="cohabiting" ${union.type === 'cohabiting' ? 'selected' : ''}>Unión Libre / Convivencia</option>
-                            <option value="separated" ${union.type === 'separated' ? 'selected' : ''}>Separados</option>
-                            <option value="divorced" ${union.type === 'divorced' ? 'selected' : ''}>Divorciados</option>
+                        <label>Tipo de Vínculo</label>
+                        <select id="uEditType" class="form-control" onchange="GenogramModule.onUnionTypeChange(this.value)">
+                            <optgroup label="Vínculos Conyugales / Pareja">
+                                <option value="married" ${union.type === 'married' ? 'selected' : ''}>Matrimonio Formal</option>
+                                <option value="cohabiting" ${union.type === 'cohabiting' ? 'selected' : ''}>Unión Libre / Convivencia</option>
+                                <option value="separated" ${union.type === 'separated' ? 'selected' : ''}>Separados</option>
+                                <option value="divorced" ${union.type === 'divorced' ? 'selected' : ''}>Divorciados</option>
+                            </optgroup>
+                            <optgroup label="Otros Vínculos">
+                                <option value="sibling" ${union.type === 'sibling' ? 'selected' : ''}>Hermano</option>
+                                <option value="child" ${union.type === 'child' ? 'selected' : ''}>Hijo</option>
+                                <option value="half_sibling" ${union.type === 'half_sibling' ? 'selected' : ''}>Medio hermano</option>
+                                <option value="step_sibling" ${union.type === 'step_sibling' ? 'selected' : ''}>Hermanastro</option>
+                            </optgroup>
                         </select>
                     </div>
-                    <div class="form-row">
+                    <div class="form-row" id="uDatesRow" style="${['sibling', 'child', 'half_sibling', 'step_sibling'].includes(union.type) ? 'display:none;' : ''}">
                         <div class="form-group">
                             <label>Año de Unión</label>
                             <input type="text" id="uEditYear" class="form-control" value="${union.year || ''}">
@@ -1437,7 +1750,7 @@ const GenogramModule = {
         if (this.currentGenogram) {
             this.currentGenogram.notes = notes;
             this.saveCurrentGenogram(true);
-            if (typeof showToast === 'function') showToast('Formulación sistémica guardada', 'success');
+            if (typeof showToast === 'function') showToast('Observaciones guardadas', 'success');
         }
     },
 

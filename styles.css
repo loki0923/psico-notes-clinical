@@ -7216,11 +7216,16 @@ body.screen-locked .sidebar {
 .legend-line.line-cohab { background: transparent; border-top: 2px dashed #475569; height: 0; }
 .legend-line.line-sep { background: transparent; color: #dc2626; font-weight: bold; font-size: 15px; }
 .legend-line.line-div { background: transparent; color: #dc2626; font-weight: bold; font-size: 15px; }
-.legend-line.line-harmonious { background: #10b981; height: 4px; box-shadow: 0 3px 0 #10b981; margin-bottom: 4px; }
-.legend-line.line-enmeshed { background: #0d9488; height: 6px; }
-.legend-line.line-conflict { background: transparent; color: #ef4444; font-size: 14px; font-weight: bold; }
-.legend-line.line-distant { background: transparent; border-top: 2px dotted #64748b; height: 0; }
+.legend-line.line-sibling { background: #475569; height: 2px; }
+.legend-line.line-harmonious, .legend-line.line-close { background: #10b981; height: 2px; box-shadow: 0 4px 0 #10b981; margin-bottom: 4px; }
+.legend-line.line-enmeshed, .legend-line.line-very-close { background: #0d9488; height: 2px; box-shadow: 0 3px 0 #0d9488, 0 -3px 0 #0d9488; margin: 4px 0; }
+.legend-line.line-very-close-conflict { background: #f59e0b; height: 2px; box-shadow: 0 3px 0 #f59e0b, 0 -3px 0 #f59e0b; margin: 4px 0; }
+.legend-line.line-conflict, .legend-line.line-conflictual { background: transparent; color: #ef4444; font-size: 14px; font-weight: bold; }
+.legend-line.line-distant { background: transparent; border-top: 2px dashed #64748b; height: 0; }
 .legend-line.line-cutoff { background: transparent; color: #dc2626; font-weight: 900; }
+.legend-sym.sym-triangle { font-weight: bold; font-size: 13px; color: #0d9488; }
+.legend-sym.sym-dot { font-size: 15px; color: #0d9488; line-height: 1; }
+.legend-sym.sym-cross { font-size: 13px; font-weight: 900; color: #0d9488; }
 
 .markers-checkbox-grid {
     display: grid;
