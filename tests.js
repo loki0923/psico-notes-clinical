@@ -7796,6 +7796,115 @@ ClinicalTestSuite.add('TC-MSE-02', 'Renderizado UI y Persistencia de Examen Ment
     }
 });
 
+// ============================================
+// TC-MSE-03: Examen Mental - Correcciones Semiológicas de Actitud, Conciencia, Atención y Orientación
+// ============================================
+ClinicalTestSuite.add('TC-MSE-03', 'Examen Mental - Correcciones Semiológicas (Actitud, Conciencia, Atención y Orientación)', async () => {
+    await import('./mental-exam.js');
+    const MentalExamModule = globalThis.MentalExamModule;
+
+    const testPatient = {
+        id: 'px_mse_test_03',
+        name: 'Roberto Valera',
+        gender: 'Masculino',
+        age: 28
+    };
+
+    // 1. Parte 3: Actitud
+    const actitudOpts = MentalExamModule.getActitudOptions();
+    if (!actitudOpts.includes('Confiada')) {
+        throw new Error('getActitudOptions debe incluir la opción "Confiada"');
+    }
+    if (actitudOpts.includes('De gran confianza')) {
+        throw new Error('getActitudOptions no debe incluir "De gran confianza"');
+    }
+
+    const html = MentalExamModule.renderTab(testPatient);
+    if (!html.includes('<span class="me-card-title">Actitud</span>')) {
+        throw new Error('Tarjeta 3 debe tener por título "Actitud"');
+    }
+    if (html.includes('Actitud hacia la Entrevista y el Evaluador')) {
+        throw new Error('No debe aparecer "Actitud hacia la Entrevista y el Evaluador" en el título');
+    }
+
+    // 2. Parte 4: Nivel de Conciencia
+    const fieldsConcienciaSi = MentalExamModule.getInitialState(testPatient);
+    fieldsConcienciaSi.concienciaAlterada = 'SI';
+    fieldsConcienciaSi.concienciaCuantitativa = ['Confusión/Obnubilación', 'Somnolencia'];
+    const narConcienciaSi = MentalExamModule.generateNarrative(fieldsConcienciaSi, testPatient);
+    if (narConcienciaSi.includes('Nivel de Conciencia alterado')) {
+        throw new Error('La síntesis no debe incluir "Nivel de Conciencia alterado"');
+    }
+    if (!narConcienciaSi.includes('Confusión/Obnubilación, Somnolencia.')) {
+        throw new Error('La síntesis debe reflejar solo las opciones seleccionadas en Conciencia al marcar SÍ');
+    }
+
+    const fieldsConcienciaNo = MentalExamModule.getInitialState(testPatient);
+    fieldsConcienciaNo.concienciaAlterada = 'NO';
+    const narConcienciaNo = MentalExamModule.generateNarrative(fieldsConcienciaNo, testPatient);
+    if (!narConcienciaNo.includes('Nivel de Conciencia Conservado.')) {
+        throw new Error('Al marcar NO debe reflejarse "Nivel de Conciencia Conservado."');
+    }
+
+    // 3. Parte 5: Atención
+    if (!html.includes('<span class="me-card-title">Atención</span>')) {
+        throw new Error('Tarjeta 5 debe tener por título "Atención"');
+    }
+    if (html.includes('Atención (Prosexia)')) {
+        throw new Error('Título no debe contener "Prosexia"');
+    }
+    if (html.includes('Disprosexia')) {
+        throw new Error('Tarjeta 5 no debe incluir "Disprosexia"');
+    }
+    if (html.includes('Tipo de Alteración Atencional:')) {
+        throw new Error('Tarjeta 5 no debe mostrar la etiqueta "Tipo de Alteración Atencional:"');
+    }
+
+    const fieldsAtencionSi = MentalExamModule.getInitialState(testPatient);
+    fieldsAtencionSi.atencionAlterada = 'SI';
+    fieldsAtencionSi.atencionTipo = ['Hipoprosexia'];
+    const narAtencionSi = MentalExamModule.generateNarrative(fieldsAtencionSi, testPatient);
+    if (narAtencionSi.includes('Atención alterada')) {
+        throw new Error('La síntesis no debe incluir "Atención alterada"');
+    }
+    if (!narAtencionSi.includes('Hipoprosexia.')) {
+        throw new Error('La síntesis debe reflejar solo la opción seleccionada en Atención al marcar SÍ');
+    }
+
+    const fieldsAtencionNo = MentalExamModule.getInitialState(testPatient);
+    fieldsAtencionNo.atencionAlterada = 'NO';
+    const narAtencionNo = MentalExamModule.generateNarrative(fieldsAtencionNo, testPatient);
+    if (!narAtencionNo.includes('Atención Conservada.')) {
+        throw new Error('Al marcar NO debe reflejarse "Atención Conservada."');
+    }
+
+    // 4. Parte 6: Orientación
+    if (!html.includes('<span class="me-card-title">Orientación</span>')) {
+        throw new Error('Tarjeta 6 debe tener por título "Orientación"');
+    }
+    if (html.includes('Orientación (Autopsíquica y Alopsíquica)')) {
+        throw new Error('Título no debe contener "(Autopsíquica y Alopsíquica)"');
+    }
+    if (html.includes('data-field="orientacionAutopsiquica"') || html.includes('data-field="orientacionAlopsiquica"')) {
+        throw new Error('Tarjeta 6 no debe contener botones de selección SI/NO');
+    }
+    if (!html.includes('id="me_dd_container_orientacion"')) {
+        throw new Error('Tarjeta 6 debe contar con lista desplegable única para Orientación');
+    }
+
+    const orientOpts = MentalExamModule.getOrientacionOptions();
+    if (!orientOpts.includes('Orientado Autopsíquicamente') || !orientOpts.includes('Orientado Alopsíquicamente') || !orientOpts.includes('Desorientación Parcial')) {
+        throw new Error('getOrientacionOptions debe proveer las opciones estándar de orientación');
+    }
+
+    const fieldsOrientacion = MentalExamModule.getInitialState(testPatient);
+    fieldsOrientacion.orientacion = ['Orientado Autopsíquicamente', 'Desorientación Temporal'];
+    const narOrient = MentalExamModule.generateNarrative(fieldsOrientacion, testPatient);
+    if (!narOrient.includes('Orientado Autopsíquicamente con Desorientación Temporal.')) {
+        throw new Error('La síntesis debe reflejar la orientación y desorientación seleccionadas');
+    }
+});
+
 // 124. TC-MEJ-01: Consentimiento Informado (Etiqueta "FIRMADO POR EL REPRESENTANTE" y Formato Configurable)
 ClinicalTestSuite.add('TC-MEJ-01', 'Consentimiento Informado: Etiqueta "FIRMADO POR EL REPRESENTANTE" y Formato Configurable', async () => {
     const fs = await import('fs');

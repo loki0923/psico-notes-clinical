@@ -30,6 +30,24 @@ const MentalExamModule = {
                     loaded.aspectoVestimenta.push('Vestimenta de acuerdo a edad y ocasión');
                 }
             }
+
+            // Asegurar compatibilidad de actitud si tenía 'De gran confianza'
+            if (loaded.actitud) {
+                loaded.actitud = loaded.actitud.map(a => a === 'De gran confianza' ? 'Confiada' : a);
+            }
+
+            // Asegurar compatibilidad de orientación si viene en formato previo
+            if (!loaded.orientacion || loaded.orientacion.length === 0) {
+                const orients = [];
+                if (loaded.orientacionAutopsiquica !== 'NO') orients.push('Orientado Autopsíquicamente');
+                if (loaded.orientacionAlopsiquica !== 'NO') orients.push('Orientado Alopsíquicamente');
+                if (Array.isArray(loaded.orientacionDesorientacion)) {
+                    loaded.orientacionDesorientacion.forEach(d => {
+                        if (!orients.includes(d)) orients.push(d);
+                    });
+                }
+                loaded.orientacion = orients.length > 0 ? orients : ['Orientado Autopsíquicamente', 'Orientado Alopsíquicamente'];
+            }
             return loaded;
         }
 
@@ -61,6 +79,7 @@ const MentalExamModule = {
             atencionTipo: [],
 
             // 6. Orientación
+            orientacion: ['Orientado Autopsíquicamente', 'Orientado Alopsíquicamente'],
             orientacionAutopsiquica: 'SI',
             orientacionAlopsiquica: 'SI',
             orientacionDesorientacion: [],
@@ -225,30 +244,63 @@ const MentalExamModule = {
                 ...(fields.concienciaYo || []),
                 ...(fields.concienciaYoPsiquico || [])
             ];
-            parts.push(`Nivel de Conciencia alterado con presencia de ${items.join(', ') || 'somnolencia'}.`);
+            if (items.length > 0) {
+                let txt = items.join(', ');
+                txt = txt.charAt(0).toUpperCase() + txt.slice(1);
+                parts.push(`${txt}.`);
+            } else {
+                parts.push('Somnolencia.');
+            }
         }
 
         // 5. Atención
         if (fields.atencionAlterada === 'NO') {
             parts.push('Atención Conservada.');
         } else {
-            const atList = fields.atencionTipo && fields.atencionTipo.length > 0 ? fields.atencionTipo.join(', ') : 'alteraciones atencionales';
-            parts.push(`Atención alterada (${atList}).`);
+            const atList = fields.atencionTipo && fields.atencionTipo.length > 0 ? fields.atencionTipo.join(', ') : '';
+            if (atList) {
+                let txt = atList.charAt(0).toUpperCase() + atList.slice(1);
+                parts.push(`${txt}.`);
+            } else {
+                parts.push('Hipoprosexia.');
+            }
         }
 
         // 6. Orientación
+        const orientList = Array.isArray(fields.orientacion) ? fields.orientacion : [];
+        const hasAuto = orientList.length > 0 
+            ? orientList.some(o => /autops[íi]quica/i.test(o)) 
+            : fields.orientacionAutopsiquica === 'SI';
+        const hasAlo = orientList.length > 0 
+            ? orientList.some(o => /alops[íi]quica/i.test(o)) 
+            : fields.orientacionAlopsiquica === 'SI';
+        const desor = orientList.filter(o => /desorientaci[óo]n/i.test(o));
+        if (Array.isArray(fields.orientacionDesorientacion)) {
+            fields.orientacionDesorientacion.forEach(d => {
+                if (!desor.includes(d)) desor.push(d);
+            });
+        }
+
         const orientParts = [];
-        if (fields.orientacionAlopsiquica === 'SI' && fields.orientacionAutopsiquica === 'SI') {
+        if (hasAlo && hasAuto && desor.length === 0) {
             orientParts.push('Orientado Alopsíquica y Autopsíquicamente');
-        } else if (fields.orientacionAutopsiquica === 'SI') {
+        } else if (hasAuto && !hasAlo && desor.length === 0) {
             orientParts.push('Orientado Autopsíquicamente y desorientado Alopsíquicamente');
-        } else if (fields.orientacionAlopsiquica === 'SI') {
+        } else if (hasAlo && !hasAuto && desor.length === 0) {
             orientParts.push('Orientado Alopsíquicamente y desorientado Autopsíquicamente');
+        } else if (!hasAlo && !hasAuto && desor.length === 0 && orientList.length === 0) {
+            orientParts.push('Orientado Alopsíquica y Autopsíquicamente');
+        } else if (desor.length > 0) {
+            if (hasAuto && hasAlo) {
+                orientParts.push('Orientado Alopsíquica y Autopsíquicamente');
+            } else if (hasAuto && !hasAlo) {
+                orientParts.push('Orientado Autopsíquicamente');
+            } else if (hasAlo && !hasAuto) {
+                orientParts.push('Orientado Alopsíquicamente');
+            }
+            orientParts.push(`con ${desor.join(', ')}`);
         } else {
             orientParts.push('Desorientado globalmente en tiempo, espacio y persona');
-        }
-        if (fields.orientacionDesorientacion && fields.orientacionDesorientacion.length > 0) {
-            orientParts.push(`con ${fields.orientacionDesorientacion.join(', ')}`);
         }
         parts.push(orientParts.join(' ') + '.');
 
@@ -526,8 +578,19 @@ const MentalExamModule = {
     getActitudOptions() {
         return [
             'Amable', 'Suspicaz', 'Colaboradora', 'Interesada', 'Cansada', 'Altiva',
-            'De gran confianza', 'Demandante', 'Distante', 'De extrañeza', 'Hostil',
+            'Confiada', 'Demandante', 'Distante', 'De extrañeza', 'Hostil',
             'Inhibida', 'Intrusiva', 'Pasivo agresiva', 'Pueril', 'Quejumbrosa'
+        ];
+    },
+
+    // Opciones completas de orientación (Parte 6 del PDF)
+    getOrientacionOptions() {
+        return [
+            'Orientado Autopsíquicamente',
+            'Orientado Alopsíquicamente',
+            'Desorientación Parcial',
+            'Desorientación Temporal',
+            'Desorientación Espacial'
         ];
     },
 
@@ -592,12 +655,15 @@ const MentalExamModule = {
             case 5:
                 return isSi(s.atencionAlterada) ? '⚠️ Alterada' : '✓ Conservada';
             case 6: {
-                const auto = isSi(s.orientacionAutopsiquica);
-                const alo = isSi(s.orientacionAlopsiquica);
+                const list = s.orientacion || [];
+                const auto = isSi(s.orientacionAutopsiquica) || list.some(o => /autops[íi]quica/i.test(o));
+                const alo = isSi(s.orientacionAlopsiquica) || list.some(o => /alops[íi]quica/i.test(o));
+                const des = (s.orientacionDesorientacion && s.orientacionDesorientacion.length > 0) || list.some(o => /desorientaci[óo]n/i.test(o));
+                if (des) return '⚠️ Desorientado';
                 if (auto && alo) return '✓ Orientado globalmente';
                 if (auto && !alo) return '⚠️ Desorientado alopsíquicamente';
                 if (!auto && alo) return '⚠️ Desorientado autopsíquicamente';
-                return '⚠️ Desorientado';
+                return list.length > 0 ? list.slice(0, 2).join(', ') : '✓ Orientado globalmente';
             }
             case 7:
                 return isSi(s.memoriaConservada) ? '✓ Conservada' : '⚠️ Alterada';
@@ -655,6 +721,7 @@ const MentalExamModule = {
     renderFormSections(s) {
         const aspectOpts = this.getAspectOptions(s.sexo);
         const actitudOpts = this.getActitudOptions();
+        const orientOpts = this.getOrientacionOptions();
 
         return `
             <!-- 1. PRESENTACIÓN -->
@@ -723,12 +790,12 @@ const MentalExamModule = {
                 </div>
             </div>
 
-            <!-- 3. ACTITUD (Parte 3 del PDF: Lista desplegable para ahorro de espacio) -->
+            <!-- 3. ACTITUD (Parte 3: Lista desplegable) -->
             <div class="me-card collapsible" id="me_card_3" data-group="1" data-card-num="3">
                 <div class="me-card-header me-accordion-header" onclick="MentalExamModule.toggleCardCollapse(3)" role="button" tabindex="0">
                     <div class="me-header-left">
                         <span class="me-num">3</span>
-                        <span class="me-card-title">Actitud hacia la Entrevista y el Evaluador</span>
+                        <span class="me-card-title">Actitud</span>
                         <span class="me-card-tag">General</span>
                     </div>
                     <div class="me-header-right">
@@ -786,7 +853,7 @@ const MentalExamModule = {
                 <div class="me-card-header me-accordion-header" onclick="MentalExamModule.toggleCardCollapse(5)" role="button" tabindex="0">
                     <div class="me-header-left">
                         <span class="me-num">5</span>
-                        <span class="me-card-title">Atención (Prosexia)</span>
+                        <span class="me-card-title">Atención</span>
                         <span class="me-card-tag">Cognición</span>
                     </div>
                     <div class="me-header-right">
@@ -803,9 +870,8 @@ const MentalExamModule = {
                         </div>
                     </div>
                     <div id="me_atencion_details" class="me-alert-subpanel" style="display:${s.atencionAlterada === 'SI' ? 'block' : 'none'};">
-                        <label class="me-field-label">Tipo de Alteración Atencional:</label>
                         <div class="me-chips-group" data-field="atencionTipo" data-type="multiple">
-                            ${['Aproxesia', 'Hipoprosexia', 'Hiperprosexia', 'Disprosexia'].map(opt => `<span class="me-chip ${(s.atencionTipo || []).includes(opt) ? 'active' : ''}" onclick="MentalExamModule.onChipToggle(this, 'atencionTipo', '${opt}')">${opt}</span>`).join('')}
+                            ${['Aproxesia', 'Hipoprosexia', 'Hiperprosexia'].map(opt => `<span class="me-chip ${(s.atencionTipo || []).includes(opt) ? 'active' : ''}" onclick="MentalExamModule.onChipToggle(this, 'atencionTipo', '${opt}')">${opt}</span>`).join('')}
                         </div>
                     </div>
                 </div>
@@ -816,7 +882,7 @@ const MentalExamModule = {
                 <div class="me-card-header me-accordion-header" onclick="MentalExamModule.toggleCardCollapse(6)" role="button" tabindex="0">
                     <div class="me-header-left">
                         <span class="me-num">6</span>
-                        <span class="me-card-title">Orientación (Autopsíquica y Alopsíquica)</span>
+                        <span class="me-card-title">Orientación</span>
                         <span class="me-card-tag">Cognición</span>
                     </div>
                     <div class="me-header-right">
@@ -825,28 +891,8 @@ const MentalExamModule = {
                     </div>
                 </div>
                 <div class="me-card-body" id="me_body_6">
-                    <div class="me-field-grid-2">
-                        <div class="me-field-block">
-                            <label class="me-field-label">Orientado Autopsíquicamente (Persona):</label>
-                            <div class="me-chips-group me-segmented" data-field="orientacionAutopsiquica" data-type="single">
-                                <span class="me-chip ${s.orientacionAutopsiquica === 'SI' ? 'active' : ''}" data-value="SI" onclick="MentalExamModule.onChipSelect(this, 'orientacionAutopsiquica', 'SI')">SÍ</span>
-                                <span class="me-chip ${s.orientacionAutopsiquica === 'NO' ? 'active' : ''}" data-value="NO" onclick="MentalExamModule.onChipSelect(this, 'orientacionAutopsiquica', 'NO')">NO</span>
-                            </div>
-                        </div>
-                        <div class="me-field-block">
-                            <label class="me-field-label">Orientado Alopsíquicamente (Tiempo/Espacio):</label>
-                            <div class="me-chips-group me-segmented" data-field="orientacionAlopsiquica" data-type="single">
-                                <span class="me-chip ${s.orientacionAlopsiquica === 'SI' ? 'active' : ''}" data-value="SI" onclick="MentalExamModule.onChipSelect(this, 'orientacionAlopsiquica', 'SI')">SÍ</span>
-                                <span class="me-chip ${s.orientacionAlopsiquica === 'NO' ? 'active' : ''}" data-value="NO" onclick="MentalExamModule.onChipSelect(this, 'orientacionAlopsiquica', 'NO')">NO</span>
-                            </div>
-                        </div>
-                    </div>
-                    <div style="margin-top:12px;">
-                        <label class="me-field-label">Desorientaciones específicas observadas:</label>
-                        <div class="me-chips-group" data-field="orientacionDesorientacion" data-type="multiple">
-                            ${['Desorientación Parcial', 'Desorientación Temporal', 'Desorientación Espacial'].map(opt => `<span class="me-chip ${(s.orientacionDesorientacion || []).includes(opt) ? 'active' : ''}" onclick="MentalExamModule.onChipToggle(this, 'orientacionDesorientacion', '${opt}')">${opt}</span>`).join('')}
-                        </div>
-                    </div>
+                    <label class="me-field-label">Orientación (Lista Desplegable):</label>
+                    ${this.renderDropdown('orientacion', 'Orientación', orientOpts, s.orientacion || [])}
                 </div>
             </div>
 
@@ -1487,9 +1533,23 @@ const MentalExamModule = {
             concienciaYo: getMultiple('concienciaYo'),
             atencionAlterada: getSingle('atencionAlterada') || 'NO',
             atencionTipo: getMultiple('atencionTipo'),
-            orientacionAutopsiquica: getSingle('orientacionAutopsiquica') || 'SI',
-            orientacionAlopsiquica: getSingle('orientacionAlopsiquica') || 'SI',
-            orientacionDesorientacion: getMultiple('orientacionDesorientacion'),
+            orientacion: getMultiple('orientacion'),
+            orientacionAutopsiquica: (function() {
+                const list = getMultiple('orientacion');
+                if (list.length > 0) return list.some(o => /autops[íi]quica/i.test(o)) ? 'SI' : 'NO';
+                return getSingle('orientacionAutopsiquica') || 'SI';
+            })(),
+            orientacionAlopsiquica: (function() {
+                const list = getMultiple('orientacion');
+                if (list.length > 0) return list.some(o => /alops[íi]quica/i.test(o)) ? 'SI' : 'NO';
+                return getSingle('orientacionAlopsiquica') || 'SI';
+            })(),
+            orientacionDesorientacion: (function() {
+                const list = getMultiple('orientacion');
+                const des = list.filter(o => /desorientaci[óo]n/i.test(o));
+                if (des.length > 0) return des;
+                return getMultiple('orientacionDesorientacion');
+            })(),
             memoriaConservada: getSingle('memoriaConservada') || 'SI',
             memoriaCualitativo: getMultiple('memoriaCualitativo'),
             memoriaCuantitativo: getMultiple('memoriaCuantitativo'),
