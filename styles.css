@@ -1775,7 +1775,7 @@ LISTAS Y TARJETAS
   color: var(--text-secondary);
   font-size: 13px;
   font-weight: 550;
-  cursor: pointer;
+  cursor: grab;
   border-radius: 10px;
   transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
   white-space: nowrap;
@@ -1783,6 +1783,152 @@ LISTAS Y TARJETAS
   align-items: center;
   gap: 7px;
   flex-shrink: 0;
+  user-select: none;
+  -webkit-user-select: none;
+}
+.patient-tab:active {
+  cursor: grabbing;
+}
+.patient-tab.dragging {
+  opacity: 0.45;
+  transform: scale(0.96);
+  border: 1px dashed var(--brand-deep, #053F5C);
+  background: rgba(66, 158, 189, 0.12);
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.15);
+}
+.patient-tab .tab-drag-handle {
+  opacity: 0.35;
+  font-size: 11px;
+  margin-right: 2px;
+  cursor: grab;
+  transition: opacity 0.15s ease;
+}
+.patient-tab:hover .tab-drag-handle {
+  opacity: 0.85;
+}
+.patient-tabs-config-btn {
+  padding: 8px 12px;
+  background: transparent;
+  border: 1px dashed var(--border-primary, #cbd5e1);
+  color: var(--text-tertiary, #64748b);
+  border-radius: 10px;
+  cursor: pointer;
+  font-size: 12px;
+  font-weight: 550;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin-left: auto;
+  flex-shrink: 0;
+  transition: all 0.2s ease;
+  white-space: nowrap;
+}
+.patient-tabs-config-btn:hover {
+  color: var(--brand-deep, #053F5C);
+  border-color: var(--brand-deep, #053F5C);
+  background: rgba(66, 158, 189, 0.10);
+}
+[data-theme="dark"] .patient-tabs-config-btn {
+  border-color: rgba(255, 255, 255, 0.2);
+  color: #94a3b8;
+}
+[data-theme="dark"] .patient-tabs-config-btn:hover {
+  color: #9FE7F5;
+  border-color: #429EBD;
+  background: rgba(66, 158, 189, 0.20);
+}
+
+/* Modal de Reorganización de Pestañas */
+.tab-reorder-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin: 16px 0;
+  max-height: 420px;
+  overflow-y: auto;
+  padding-right: 4px;
+}
+.tab-reorder-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 14px;
+  background: var(--bg-secondary, #f8fafc);
+  border: 1px solid var(--border-secondary, #e2e8f0);
+  border-radius: 10px;
+  transition: all 0.15s ease;
+}
+.tab-reorder-item:hover {
+  border-color: var(--brand-deep, #053F5C);
+  background: var(--bg-primary, #ffffff);
+}
+[data-theme="dark"] .tab-reorder-item {
+  background: rgba(255, 255, 255, 0.04);
+  border-color: rgba(255, 255, 255, 0.08);
+}
+[data-theme="dark"] .tab-reorder-item:hover {
+  background: rgba(255, 255, 255, 0.08);
+  border-color: #429EBD;
+}
+.tab-reorder-info {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 13.5px;
+  font-weight: 550;
+  color: var(--text-primary);
+}
+.tab-reorder-index {
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--text-tertiary);
+  background: rgba(0, 0, 0, 0.05);
+  padding: 2px 6px;
+  border-radius: 6px;
+  min-width: 24px;
+  text-align: center;
+}
+[data-theme="dark"] .tab-reorder-index {
+  background: rgba(255, 255, 255, 0.1);
+  color: #cbd5e1;
+}
+.tab-reorder-actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.btn-tab-order {
+  width: 32px;
+  height: 32px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 7px;
+  border: 1px solid var(--border-primary, #cbd5e1);
+  background: var(--bg-card, #ffffff);
+  color: var(--text-primary);
+  cursor: pointer;
+  font-size: 12px;
+  transition: all 0.15s ease;
+}
+.btn-tab-order:hover:not(:disabled) {
+  background: var(--brand-deep, #053F5C);
+  color: #ffffff;
+  border-color: var(--brand-deep, #053F5C);
+}
+.btn-tab-order:disabled {
+  opacity: 0.3;
+  cursor: not-allowed;
+}
+[data-theme="dark"] .btn-tab-order {
+  background: rgba(255, 255, 255, 0.05);
+  border-color: rgba(255, 255, 255, 0.15);
+  color: #e2e8f0;
+}
+[data-theme="dark"] .btn-tab-order:hover:not(:disabled) {
+  background: #429EBD;
+  color: #031722;
+  border-color: #429EBD;
 }
 .patient-tab:hover {
   color: var(--brand-deep);

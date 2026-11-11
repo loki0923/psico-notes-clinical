@@ -1223,6 +1223,37 @@
     </div>
 </div>
 
+<!-- PATIENT TABS REORDER MODAL -->
+<div class="modal" id="patientTabsReorderModal">
+    <div class="modal-overlay" onclick="closeModal('patientTabsReorderModal')"></div>
+    <div class="modal-content" style="max-width: 540px;">
+        <div class="modal-header">
+            <h2 style="display:flex;align-items:center;gap:8px;font-size:18px;">
+                <i class="fas fa-sliders-h" style="color:var(--brand-deep);"></i> Organizar Pestañas del Expediente
+            </h2>
+            <button class="btn-icon" onclick="closeModal('patientTabsReorderModal')">
+                <i class="fas fa-times"></i>
+            </button>
+        </div>
+        <div class="modal-body" style="padding: 16px 20px;">
+            <p style="font-size:13px;color:var(--text-secondary);margin-bottom:12px;line-height:1.5;">
+                Reordena las pestañas según tu preferencia y flujo clínico diario. También puedes <strong>arrastrarlas directamente</strong> con el ratón o tacto en la barra superior del expediente.
+            </p>
+            <div id="patientTabsReorderList" class="tab-reorder-list">
+                <!-- Se puebla dinámicamente -->
+            </div>
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-top:16px;padding-top:12px;border-top:1px solid var(--border-secondary);">
+                <button type="button" class="btn-secondary btn-sm" onclick="resetPatientTabsOrder()" title="Restablecer el orden original predeterminado">
+                    <i class="fas fa-undo"></i> Restablecer predeterminado
+                </button>
+                <button type="button" class="btn-primary btn-sm" onclick="closeModal('patientTabsReorderModal')">
+                    <i class="fas fa-check"></i> Listo
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
 <!-- APPOINTMENT MODAL -->
 <div class="modal" id="appointmentModal">
     <div class="modal-overlay" onclick="closeModal('appointmentModal')"></div>

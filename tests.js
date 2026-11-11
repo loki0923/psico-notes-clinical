@@ -7937,8 +7937,8 @@ ClinicalTestSuite.add('TC-MSE-04', 'Examen Mental - Correcciones Semiológicas (
     }
 
     // 2. Inteligencia (Función 9)
-    if (!html.includes('<span class="me-card-title">INTELIGENCIA</span>')) {
-        throw new Error('Tarjeta 9 debe tener por título "INTELIGENCIA"');
+    if (!html.includes('<span class="me-card-title">Inteligencia</span>')) {
+        throw new Error('Tarjeta 9 debe tener por título "Inteligencia"');
     }
     if (html.includes('¿Se realizaron pruebas psicométricas?:')) {
         throw new Error('Tarjeta 9 no debe mostrar la pregunta de pruebas psicométricas');
@@ -8792,6 +8792,73 @@ ClinicalTestSuite.add('TC-APPT-ACTION-01', 'Gestión Avanzada de Eliminación y 
     const stillExists = db.localStore.appointments.some(a => String(a.id) === String(dummyApptId));
     if (stillExists) {
         throw new Error('db.deleteAppointment no debe mantener la cita con status cancelada, debe removerla de localStore');
+    }
+});
+
+// ============================================
+// TC-EXP-05: Reorganización Personalizada de Pestañas del Expediente Clínico (Drag & Drop, Modal y LocalStorage)
+// ============================================
+ClinicalTestSuite.add('TC-EXP-05', 'Reorganización Personalizada de Pestañas del Expediente Clínico (Drag & Drop, Modal y LocalStorage)', async () => {
+    const fs = await import('fs');
+    const path = await import('path');
+    const appJs = fs.readFileSync(path.resolve('./app.js'), 'utf8');
+    const indexHtml = fs.readFileSync(path.resolve('./index.html'), 'utf8');
+    const stylesCss = fs.readFileSync(path.resolve('./styles.css'), 'utf8');
+
+    // 1. Validar que app.js implementa funciones críticas del gestor de pestañas reorganizables
+    const expectedFns = [
+        'DEFAULT_PATIENT_TABS_ORDER',
+        'getPatientTabsOrder',
+        'savePatientTabsOrder',
+        'resetPatientTabsOrder',
+        'renderPatientTabsBar',
+        'handlePatientTabDragStart',
+        'handlePatientTabDragOver',
+        'handlePatientTabDrop',
+        'handlePatientTabDragEnd',
+        'openPatientTabsReorderModal',
+        'renderPatientTabsReorderList',
+        'movePatientTabInModal',
+        'refreshPatientTabsBar'
+    ];
+    for (const fn of expectedFns) {
+        if (!appJs.includes(fn)) {
+            throw new Error(`app.js debe implementar ${fn}`);
+        }
+    }
+
+    // 2. Validar que las pestañas clave del psicólogo estén cubiertas en el orden predeterminado
+    const requiredTabs = ['resumen', 'notas', 'sesiones', 'historia', 'examen-mental'];
+    for (const tab of requiredTabs) {
+        if (!appJs.includes(`'${tab}'`)) {
+            throw new Error(`DEFAULT_PATIENT_TABS_ORDER debe incluir la pestaña ${tab}`);
+        }
+    }
+
+    // 3. Validar integración en index.html (modal organizador y lista)
+    if (!indexHtml.includes('id="patientTabsReorderModal"')) {
+        throw new Error('index.html debe contener el modal id="patientTabsReorderModal"');
+    }
+    if (!indexHtml.includes('id="patientTabsReorderList"')) {
+        throw new Error('index.html debe contener la lista id="patientTabsReorderList"');
+    }
+    if (!indexHtml.includes('resetPatientTabsOrder()')) {
+        throw new Error('index.html debe permitir invocar resetPatientTabsOrder()');
+    }
+
+    // 4. Validar estilos en styles.css (drag & drop, modal de reordenación, botón de configuración)
+    if (!stylesCss.includes('.patient-tab.dragging') || !stylesCss.includes('.tab-drag-handle') || !stylesCss.includes('.patient-tabs-config-btn') || !stylesCss.includes('.tab-reorder-list')) {
+        throw new Error('styles.css debe incluir los estilos de drag & drop (.dragging, .tab-drag-handle, .patient-tabs-config-btn, .tab-reorder-list)');
+    }
+
+    // 5. Validar que los botones de pestaña cuenten con data-tab-id y draggable="true"
+    if (!appJs.includes('data-tab-id="resumen"') || !appJs.includes('draggable="true"')) {
+        throw new Error('Las pestañas renderizadas deben tener data-tab-id y atributo draggable="true"');
+    }
+
+    // 6. Validar que switchPatientTab soporte resolución flexible por data-tab-id
+    if (!appJs.includes('.patient-tab[data-tab-id="') || !appJs.includes('isPatientTabDragging')) {
+        throw new Error('switchPatientTab debe resolver el botón activo por data-tab-id y prevenir cambios accidentales durante el arrastre');
     }
 });
 

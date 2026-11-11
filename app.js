@@ -3298,6 +3298,262 @@ function deletePatient(id) {
     );
 }
 
+// ==========================================================================
+// GESTOR DE PESTAÑAS REORGANIZABLES DEL EXPEDIENTE CLÍNICO
+// ==========================================================================
+const DEFAULT_PATIENT_TABS_ORDER = [
+    'resumen',
+    'notas',
+    'sesiones',
+    'historia',
+    'examen-mental',
+    'timeline',
+    'objetivos',
+    'escalas',
+    'genograma',
+    'apoyo',
+    'portal'
+];
+
+const PATIENT_TAB_RENDERERS = {
+    'resumen': (active) => `<button class="patient-tab ${active ? 'active' : ''}" data-tab-id="resumen" draggable="true" title="Arrastra para reorganizar esta pestaña" ondragstart="handlePatientTabDragStart(event)" ondragover="handlePatientTabDragOver(event)" ondragleave="handlePatientTabDragLeave(event)" ondrop="handlePatientTabDrop(event)" ondragend="handlePatientTabDragEnd(event)" onclick="switchPatientTab('resumen', this)"><i class="fas fa-grip-vertical tab-drag-handle" title="Arrastrar"></i><i class="fas fa-folder-open"></i> Expediente Clínico</button>`,
+    'notas': (active, data) => `<button class="patient-tab ${active ? 'active' : ''}" data-tab-id="notas" draggable="true" title="Arrastra para reorganizar esta pestaña" ondragstart="handlePatientTabDragStart(event)" ondragover="handlePatientTabDragOver(event)" ondragleave="handlePatientTabDragLeave(event)" ondrop="handlePatientTabDrop(event)" ondragend="handlePatientTabDragEnd(event)" onclick="switchPatientTab('notas', this)"><i class="fas fa-grip-vertical tab-drag-handle" title="Arrastrar"></i><i class="fas fa-file-invoice"></i> Notas de sesión (${data.patientNotesCount})</button>`,
+    'sesiones': (active, data) => `<button class="patient-tab ${active ? 'active' : ''}" data-tab-id="sesiones" draggable="true" title="Arrastra para reorganizar esta pestaña" ondragstart="handlePatientTabDragStart(event)" ondragover="handlePatientTabDragOver(event)" ondragleave="handlePatientTabDragLeave(event)" ondrop="handlePatientTabDrop(event)" ondragend="handlePatientTabDragEnd(event)" onclick="switchPatientTab('sesiones', this)"><i class="fas fa-grip-vertical tab-drag-handle" title="Arrastrar"></i><i class="fas fa-calendar-check"></i> Historial de Sesiones (${data.patientAppsCount})</button>`,
+    'historia': (active) => `<button class="patient-tab ${active ? 'active' : ''}" data-tab-id="historia" draggable="true" title="Arrastra para reorganizar esta pestaña" ondragstart="handlePatientTabDragStart(event)" ondragover="handlePatientTabDragOver(event)" ondragleave="handlePatientTabDragLeave(event)" ondrop="handlePatientTabDrop(event)" ondragend="handlePatientTabDragEnd(event)" onclick="switchPatientTab('historia', this)"><i class="fas fa-grip-vertical tab-drag-handle" title="Arrastrar"></i><i class="fas fa-book-medical"></i> Historia</button>`,
+    'examen-mental': (active) => `<button class="patient-tab ${active ? 'active' : ''}" data-tab-id="examen-mental" draggable="true" title="Arrastra para reorganizar esta pestaña" ondragstart="handlePatientTabDragStart(event)" ondragover="handlePatientTabDragOver(event)" ondragleave="handlePatientTabDragLeave(event)" ondrop="handlePatientTabDrop(event)" ondragend="handlePatientTabDragEnd(event)" onclick="switchPatientTab('examen-mental', this)"><i class="fas fa-grip-vertical tab-drag-handle" title="Arrastrar"></i><i class="fas fa-brain"></i> Examen Mental</button>`,
+    'timeline': (active) => `<button class="patient-tab ${active ? 'active' : ''}" data-tab-id="timeline" draggable="true" title="Arrastra para reorganizar esta pestaña" ondragstart="handlePatientTabDragStart(event)" ondragover="handlePatientTabDragOver(event)" ondragleave="handlePatientTabDragLeave(event)" ondrop="handlePatientTabDrop(event)" ondragend="handlePatientTabDragEnd(event)" onclick="switchPatientTab('timeline', this)"><i class="fas fa-grip-vertical tab-drag-handle" title="Arrastrar"></i><i class="fas fa-stream"></i> Línea de Tiempo</button>`,
+    'objetivos': (active) => `<button class="patient-tab ${active ? 'active' : ''}" data-tab-id="objetivos" draggable="true" title="Arrastra para reorganizar esta pestaña" ondragstart="handlePatientTabDragStart(event)" ondragover="handlePatientTabDragOver(event)" ondragleave="handlePatientTabDragLeave(event)" ondrop="handlePatientTabDrop(event)" ondragend="handlePatientTabDragEnd(event)" onclick="switchPatientTab('objetivos', this)"><i class="fas fa-grip-vertical tab-drag-handle" title="Arrastrar"></i><i class="fas fa-bullseye"></i> Objetivos</button>`,
+    'escalas': (active) => `<button class="patient-tab ${active ? 'active' : ''}" data-tab-id="escalas" draggable="true" title="Arrastra para reorganizar esta pestaña" ondragstart="handlePatientTabDragStart(event)" ondragover="handlePatientTabDragOver(event)" ondragleave="handlePatientTabDragLeave(event)" ondrop="handlePatientTabDrop(event)" ondragend="handlePatientTabDragEnd(event)" onclick="switchPatientTab('escalas', this)"><i class="fas fa-grip-vertical tab-drag-handle" title="Arrastrar"></i><i class="fas fa-chart-line"></i> Evaluaciones</button>`,
+    'genograma': (active) => `<button class="patient-tab ${active ? 'active' : ''}" data-tab-id="genograma" draggable="true" title="Arrastra para reorganizar esta pestaña" ondragstart="handlePatientTabDragStart(event)" ondragover="handlePatientTabDragOver(event)" ondragleave="handlePatientTabDragLeave(event)" ondrop="handlePatientTabDrop(event)" ondragend="handlePatientTabDragEnd(event)" onclick="switchPatientTab('genograma', this)"><i class="fas fa-grip-vertical tab-drag-handle" title="Arrastrar"></i><i class="fas fa-sitemap"></i> Genograma</button>`,
+    'apoyo': (active) => `<button class="patient-tab ${active ? 'active' : ''}" data-tab-id="apoyo" draggable="true" title="Arrastra para reorganizar esta pestaña" ondragstart="handlePatientTabDragStart(event)" ondragover="handlePatientTabDragOver(event)" ondragleave="handlePatientTabDragLeave(event)" ondrop="handlePatientTabDrop(event)" ondragend="handlePatientTabDragEnd(event)" onclick="switchPatientTab('apoyo', this)"><i class="fas fa-grip-vertical tab-drag-handle" title="Arrastrar"></i><i class="fas fa-hands-helping"></i> Red de Apoyo</button>`,
+    'portal': (active, data) => `<button class="patient-tab ${active ? 'active' : ''}" data-tab-id="portal" draggable="true" title="Arrastra para reorganizar esta pestaña" ondragstart="handlePatientTabDragStart(event)" ondragover="handlePatientTabDragOver(event)" ondragleave="handlePatientTabDragLeave(event)" ondrop="handlePatientTabDrop(event)" ondragend="handlePatientTabDragEnd(event)" onclick="switchPatientTab('portal', this)"><i class="fas fa-grip-vertical tab-drag-handle" title="Arrastrar"></i><i class="fas fa-mobile-alt"></i> Portal Paciente<span id="portalTabBadgeCount" style="background: var(--accent-success); color: white; padding: 2px 6px; border-radius: 10px; font-size: 10px; margin-left: 4px; ${data.portalCount > 0 ? '' : 'display: none;'}">${data.portalCount}</span></button>`
+};
+
+function getPatientTabsOrder() {
+    try {
+        if (typeof localStorage !== 'undefined') {
+            const saved = localStorage.getItem('psiconotes_patient_tabs_order');
+            if (saved) {
+                const parsed = JSON.parse(saved);
+                if (Array.isArray(parsed) && parsed.length > 0) {
+                    const valid = parsed.filter(id => DEFAULT_PATIENT_TABS_ORDER.includes(id));
+                    const missing = DEFAULT_PATIENT_TABS_ORDER.filter(id => !valid.includes(id));
+                    return [...valid, ...missing];
+                }
+            }
+        }
+    } catch (e) {
+        console.warn('Error leyendo orden de pestañas:', e);
+    }
+    return [...DEFAULT_PATIENT_TABS_ORDER];
+}
+
+function savePatientTabsOrder(newOrder) {
+    if (!Array.isArray(newOrder)) return [...DEFAULT_PATIENT_TABS_ORDER];
+    const clean = newOrder.filter(id => DEFAULT_PATIENT_TABS_ORDER.includes(id));
+    const missing = DEFAULT_PATIENT_TABS_ORDER.filter(id => !clean.includes(id));
+    const fullOrder = [...clean, ...missing];
+    try {
+        if (typeof localStorage !== 'undefined') {
+            localStorage.setItem('psiconotes_patient_tabs_order', JSON.stringify(fullOrder));
+        }
+    } catch (e) {
+        console.warn('Error guardando orden de pestañas:', e);
+    }
+    return fullOrder;
+}
+
+function renderPatientTabsBar(patientNotesCount = 0, patientAppsCount = 0, portalCount = 0, activeTabId = 'resumen') {
+    const order = getPatientTabsOrder();
+    const data = { patientNotesCount, patientAppsCount, portalCount };
+    const tabsHtml = order.map(tabId => {
+        const renderer = PATIENT_TAB_RENDERERS[tabId];
+        return renderer ? renderer(tabId === activeTabId, data) : '';
+    }).join('\n            ');
+
+    return `
+            ${tabsHtml}
+            <button type="button" class="patient-tabs-config-btn" onclick="openPatientTabsReorderModal()" title="Reorganizar pestañas según preferencia del psicólogo">
+                <i class="fas fa-sliders-h"></i> <span>Organizar</span>
+            </button>
+    `;
+}
+
+let isPatientTabDragging = false;
+let draggedPatientTabId = null;
+
+function handlePatientTabDragStart(e) {
+    const tabBtn = e.target.closest('.patient-tab');
+    if (!tabBtn) return;
+    isPatientTabDragging = true;
+    draggedPatientTabId = tabBtn.getAttribute('data-tab-id');
+    if (e.dataTransfer) {
+        e.dataTransfer.effectAllowed = 'move';
+        try {
+            e.dataTransfer.setData('text/plain', draggedPatientTabId);
+        } catch (err) {}
+    }
+    tabBtn.classList.add('dragging');
+}
+
+function handlePatientTabDragOver(e) {
+    e.preventDefault();
+    if (!isPatientTabDragging || !draggedPatientTabId) return;
+    if (e.dataTransfer) {
+        try {
+            e.dataTransfer.dropEffect = 'move';
+        } catch (err) {}
+    }
+    
+    const container = document.getElementById('patientTabsContainer') || (e.currentTarget && e.currentTarget.closest('.patient-tabs'));
+    if (!container) return;
+    const targetTab = e.target.closest('.patient-tab');
+    if (!targetTab || targetTab.getAttribute('data-tab-id') === draggedPatientTabId) return;
+    
+    const rect = targetTab.getBoundingClientRect();
+    const isAfter = e.clientX > (rect.left + rect.width / 2);
+    
+    const draggingEl = container.querySelector(`.patient-tab[data-tab-id="${draggedPatientTabId}"]`);
+    if (!draggingEl) return;
+    
+    if (isAfter) {
+        if (targetTab.nextSibling !== draggingEl) {
+            container.insertBefore(draggingEl, targetTab.nextSibling);
+        }
+    } else {
+        if (targetTab !== draggingEl) {
+            container.insertBefore(draggingEl, targetTab);
+        }
+    }
+}
+
+function handlePatientTabDragLeave(e) {
+    // No-op
+}
+
+function handlePatientTabDrop(e) {
+    e.preventDefault();
+    if (!isPatientTabDragging) return;
+    
+    const container = document.getElementById('patientTabsContainer') || (e.currentTarget && e.currentTarget.closest('.patient-tabs'));
+    if (container) {
+        const newOrder = Array.from(container.querySelectorAll('.patient-tab'))
+            .map(el => el.getAttribute('data-tab-id'))
+            .filter(Boolean);
+        if (newOrder.length > 0) {
+            savePatientTabsOrder(newOrder);
+            if (typeof showToast === 'function') {
+                showToast('✨ Orden de pestañas actualizado', 'success');
+            }
+        }
+    }
+}
+
+function handlePatientTabDragEnd(e) {
+    const container = document.getElementById('patientTabsContainer') || document.querySelector('.patient-tabs');
+    if (container) {
+        container.querySelectorAll('.patient-tab').forEach(t => t.classList.remove('dragging'));
+    }
+    setTimeout(() => {
+        isPatientTabDragging = false;
+        draggedPatientTabId = null;
+    }, 120);
+}
+
+function openPatientTabsReorderModal() {
+    renderPatientTabsReorderList();
+    openModal('patientTabsReorderModal');
+}
+
+function renderPatientTabsReorderList() {
+    const listEl = document.getElementById('patientTabsReorderList');
+    if (!listEl) return;
+    const currentOrder = getPatientTabsOrder();
+    
+    const TAB_INFO_MAP = {
+        'resumen': { label: 'Expediente Clínico', icon: 'fas fa-folder-open' },
+        'notas': { label: 'Notas de sesión', icon: 'fas fa-file-invoice' },
+        'sesiones': { label: 'Historial de Sesiones', icon: 'fas fa-calendar-check' },
+        'historia': { label: 'Historia', icon: 'fas fa-book-medical' },
+        'examen-mental': { label: 'Examen Mental', icon: 'fas fa-brain' },
+        'timeline': { label: 'Línea de Tiempo', icon: 'fas fa-stream' },
+        'objetivos': { label: 'Objetivos', icon: 'fas fa-bullseye' },
+        'escalas': { label: 'Evaluaciones', icon: 'fas fa-chart-line' },
+        'genograma': { label: 'Genograma', icon: 'fas fa-sitemap' },
+        'apoyo': { label: 'Red de Apoyo', icon: 'fas fa-hands-helping' },
+        'portal': { label: 'Portal Paciente', icon: 'fas fa-mobile-alt' }
+    };
+    
+    listEl.innerHTML = currentOrder.map((tabId, idx) => {
+        const info = TAB_INFO_MAP[tabId] || { label: tabId, icon: 'fas fa-folder' };
+        const isFirst = idx === 0;
+        const isLast = idx === currentOrder.length - 1;
+        return `
+            <div class="tab-reorder-item" data-tab-id="${tabId}">
+                <div class="tab-reorder-info">
+                    <span class="tab-reorder-index">#${idx + 1}</span>
+                    <i class="${info.icon}" style="color:var(--brand-deep);width:20px;text-align:center;"></i>
+                    <span>${info.label}</span>
+                </div>
+                <div class="tab-reorder-actions">
+                    <button type="button" class="btn-tab-order" onclick="movePatientTabInModal('${tabId}', -1)" ${isFirst ? 'disabled' : ''} title="Mover hacia arriba">
+                        <i class="fas fa-arrow-up"></i>
+                    </button>
+                    <button type="button" class="btn-tab-order" onclick="movePatientTabInModal('${tabId}', 1)" ${isLast ? 'disabled' : ''} title="Mover hacia abajo">
+                        <i class="fas fa-arrow-down"></i>
+                    </button>
+                </div>
+            </div>
+        `;
+    }).join('');
+}
+
+function movePatientTabInModal(tabId, delta) {
+    const currentOrder = getPatientTabsOrder();
+    const idx = currentOrder.indexOf(tabId);
+    if (idx === -1) return;
+    const targetIdx = idx + delta;
+    if (targetIdx < 0 || targetIdx >= currentOrder.length) return;
+    
+    const temp = currentOrder[idx];
+    currentOrder[idx] = currentOrder[targetIdx];
+    currentOrder[targetIdx] = temp;
+    
+    savePatientTabsOrder(currentOrder);
+    renderPatientTabsReorderList();
+    refreshPatientTabsBar();
+    if (typeof showToast === 'function') {
+        showToast('✨ Orden de pestañas actualizado', 'info');
+    }
+}
+
+function resetPatientTabsOrder() {
+    savePatientTabsOrder([...DEFAULT_PATIENT_TABS_ORDER]);
+    renderPatientTabsReorderList();
+    refreshPatientTabsBar();
+    if (typeof showToast === 'function') {
+        showToast('Orden predeterminado de pestañas restablecido', 'success');
+    }
+}
+
+function refreshPatientTabsBar() {
+    const container = document.getElementById('patientTabsContainer');
+    if (!container || !AppState.selectedPatientId) return;
+    const patient = AppState.patients.find(p => String(p.id) === String(AppState.selectedPatientId));
+    if (!patient) return;
+    
+    const activeTabEl = container.querySelector('.patient-tab.active');
+    const activeTabId = activeTabEl ? activeTabEl.getAttribute('data-tab-id') : 'resumen';
+    
+    const patientNotes = AppState.notes.filter(n => String(n.patientId) === String(patient.id));
+    const patientApps = AppState.appointments.filter(a => String(a.patientId) === String(patient.id));
+    const isKid = isKidPatient(patient);
+    const { results: portalResults, moods: portalMoods, cbt: portalCbt, kidActivities: portalKidActivities } = getPortalResults(patient.id);
+    const portalCount = isKid ? (portalKidActivities ? portalKidActivities.length : 0) : (portalResults.length + portalMoods.length + (portalCbt ? portalCbt.length : 0));
+    
+    container.innerHTML = renderPatientTabsBar(patientNotes.length, patientApps.length, portalCount, activeTabId);
+}
+
 function viewPatient(id) {
     AppState.selectedPatientId = id;
     const patient = AppState.patients.find(p => p.id === id);
@@ -3384,21 +3640,8 @@ function viewPatient(id) {
         </div>
 
         <!-- BARRA SUPERIOR DE PESTAÑAS CLÍNICAS (ACCESO INMEDIATO EN LA PARTE SUPERIOR) -->
-        <div class="patient-tabs">
-            <button class="patient-tab active" onclick="switchPatientTab('resumen', this)"><i class="fas fa-folder-open"></i> Expediente Clínico</button>
-            <button class="patient-tab" onclick="switchPatientTab('notas', this)"><i class="fas fa-file-invoice"></i> Notas de sesión (${patientNotes.length})</button>
-            <button class="patient-tab" onclick="switchPatientTab('sesiones', this)"><i class="fas fa-calendar-check"></i> Historial de Sesiones (${patientApps.length})</button>
-            <button class="patient-tab" onclick="switchPatientTab('historia', this)"><i class="fas fa-book-medical"></i> Historia</button>
-            <button class="patient-tab" onclick="switchPatientTab('examen-mental', this)"><i class="fas fa-brain"></i> Examen Mental</button>
-            <button class="patient-tab" onclick="switchPatientTab('timeline', this)"><i class="fas fa-stream"></i> Línea de Tiempo</button>
-            <button class="patient-tab" onclick="switchPatientTab('objetivos', this)"><i class="fas fa-bullseye"></i> Objetivos</button>
-            <button class="patient-tab" onclick="switchPatientTab('escalas', this)"><i class="fas fa-chart-line"></i> Evaluaciones</button>
-            <button class="patient-tab" onclick="switchPatientTab('genograma', this)"><i class="fas fa-sitemap"></i> Genograma</button>
-            <button class="patient-tab" onclick="switchPatientTab('apoyo', this)"><i class="fas fa-hands-helping"></i> Red de Apoyo</button>
-            <button class="patient-tab" onclick="switchPatientTab('portal', this)">
-                <i class="fas fa-mobile-alt"></i> Portal Paciente
-                <span id="portalTabBadgeCount" style="background: var(--accent-success); color: white; padding: 2px 6px; border-radius: 10px; font-size: 10px; margin-left: 4px; ${portalCount > 0 ? '' : 'display: none;'}">${portalCount}</span>
-            </button>
+        <div class="patient-tabs" id="patientTabsContainer" ondragover="handlePatientTabDragOver(event)">
+            ${renderPatientTabsBar(patientNotes.length, patientApps.length, portalCount, 'resumen')}
         </div>
 
         <div id="tab-resumen" class="patient-tab-content active">${renderTabResumen(id, wellbeing, sessionPrep, emotionalProfile, clinicalInsights)}</div>
@@ -3421,13 +3664,17 @@ function viewPatient(id) {
 }
 
 function switchPatientTab(tabName, btn) {
+    if (isPatientTabDragging) return;
     document.querySelectorAll('.patient-tab').forEach(t => t.classList.remove('active'));
     document.querySelectorAll('.patient-tab-content').forEach(c => c.classList.remove('active'));
-    if (btn) {
-        btn.classList.add('active');
-    } else {
-        const matchingBtn = Array.from(document.querySelectorAll('.patient-tab')).find(b => b.getAttribute('onclick')?.includes(`'${tabName}'`));
-        if (matchingBtn) matchingBtn.classList.add('active');
+    
+    let targetBtn = btn;
+    if (!targetBtn || targetBtn.getAttribute('data-tab-id') !== tabName) {
+        targetBtn = document.querySelector(`.patient-tab[data-tab-id="${tabName}"]`) ||
+                    Array.from(document.querySelectorAll('.patient-tab')).find(b => b.getAttribute('onclick')?.includes(`'${tabName}'`));
+    }
+    if (targetBtn) {
+        targetBtn.classList.add('active');
     }
     const target = document.getElementById('tab-' + tabName);
     if (target) target.classList.add('active');
@@ -3587,7 +3834,7 @@ function renderTabResumen(patientId, wellbeing, sessionPrep, emotionalProfile, c
                 </div>
             </div>
 
-            <div class="expediente-kpi-card" style="cursor:pointer;" onclick="switchPatientTab('sesiones', document.querySelectorAll('.patient-tab')[2])" title="Ver Historial de Sesiones, Asistencias y Estadísticas">
+            <div class="expediente-kpi-card" style="cursor:pointer;" onclick="switchPatientTab('sesiones')" title="Ver Historial de Sesiones, Asistencias y Estadísticas">
                 <div class="expediente-kpi-icon" style="background: rgba(16, 185, 129, 0.15); color: #059669;">
                     <i class="fas fa-calendar-check"></i>
                 </div>
@@ -3699,7 +3946,7 @@ function renderTabResumen(patientId, wellbeing, sessionPrep, emotionalProfile, c
                 <div class="expediente-box">
                     <div class="expediente-box-header">
                         <div class="expediente-box-title"><i class="fas fa-hand-holding-medical"></i> Intervención y Tratamiento</div>
-                        <button class="btn-secondary btn-sm" onclick="switchPatientTab('notas', document.querySelector('.patient-tab:nth-child(2)'))" title="Ver Notas de Sesión">
+                        <button class="btn-secondary btn-sm" onclick="switchPatientTab('notas')" title="Ver Notas de Sesión">
                             <i class="fas fa-file-invoice"></i> Notas (${notes.length})
                         </button>
                     </div>
@@ -6478,7 +6725,7 @@ async function openPortalAccessModal(patientId) {
 
             <!-- CONTROLES INFERIORES -->
             <div class="portal-modal-footer">
-                <button class="btn-secondary" onclick="viewPatient('${patient.id}'); switchPatientTab('portal', document.querySelectorAll('.patient-tab')[6]); closeModal('portalAccessModal');">
+                <button class="btn-secondary" onclick="viewPatient('${patient.id}'); switchPatientTab('portal'); closeModal('portalAccessModal');">
                     <i class="fas fa-chart-simple"></i> Ver Analítica Detallada en Expediente
                 </button>
                 <button class="btn-primary" onclick="closeModal('portalAccessModal')">
@@ -11037,6 +11284,18 @@ if (typeof window !== 'undefined') {
     if (typeof regeneratePortalToken === 'function') window.regeneratePortalToken = regeneratePortalToken;
     if (typeof refreshPortalTabContent === 'function') window.refreshPortalTabContent = refreshPortalTabContent;
     if (typeof switchPatientTab === 'function') window.switchPatientTab = switchPatientTab;
+    if (typeof getPatientTabsOrder === 'function') window.getPatientTabsOrder = getPatientTabsOrder;
+    if (typeof savePatientTabsOrder === 'function') window.savePatientTabsOrder = savePatientTabsOrder;
+    if (typeof resetPatientTabsOrder === 'function') window.resetPatientTabsOrder = resetPatientTabsOrder;
+    if (typeof openPatientTabsReorderModal === 'function') window.openPatientTabsReorderModal = openPatientTabsReorderModal;
+    if (typeof movePatientTabInModal === 'function') window.movePatientTabInModal = movePatientTabInModal;
+    if (typeof handlePatientTabDragStart === 'function') window.handlePatientTabDragStart = handlePatientTabDragStart;
+    if (typeof handlePatientTabDragOver === 'function') window.handlePatientTabDragOver = handlePatientTabDragOver;
+    if (typeof handlePatientTabDragLeave === 'function') window.handlePatientTabDragLeave = handlePatientTabDragLeave;
+    if (typeof handlePatientTabDrop === 'function') window.handlePatientTabDrop = handlePatientTabDrop;
+    if (typeof handlePatientTabDragEnd === 'function') window.handlePatientTabDragEnd = handlePatientTabDragEnd;
+    if (typeof refreshPatientTabsBar === 'function') window.refreshPatientTabsBar = refreshPatientTabsBar;
+    if (typeof renderPatientTabsBar === 'function') window.renderPatientTabsBar = renderPatientTabsBar;
     if (typeof setPatientCategoryFilter === 'function') window.setPatientCategoryFilter = setPatientCategoryFilter;
     if (typeof setCalendarViewMode === 'function') window.setCalendarViewMode = setCalendarViewMode;
     if (typeof navigateCalendarToday === 'function') window.navigateCalendarToday = navigateCalendarToday;

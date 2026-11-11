@@ -1003,7 +1003,7 @@ const MentalExamModule = {
                 <div class="me-card-header me-accordion-header" onclick="MentalExamModule.toggleCardCollapse(9)" role="button" tabindex="0">
                     <div class="me-header-left">
                         <span class="me-num">9</span>
-                        <span class="me-card-title">INTELIGENCIA</span>
+                        <span class="me-card-title">Inteligencia</span>
                         <span class="me-card-tag">Cognición</span>
                     </div>
                     <div class="me-header-right">
