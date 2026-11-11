@@ -7893,15 +7893,22 @@ ClinicalTestSuite.add('TC-MSE-03', 'Examen Mental - Correcciones Semiológicas (
     }
 
     const orientOpts = MentalExamModule.getOrientacionOptions();
-    if (!orientOpts.includes('Orientado Autopsíquicamente') || !orientOpts.includes('Orientado Alopsíquicamente') || !orientOpts.includes('Desorientación Parcial')) {
-        throw new Error('getOrientacionOptions debe proveer las opciones estándar de orientación');
+    if (!orientOpts.includes('Orientado Autopsíquicamente') || !orientOpts.includes('Orientado Alopsíquicamente') || !orientOpts.includes('Desorientación Parcial') || !orientOpts.includes('Desorientación Autopsíquica')) {
+        throw new Error('getOrientacionOptions debe proveer las opciones estándar de orientación incluyendo Desorientación Autopsíquica');
     }
 
     const fieldsOrientacion = MentalExamModule.getInitialState(testPatient);
     fieldsOrientacion.orientacion = ['Orientado Autopsíquicamente', 'Desorientación Temporal'];
     const narOrient = MentalExamModule.generateNarrative(fieldsOrientacion, testPatient);
-    if (!narOrient.includes('Orientado Autopsíquicamente con Desorientación Temporal.')) {
-        throw new Error('La síntesis debe reflejar la orientación y desorientación seleccionadas');
+    if (!narOrient.includes('Orientado Autopsíquicamente, Desorientación Temporal.')) {
+        throw new Error('La síntesis debe reflejar la orientación y desorientación seleccionadas separadas por comas sin prefijo con');
+    }
+
+    const fieldsOrientacion2 = MentalExamModule.getInitialState(testPatient);
+    fieldsOrientacion2.orientacion = ['Orientado Alopsíquicamente', 'Desorientación Autopsíquica'];
+    const narOrient2 = MentalExamModule.generateNarrative(fieldsOrientacion2, testPatient);
+    if (!narOrient2.includes('Orientado Alopsíquicamente, Desorientación Autopsíquica.')) {
+        throw new Error('Debe permitir sintetizar Desorientación Autopsíquica sin confundirla con orientación autopsíquica');
     }
 });
 
@@ -8036,6 +8043,17 @@ ClinicalTestSuite.add('TC-MSE-05', 'Examen Mental - Correcciones Semiológicas (
     if (html.includes('Modulado / Eutímico')) {
         throw new Error('Tarjeta 12 debe mostrar "Eutímico" en lugar de "Modulado / Eutímico"');
     }
+    if (!html.includes('Eutimia')) {
+        throw new Error('Tarjeta 12 debe mostrar "Eutimia"');
+    }
+    const fieldsEutimia = MentalExamModule.getInitialState(testPatient);
+    fieldsEutimia.hipertimiaPresenta = 'NO';
+    fieldsEutimia.afectoBase = 'Eutimia';
+    const narEutimia = MentalExamModule.generateNarrative(fieldsEutimia, testPatient);
+    if (!narEutimia.includes('Eutimia.')) {
+        throw new Error('Al seleccionar Eutimia como afecto base debe sintetizarse "Eutimia."');
+    }
+
     const fieldsHipertimia = MentalExamModule.getInitialState(testPatient);
     fieldsHipertimia.hipertimiaPresenta = 'SI';
     fieldsHipertimia.hipertimiaTipo = 'Hipertimia Displacentera';
@@ -8044,6 +8062,26 @@ ClinicalTestSuite.add('TC-MSE-05', 'Examen Mental - Correcciones Semiológicas (
     const narHipertimia = MentalExamModule.generateNarrative(fieldsHipertimia, testPatient);
     if (!narHipertimia.includes('Hipertimia Displacentera Orientada al Polo de la Tristeza con Sentimientos de Minusvalía.')) {
         throw new Error('La síntesis debe generar exactamente el patrón de hipertimia compuesta del psicólogo');
+    }
+
+    // Validación de Del Pesimismo
+    fieldsHipertimia.hipertimiaPolo = 'Del Pesimismo';
+    const narPesimismo = MentalExamModule.generateNarrative(fieldsHipertimia, testPatient);
+    if (!narPesimismo.includes('Orientada al Polo del Pesimismo')) {
+        throw new Error('Al seleccionar Del Pesimismo debe reflejarse "Orientada al Polo del Pesimismo"');
+    }
+
+    // Validación de conectores "y" en sentimientos (2 opciones y 3 opciones)
+    fieldsHipertimia.hipertimiaSentimientos = ['Ruina', 'Desamparo'];
+    const narSent2 = MentalExamModule.generateNarrative(fieldsHipertimia, testPatient);
+    if (!narSent2.includes('con Sentimientos de Ruina y Desamparo')) {
+        throw new Error('Dos sentimientos deben unirse con el conector "y"');
+    }
+
+    fieldsHipertimia.hipertimiaSentimientos = ['Minusvalía', 'Ruina', 'Desamparo'];
+    const narSent3 = MentalExamModule.generateNarrative(fieldsHipertimia, testPatient);
+    if (!narSent3.includes('con Sentimientos de Minusvalía, Ruina y Desamparo')) {
+        throw new Error('Tres sentimientos deben unirse con comas y el conector "y"');
     }
 
     // 2. Psicomotricidad (Función 14)

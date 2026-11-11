@@ -130,7 +130,7 @@ const MentalExamModule = {
             lenguajeNoVerbal: [],
 
             // 12. Afectividad
-            afectoBase: 'Eutímico',
+            afectoBase: 'Eutimia',
             hipertimiaPresenta: 'NO',
             hipertimiaTipo: '',
             hipertimiaPolo: '',
@@ -167,67 +167,48 @@ const MentalExamModule = {
         };
     },
 
-    // Generador en tiempo real de la narrativa clínica protocolizada (según el orden del PDF pág. 8)
+    // Generador en tiempo real de Síntesis / Narrativa Semiológica
     generateNarrative(fields, patient) {
+        if (!fields) return '';
+        const isFem = (fields.sexo || patient?.gender || '').toLowerCase() === 'femenino';
         const parts = [];
-        const isFem = (fields.sexo || '').toLowerCase().startsWith('fem');
 
-        // 1. Presentación (Parte 1 del PDF)
-        let generoTxt = 'Paciente';
-        if (fields.sexo === 'Femenino') generoTxt = 'Paciente femenina';
-        else if (fields.sexo === 'Masculino') generoTxt = 'Paciente masculino';
-        else generoTxt = `Paciente (${fields.sexo})`;
+        // 1. Presentación General (Edad y Biotipo)
+        const pres = [];
+        const pxNoun = isFem ? 'Paciente femenina' : 'Paciente masculino';
+        pres.push(pxNoun);
 
-        let pres = '';
+        if (fields.edad) {
+            pres.push(`de ${fields.edad} años`);
+        }
         if (fields.edadAparenteCronologica === 'SI') {
-            pres = `${generoTxt} de ${fields.edad || '—'} años edad aparente a edad cronológica`;
-        } else {
-            pres = `${generoTxt} de ${fields.edad || '—'} años de edad, no aparente a edad cronológica`;
+            pres.push('edad aparente a edad cronológica');
+        } else if (fields.edadAparenteCronologica === 'NO') {
+            pres.push('edad aparente no concuerda con edad cronológica');
         }
         if (fields.biotipo) {
-            pres += ` y biotipo ${fields.biotipo.toLowerCase()}`;
+            pres.push(`y biotipo ${fields.biotipo.toLowerCase()}`);
         }
-        pres += '.';
-        parts.push(pres);
-
-        // 2. Aspecto y Vestimenta (Parte 2 y Parte 4 del PDF)
-        const aspList = (fields.aspectoVestimenta || []).slice();
-        const vestimentaSelected = aspList.some(v => /vestiment[ao]|vestid[ao]/i.test(v));
-        const cleanAdjs = aspList.filter(v => !/vestiment[ao]|vestid[ao]/i.test(v));
-
-        // Adaptar automáticamente adjetivos al género indicado (-o/-a, -e/-a)
-        const genderAdaptedAdjs = cleanAdjs.map(adj => {
-            if (isFem) {
-                return adj.replace(/\bAseado\b/i, 'Aseada')
-                          .replace(/\bArreglado\b/i, 'Arreglada')
-                          .replace(/\bDescuidado\b/i, 'Descuidada')
-                          .replace(/\bDesarreglado\b/i, 'Desarreglada');
-            } else {
-                return adj.replace(/\bAseada\b/i, 'Aseado')
-                          .replace(/\bArreglada\b/i, 'Arreglado')
-                          .replace(/\bDescuidada\b/i, 'Descuidado')
-                          .replace(/\bDesarreglada\b/i, 'Desarreglado');
-            }
-        });
-
-        let adjTxt = '';
-        if (genderAdaptedAdjs.length === 1) {
-            adjTxt = genderAdaptedAdjs[0];
-        } else if (genderAdaptedAdjs.length === 2) {
-            adjTxt = `${genderAdaptedAdjs[0]} y ${genderAdaptedAdjs[1].toLowerCase()}`;
-        } else if (genderAdaptedAdjs.length > 2) {
-            adjTxt = `${genderAdaptedAdjs.slice(0, -1).join(', ')} y ${genderAdaptedAdjs[genderAdaptedAdjs.length - 1].toLowerCase()}`;
-        } else if (!vestimentaSelected && fields.vestimentaEdadOcasion !== 'SI') {
-            adjTxt = 'Presentación personal adecuada al contexto';
+        if (pres.length > 0) {
+            parts.push(pres.join(' ') + '.');
         }
 
-        if (adjTxt) {
-            adjTxt = adjTxt.charAt(0).toUpperCase() + adjTxt.slice(1);
-        }
-
+        // 2. Aspecto y Vestimenta
         let aspTxt = '';
-        const hasVestimenta = vestimentaSelected || fields.vestimentaEdadOcasion === 'SI';
-        if (hasVestimenta) {
+        const aspItems = (fields.aspectoVestimenta || []).filter(a => !/vestimenta/i.test(a));
+        let adjTxt = '';
+        if (aspItems.length === 1) {
+            adjTxt = aspItems[0].charAt(0).toUpperCase() + aspItems[0].slice(1).toLowerCase();
+        } else if (aspItems.length === 2) {
+            adjTxt = `${aspItems[0].charAt(0).toUpperCase() + aspItems[0].slice(1).toLowerCase()} y ${aspItems[1].toLowerCase()}`;
+        } else if (aspItems.length > 2) {
+            const first = aspItems.slice(0, -1).map((a, i) => i === 0 ? a.charAt(0).toUpperCase() + a.slice(1).toLowerCase() : a.toLowerCase()).join(', ');
+            adjTxt = `${first} y ${aspItems[aspItems.length - 1].toLowerCase()}`;
+        } else {
+            adjTxt = isFem ? 'Aseada y arreglada' : 'Aseado y arreglado';
+        }
+
+        if (fields.vestimentaEdadOcasion === 'SI') {
             if (adjTxt) {
                 aspTxt = `${adjTxt}, vestimenta de acuerdo a la edad y ocasión.`;
             } else {
@@ -289,10 +270,10 @@ const MentalExamModule = {
         // 6. Orientación
         const orientList = Array.isArray(fields.orientacion) ? fields.orientacion : [];
         const hasAuto = orientList.length > 0 
-            ? orientList.some(o => /autops[íi]quica/i.test(o)) 
+            ? orientList.some(o => /orientad[ao]\s+autops[íi]quica/i.test(o)) 
             : fields.orientacionAutopsiquica === 'SI';
         const hasAlo = orientList.length > 0 
-            ? orientList.some(o => /alops[íi]quica/i.test(o)) 
+            ? orientList.some(o => /orientad[ao]\s+alops[íi]quica/i.test(o)) 
             : fields.orientacionAlopsiquica === 'SI';
         const desor = orientList.filter(o => /desorientaci[óo]n/i.test(o));
         if (Array.isArray(fields.orientacionDesorientacion)) {
@@ -322,11 +303,11 @@ const MentalExamModule = {
             } else if (hasAlo && !hasAuto) {
                 orientParts.push(`${orientAdj} Alopsíquicamente`);
             }
-            orientParts.push(`con ${desor.join(', ')}`);
+            desor.forEach(d => orientParts.push(d));
         } else {
             orientParts.push(`${desorientTotal} globalmente en tiempo, espacio y persona`);
         }
-        parts.push(orientParts.join(' ') + '.');
+        parts.push(orientParts.join(', ') + '.');
 
         // 7. Memoria
         if (fields.memoriaConservada === 'SI') {
@@ -374,7 +355,7 @@ const MentalExamModule = {
             pensParts.push(fields.pensamientoOtros.join(', '));
         }
         if (pensParts.length > 0) {
-            parts.push(`${pensParts.join('. ')}.`);
+            parts.push(`${pensParts.join(', ')}.`);
         }
 
         // 11. Lenguaje
@@ -394,7 +375,7 @@ const MentalExamModule = {
         if (lengParts.length === 0) {
             parts.push('Sin alteraciones observables en el Lenguaje.');
         } else {
-            parts.push(`${lengParts.join('. ')}.`);
+            parts.push(`${lengParts.join(', ')}.`);
         }
 
         // 12. Afectividad
@@ -402,16 +383,41 @@ const MentalExamModule = {
         if (fields.hipertimiaPresenta === 'SI') {
             let hip = fields.hipertimiaTipo || 'Hipertimia';
             if (fields.hipertimiaPolo) {
-                const pClean = fields.hipertimiaPolo.replace(/^de la /i, '').replace(/^del /i, '').replace(/^de /i, '');
-                hip += ` Orientada al Polo de la ${pClean}`;
+                let p = fields.hipertimiaPolo.trim();
+                if (/^miedo$/i.test(p)) p = 'Del Miedo';
+                if (/^pesimismo$/i.test(p)) p = 'Del Pesimismo';
+                let poloFormatted = '';
+                if (/^del\s+/i.test(p)) {
+                    const rest = p.replace(/^del\s+/i, '');
+                    poloFormatted = `al Polo del ${rest.charAt(0).toUpperCase() + rest.slice(1)}`;
+                } else if (/^de\s+la\s+/i.test(p)) {
+                    const rest = p.replace(/^de\s+la\s+/i, '');
+                    poloFormatted = `al Polo de la ${rest.charAt(0).toUpperCase() + rest.slice(1)}`;
+                } else {
+                    poloFormatted = `al Polo de la ${p}`;
+                }
+                hip += ` Orientada ${poloFormatted}`;
             }
             if (fields.hipertimiaSentimientos && fields.hipertimiaSentimientos.length > 0) {
-                hip += ` con Sentimientos de ${fields.hipertimiaSentimientos.join(', ')}`;
+                const sent = fields.hipertimiaSentimientos.map(s => s.charAt(0).toUpperCase() + s.slice(1));
+                let sentStr = '';
+                if (sent.length === 1) {
+                    sentStr = sent[0];
+                } else if (sent.length === 2) {
+                    sentStr = `${sent[0]} y ${sent[1]}`;
+                } else {
+                    sentStr = `${sent.slice(0, -1).join(', ')} y ${sent[sent.length - 1]}`;
+                }
+                hip += ` con Sentimientos de ${sentStr}`;
             }
             afectParts.push(hip);
         } else if (fields.afectoBase) {
-            const base = fields.afectoBase.replace(/modulado\s*\/\s*eut[íi]mico/i, 'Eutímico');
+            const base = fields.afectoBase
+                .replace(/modulado\s*\/\s*eut[íi]mico/i, 'Eutimia')
+                .replace(/eut[íi]mico/i, 'Eutimia');
             afectParts.push(base);
+        } else {
+            afectParts.push('Eutimia');
         }
         if (fields.afectoOtrasAlteraciones && fields.afectoOtrasAlteraciones.length > 0) {
             afectParts.push(fields.afectoOtrasAlteraciones.join(', '));
@@ -425,9 +431,7 @@ const MentalExamModule = {
 
         // 13. Sensopercepción
         const hasSenDetails = (fields.sensopercepcionCuantitativa && fields.sensopercepcionCuantitativa !== 'Conservada') || (fields.ilusionesPresenta === 'SI' && fields.ilusionesTipo && fields.ilusionesTipo.length > 0) || (fields.alucinacionesPresenta === 'SI' && fields.alucinacionesTipo && fields.alucinacionesTipo.length > 0) || fields.pseudoalucinaciones === 'SI';
-        if (fields.sensopercepcionAlterada === 'NO' && !hasSenDetails) {
-            parts.push('Sin alteraciones observables en la Sensopercepción.');
-        } else if (!hasSenDetails) {
+        if (!hasSenDetails) {
             parts.push('Sin alteraciones observables en la Sensopercepción.');
         } else {
             const sensParts = [];
@@ -446,7 +450,7 @@ const MentalExamModule = {
             if (sensParts.length === 0) {
                 parts.push('Sin alteraciones observables en la Sensopercepción.');
             } else {
-                parts.push(`${sensParts.join('. ')}.`);
+                parts.push(`${sensParts.join(', ')}.`);
             }
         }
 
@@ -642,7 +646,8 @@ const MentalExamModule = {
             'Orientado Alopsíquicamente',
             'Desorientación Parcial',
             'Desorientación Temporal',
-            'Desorientación Espacial'
+            'Desorientación Espacial',
+            'Desorientación Autopsíquica'
         ];
     },
 
@@ -736,7 +741,7 @@ const MentalExamModule = {
                 if (isSi(s.hipertimiaPresenta)) {
                     return `⚠️ ${s.hipertimiaTipo || 'Hipertimia'}`;
                 }
-                return s.afectoBase ? `✓ ${s.afectoBase}` : '✓ Eutímico';
+                return s.afectoBase ? `✓ ${s.afectoBase}` : '✓ Eutimia';
             case 13:
                 if (isSi(s.sensopercepcionAlterada)) return '⚠️ Alterada';
                 return '✓ Sin alteraciones';
@@ -998,7 +1003,7 @@ const MentalExamModule = {
                 </div>
             </div>
 
-            <!-- 9. INTELIGENCIA -->
+            <!-- 9. Inteligencia -->
             <div class="me-card collapsible" id="me_card_9" data-group="2" data-card-num="9">
                 <div class="me-card-header me-accordion-header" onclick="MentalExamModule.toggleCardCollapse(9)" role="button" tabindex="0">
                     <div class="me-header-left">
@@ -1110,7 +1115,7 @@ const MentalExamModule = {
                 <div class="me-card-body" id="me_body_12">
                     <label class="me-field-label">Afecto basal:</label>
                     <div class="me-chips-group" data-field="afectoBase" data-type="single">
-                        ${['Eutímico', 'Furor Maníaco', 'Beatitud', 'Éxtasis', 'Hipotimia', 'Atimia'].map(opt => `<span class="me-chip ${(s.afectoBase === opt || (opt === 'Eutímico' && (s.afectoBase === 'Modulado / Eutímico' || !s.afectoBase))) ? 'active' : ''}" data-value="${opt}" onclick="MentalExamModule.onChipSelect(this, 'afectoBase', '${opt}')">${opt}</span>`).join('')}
+                        ${['Eutimia', 'Furor Maníaco', 'Beatitud', 'Éxtasis', 'Hipotimia', 'Atimia'].map(opt => `<span class="me-chip ${(s.afectoBase === opt || (opt === 'Eutimia' && (s.afectoBase === 'Modulado / Eutímico' || s.afectoBase === 'Eutímico' || s.afectoBase === 'Eutimia' || !s.afectoBase))) ? 'active' : ''}" data-value="${opt}" onclick="MentalExamModule.onChipSelect(this, 'afectoBase', '${opt}')">${opt}</span>`).join('')}
                     </div>
 
                     <div class="me-toggle-row" style="margin-top:12px;">
@@ -1129,7 +1134,7 @@ const MentalExamModule = {
 
                         <label class="me-field-label" style="margin-top:10px;">Orientada al Polo:</label>
                         <div class="me-chips-group" data-field="hipertimiaPolo" data-type="single">
-                            ${['De la Tristeza', 'De la Alegría', 'De la Ira', 'Miedo', 'Pesimismo'].map(opt => `<span class="me-chip ${s.hipertimiaPolo === opt ? 'active' : ''}" data-value="${opt}" onclick="MentalExamModule.onChipSelect(this, 'hipertimiaPolo', '${opt}')">${opt}</span>`).join('')}
+                            ${['De la Tristeza', 'De la Alegría', 'De la Ira', 'Del Miedo', 'Del Pesimismo'].map(opt => `<span class="me-chip ${s.hipertimiaPolo === opt ? 'active' : ''}" data-value="${opt}" onclick="MentalExamModule.onChipSelect(this, 'hipertimiaPolo', '${opt}')">${opt}</span>`).join('')}
                         </div>
 
                         <label class="me-field-label" style="margin-top:10px;">Con Sentimientos de:</label>
@@ -1639,7 +1644,7 @@ const MentalExamModule = {
             lenguajeOrganico: getMultiple('lenguajeOrganico'),
             lenguajePsicogeno: getMultiple('lenguajePsicogeno'),
             lenguajeNoVerbal: getMultiple('lenguajeNoVerbal'),
-            afectoBase: getSingle('afectoBase') || 'Eutímico',
+            afectoBase: getSingle('afectoBase') || 'Eutimia',
             hipertimiaPresenta: getSingle('hipertimiaPresenta') || 'NO',
             hipertimiaTipo: getSingle('hipertimiaTipo') || '',
             hipertimiaPolo: getSingle('hipertimiaPolo') || '',
@@ -1647,12 +1652,12 @@ const MentalExamModule = {
             afectoOtrasAlteraciones: getMultiple('afectoOtrasAlteraciones'),
             afectoCualitativo: getMultiple('afectoCualitativo'),
             sensopercepcionAlterada: getSingle('sensopercepcionAlterada') || 'NO',
-            sensopercepcionCuantitativa: getSingle('sensopercepcionCuantitativa') || '',
-            ilusionesPresenta: getSingle('ilusionesPresenta') || 'NO',
-            ilusionesTipo: getMultiple('ilusionesTipo'),
-            alucinacionesPresenta: getSingle('alucinacionesPresenta') || 'NO',
-            alucinacionesTipo: getMultiple('alucinacionesTipo'),
-            pseudoalucinaciones: getSingle('pseudoalucinaciones') || 'NO',
+            sensopercepcionCuantitativa: (getSingle('sensopercepcionAlterada') === 'NO') ? '' : (getSingle('sensopercepcionCuantitativa') || ''),
+            ilusionesPresenta: (getSingle('sensopercepcionAlterada') === 'NO') ? 'NO' : (getSingle('ilusionesPresenta') || 'NO'),
+            ilusionesTipo: (getSingle('sensopercepcionAlterada') === 'NO') ? [] : getMultiple('ilusionesTipo'),
+            alucinacionesPresenta: (getSingle('sensopercepcionAlterada') === 'NO') ? 'NO' : (getSingle('alucinacionesPresenta') || 'NO'),
+            alucinacionesTipo: (getSingle('sensopercepcionAlterada') === 'NO') ? [] : getMultiple('alucinacionesTipo'),
+            pseudoalucinaciones: (getSingle('sensopercepcionAlterada') === 'NO') ? 'NO' : (getSingle('pseudoalucinaciones') || 'NO'),
             psicomotricidadAlterada: getSingle('psicomotricidadAlterada') || 'NO',
             psicomotricidadOrganico: getMultiple('psicomotricidadOrganico'),
             psicomotricidadNoOrganico: getMultiple('psicomotricidadNoOrganico'),

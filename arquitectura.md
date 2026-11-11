@@ -4139,16 +4139,20 @@ flowchart TD
 
 ### 41.3. Matriz de Cambios por Función Semiológica
 
+> [!IMPORTANT]
+> **Regla de Síntesis Universal**: Las opciones múltiples seleccionadas dentro de una misma función o sección semiológica se separan con comas `, ` entre ellas. Se utiliza únicamente punto y seguido `. ` para dar inicio a la siguiente función mental.
+
 | # | Función | Título UI Oficial | Ajustes de Interfaz | Regla de Generación en Síntesis Clínica |
 |---|---|---|---|---|
+| **6** | Orientación | `Orientación` | Agregar opción `"Desorientación Autopsíquica"` en dropdown. | Separar con coma sin prefijo `"con"` (ej: `"Orientada Autopsíquicamente, Desorientación Temporal."`). |
 | **7** | Memoria | `Memoria` | Eliminar subtítulos de fijación/evocación. | Si conservada: `"Memoria Conservada."`. Si alterada: solo las opciones seleccionadas (ej: `"Amnesia anterógrada, Amnesia retrógrada."`), eliminando `"Memoria comprometida con presencia de..."`. |
 | **8** | Juicio Práctico | `Juicio Práctico` | Mantener chips. | `"Juicio Práctico Conservado."` / `"Parcialmente conservado."` / `"Desviado."`. |
-| **9** | Inteligencia | `Inteligencia` | Cambiar título de "Capacidad Intelectual Estimada". Quitar control/pregunta de pruebas psicométricas. | Si "Promedio": `"Inteligencia igual al promedio."`. Otras opciones: `"Inteligencia [Opción]."` |
-| **10** | Pensamiento | `Pensamiento` | Quitar opción "NORMAL". Cambiar "Otros contenidos patológicos:" por `"Otros"`. | Opciones seleccionadas directamente (ej: `"Taquipsiquia."`), sin prefijo `"Ideas delirantes de tipo:"`. Si no hay alteraciones: se omite o mantiene estado normotípico sin redundancia. |
-| **11** | Lenguaje | `Lenguaje` | Quitar chip `"Adecuado / Mímica normal"`. | Si no hay opciones marcadas: `"Sin alteraciones observables en el Lenguaje."`. Al marcar opciones: únicamente las opciones seleccionadas (ej: `"Taquilalia."`), sin prefijos ni añadiduras. |
-| **12** | Afectividad | `Afectividad` | En afecto basal: quitar `"Modulado/eutímico"` y colocar `"Eutímico"`. Habilitar deselección (desclicar chip activo). | Sintetizar hipertimia estructurada completa: `"[Tipo de Hipertimia] Orientada al Polo de la [Polo] con Sentimientos de [Sentimientos]."`. Si es basal: `"[Afecto Basal]."` (ej: `"Eutímico."`). |
-| **13** | Sensopercepción | `Sensopercepción` | Quitar chip `"Conservada"`. Pregunta dicótoma: `"¿Presenta alteraciones? SÍ / NO"`. Al marcar SÍ, desplegar opciones. | Al marcar NO: `"Sin alteraciones observables en la Sensopercepción."`. Al marcar SÍ: únicamente las opciones seleccionadas (ej: `"Aceleración de la Percepción."`), eliminando `"Ilusiones:"` y prefijos. |
-| **14** | Psicomotricidad | `Psicomotricidad` | Selector dicótomo `"¿Presenta alteraciones? SÍ / NO"`. Al marcar SÍ, desplegar lista. | Al marcar NO: `"Sin alteraciones observables en la Psicomotricidad."`. Al marcar SÍ: solo las opciones seleccionadas (ej: `"Tics."`). |
+| **9** | Inteligencia | `Inteligencia` | Título con solo la primera letra en mayúscula: `"Inteligencia"`. Quitar control/pregunta de pruebas psicométricas. | Si "Promedio": `"Inteligencia igual al promedio."`. Otras opciones: `"Inteligencia [Opción]."` |
+| **10** | Pensamiento | `Pensamiento` | Quitar opción "NORMAL". Cambiar "Otros contenidos patológicos:" por `"Otros"`. | Opciones seleccionadas directamente (ej: `"Taquipsiquia."`), unidas con comas dentro de la sección. |
+| **11** | Lenguaje | `Lenguaje` | Quitar chip `"Adecuado / Mímica normal"`. | Si no hay opciones marcadas: `"Sin alteraciones observables en el Lenguaje."`. Al marcar opciones: únicamente las opciones seleccionadas unidas por comas (ej: `"Taquilalia."`). |
+| **12** | Afectividad | `Afectividad` | En afecto basal: cambiar a `"Eutimia"`. En polos de hipertimia: cambiar `"Miedo"` por `"Del Miedo"` y `"Pesimismo"` por `"Del Pesimismo"`. | Sintetizar hipertimia estructurada: `"[Tipo] Orientada al Polo [del Pesimismo / de la Tristeza] con Sentimientos de [Sentimientos conector 'y']."`. Si basal: `"Eutimia."`. |
+| **13** | Sensopercepción | `Sensopercepción` | Quitar chip `"Conservada"`. Pregunta dicótoma: `"¿Presenta alteraciones? SÍ / NO"`. Al marcar SÍ, desplegar opciones. | Al no marcar opciones o marcar NO: estrictamente `"Sin alteraciones observables en la Sensopercepción."` sin más añadiduras. Al marcar alteraciones: separadas por comas. |
+| **14** | Psicomotricidad | `Psicomotricidad` | Selector dicótomo `"¿Presenta alteraciones? SÍ / NO"`. Al marcar SÍ, desplegar lista. | Al marcar NO: `"Sin alteraciones observables en la Psicomotricidad."`. Al marcar SÍ: solo las opciones seleccionadas separadas por comas (ej: `"Tics."`). |
 | **15** | Vida Instintiva | `Vida Instintiva` | Cambiar título a `"Vida Instintiva"`. Selector dicótomo `"¿Presenta alteraciones? SÍ / NO"`. | Al marcar NO: `"Sin alteraciones observables en la Vida Instintiva."`. Al marcar SÍ: solo las opciones seleccionadas (ej: `"Insomnio, Pica."`). |
 | **16** | Volición | `Volición` | Cambiar título a `"Volición"`. Quitar opción `"Normobulia"`. | Si no hay opciones marcadas: `"Sin alteraciones observables en la Volición."`. Al marcar opción: la opción seleccionada directamente (ej: `"Hiperbulia."`). |
 | **17** | Conciencia de Enfermedad | `Conciencia de Enfermedad` | Cambiar título eliminando `"(Insight)"`. | `"Conciencia de Enfermedad [Presente / Parcial / Ausente]."` |
