@@ -258,7 +258,7 @@ function renderScalesView() {
 
         <div class="summary-cards" style="grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));">
             <div class="summary-card">
-                <div class="summary-icon">📊</div>
+                <div class="summary-icon"><i class="fas fa-chart-line"></i></div>
                 <div class="summary-info">
                     <h3>Cuestionarios Aplicados</h3>
                     <div class="summary-value">${totalAssessments}</div>
@@ -266,7 +266,7 @@ function renderScalesView() {
                 </div>
             </div>
             <div class="summary-card priority">
-                <div class="summary-icon">🚨</div>
+                <div class="summary-icon"><i class="fas fa-exclamation-triangle"></i></div>
                 <div class="summary-info">
                     <h3>Alertas Severas</h3>
                     <div class="summary-value" style="color:#e16259;">${highRiskCount}</div>
@@ -274,7 +274,7 @@ function renderScalesView() {
                 </div>
             </div>
             <div class="summary-card">
-                <div class="summary-icon">🧠</div>
+                <div class="summary-icon"><i class="fas fa-brain"></i></div>
                 <div class="summary-info">
                     <h3>Catálogo Disponible</h3>
                     <div class="summary-value">${Object.keys(allScales).length} Escalas</div>
@@ -339,7 +339,7 @@ function renderScalesHistoryHtml(evaluations, filterText = '') {
     if (evaluations.length === 0) {
         return `
             <div class="empty-state">
-                <div class="empty-icon">📊</div>
+                <div class="empty-icon"><i class="fas fa-chart-bar"></i></div>
                 <p>No hay evaluaciones psicométricas registradas aún.</p>
             </div>
         `;
@@ -357,7 +357,7 @@ function renderScalesHistoryHtml(evaluations, filterText = '') {
     if (filtered.length === 0) {
         return `
             <div class="empty-state">
-                <div class="empty-icon">🔍</div>
+                <div class="empty-icon"><i class="fas fa-search"></i></div>
                 <p>No se encontraron evaluaciones con el filtro ingresado.</p>
             </div>
         `;
@@ -370,11 +370,11 @@ function renderScalesHistoryHtml(evaluations, filterText = '') {
                 return `
                     <div style="padding:14px 18px;background:var(--bg-secondary);border-radius:var(--radius-md);display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;">
                         <div style="display:flex;align-items:center;gap:14px;min-width:0;flex:1;">
-                            <div style="font-size:24px;flex-shrink:0;">📋</div>
+                            <div style="font-size:20px;flex-shrink:0;"><i class="fas fa-clipboard-check"></i></div>
                             <div style="min-width:0;">
                                 <div style="font-weight:700;font-size:15px;color:var(--text-primary);">${e.scaleName}</div>
                                 <div style="font-size:13px;color:var(--text-secondary);margin-top:2px;">
-                                    👤 <strong>${patient ? patient.name : 'Paciente'}</strong> · 📅 ${formatDate(e.date)}
+                                    <strong>${patient ? patient.name : 'Paciente'}</strong> · ${formatDate(e.date)}
                                 </div>
                             </div>
                         </div>
@@ -573,7 +573,7 @@ function submitInteractiveScaleForm(scaleKey) {
     saveData();
     closeModal('scaleModal');
 
-    showToast(`✅ ${scale.shortName} registrado: ${totalScore} pts (${interp.level})`, 'success');
+    showToast(`${scale.shortName} registrado: ${totalScore} pts (${interp.level})`, 'success');
 
     // Refrescar vistas activas
     if (AppState.currentView === 'scales') renderScalesView();
@@ -593,12 +593,12 @@ function renderTabEscalasEnhanced(patientId) {
             <div style="display:flex;gap:8px;margin-bottom:16px;flex-wrap:wrap;">
                 ${Object.values(EXTENDED_CLINICAL_SCALES).slice(0, 3).map(s => `
                     <button class="btn-secondary btn-sm" onclick="openInteractiveScaleModal('${s.id}', '${patientId}')">
-                        📊 Aplicar ${s.shortName}
+                        Aplicar ${s.shortName}
                     </button>
                 `).join('')}
             </div>
             <div class="empty-state">
-                <div class="empty-icon">📊</div>
+                <div class="empty-icon"><i class="fas fa-chart-bar"></i></div>
                 <p>No hay evaluaciones psicométricas registradas para este paciente.</p>
             </div>
         `;
@@ -697,7 +697,7 @@ function openScaleEditorModal(scaleId = null) {
     const allScales = getAllClinicalScales();
     const scale = scaleId ? allScales[scaleId] : null;
 
-    document.getElementById('scaleEditorModalTitle').textContent = scale ? `Editar Escala: ${scale.shortName}` : '🧪 Crear Nueva Escala o Test Psicológico';
+    document.getElementById('scaleEditorModalTitle').textContent = scale ? `Editar Escala: ${scale.shortName}` : 'Crear Nueva Escala o Test Psicológico';
     document.getElementById('customScaleEditId').value = scale ? scale.id : '';
     document.getElementById('scaleFormName').value = scale ? scale.name : '';
     document.getElementById('scaleFormShortName').value = scale ? scale.shortName : '';
@@ -818,7 +818,7 @@ function handleSaveCustomScale(e) {
 
     closeModal('scaleEditorModal');
     if (typeof renderScalesView === 'function') renderScalesView();
-    showToast(`✅ Escala "${shortName}" guardada exitosamente`, 'success');
+    showToast(`Escala "${shortName}" guardada exitosamente`, 'success');
 }
 
 const _scalesTargetScope = (typeof window !== 'undefined') ? window : (typeof globalThis !== 'undefined' ? globalThis : (typeof global !== 'undefined' ? global : null));

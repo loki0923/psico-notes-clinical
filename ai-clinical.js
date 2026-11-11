@@ -357,7 +357,7 @@ Objetivo clínico: Facilitar el autoconocimiento y herramientas de autorregulaci
         try {
             return await this.callGemini(userPrompt, sysPrompt);
         } catch (err) {
-            return `### 📘 Ficha Psicoeducativa: ${topic}
+            return `### Ficha Psicoeducativa: ${topic}
             
 **1. ¿Qué es lo que ocurre?**
 Cuando experimentamos dificultades relacionadas con ${topic.toLowerCase()}, nuestro sistema psicobiológico reacciona de manera reactiva o adaptativa ante la percepción de sobrecarga. Comprender el origen es el primer paso hacia la regulación.
@@ -394,7 +394,7 @@ Consulta del terapeuta:
         try {
             return await this.callGemini(prompt, sysPrompt);
         } catch (err) {
-            return `🤖 **Aviso de Servicio del Copiloto Clínico**:
+            return `**Aviso de Servicio del Copiloto Clínico**:
 ${err.message || 'El servicio de IA no está disponible en este momento.'}
 
 *Orientación clínica general para "${userQuery}":*
@@ -483,9 +483,9 @@ ${err.message || 'El servicio de IA no está disponible en este momento.'}
     simulateDiagnosticHypotheses(patient, scales) {
         return new Promise(resolve => {
             setTimeout(() => {
-                resolve(`### 🧠 Análisis de Hipótesis Diagnósticas (Asistencia Clínica)
+                resolve(`### Análisis de Hipótesis Diagnósticas (Asistencia Clínica)
 
-> ⚠️ **AVISO CLÍNICO ÉTICO Y LEGAL**: Las hipótesis diagnósticas generadas son sugerencias de apoyo asistido basadas en modelos de lenguaje probabilísticos. **NO constituyen un diagnóstico médico o psicológico definitivo**. La confirmación diagnóstica, el juicio clínico y la responsabilidad legal corresponden exclusivamente al profesional tratante colegiado.
+> **AVISO CLÍNICO ÉTICO Y LEGAL**: Las hipótesis diagnósticas generadas son sugerencias de apoyo asistido basadas en modelos de lenguaje probabilísticos. **NO constituyen un diagnóstico médico o psicológico definitivo**. La confirmación diagnóstica, el juicio clínico y la responsabilidad legal corresponden exclusivamente al profesional tratante colegiado.
 
 **Paciente:** ${patient.name || 'Paciente'}
 

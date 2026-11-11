@@ -48,6 +48,26 @@ const MentalExamModule = {
                 }
                 loaded.orientacion = orients.length > 0 ? orients : ['Orientado Autopsíquicamente', 'Orientado Alopsíquicamente'];
             }
+
+            // Compatibilidad afecto
+            if (loaded.afectoBase) {
+                loaded.afectoBase = loaded.afectoBase.replace(/modulado\s*\/\s*eut[íi]mico/i, 'Eutímico');
+            }
+
+            // Compatibilidad sensopercepción
+            if (!loaded.sensopercepcionAlterada) {
+                loaded.sensopercepcionAlterada = (loaded.sensopercepcionCuantitativa && loaded.sensopercepcionCuantitativa !== 'Conservada') || loaded.ilusionesPresenta === 'SI' || loaded.alucinacionesPresenta === 'SI' || loaded.pseudoalucinaciones === 'SI' ? 'SI' : 'NO';
+            }
+
+            // Compatibilidad psicomotricidad
+            if (!loaded.psicomotricidadAlterada) {
+                loaded.psicomotricidadAlterada = (loaded.psicomotricidadOrganico?.length > 0 || loaded.psicomotricidadNoOrganico?.length > 0) ? 'SI' : 'NO';
+            }
+
+            // Compatibilidad volición
+            if (loaded.volicion === 'Normobulia') {
+                loaded.volicion = '';
+            }
             return loaded;
         }
 
@@ -98,7 +118,7 @@ const MentalExamModule = {
             pruebasCual: '',
 
             // 10. Pensamiento
-            pensamientoVelocidad: 'Normal',
+            pensamientoVelocidad: '',
             pensamientoEstructura: ['Lógico y Coherente'],
             pensamientoDelirios: 'NO',
             pensamientoDeliriosLista: [],
@@ -107,10 +127,10 @@ const MentalExamModule = {
             // 11. Lenguaje
             lenguajeOrganico: [],
             lenguajePsicogeno: [],
-            lenguajeNoVerbal: ['Adecuado / Mímica normal'],
+            lenguajeNoVerbal: [],
 
             // 12. Afectividad
-            afectoBase: 'Modulado / Eutímico',
+            afectoBase: 'Eutímico',
             hipertimiaPresenta: 'NO',
             hipertimiaTipo: '',
             hipertimiaPolo: '',
@@ -119,7 +139,8 @@ const MentalExamModule = {
             afectoCualitativo: [],
 
             // 13. Sensopercepción
-            sensopercepcionCuantitativa: 'Conservada',
+            sensopercepcionAlterada: 'NO',
+            sensopercepcionCuantitativa: '',
             ilusionesPresenta: 'NO',
             ilusionesTipo: [],
             alucinacionesPresenta: 'NO',
@@ -127,6 +148,7 @@ const MentalExamModule = {
             pseudoalucinaciones: 'NO',
 
             // 14. Psicomotricidad
+            psicomotricidadAlterada: 'NO',
             psicomotricidadOrganico: [],
             psicomotricidadNoOrganico: [],
 
@@ -135,7 +157,7 @@ const MentalExamModule = {
             vidaInstintivaLista: [],
 
             // 16. Volición
-            volicion: 'Normobulia',
+            volicion: '',
 
             // 17. Conciencia de Enfermedad
             concienciaEnfermedad: 'Presente',
@@ -158,7 +180,7 @@ const MentalExamModule = {
 
         let pres = '';
         if (fields.edadAparenteCronologica === 'SI') {
-            pres = `${generoTxt} de ${fields.edad || '—'} años, edad aparente a edad cronológica`;
+            pres = `${generoTxt} de ${fields.edad || '—'} años edad aparente a edad cronológica`;
         } else {
             pres = `${generoTxt} de ${fields.edad || '—'} años de edad, no aparente a edad cronológica`;
         }
@@ -230,8 +252,6 @@ const MentalExamModule = {
             else if (actList.length === 2) actTxt = `${actList[0].toLowerCase()}, ${actList[1].toLowerCase()}`;
             else actTxt = `${actList.slice(0, -1).map(a => a.toLowerCase()).join(', ')} y ${actList[actList.length - 1].toLowerCase()}`;
             parts.push(`Actitud ${actTxt}.`);
-        } else {
-            parts.push('Actitud colaboradora ante la evaluación.');
         }
 
         // 4. Nivel de Conciencia
@@ -281,26 +301,30 @@ const MentalExamModule = {
             });
         }
 
+        const orientAdj = isFem ? 'Orientada' : 'Orientado';
+        const desorientAdj = isFem ? 'desorientada' : 'desorientado';
+        const desorientTotal = isFem ? 'Desorientada' : 'Desorientado';
+
         const orientParts = [];
         if (hasAlo && hasAuto && desor.length === 0) {
-            orientParts.push('Orientado Alopsíquica y Autopsíquicamente');
+            orientParts.push(`${orientAdj} Alopsíquica y Autopsíquicamente`);
         } else if (hasAuto && !hasAlo && desor.length === 0) {
-            orientParts.push('Orientado Autopsíquicamente y desorientado Alopsíquicamente');
+            orientParts.push(`${orientAdj} Autopsíquicamente y ${desorientAdj} Alopsíquicamente`);
         } else if (hasAlo && !hasAuto && desor.length === 0) {
-            orientParts.push('Orientado Alopsíquicamente y desorientado Autopsíquicamente');
+            orientParts.push(`${orientAdj} Alopsíquicamente y ${desorientAdj} Autopsíquicamente`);
         } else if (!hasAlo && !hasAuto && desor.length === 0 && orientList.length === 0) {
-            orientParts.push('Orientado Alopsíquica y Autopsíquicamente');
+            orientParts.push(`${orientAdj} Alopsíquica y Autopsíquicamente`);
         } else if (desor.length > 0) {
             if (hasAuto && hasAlo) {
-                orientParts.push('Orientado Alopsíquica y Autopsíquicamente');
+                orientParts.push(`${orientAdj} Alopsíquica y Autopsíquicamente`);
             } else if (hasAuto && !hasAlo) {
-                orientParts.push('Orientado Autopsíquicamente');
+                orientParts.push(`${orientAdj} Autopsíquicamente`);
             } else if (hasAlo && !hasAuto) {
-                orientParts.push('Orientado Alopsíquicamente');
+                orientParts.push(`${orientAdj} Alopsíquicamente`);
             }
             orientParts.push(`con ${desor.join(', ')}`);
         } else {
-            orientParts.push('Desorientado globalmente en tiempo, espacio y persona');
+            orientParts.push(`${desorientTotal} globalmente en tiempo, espacio y persona`);
         }
         parts.push(orientParts.join(' ') + '.');
 
@@ -312,16 +336,26 @@ const MentalExamModule = {
                 ...(fields.memoriaCualitativo || []),
                 ...(fields.memoriaCuantitativo || [])
             ];
-            parts.push(`Memoria comprometida con presencia de ${memItems.join(', ') || 'amnesias'}.`);
+            if (memItems.length > 0) {
+                parts.push(`${memItems.join(', ')}.`);
+            } else {
+                parts.push('Amnesia.');
+            }
         }
 
         // 8. Juicio Práctico
         parts.push(`Juicio Práctico ${fields.juicioPractico || 'Conservado'}.`);
 
         // 9. Inteligencia
-        let intelTxt = fields.inteligencia === 'Promedio' ? 'Inteligencia Normal.' : `Inteligencia ${fields.inteligencia}.`;
-        if (fields.pruebasRealizadas === 'SI') {
-            intelTxt += ` Pruebas psicométricas aplicadas: ${fields.pruebasCual || 'Batería psicométrica estándar'}.`;
+        let intelTxt = '';
+        if (fields.inteligencia === 'Promedio') {
+            intelTxt = 'Inteligencia igual al promedio.';
+        } else if (fields.inteligencia === 'Normal') {
+            intelTxt = 'Inteligencia Normal.';
+        } else if (fields.inteligencia) {
+            intelTxt = `Inteligencia ${fields.inteligencia}.`;
+        } else {
+            intelTxt = 'Inteligencia igual al promedio.';
         }
         parts.push(intelTxt);
 
@@ -334,30 +368,31 @@ const MentalExamModule = {
             pensParts.push(fields.pensamientoEstructura.join(', '));
         }
         if (fields.pensamientoDelirios === 'SI' && fields.pensamientoDeliriosLista && fields.pensamientoDeliriosLista.length > 0) {
-            pensParts.push(`Ideas delirantes de tipo: ${fields.pensamientoDeliriosLista.join(', ')}`);
+            pensParts.push(fields.pensamientoDeliriosLista.join(', '));
         }
         if (fields.pensamientoOtros && fields.pensamientoOtros.length > 0) {
             pensParts.push(fields.pensamientoOtros.join(', '));
         }
-        if (pensParts.length === 0) {
-            parts.push('Pensamiento de curso lógico, coherente y velocidad conservada, sin ideas delirantes ni obsesivas.');
-        } else {
+        if (pensParts.length > 0) {
             parts.push(`${pensParts.join('. ')}.`);
         }
 
         // 11. Lenguaje
         const lengParts = [];
         if (fields.lenguajeOrganico && fields.lenguajeOrganico.length > 0) {
-            lengParts.push(`Trastornos orgánicos: ${fields.lenguajeOrganico.join(', ')}`);
+            lengParts.push(fields.lenguajeOrganico.join(', '));
         }
         if (fields.lenguajePsicogeno && fields.lenguajePsicogeno.length > 0) {
             lengParts.push(fields.lenguajePsicogeno.join(', '));
         }
-        if (fields.lenguajeNoVerbal && fields.lenguajeNoVerbal.length > 0 && !fields.lenguajeNoVerbal.includes('Adecuado / Mímica normal')) {
-            lengParts.push(`Mímica: ${fields.lenguajeNoVerbal.join(', ')}`);
+        if (fields.lenguajeNoVerbal && fields.lenguajeNoVerbal.length > 0) {
+            const noVerbalClean = fields.lenguajeNoVerbal.filter(v => !/adecuado|m[íi]mica normal/i.test(v));
+            if (noVerbalClean.length > 0) {
+                lengParts.push(noVerbalClean.join(', '));
+            }
         }
         if (lengParts.length === 0) {
-            parts.push('Lenguaje fluido, articulado y comprensible, con adecuada entonación y mímica congruente.');
+            parts.push('Sin alteraciones observables en el Lenguaje.');
         } else {
             parts.push(`${lengParts.join('. ')}.`);
         }
@@ -375,7 +410,8 @@ const MentalExamModule = {
             }
             afectParts.push(hip);
         } else if (fields.afectoBase) {
-            afectParts.push(fields.afectoBase);
+            const base = fields.afectoBase.replace(/modulado\s*\/\s*eut[íi]mico/i, 'Eutímico');
+            afectParts.push(base);
         }
         if (fields.afectoOtrasAlteraciones && fields.afectoOtrasAlteraciones.length > 0) {
             afectParts.push(fields.afectoOtrasAlteraciones.join(', '));
@@ -383,54 +419,70 @@ const MentalExamModule = {
         if (fields.afectoCualitativo && fields.afectoCualitativo.length > 0) {
             afectParts.push(fields.afectoCualitativo.join(', '));
         }
-        parts.push(`${afectParts.join(', ')}.`);
+        if (afectParts.length > 0) {
+            parts.push(`${afectParts.join(', ')}.`);
+        }
 
         // 13. Sensopercepción
-        const sensParts = [];
-        if (fields.sensopercepcionCuantitativa && fields.sensopercepcionCuantitativa !== 'Conservada') {
-            sensParts.push(fields.sensopercepcionCuantitativa);
-        }
-        if (fields.ilusionesPresenta === 'SI' && fields.ilusionesTipo && fields.ilusionesTipo.length > 0) {
-            sensParts.push(`Ilusiones: ${fields.ilusionesTipo.join(', ')}`);
-        }
-        if (fields.alucinacionesPresenta === 'SI' && fields.alucinacionesTipo && fields.alucinacionesTipo.length > 0) {
-            sensParts.push(`Alucinaciones: ${fields.alucinacionesTipo.join(', ')}`);
-        }
-        if (fields.pseudoalucinaciones === 'SI') {
-            sensParts.push('Pseudoalucinaciones');
-        }
-        if (sensParts.length === 0) {
-            parts.push('Sensopercepción conservada, sin alteraciones sensoriales ni fenómenos alucinatorios.');
+        const hasSenDetails = (fields.sensopercepcionCuantitativa && fields.sensopercepcionCuantitativa !== 'Conservada') || (fields.ilusionesPresenta === 'SI' && fields.ilusionesTipo && fields.ilusionesTipo.length > 0) || (fields.alucinacionesPresenta === 'SI' && fields.alucinacionesTipo && fields.alucinacionesTipo.length > 0) || fields.pseudoalucinaciones === 'SI';
+        if (fields.sensopercepcionAlterada === 'NO' && !hasSenDetails) {
+            parts.push('Sin alteraciones observables en la Sensopercepción.');
+        } else if (!hasSenDetails) {
+            parts.push('Sin alteraciones observables en la Sensopercepción.');
         } else {
-            parts.push(`${sensParts.join('. ')}.`);
+            const sensParts = [];
+            if (fields.sensopercepcionCuantitativa && fields.sensopercepcionCuantitativa !== 'Conservada') {
+                sensParts.push(fields.sensopercepcionCuantitativa);
+            }
+            if (fields.ilusionesPresenta === 'SI' && fields.ilusionesTipo && fields.ilusionesTipo.length > 0) {
+                sensParts.push(fields.ilusionesTipo.join(', '));
+            }
+            if (fields.alucinacionesPresenta === 'SI' && fields.alucinacionesTipo && fields.alucinacionesTipo.length > 0) {
+                sensParts.push(fields.alucinacionesTipo.join(', '));
+            }
+            if (fields.pseudoalucinaciones === 'SI') {
+                sensParts.push('Pseudoalucinaciones');
+            }
+            if (sensParts.length === 0) {
+                parts.push('Sin alteraciones observables en la Sensopercepción.');
+            } else {
+                parts.push(`${sensParts.join('. ')}.`);
+            }
         }
 
         // 14. Psicomotricidad
-        const psicoParts = [];
-        if (fields.psicomotricidadOrganico && fields.psicomotricidadOrganico.length > 0) {
-            psicoParts.push(fields.psicomotricidadOrganico.join(', '));
-        }
-        if (fields.psicomotricidadNoOrganico && fields.psicomotricidadNoOrganico.length > 0) {
-            psicoParts.push(fields.psicomotricidadNoOrganico.join(', '));
-        }
-        if (psicoParts.length === 0) {
-            parts.push('Psicomotricidad adecuada, marcha y postura estables sin tics, temblores ni estereotipias.');
+        const hasPsicoDetails = (fields.psicomotricidadOrganico && fields.psicomotricidadOrganico.length > 0) || (fields.psicomotricidadNoOrganico && fields.psicomotricidadNoOrganico.length > 0);
+        if (fields.psicomotricidadAlterada === 'NO' && !hasPsicoDetails) {
+            parts.push('Sin alteraciones observables en la Psicomotricidad.');
+        } else if (!hasPsicoDetails) {
+            parts.push('Sin alteraciones observables en la Psicomotricidad.');
         } else {
-            parts.push(`${psicoParts.join(', ')}.`);
+            const psicoParts = [];
+            if (fields.psicomotricidadOrganico && fields.psicomotricidadOrganico.length > 0) {
+                psicoParts.push(fields.psicomotricidadOrganico.join(', '));
+            }
+            if (fields.psicomotricidadNoOrganico && fields.psicomotricidadNoOrganico.length > 0) {
+                psicoParts.push(fields.psicomotricidadNoOrganico.join(', '));
+            }
+            if (psicoParts.length === 0) {
+                parts.push('Sin alteraciones observables en la Psicomotricidad.');
+            } else {
+                parts.push(`${psicoParts.join(', ')}.`);
+            }
         }
 
         // 15. Vida Instintiva
         if (fields.vidaInstintivaAlterada === 'NO' || !fields.vidaInstintivaLista || fields.vidaInstintivaLista.length === 0) {
-            parts.push('Vida Instintiva conservada (patrones de sueño, alimentación y conducta preservados).');
+            parts.push('Sin alteraciones observables en la Vida Instintiva.');
         } else {
             parts.push(`${fields.vidaInstintivaLista.join(', ')}.`);
         }
 
         // 16. Volición
-        if (fields.volicion === 'Normobulia') {
-            parts.push('Volición: Normobulia.');
+        if (!fields.volicion || fields.volicion === 'Normobulia' || fields.volicion === 'Sin alteraciones') {
+            parts.push('Sin alteraciones observables en la Volición.');
         } else {
-            parts.push(`${fields.volicion || 'Normobulia'}.`);
+            parts.push(`${fields.volicion}.`);
         }
 
         // 17. Conciencia de Enfermedad
@@ -670,7 +722,7 @@ const MentalExamModule = {
             case 8:
                 return s.juicioPractico === 'Conservado' ? '✓ Conservado' : `⚠️ ${s.juicioPractico}`;
             case 9:
-                return s.inteligencia === 'Promedio' ? '✓ Normal / Promedio' : s.inteligencia;
+                return s.inteligencia === 'Promedio' ? '✓ Igual al promedio' : s.inteligencia;
             case 10:
                 if (s.pensamientoVelocidad && s.pensamientoVelocidad !== 'Normal') return `⚠️ ${s.pensamientoVelocidad}`;
                 if (isSi(s.pensamientoDelirios)) return '⚠️ Delirios';
@@ -679,26 +731,22 @@ const MentalExamModule = {
                 if ((s.lenguajeOrganico && s.lenguajeOrganico.length > 0) || (s.lenguajePsicogeno && s.lenguajePsicogeno.length > 0)) {
                     return `⚠️ ${[...(s.lenguajePsicogeno || []), ...(s.lenguajeOrganico || [])][0] || 'Alterado'}`;
                 }
-                return '✓ Articulado y fluido';
+                return '✓ Sin alteraciones';
             case 12:
                 if (isSi(s.hipertimiaPresenta)) {
                     return `⚠️ ${s.hipertimiaTipo || 'Hipertimia'}`;
                 }
                 return s.afectoBase ? `✓ ${s.afectoBase}` : '✓ Eutímico';
             case 13:
-                if (s.sensopercepcionCuantitativa && s.sensopercepcionCuantitativa !== 'Conservada') return `⚠️ ${s.sensopercepcionCuantitativa}`;
-                if (isSi(s.alucinacionesPresenta)) return '⚠️ Alucinaciones';
-                if (isSi(s.ilusionesPresenta)) return '⚠️ Ilusiones';
-                return '✓ Conservada';
+                if (isSi(s.sensopercepcionAlterada)) return '⚠️ Alterada';
+                return '✓ Sin alteraciones';
             case 14:
-                if ((s.psicomotricidadOrganico && s.psicomotricidadOrganico.length > 0) || (s.psicomotricidadNoOrganico && s.psicomotricidadNoOrganico.length > 0)) {
-                    return `⚠️ ${[...(s.psicomotricidadNoOrganico || []), ...(s.psicomotricidadOrganico || [])][0] || 'Alterada'}`;
-                }
-                return '✓ Postura y motricidad estable';
+                if (isSi(s.psicomotricidadAlterada)) return '⚠️ Alterada';
+                return '✓ Sin alteraciones';
             case 15:
-                return isSi(s.vidaInstintivaAlterada) ? `⚠️ Alterada (${(s.vidaInstintivaLista || []).slice(0, 2).join(', ')})` : '✓ Conservada';
+                return isSi(s.vidaInstintivaAlterada) ? `⚠️ Alterada` : '✓ Sin alteraciones';
             case 16:
-                return s.volicion === 'Normobulia' ? '✓ Normobulia' : `⚠️ ${s.volicion}`;
+                return s.volicion ? `⚠️ ${s.volicion}` : '✓ Sin alteraciones';
             case 17:
                 return s.concienciaEnfermedad === 'Presente' ? '✓ Presente (Insight +)' : `⚠️ ${s.concienciaEnfermedad}`;
             case 18:
@@ -901,7 +949,7 @@ const MentalExamModule = {
                 <div class="me-card-header me-accordion-header" onclick="MentalExamModule.toggleCardCollapse(7)" role="button" tabindex="0">
                     <div class="me-header-left">
                         <span class="me-num">7</span>
-                        <span class="me-card-title">Memoria (Fijación, Evocación y Reconocimiento)</span>
+                        <span class="me-card-title">Memoria</span>
                         <span class="me-card-tag">Cognición</span>
                     </div>
                     <div class="me-header-right">
@@ -955,7 +1003,7 @@ const MentalExamModule = {
                 <div class="me-card-header me-accordion-header" onclick="MentalExamModule.toggleCardCollapse(9)" role="button" tabindex="0">
                     <div class="me-header-left">
                         <span class="me-num">9</span>
-                        <span class="me-card-title">Capacidad Intelectual Estimada</span>
+                        <span class="me-card-title">INTELIGENCIA</span>
                         <span class="me-card-tag">Cognición</span>
                     </div>
                     <div class="me-header-right">
@@ -967,16 +1015,6 @@ const MentalExamModule = {
                     <div class="me-chips-group" data-field="inteligencia" data-type="single">
                         ${['Inferior al promedio', 'Promedio', 'Superior al promedio'].map(opt => `<span class="me-chip ${s.inteligencia === opt ? 'active' : ''}" data-value="${opt}" onclick="MentalExamModule.onChipSelect(this, 'inteligencia', '${opt}')">${opt}</span>`).join('')}
                     </div>
-                    <div class="me-field-row" style="margin-top:12px;align-items:center;">
-                        <label class="me-field-label" style="margin:0;">¿Se realizaron pruebas psicométricas?:</label>
-                        <div class="me-chips-group me-segmented" data-field="pruebasRealizadas" data-type="single">
-                            <span class="me-chip ${s.pruebasRealizadas === 'SI' ? 'active' : ''}" data-value="SI" onclick="MentalExamModule.onChipSelect(this, 'pruebasRealizadas', 'SI')">SÍ</span>
-                            <span class="me-chip ${s.pruebasRealizadas === 'NO' ? 'active' : ''}" data-value="NO" onclick="MentalExamModule.onChipSelect(this, 'pruebasRealizadas', 'NO')">NO</span>
-                        </div>
-                        <div id="me_pruebas_box" style="display:${s.pruebasRealizadas === 'SI' ? 'inline-block' : 'none'};flex:1;min-width:180px;">
-                            <input type="text" id="me_pruebas_cual" class="me-clean-input" placeholder="¿Qué pruebas? Ej: Raven, WAIS..." value="${s.pruebasCual || ''}" oninput="MentalExamModule.onFieldChange('pruebasCual', this.value)">
-                        </div>
-                    </div>
                 </div>
             </div>
 
@@ -985,7 +1023,7 @@ const MentalExamModule = {
                 <div class="me-card-header me-accordion-header" onclick="MentalExamModule.toggleCardCollapse(10)" role="button" tabindex="0">
                     <div class="me-header-left">
                         <span class="me-num">10</span>
-                        <span class="me-card-title">Pensamiento (Velocidad, Estructura y Contenido)</span>
+                        <span class="me-card-title">Pensamiento</span>
                         <span class="me-card-tag">Pensamiento</span>
                     </div>
                     <div class="me-header-right">
@@ -996,7 +1034,7 @@ const MentalExamModule = {
                 <div class="me-card-body" id="me_body_10">
                     <label class="me-field-label">A. Velocidad:</label>
                     <div class="me-chips-group" data-field="pensamientoVelocidad" data-type="single">
-                        ${['Normal', 'Taquipsiquia', 'Pensamiento Ideofugal', 'Fuga de Ideas', 'Bradipsiquia', 'Inhibición del Pensamiento'].map(opt => `<span class="me-chip ${s.pensamientoVelocidad === opt ? 'active' : ''}" data-value="${opt}" onclick="MentalExamModule.onChipSelect(this, 'pensamientoVelocidad', '${opt}')">${opt}</span>`).join('')}
+                        ${['Taquipsiquia', 'Pensamiento Ideofugal', 'Fuga de Ideas', 'Bradipsiquia', 'Inhibición del Pensamiento'].map(opt => `<span class="me-chip ${s.pensamientoVelocidad === opt ? 'active' : ''}" data-value="${opt}" onclick="MentalExamModule.onChipSelect(this, 'pensamientoVelocidad', '${opt}')">${opt}</span>`).join('')}
                     </div>
 
                     <label class="me-field-label" style="margin-top:12px;">B. Estructura o Curso:</label>
@@ -1018,7 +1056,7 @@ const MentalExamModule = {
                         </div>
                     </div>
 
-                    <label class="me-field-label" style="margin-top:12px;">Otros contenidos patológicos:</label>
+                    <label class="me-field-label" style="margin-top:12px;">Otros:</label>
                     <div class="me-chips-group" data-field="pensamientoOtros" data-type="multiple">
                         ${['Pensamientos Obsesivos', 'Temores Obsesivos o Fobias', 'Ideas Fijas', 'Pseudo-Obsesiones'].map(opt => `<span class="me-chip ${(s.pensamientoOtros || []).includes(opt) ? 'active' : ''}" onclick="MentalExamModule.onChipToggle(this, 'pensamientoOtros', '${opt}')">${opt}</span>`).join('')}
                     </div>
@@ -1030,7 +1068,7 @@ const MentalExamModule = {
                 <div class="me-card-header me-accordion-header" onclick="MentalExamModule.toggleCardCollapse(11)" role="button" tabindex="0">
                     <div class="me-header-left">
                         <span class="me-num">11</span>
-                        <span class="me-card-title">Lenguaje (Verbal y No Verbal)</span>
+                        <span class="me-card-title">Lenguaje</span>
                         <span class="me-card-tag">Lenguaje</span>
                     </div>
                     <div class="me-header-right">
@@ -1051,7 +1089,7 @@ const MentalExamModule = {
 
                     <label class="me-field-label" style="margin-top:12px;">C. Lenguaje No Verbal / Mímico:</label>
                     <div class="me-chips-group" data-field="lenguajeNoVerbal" data-type="multiple">
-                        ${['Adecuado / Mímica normal', 'Hipermimia', 'Hipomimia', 'Amimia', 'Paramimias'].map(opt => `<span class="me-chip ${(s.lenguajeNoVerbal || []).includes(opt) ? 'active' : ''}" onclick="MentalExamModule.onChipToggle(this, 'lenguajeNoVerbal', '${opt}')">${opt}</span>`).join('')}
+                        ${['Hipermimia', 'Hipomimia', 'Amimia', 'Paramimias'].map(opt => `<span class="me-chip ${(s.lenguajeNoVerbal || []).includes(opt) ? 'active' : ''}" onclick="MentalExamModule.onChipToggle(this, 'lenguajeNoVerbal', '${opt}')">${opt}</span>`).join('')}
                     </div>
                 </div>
             </div>
@@ -1072,7 +1110,7 @@ const MentalExamModule = {
                 <div class="me-card-body" id="me_body_12">
                     <label class="me-field-label">Afecto basal:</label>
                     <div class="me-chips-group" data-field="afectoBase" data-type="single">
-                        ${['Modulado / Eutímico', 'Furor Maníaco', 'Beatitud', 'Éxtasis', 'Hipotimia', 'Atimia'].map(opt => `<span class="me-chip ${s.afectoBase === opt ? 'active' : ''}" data-value="${opt}" onclick="MentalExamModule.onChipSelect(this, 'afectoBase', '${opt}')">${opt}</span>`).join('')}
+                        ${['Eutímico', 'Furor Maníaco', 'Beatitud', 'Éxtasis', 'Hipotimia', 'Atimia'].map(opt => `<span class="me-chip ${(s.afectoBase === opt || (opt === 'Eutímico' && (s.afectoBase === 'Modulado / Eutímico' || !s.afectoBase))) ? 'active' : ''}" data-value="${opt}" onclick="MentalExamModule.onChipSelect(this, 'afectoBase', '${opt}')">${opt}</span>`).join('')}
                     </div>
 
                     <div class="me-toggle-row" style="margin-top:12px;">
@@ -1121,42 +1159,52 @@ const MentalExamModule = {
                     </div>
                 </div>
                 <div class="me-card-body" id="me_body_13">
-                    <label class="me-field-label">Cuantitativo:</label>
-                    <div class="me-chips-group" data-field="sensopercepcionCuantitativa" data-type="single">
-                        ${['Conservada', 'Aceleración de la Percepción', 'Retardo de la Percepción', 'Abolición de la Percepción'].map(opt => `<span class="me-chip ${s.sensopercepcionCuantitativa === opt ? 'active' : ''}" data-value="${opt}" onclick="MentalExamModule.onChipSelect(this, 'sensopercepcionCuantitativa', '${opt}')">${opt}</span>`).join('')}
-                    </div>
-
-                    <div class="me-toggle-row" style="margin-top:12px;">
-                        <label class="me-field-label" style="margin:0;">¿Presenta Ilusiones?:</label>
-                        <div class="me-chips-group me-segmented" data-field="ilusionesPresenta" data-type="single">
-                            <span class="me-chip ${s.ilusionesPresenta === 'NO' ? 'active' : ''}" data-value="NO" onclick="MentalExamModule.onChipSelect(this, 'ilusionesPresenta', 'NO')">NO</span>
-                            <span class="me-chip ${s.ilusionesPresenta === 'SI' ? 'active' : ''}" data-value="SI" onclick="MentalExamModule.onChipSelect(this, 'ilusionesPresenta', 'SI')">SÍ</span>
-                        </div>
-                    </div>
-                    <div id="me_ilusiones_box" class="me-alert-subpanel" style="display:${s.ilusionesPresenta === 'SI' ? 'block' : 'none'};">
-                        <label class="me-field-label">Tipos de Ilusión:</label>
-                        <div class="me-chips-group" data-field="ilusionesTipo" data-type="multiple">
-                            ${['Ilusiones por Inatención', 'Ilusiones Catatímicas', 'Ilusiones Oníricas'].map(opt => `<span class="me-chip ${(s.ilusionesTipo || []).includes(opt) ? 'active' : ''}" onclick="MentalExamModule.onChipToggle(this, 'ilusionesTipo', '${opt}')">${opt}</span>`).join('')}
+                    <div class="me-toggle-row">
+                        <label class="me-field-label" style="margin:0;">¿Presenta alteraciones?:</label>
+                        <div class="me-chips-group me-segmented" data-field="sensopercepcionAlterada" data-type="single">
+                            <span class="me-chip ${s.sensopercepcionAlterada === 'NO' ? 'active' : ''}" data-value="NO" onclick="MentalExamModule.onChipSelect(this, 'sensopercepcionAlterada', 'NO')">NO</span>
+                            <span class="me-chip ${s.sensopercepcionAlterada === 'SI' ? 'active' : ''}" data-value="SI" onclick="MentalExamModule.onChipSelect(this, 'sensopercepcionAlterada', 'SI')">SÍ</span>
                         </div>
                     </div>
 
-                    <div class="me-toggle-row" style="margin-top:12px;">
-                        <label class="me-field-label" style="margin:0;">¿Presenta Alucinaciones?:</label>
-                        <div class="me-chips-group me-segmented" data-field="alucinacionesPresenta" data-type="single">
-                            <span class="me-chip ${s.alucinacionesPresenta === 'NO' ? 'active' : ''}" data-value="NO" onclick="MentalExamModule.onChipSelect(this, 'alucinacionesPresenta', 'NO')">NO</span>
-                            <span class="me-chip ${s.alucinacionesPresenta === 'SI' ? 'active' : ''}" data-value="SI" onclick="MentalExamModule.onChipSelect(this, 'alucinacionesPresenta', 'SI')">SÍ</span>
+                    <div id="me_sensopercepcion_details" style="display:${s.sensopercepcionAlterada === 'SI' ? 'block' : 'none'};margin-top:12px;">
+                        <label class="me-field-label">Cuantitativo:</label>
+                        <div class="me-chips-group" data-field="sensopercepcionCuantitativa" data-type="single">
+                            ${['Aceleración de la Percepción', 'Retardo de la Percepción', 'Abolición de la Percepción'].map(opt => `<span class="me-chip ${s.sensopercepcionCuantitativa === opt ? 'active' : ''}" data-value="${opt}" onclick="MentalExamModule.onChipSelect(this, 'sensopercepcionCuantitativa', '${opt}')">${opt}</span>`).join('')}
                         </div>
-                    </div>
-                    <div id="me_alucinaciones_box" class="me-alert-subpanel" style="display:${s.alucinacionesPresenta === 'SI' ? 'block' : 'none'};">
-                        <div class="me-subpanel-title"><i class="fas fa-triangle-exclamation"></i> Tipos de Alucinación:</div>
-                        <div class="me-chips-group" data-field="alucinacionesTipo" data-type="multiple">
-                            ${['Alucinaciones Auditivas', 'Alucinaciones Visuales', 'Alucinaciones Olfativas y Gustativas', 'Alucinaciones Táctiles (Hápticas)', 'Alucinaciones Cenestésicas', 'Alucinaciones Cinéticas', 'Alucinaciones Catatímicas', 'Alucinaciones Hipnagógicas e Hipnopómpicas', 'Alucinaciones Funcionales', 'Alucinaciones Extracampinas', 'Alucinosis'].map(opt => `<span class="me-chip ${(s.alucinacionesTipo || []).includes(opt) ? 'active' : ''}" onclick="MentalExamModule.onChipToggle(this, 'alucinacionesTipo', '${opt}')">${opt}</span>`).join('')}
+
+                        <div class="me-toggle-row" style="margin-top:12px;">
+                            <label class="me-field-label" style="margin:0;">¿Presenta Ilusiones?:</label>
+                            <div class="me-chips-group me-segmented" data-field="ilusionesPresenta" data-type="single">
+                                <span class="me-chip ${s.ilusionesPresenta === 'NO' ? 'active' : ''}" data-value="NO" onclick="MentalExamModule.onChipSelect(this, 'ilusionesPresenta', 'NO')">NO</span>
+                                <span class="me-chip ${s.ilusionesPresenta === 'SI' ? 'active' : ''}" data-value="SI" onclick="MentalExamModule.onChipSelect(this, 'ilusionesPresenta', 'SI')">SÍ</span>
+                            </div>
                         </div>
-                        <div class="me-toggle-row" style="margin-top:10px;">
-                            <label class="me-field-label" style="margin:0;">Pseudoalucinaciones:</label>
-                            <div class="me-chips-group me-segmented" data-field="pseudoalucinaciones" data-type="single">
-                                <span class="me-chip ${s.pseudoalucinaciones === 'NO' ? 'active' : ''}" data-value="NO" onclick="MentalExamModule.onChipSelect(this, 'pseudoalucinaciones', 'NO')">NO</span>
-                                <span class="me-chip ${s.pseudoalucinaciones === 'SI' ? 'active' : ''}" data-value="SI" onclick="MentalExamModule.onChipSelect(this, 'pseudoalucinaciones', 'SI')">SÍ</span>
+                        <div id="me_ilusiones_box" class="me-alert-subpanel" style="display:${s.ilusionesPresenta === 'SI' ? 'block' : 'none'};margin-top:8px;">
+                            <label class="me-field-label">Tipos de Ilusión:</label>
+                            <div class="me-chips-group" data-field="ilusionesTipo" data-type="multiple">
+                                ${['Ilusiones por Inatención', 'Ilusiones Catatímicas', 'Ilusiones Oníricas'].map(opt => `<span class="me-chip ${(s.ilusionesTipo || []).includes(opt) ? 'active' : ''}" onclick="MentalExamModule.onChipToggle(this, 'ilusionesTipo', '${opt}')">${opt}</span>`).join('')}
+                            </div>
+                        </div>
+
+                        <div class="me-toggle-row" style="margin-top:12px;">
+                            <label class="me-field-label" style="margin:0;">¿Presenta Alucinaciones?:</label>
+                            <div class="me-chips-group me-segmented" data-field="alucinacionesPresenta" data-type="single">
+                                <span class="me-chip ${s.alucinacionesPresenta === 'NO' ? 'active' : ''}" data-value="NO" onclick="MentalExamModule.onChipSelect(this, 'alucinacionesPresenta', 'NO')">NO</span>
+                                <span class="me-chip ${s.alucinacionesPresenta === 'SI' ? 'active' : ''}" data-value="SI" onclick="MentalExamModule.onChipSelect(this, 'alucinacionesPresenta', 'SI')">SÍ</span>
+                            </div>
+                        </div>
+                        <div id="me_alucinaciones_box" class="me-alert-subpanel" style="display:${s.alucinacionesPresenta === 'SI' ? 'block' : 'none'};margin-top:8px;">
+                            <div class="me-subpanel-title"><i class="fas fa-triangle-exclamation"></i> Tipos de Alucinación:</div>
+                            <div class="me-chips-group" data-field="alucinacionesTipo" data-type="multiple">
+                                ${['Alucinaciones Auditivas', 'Alucinaciones Visuales', 'Alucinaciones Olfativas y Gustativas', 'Alucinaciones Táctiles (Hápticas)', 'Alucinaciones Cenestésicas', 'Alucinaciones Cinéticas', 'Alucinaciones Catatímicas', 'Alucinaciones Hipnagógicas e Hipnopómpicas', 'Alucinaciones Funcionales', 'Alucinaciones Extracampinas', 'Alucinosis'].map(opt => `<span class="me-chip ${(s.alucinacionesTipo || []).includes(opt) ? 'active' : ''}" onclick="MentalExamModule.onChipToggle(this, 'alucinacionesTipo', '${opt}')">${opt}</span>`).join('')}
+                            </div>
+                            <div class="me-toggle-row" style="margin-top:10px;">
+                                <label class="me-field-label" style="margin:0;">Pseudoalucinaciones:</label>
+                                <div class="me-chips-group me-segmented" data-field="pseudoalucinaciones" data-type="single">
+                                    <span class="me-chip ${s.pseudoalucinaciones === 'NO' ? 'active' : ''}" data-value="NO" onclick="MentalExamModule.onChipSelect(this, 'pseudoalucinaciones', 'NO')">NO</span>
+                                    <span class="me-chip ${s.pseudoalucinaciones === 'SI' ? 'active' : ''}" data-value="SI" onclick="MentalExamModule.onChipSelect(this, 'pseudoalucinaciones', 'SI')">SÍ</span>
+                                </div>
                             </div>
                         </div>
                     </div>
@@ -1177,14 +1225,24 @@ const MentalExamModule = {
                     </div>
                 </div>
                 <div class="me-card-body" id="me_body_14">
-                    <label class="me-field-label">A. Trastornos Orgánicos:</label>
-                    <div class="me-chips-group" data-field="psicomotricidadOrganico" data-type="multiple">
-                        ${['Facies', 'Sincinesia', 'Temblor', 'Hemibalismo', 'Espasmos', 'Corea', 'Atetosis', 'Mioclonías', 'Distonía', 'Rigidez', 'Discinesia Paroxística', 'Acatisia', 'Acinesia', 'Incoordinación Motora', 'Cataplexia y Parálisis del Sueño', 'Apraxia Ideacional', 'Dispraxia Ideacional'].map(opt => `<span class="me-chip ${(s.psicomotricidadOrganico || []).includes(opt) ? 'active' : ''}" onclick="MentalExamModule.onChipToggle(this, 'psicomotricidadOrganico', '${opt}')">${opt}</span>`).join('')}
+                    <div class="me-toggle-row">
+                        <label class="me-field-label" style="margin:0;">¿Presenta alteraciones?:</label>
+                        <div class="me-chips-group me-segmented" data-field="psicomotricidadAlterada" data-type="single">
+                            <span class="me-chip ${s.psicomotricidadAlterada === 'NO' ? 'active' : ''}" data-value="NO" onclick="MentalExamModule.onChipSelect(this, 'psicomotricidadAlterada', 'NO')">NO</span>
+                            <span class="me-chip ${s.psicomotricidadAlterada === 'SI' ? 'active' : ''}" data-value="SI" onclick="MentalExamModule.onChipSelect(this, 'psicomotricidadAlterada', 'SI')">SÍ</span>
+                        </div>
                     </div>
 
-                    <label class="me-field-label" style="margin-top:12px;">B. No Orgánico / Psicológico:</label>
-                    <div class="me-chips-group" data-field="psicomotricidadNoOrganico" data-type="multiple">
-                        ${['Catatonia', 'Catalepsia', 'Inmovilidad Apática', 'Inhibición Psicomotora', 'Negativismo', 'Hiperquinesia', 'Excitación Psicomotora o Raptus', 'Furor Catatónico', 'Manierismos', 'Estereotipias', 'Tics', 'Acto Impulsivo', 'Compulsiones'].map(opt => `<span class="me-chip ${(s.psicomotricidadNoOrganico || []).includes(opt) ? 'active' : ''}" onclick="MentalExamModule.onChipToggle(this, 'psicomotricidadNoOrganico', '${opt}')">${opt}</span>`).join('')}
+                    <div id="me_psicomotricidad_details" style="display:${s.psicomotricidadAlterada === 'SI' ? 'block' : 'none'};margin-top:12px;">
+                        <label class="me-field-label">A. Trastornos Orgánicos:</label>
+                        <div class="me-chips-group" data-field="psicomotricidadOrganico" data-type="multiple">
+                            ${['Facies', 'Sincinesia', 'Temblor', 'Hemibalismo', 'Espasmos', 'Corea', 'Atetosis', 'Mioclonías', 'Distonía', 'Rigidez', 'Discinesia Paroxística', 'Acatisia', 'Acinesia', 'Incoordinación Motora', 'Cataplexia y Parálisis del Sueño', 'Apraxia Ideacional', 'Dispraxia Ideacional'].map(opt => `<span class="me-chip ${(s.psicomotricidadOrganico || []).includes(opt) ? 'active' : ''}" onclick="MentalExamModule.onChipToggle(this, 'psicomotricidadOrganico', '${opt}')">${opt}</span>`).join('')}
+                        </div>
+
+                        <label class="me-field-label" style="margin-top:12px;">B. No Orgánico / Psicológico:</label>
+                        <div class="me-chips-group" data-field="psicomotricidadNoOrganico" data-type="multiple">
+                            ${['Catatonia', 'Catalepsia', 'Inmovilidad Apática', 'Inhibición Psicomotora', 'Negativismo', 'Hiperquinesia', 'Excitación Psicomotora o Raptus', 'Furor Catatónico', 'Manierismos', 'Estereotipias', 'Tics', 'Acto Impulsivo', 'Compulsiones'].map(opt => `<span class="me-chip ${(s.psicomotricidadNoOrganico || []).includes(opt) ? 'active' : ''}" onclick="MentalExamModule.onChipToggle(this, 'psicomotricidadNoOrganico', '${opt}')">${opt}</span>`).join('')}
+                        </div>
                     </div>
                 </div>
             </div>
@@ -1194,7 +1252,7 @@ const MentalExamModule = {
                 <div class="me-card-header me-accordion-header" onclick="MentalExamModule.toggleCardCollapse(15)" role="button" tabindex="0">
                     <div class="me-header-left">
                         <span class="me-num">15</span>
-                        <span class="me-card-title">Vida Instintiva (Sueño, Apetito y Conducta)</span>
+                        <span class="me-card-title">Vida Instintiva</span>
                         <span class="me-card-tag">Instinto</span>
                     </div>
                     <div class="me-header-right">
@@ -1206,7 +1264,7 @@ const MentalExamModule = {
                     <div class="me-toggle-row">
                         <label class="me-field-label" style="margin:0;">¿Presenta alteraciones?:</label>
                         <div class="me-chips-group me-segmented" data-field="vidaInstintivaAlterada" data-type="single">
-                            <span class="me-chip ${s.vidaInstintivaAlterada === 'NO' ? 'active' : ''}" data-value="NO" onclick="MentalExamModule.onChipSelect(this, 'vidaInstintivaAlterada', 'NO')">NO (Conservada)</span>
+                            <span class="me-chip ${s.vidaInstintivaAlterada === 'NO' ? 'active' : ''}" data-value="NO" onclick="MentalExamModule.onChipSelect(this, 'vidaInstintivaAlterada', 'NO')">NO</span>
                             <span class="me-chip ${s.vidaInstintivaAlterada === 'SI' ? 'active' : ''}" data-value="SI" onclick="MentalExamModule.onChipSelect(this, 'vidaInstintivaAlterada', 'SI')">SÍ</span>
                         </div>
                     </div>
@@ -1224,7 +1282,7 @@ const MentalExamModule = {
                 <div class="me-card-header me-accordion-header" onclick="MentalExamModule.toggleCardCollapse(16)" role="button" tabindex="0">
                     <div class="me-header-left">
                         <span class="me-num">16</span>
-                        <span class="me-card-title">Volición (Voluntad y Motivación)</span>
+                        <span class="me-card-title">Volición</span>
                         <span class="me-card-tag">Volición</span>
                     </div>
                     <div class="me-header-right">
@@ -1234,7 +1292,7 @@ const MentalExamModule = {
                 </div>
                 <div class="me-card-body" id="me_body_16">
                     <div class="me-chips-group" data-field="volicion" data-type="single">
-                        ${['Normobulia', 'Abulia', 'Hipobulia', 'Hiperbulia', 'Apatía'].map(opt => `<span class="me-chip ${s.volicion === opt ? 'active' : ''}" data-value="${opt}" onclick="MentalExamModule.onChipSelect(this, 'volicion', '${opt}')">${opt}</span>`).join('')}
+                        ${['Abulia', 'Hipobulia', 'Hiperbulia', 'Apatía'].map(opt => `<span class="me-chip ${s.volicion === opt ? 'active' : ''}" data-value="${opt}" onclick="MentalExamModule.onChipSelect(this, 'volicion', '${opt}')">${opt}</span>`).join('')}
                     </div>
                 </div>
             </div>
@@ -1244,7 +1302,7 @@ const MentalExamModule = {
                 <div class="me-card-header me-accordion-header" onclick="MentalExamModule.toggleCardCollapse(17)" role="button" tabindex="0">
                     <div class="me-header-left">
                         <span class="me-num">17</span>
-                        <span class="me-card-title">Conciencia de Enfermedad (Insight)</span>
+                        <span class="me-card-title">Conciencia de Enfermedad</span>
                         <span class="me-card-tag">Insight</span>
                     </div>
                     <div class="me-header-right">
@@ -1284,9 +1342,19 @@ const MentalExamModule = {
     // Handlers de selección y actualización de estado
     onChipSelect(el, field, value) {
         const group = el.parentElement;
-        group.querySelectorAll('.me-chip').forEach(c => c.classList.remove('active'));
-        el.classList.add('active');
-        if (value) el.setAttribute('data-value', value);
+        const wasActive = el.classList.contains('active');
+        const canDeselect = ['afectoBase', 'volicion', 'pensamientoVelocidad', 'sensopercepcionCuantitativa', 'hipertimiaTipo', 'hipertimiaPolo'].includes(field);
+
+        if (wasActive && canDeselect) {
+            el.classList.remove('active');
+            el.removeAttribute('data-value');
+        } else {
+            group.querySelectorAll('.me-chip').forEach(c => c.classList.remove('active'));
+            el.classList.add('active');
+            if (value) el.setAttribute('data-value', value);
+        }
+
+        const effectiveValue = el.classList.contains('active') ? value : '';
 
         // Si cambia el sexo, adaptar automáticamente las terminaciones de adjetivos de aspecto
         if (field === 'sexo') {
@@ -1296,31 +1364,37 @@ const MentalExamModule = {
         // Toggle condicionales visuales
         if (field === 'concienciaAlterada') {
             const d = document.getElementById('me_conciencia_details');
-            if (d) d.style.display = value === 'SI' ? 'block' : 'none';
+            if (d) d.style.display = effectiveValue === 'SI' ? 'block' : 'none';
         } else if (field === 'atencionAlterada') {
             const d = document.getElementById('me_atencion_details');
-            if (d) d.style.display = value === 'SI' ? 'block' : 'none';
+            if (d) d.style.display = effectiveValue === 'SI' ? 'block' : 'none';
         } else if (field === 'memoriaConservada') {
             const d = document.getElementById('me_memoria_details');
-            if (d) d.style.display = value === 'NO' ? 'block' : 'none';
+            if (d) d.style.display = effectiveValue === 'NO' ? 'block' : 'none';
         } else if (field === 'pruebasRealizadas') {
             const d = document.getElementById('me_pruebas_box');
-            if (d) d.style.display = value === 'SI' ? 'inline-block' : 'none';
+            if (d) d.style.display = effectiveValue === 'SI' ? 'inline-block' : 'none';
         } else if (field === 'pensamientoDelirios') {
             const d = document.getElementById('me_delirios_details');
-            if (d) d.style.display = value === 'SI' ? 'block' : 'none';
+            if (d) d.style.display = effectiveValue === 'SI' ? 'block' : 'none';
         } else if (field === 'hipertimiaPresenta') {
             const d = document.getElementById('me_afecto_details');
-            if (d) d.style.display = value === 'SI' ? 'block' : 'none';
+            if (d) d.style.display = effectiveValue === 'SI' ? 'block' : 'none';
         } else if (field === 'ilusionesPresenta') {
             const d = document.getElementById('me_ilusiones_box');
-            if (d) d.style.display = value === 'SI' ? 'block' : 'none';
+            if (d) d.style.display = effectiveValue === 'SI' ? 'block' : 'none';
         } else if (field === 'alucinacionesPresenta') {
             const d = document.getElementById('me_alucinaciones_box');
-            if (d) d.style.display = value === 'SI' ? 'block' : 'none';
+            if (d) d.style.display = effectiveValue === 'SI' ? 'block' : 'none';
+        } else if (field === 'sensopercepcionAlterada') {
+            const d = document.getElementById('me_sensopercepcion_details');
+            if (d) d.style.display = effectiveValue === 'SI' ? 'block' : 'none';
+        } else if (field === 'psicomotricidadAlterada') {
+            const d = document.getElementById('me_psicomotricidad_details');
+            if (d) d.style.display = effectiveValue === 'SI' ? 'block' : 'none';
         } else if (field === 'vidaInstintivaAlterada') {
             const d = document.getElementById('me_instintiva_box');
-            if (d) d.style.display = value === 'SI' ? 'block' : 'none';
+            if (d) d.style.display = effectiveValue === 'SI' ? 'block' : 'none';
         }
 
         this.syncStateAndRegenerate();
@@ -1557,7 +1631,7 @@ const MentalExamModule = {
             inteligencia: getSingle('inteligencia') || 'Promedio',
             pruebasRealizadas: getSingle('pruebasRealizadas') || 'NO',
             pruebasCual: document.getElementById('me_pruebas_cual')?.value || '',
-            pensamientoVelocidad: getSingle('pensamientoVelocidad') || 'Normal',
+            pensamientoVelocidad: getSingle('pensamientoVelocidad') || '',
             pensamientoEstructura: getMultiple('pensamientoEstructura'),
             pensamientoDelirios: getSingle('pensamientoDelirios') || 'NO',
             pensamientoDeliriosLista: getMultiple('pensamientoDeliriosLista'),
@@ -1565,24 +1639,26 @@ const MentalExamModule = {
             lenguajeOrganico: getMultiple('lenguajeOrganico'),
             lenguajePsicogeno: getMultiple('lenguajePsicogeno'),
             lenguajeNoVerbal: getMultiple('lenguajeNoVerbal'),
-            afectoBase: getSingle('afectoBase') || 'Modulado / Eutímico',
+            afectoBase: getSingle('afectoBase') || 'Eutímico',
             hipertimiaPresenta: getSingle('hipertimiaPresenta') || 'NO',
             hipertimiaTipo: getSingle('hipertimiaTipo') || '',
             hipertimiaPolo: getSingle('hipertimiaPolo') || '',
             hipertimiaSentimientos: getMultiple('hipertimiaSentimientos'),
             afectoOtrasAlteraciones: getMultiple('afectoOtrasAlteraciones'),
             afectoCualitativo: getMultiple('afectoCualitativo'),
-            sensopercepcionCuantitativa: getSingle('sensopercepcionCuantitativa') || 'Conservada',
+            sensopercepcionAlterada: getSingle('sensopercepcionAlterada') || 'NO',
+            sensopercepcionCuantitativa: getSingle('sensopercepcionCuantitativa') || '',
             ilusionesPresenta: getSingle('ilusionesPresenta') || 'NO',
             ilusionesTipo: getMultiple('ilusionesTipo'),
             alucinacionesPresenta: getSingle('alucinacionesPresenta') || 'NO',
             alucinacionesTipo: getMultiple('alucinacionesTipo'),
             pseudoalucinaciones: getSingle('pseudoalucinaciones') || 'NO',
+            psicomotricidadAlterada: getSingle('psicomotricidadAlterada') || 'NO',
             psicomotricidadOrganico: getMultiple('psicomotricidadOrganico'),
             psicomotricidadNoOrganico: getMultiple('psicomotricidadNoOrganico'),
             vidaInstintivaAlterada: getSingle('vidaInstintivaAlterada') || 'NO',
             vidaInstintivaLista: getMultiple('vidaInstintivaLista'),
-            volicion: getSingle('volicion') || 'Normobulia',
+            volicion: getSingle('volicion') || '',
             concienciaEnfermedad: getSingle('concienciaEnfermedad') || 'Presente',
             juicioRealidad: getSingle('juicioRealidad') || 'Conservado'
         };
@@ -1900,7 +1976,7 @@ const MentalExamModule = {
             <div class="modal-overlay" onclick="closeModal('mentalExamChecklistModal')"></div>
             <div class="modal-content modal-large" style="max-width:860px;max-height:92vh;display:flex;flex-direction:column;">
                 <div class="modal-header">
-                    <h2>📋 Examen Mental — Formato Check-List Protocolizado</h2>
+                    <h2>Examen Mental — Formato Check-List Protocolizado</h2>
                     <button class="btn-icon" onclick="closeModal('mentalExamChecklistModal')"><i class="fas fa-times"></i></button>
                 </div>
                 <div style="padding:14px;overflow-y:auto;flex:1;">
@@ -1936,7 +2012,7 @@ const MentalExamModule = {
 
                     <div style="margin-top:16px;">
                         <label style="font-size:12.5px;font-weight:700;display:block;margin-bottom:4px;">
-                            📝 Previsualización de la Síntesis Semiológica:
+                            Previsualización de la Síntesis Semiológica:
                         </label>
                         <textarea id="me_ck_preview" rows="4" style="width:100%;font-size:12.5px;padding:8px 12px;border-radius:6px;border:1px solid var(--border-primary);background:var(--bg-card);color:var(--text-primary);" placeholder="Selecciona casillas arriba para generar el texto..."></textarea>
                     </div>
@@ -2012,7 +2088,7 @@ const MentalExamModule = {
         }
         closeModal('mentalExamChecklistModal');
         if (typeof showToast === 'function') {
-            showToast('✅ Examen Mental sintetizado e insertado con éxito', 'success');
+            showToast('Examen Mental sintetizado e insertado con éxito', 'success');
         }
     }
 };

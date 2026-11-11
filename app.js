@@ -75,7 +75,7 @@ const ClinicalSecurity = {
             document.body.classList.add('screen-locked');
         }
         if (auto) {
-            console.log('🔒 Sesión bloqueada automáticamente por inactividad clínica (HIPAA)');
+            console.log('Sesión bloqueada automáticamente por inactividad clínica (HIPAA)');
         }
     },
 
@@ -112,7 +112,7 @@ const ClinicalSecurity = {
         if (isValid) {
             this.forceUnlock();
             if (typeof showToast === 'function') {
-                showToast('Expedientes clínicos desbloqueados 🔓', 'success');
+                showToast('Expedientes clínicos desbloqueados', 'success');
             }
         } else {
             if (errEl) {
@@ -599,7 +599,7 @@ const CloudSyncManager = {
                 this.lastSyncTime = Date.now();
                 this.updateStatusUI('synced');
                 if (showToastFeedback && typeof showToast === 'function') {
-                    showToast('☁️ Expediente sincronizado con la nube con éxito', 'success');
+                    showToast('Expediente sincronizado con la nube con éxito', 'success');
                 }
             } else {
                 const errData = await res.json().catch(() => ({}));
@@ -741,7 +741,7 @@ const CloudSyncManager = {
                 this.lastSyncTime = Date.now();
                 this.updateStatusUI('synced');
                 if (showToastFeedback && typeof showToast === 'function') {
-                    showToast('☁️ Datos descargados y sincronizados desde la nube', 'success');
+                    showToast('Datos descargados y sincronizados desde la nube', 'success');
                 }
                 return true;
             } else if (data.status === 'empty') {
@@ -791,7 +791,7 @@ const CloudSyncManager = {
         if (!token) {
             this.updateStatusUI('error', 'Sesión no autenticada en la nube');
             if (typeof showToast === 'function') {
-                showToast('🔑 Por favor cierra sesión y vuelve a iniciarla para activar el enlace seguro con la nube.', 'warning');
+                showToast('Por favor cierra sesión y vuelve a iniciarla para activar el enlace seguro con la nube.', 'warning');
             }
             return;
         }
@@ -953,7 +953,7 @@ async function handleRequestResetCode(e) {
             const data = await res.json();
 
             if (res.ok && data.status === 'ok') {
-                successEl.innerHTML = `<strong>✅ Solicitud procesada:</strong> Ingrese a continuación el código de verificación confidencial recibido para establecer su nueva contraseña.`;
+                successEl.innerHTML = `<strong>Solicitud procesada:</strong> Ingrese a continuación el código de verificación confidencial recibido para establecer su nueva contraseña.`;
                 successEl.style.display = 'block';
                 document.getElementById('forgotCode').value = '';
                 document.getElementById('forgotStep2').style.display = 'block';
@@ -961,7 +961,7 @@ async function handleRequestResetCode(e) {
                 return;
             } else {
                 errorEl.innerHTML = (data.error || 'No se pudo procesar la solicitud.') + 
-                    `<br><a href="javascript:void(0)" onclick="goToRegisterWithEmail('${email}')" style="color:#38bdf8;text-decoration:underline;display:inline-block;margin-top:8px;font-weight:600;">👉 Crear mi cuenta profesional con este correo</a>`;
+                    `<br><a href="javascript:void(0)" onclick="goToRegisterWithEmail('${email}')" style="color:#38bdf8;text-decoration:underline;display:inline-block;margin-top:8px;font-weight:600;">Crear mi cuenta profesional con este correo</a>`;
                 errorEl.classList.add('visible');
                 return;
             }
@@ -973,13 +973,13 @@ async function handleRequestResetCode(e) {
     // Fallback local si estamos en file:// o el servidor no responde
     const localUser = getUsers().find(u => u.email === email);
     if (localUser) {
-        successEl.innerHTML = `<strong>✅ Modo Respaldo Local:</strong> Solicitud generada. Ingrese el código de verificación para continuar.`;
+        successEl.innerHTML = `<strong>Modo Respaldo Local:</strong> Solicitud generada. Ingrese el código de verificación para continuar.`;
         successEl.style.display = 'block';
         document.getElementById('forgotCode').value = '';
         document.getElementById('forgotStep2').style.display = 'block';
         document.getElementById('btnRequestResetCode').style.display = 'none';
     } else {
-        errorEl.innerHTML = 'No se encontró ninguna cuenta registrada con este correo.<br><a href="javascript:void(0)" onclick="goToRegisterWithEmail(\'' + email + '\')" style="color:#38bdf8;text-decoration:underline;display:inline-block;margin-top:8px;font-weight:600;">👉 Crear mi cuenta profesional con este correo</a>';
+        errorEl.innerHTML = 'No se encontró ninguna cuenta registrada con este correo.<br><a href="javascript:void(0)" onclick="goToRegisterWithEmail(\'' + email + '\')" style="color:#38bdf8;text-decoration:underline;display:inline-block;margin-top:8px;font-weight:600;">Crear mi cuenta profesional con este correo</a>';
         errorEl.classList.add('visible');
     }
 }
@@ -1045,7 +1045,7 @@ async function handleSubmitNewPassword(e) {
                     saveUsers(users);
                 }
 
-                showToast('✅ Contraseña restablecida exitosamente. Ya puedes iniciar sesión.', 'success');
+                showToast('Contraseña restablecida exitosamente. Ya puedes iniciar sesión.', 'success');
                 document.getElementById('forgotPasswordForm').style.display = 'none';
                 document.getElementById('loginForm').style.display = '';
                 document.getElementById('loginEmail').value = email;
@@ -1068,7 +1068,7 @@ async function handleSubmitNewPassword(e) {
         if (u) {
             u.passwordHash = newHash;
             saveUsers(users);
-            showToast('✅ Contraseña actualizada localmente.', 'success');
+            showToast('Contraseña actualizada localmente.', 'success');
             document.getElementById('forgotPasswordForm').style.display = 'none';
             document.getElementById('loginForm').style.display = '';
             document.getElementById('loginEmail').value = email;
@@ -1716,7 +1716,7 @@ async function handleSavePortalPaymentMethods(e) {
     }
 
     closeModal('portalPaymentMethodsModal');
-    showToast(`Formas de pago del portal guardadas exitosamente ${serverOk ? '(sincronizado con servidor)' : ''} ✓`, 'success');
+    showToast(`Formas de pago del portal guardadas exitosamente ${serverOk ? '(sincronizado con servidor)' : ''}`, 'success');
 }
 
 // ============================================
@@ -1730,7 +1730,7 @@ function syncPortalPaymentsToTherapist(notify = false) {
             if (raw) {
                 const info = JSON.parse(raw);
                 if (info && info.report) {
-                    showToast(`💳 Nuevo comprobante de pago reportado por ${info.patientName || 'un paciente'} (${info.report.currency || 'USD'} ${info.report.amount})`, 'info');
+                    showToast(`Nuevo comprobante de pago reportado por ${info.patientName || 'un paciente'} (${info.report.currency || 'USD'} ${info.report.amount})`, 'info');
                 }
             }
         } catch (e) {}
@@ -1793,7 +1793,7 @@ function viewPaymentReceiptModal(reportId, patientId) {
     const status = (report.status || 'pendiente').toLowerCase();
     const isPending = status === 'pendiente';
     const isApproved = status === 'aprobado' || status === 'verificado';
-    const statusLabel = isApproved ? 'Aprobado ✓' : (isPending ? 'Pendiente de Validación ⏳' : 'Rechazado ✕');
+    const statusLabel = isApproved ? 'Aprobado' : (isPending ? 'Pendiente de Validación' : 'Rechazado');
     const statusColor = isApproved ? '#059669' : (isPending ? '#d97706' : '#dc2626');
 
     if (metaDetails) {
@@ -1996,7 +1996,7 @@ async function approvePatientPayment(reportId, patientId) {
         window.dispatchEvent(new CustomEvent('psico_payment_updated', { detail: { reportId, status: 'aprobado' } }));
     } catch (e) {}
 
-    showToast('✅ Comprobante de pago aprobado y registrado en Finanzas', 'success');
+    showToast('Comprobante de pago aprobado y registrado en Finanzas', 'success');
 }
 
 async function rejectPatientPayment(reportId, patientId) {
@@ -2378,7 +2378,7 @@ function handleMonthlyGoalsSubmit(e) {
     localStorage.setItem('psico_monthly_qualitative_goal', notes);
     closeModal('monthlyGoalsModal');
     updateDashboard();
-    showToast('🎯 Objetivos del mes actualizados con éxito', 'success');
+    showToast('Objetivos del mes actualizados con éxito', 'success');
 }
 window.handleMonthlyGoalsSubmit = handleMonthlyGoalsSubmit;
 
@@ -2405,7 +2405,7 @@ function renderClinicalAlerts() {
     const alerts = generateClinicalAlerts();
     const container = document.getElementById('clinicalAlerts');
     if (alerts.length === 0) {
-        container.innerHTML = `<div class="empty-state"><div class="empty-icon">✅</div><p>Sin alertas pendientes. ¡Buen trabajo!</p></div>`;
+        container.innerHTML = `<div class="empty-state"><div class="empty-icon"><i class="fas fa-check-circle"></i></div><p>Sin alertas pendientes. ¡Buen trabajo!</p></div>`;
         return;
     }
     container.innerHTML = alerts.map(a => `<div class="clinical-alert alert-${a.level}" onclick="viewPatient('${a.patientId}')"><div class="alert-indicator"></div><div class="alert-icon">${a.icon}</div><div class="alert-content"><div class="alert-title">${a.title}</div><div class="alert-description">${a.description}</div></div><div class="alert-patient">${a.patientName}</div></div>`).join('');
@@ -2595,7 +2595,7 @@ function renderContextualAgenda(today) {
     if (!container) return;
     const todayApps = AppState.appointments.filter(a => isSameDay(parseLocalDate(a.date), today) && a.status !== 'cancelada').sort((a, b) => a.time.localeCompare(b.time));
     if (todayApps.length === 0) {
-        container.innerHTML = `<div class="empty-state"><div class="empty-icon">📅</div><p>No hay sesiones hoy</p><button class="btn-primary" onclick="openModal('appointmentModal')">Agendar cita</button></div>`;
+        container.innerHTML = `<div class="empty-state"><div class="empty-icon"><i class="fas fa-calendar-check"></i></div><p>No hay sesiones hoy</p><button class="btn-primary" onclick="openModal('appointmentModal')">Agendar cita</button></div>`;
         return;
     }
     container.innerHTML = todayApps.map(app => {
@@ -2980,7 +2980,7 @@ function quickUpdatePatientStatus(patientId, newStatus) {
         if (!p.dischargeDate) {
             p.dischargeDate = new Date().toISOString().split('T')[0];
         }
-        showToast('🎓 ¡Paciente dado de alta clínica!', 'success');
+        showToast('Paciente dado de alta clínica', 'success');
     } else {
         p.dischargeDate = '';
         showToast(`Estatus actualizado a: ${newStatus}`, 'info');
@@ -3509,7 +3509,7 @@ function renderTabResumen(patientId, wellbeing, sessionPrep, emotionalProfile, c
                 <div class="alta-banner-icon"><i class="fas fa-graduation-cap"></i></div>
                 <div class="alta-banner-content">
                     <div class="alta-banner-title">
-                        <span>🌟 EXPEDIENTE EN CONDICIÓN DE ALTA CLÍNICA</span>
+                        <span>EXPEDIENTE EN CONDICIÓN DE ALTA CLÍNICA</span>
                         <span class="badge-alta-chip"><i class="fas fa-award"></i> Caso Cerrado con Éxito</span>
                     </div>
                     <div class="alta-banner-desc">
@@ -3548,7 +3548,7 @@ function renderTabResumen(patientId, wellbeing, sessionPrep, emotionalProfile, c
                         ${isAlta ? (dischargeDate ? formatDate(dischargeDate) : 'Fecha de alta') : 'En curso (Sin egreso)'}
                     </div>
                     <div class="expediente-kpi-subtext">
-                        ${isAlta ? '✅ Proceso concluido' : '⚡ Tratamiento activo'}
+                        ${isAlta ? 'Proceso concluido' : 'Tratamiento activo'}
                     </div>
                 </div>
             </div>
@@ -3559,11 +3559,11 @@ function renderTabResumen(patientId, wellbeing, sessionPrep, emotionalProfile, c
                     <div class="expediente-kpi-label">Estatus del Paciente</div>
                     <div style="margin-top:2px;">
                         <select class="quick-status-selector" onchange="quickUpdatePatientStatus('${patient.id}', this.value)" title="Clic para cambiar estatus clínico">
-                            <option value="Por iniciar" ${patient.status === 'Por iniciar' ? 'selected' : ''}>🟡 Por iniciar</option>
-                            <option value="En Evaluación" ${patient.status === 'En Evaluación' ? 'selected' : ''}>🔍 En Evaluación</option>
-                            <option value="Plan de Intervención" ${patient.status === 'Plan de Intervención' ? 'selected' : ''}>🎯 Plan de Intervención</option>
-                            <option value="Seguimiento" ${patient.status === 'Seguimiento' ? 'selected' : ''}>🔄 Seguimiento</option>
-                            <option value="Alta" ${patient.status === 'Alta' ? 'selected' : ''}>✅ Alta Clínica</option>
+                            <option value="Por iniciar" ${patient.status === 'Por iniciar' ? 'selected' : ''}>Por iniciar</option>
+                            <option value="En Evaluación" ${patient.status === 'En Evaluación' ? 'selected' : ''}>En Evaluación</option>
+                            <option value="Plan de Intervención" ${patient.status === 'Plan de Intervención' ? 'selected' : ''}>Plan de Intervención</option>
+                            <option value="Seguimiento" ${patient.status === 'Seguimiento' ? 'selected' : ''}>Seguimiento</option>
+                            <option value="Alta" ${patient.status === 'Alta' ? 'selected' : ''}>Alta Clínica</option>
                             <option value="Inactivo" ${patient.status === 'Inactivo' ? 'selected' : ''}>⏸️ Inactivo</option>
                         </select>
                     </div>
@@ -3616,7 +3616,7 @@ function renderTabResumen(patientId, wellbeing, sessionPrep, emotionalProfile, c
             <div class="expediente-data-row"><span class="expediente-data-label">Referido por:</span><span class="expediente-data-val">${referralList}</span></div>
             <div class="expediente-data-row"><span class="expediente-data-label">Representante / Tutor:</span><span class="expediente-data-val"><strong>${patient.guardianName || 'Sin tutor'}</strong> (${patient.guardianRelation || 'Tutor'})</span></div>
             <div class="expediente-data-row"><span class="expediente-data-label">Contacto Tutor:</span><span class="expediente-data-val">${patient.guardianPhone || 'Sin teléfono'} · ${patient.guardianEmail || 'Sin correo'}</span></div>
-            <div class="expediente-data-row"><span class="expediente-data-label">Consentimiento Informado:</span><span class="expediente-data-val">${patient.guardianConsent === 'firmado' ? '<span class="badge-alta-chip">✅ Firmado</span>' : '⏳ Pendiente'}</span></div>
+            <div class="expediente-data-row"><span class="expediente-data-label">Consentimiento Informado:</span><span class="expediente-data-val">${patient.guardianConsent === 'firmado' ? '<span class="badge-alta-chip">Firmado</span>' : 'Pendiente'}</span></div>
         `;
     } else if (cat === 'adolescent') {
         patientDetailsRows = `
@@ -3628,7 +3628,7 @@ function renderTabResumen(patientId, wellbeing, sessionPrep, emotionalProfile, c
             <div class="expediente-data-row"><span class="expediente-data-label">Correo Paciente:</span><span class="expediente-data-val">${patient.email || 'Sin correo'}</span></div>
             <div class="expediente-data-row"><span class="expediente-data-label">Referido por:</span><span class="expediente-data-val">${referralList}</span></div>
             <div class="expediente-data-row"><span class="expediente-data-label">Tutor Legal:</span><span class="expediente-data-val"><strong>${patient.guardianName || 'Sin tutor'}</strong> (${patient.guardianRelation || 'Tutor'}) · Tel: ${patient.guardianPhone || 'Sin teléfono'}</span></div>
-            <div class="expediente-data-row"><span class="expediente-data-label">Consentimiento Informado:</span><span class="expediente-data-val">${patient.guardianConsent === 'firmado' ? '<span class="badge-alta-chip">✅ Firmado</span>' : '⏳ Pendiente'}</span></div>
+            <div class="expediente-data-row"><span class="expediente-data-label">Consentimiento Informado:</span><span class="expediente-data-val">${patient.guardianConsent === 'firmado' ? '<span class="badge-alta-chip">Firmado</span>' : 'Pendiente'}</span></div>
         `;
     } else {
         patientDetailsRows = `
@@ -3723,9 +3723,9 @@ function renderTabResumen(patientId, wellbeing, sessionPrep, emotionalProfile, c
                         <div class="wellbeing-status ${wellbeing.statusClass}">${wellbeing.statusLabel}</div>
                     </div>
                     <div class="summary-grid" style="margin:0;">
-                        <div class="summary-mini-card"><div class="summary-mini-icon">📅</div><div class="summary-mini-info"><div class="summary-mini-label">Sesiones</div><div class="summary-mini-value">${patientApps.filter(a=>a.status==='completada').length}</div></div></div>
-                        <div class="summary-mini-card"><div class="summary-mini-icon">📝</div><div class="summary-mini-info"><div class="summary-mini-label">Notas</div><div class="summary-mini-value">${notes.length}</div></div></div>
-                        <div class="summary-mini-card"><div class="summary-mini-icon">🎯</div><div class="summary-mini-info"><div class="summary-mini-label">Objetivos</div><div class="summary-mini-value">${goals.filter(g=>g.status==='logrado').length}/${goals.length}</div></div></div>
+                        <div class="summary-mini-card"><div class="summary-mini-icon"><i class="fas fa-calendar-alt"></i></div><div class="summary-mini-info"><div class="summary-mini-label">Sesiones</div><div class="summary-mini-value">${patientApps.filter(a=>a.status==='completada').length}</div></div></div>
+                        <div class="summary-mini-card"><div class="summary-mini-icon"><i class="fas fa-file-medical"></i></div><div class="summary-mini-info"><div class="summary-mini-label">Notas</div><div class="summary-mini-value">${notes.length}</div></div></div>
+                        <div class="summary-mini-card"><div class="summary-mini-icon"><i class="fas fa-bullseye"></i></div><div class="summary-mini-info"><div class="summary-mini-label">Objetivos</div><div class="summary-mini-value">${goals.filter(g=>g.status==='logrado').length}/${goals.length}</div></div></div>
                         <div class="summary-mini-card"><div class="summary-mini-icon">⏱️</div><div class="summary-mini-info"><div class="summary-mini-label">En tratamiento</div><div class="summary-mini-value">${durationText}</div></div></div>
                     </div>
                 </div>
@@ -3738,7 +3738,7 @@ function renderTabResumen(patientId, wellbeing, sessionPrep, emotionalProfile, c
             ${clinicalInsights ? renderClinicalInsights(clinicalInsights) : ''}
 
             <!-- Alertas y Evolución Reciente -->
-            ${alerts.length > 0 ? `<div class="alerts-list">${alerts.map(a => `<div class="alert-item ${a.level}"><div class="alert-item-icon">${a.icon}</div><div class="alert-item-text"><strong>${a.title}</strong><small>${a.description}</small></div></div>`).join('')}</div>` : `<div class="alert-item success"><div class="alert-item-icon">✅</div><div class="alert-item-text"><strong>Sin alertas críticas activas</strong><small>Evolución clínica estable conforme a los objetivos terapéuticos</small></div></div>`}
+            ${alerts.length > 0 ? `<div class="alerts-list">${alerts.map(a => `<div class="alert-item ${a.level}"><div class="alert-item-icon">${a.icon}</div><div class="alert-item-text"><strong>${a.title}</strong><small>${a.description}</small></div></div>`).join('')}</div>` : `<div class="alert-item success"><div class="alert-item-icon"><i class="fas fa-check-circle"></i></div><div class="alert-item-text"><strong>Sin alertas críticas activas</strong><small>Evolución clínica estable conforme a los objetivos terapéuticos</small></div></div>`}
 
             ${latestNote ? `
                 <div style="margin-top:10px;">
@@ -3758,7 +3758,7 @@ function renderTabResumen(patientId, wellbeing, sessionPrep, emotionalProfile, c
             ${goals.length > 0 ? `
                 <div style="margin-top:10px;">
                     <h4 style="font-size:13px;color:var(--text-tertiary);text-transform:uppercase;margin-bottom:8px;"><i class="fas fa-bullseye"></i> Objetivos del Plan Terapéutico</h4>
-                    <div class="goals-progress">${goals.slice(0, 3).map(g => `<div class="goal-progress-item"><div class="goal-progress-header"><div class="goal-progress-title">${g.title}</div><div class="goal-progress-percent">${g.progress}%</div></div><div class="goal-progress-bar"><div class="goal-progress-fill" style="width:${g.progress}%"></div></div>${g.deadline ? `<div class="goal-progress-deadline">📅 ${formatDate(g.deadline)}</div>` : ''}</div>`).join('')}</div>
+                    <div class="goals-progress">${goals.slice(0, 3).map(g => `<div class="goal-progress-item"><div class="goal-progress-header"><div class="goal-progress-title">${g.title}</div><div class="goal-progress-percent">${g.progress}%</div></div><div class="goal-progress-bar"><div class="goal-progress-fill" style="width:${g.progress}%"></div></div>${g.deadline ? `<div class="goal-progress-deadline"><i class="fas fa-calendar-alt"></i> ${formatDate(g.deadline)}</div>` : ''}</div>`).join('')}</div>
                 </div>
             ` : ''}
         </div>
@@ -3950,7 +3950,7 @@ function renderRoadmapBoard(sessions, patientId) {
     if (!sessions || sessions.length === 0) {
         return `
             <div class="therapy-roadmap-empty">
-                <div style="font-size:32px;margin-bottom:8px;">🗺️</div>
+                <div style="font-size:28px;margin-bottom:8px;"><i class="fas fa-route"></i></div>
                 <p style="margin:0 0 12px;color:var(--text-secondary);font-size:14px;">No hay sesiones planificadas en la ruta de este paciente.</p>
                 <button class="btn-primary btn-sm" onclick="openAddRoadmapSessionModal('${patientId}')">
                     <i class="fas fa-plus"></i> Iniciar Ruta de Sesiones
@@ -4358,7 +4358,7 @@ function renderTabNotasSesion(patientId) {
                 </button>
             </div>
             <div class="empty-state" style="padding:32px 16px;">
-                <div class="empty-icon">📝</div>
+                <div class="empty-icon"><i class="fas fa-file-alt"></i></div>
                 <p>No hay reportes de atención ni notas de sesión registradas aún para este paciente.</p>
                 <button class="btn-primary" onclick="openReporteAtencionForPatient('${patientId}'); closeModal('patientDetailModal');" style="margin-top:12px;">
                     <i class="fas fa-file-signature"></i> Llenar Primer Reporte de Atención
@@ -4426,8 +4426,8 @@ function renderTabNotasSesion(patientId) {
 
                         ${n.techniquesUsed || n.sessionGoals ? `
                             <div style="font-size:12px;color:var(--text-secondary);margin-bottom:12px;display:flex;gap:16px;flex-wrap:wrap;">
-                                ${n.sessionGoals ? `<div><strong>🎯 Objetivos trabajados:</strong> ${n.sessionGoals}</div>` : ''}
-                                ${n.techniquesUsed ? `<div><strong>🛠️ Técnicas aplicadas:</strong> ${n.techniquesUsed}</div>` : ''}
+                                ${n.sessionGoals ? `<div><strong>Objetivos trabajados:</strong> ${n.sessionGoals}</div>` : ''}
+                                ${n.techniquesUsed ? `<div><strong>Técnicas aplicadas:</strong> ${n.techniquesUsed}</div>` : ''}
                             </div>
                         ` : ''}
 
@@ -4515,17 +4515,17 @@ function calculatePatientSessionStats(patientId, stateObj = (typeof AppState !==
     if (baseForRate > 0) {
         if (attendanceRate >= 85) {
             adherenceBadge = 'success';
-            adherenceBadgeText = '🟢 Alta Adherencia (Óptima)';
+            adherenceBadgeText = 'Alta Adherencia (Óptima)';
             adherenceColor = '#059669';
             adherenceDesc = 'Excelente compromiso y constancia con el encuadre psicoterapéutico. El paciente mantiene regularidad y minimiza interrupciones en el proceso clínico.';
         } else if (attendanceRate >= 70) {
             adherenceBadge = 'warning';
-            adherenceBadgeText = '🟡 Adherencia Regular (Atención)';
+            adherenceBadgeText = 'Adherencia Regular (Atención)';
             adherenceColor = '#d97706';
             adherenceDesc = 'Asistencia moderada con reprogramaciones o cancelaciones esporádicas. Se aconseja explorar posibles barreras logísticas, laborales o de resistencia.';
         } else {
             adherenceBadge = 'danger';
-            adherenceBadgeText = '🔴 Baja Adherencia (Riesgo)';
+            adherenceBadgeText = 'Baja Adherencia (Riesgo)';
             adherenceColor = '#dc2626';
             adherenceDesc = 'Alerta de riesgo de deserción o abandono terapéutico. La alta tasa de cancelaciones o ausencias compromete la eficacia de la intervención. Se sugiere reevaluar encuadre y alianza.';
         }
@@ -4633,7 +4633,7 @@ function renderTabHistorialSesiones(patientId, activeFilter = 'all') {
                             ${stats.completedCount}
                         </div>
                         <div class="session-stat-sub">
-                            <span>✅ ${stats.attendanceRate}% efectividad</span>
+                            <span>${stats.attendanceRate}% efectividad</span>
                         </div>
                     </div>
                 </div>
@@ -4648,7 +4648,7 @@ function renderTabHistorialSesiones(patientId, activeFilter = 'all') {
                             ${stats.rescheduledCount}
                         </div>
                         <div class="session-stat-sub">
-                            <span>🔄 ${stats.rescheduleRate}% tasa</span>
+                            <span>${stats.rescheduleRate}% tasa</span>
                         </div>
                     </div>
                 </div>
@@ -4663,7 +4663,7 @@ function renderTabHistorialSesiones(patientId, activeFilter = 'all') {
                             ${stats.cancelledCount}
                         </div>
                         <div class="session-stat-sub">
-                            <span>❌ ${stats.cancellationRate}% tasa</span>
+                            <span>${stats.cancellationRate}% tasa</span>
                         </div>
                     </div>
                 </div>
@@ -4678,7 +4678,7 @@ function renderTabHistorialSesiones(patientId, activeFilter = 'all') {
                             ${stats.noShowCount}
                         </div>
                         <div class="session-stat-sub">
-                            <span>⚠️ ${stats.noShowRate}% ausencias</span>
+                            <span>${stats.noShowRate}% ausencias</span>
                         </div>
                     </div>
                 </div>
@@ -4693,7 +4693,7 @@ function renderTabHistorialSesiones(patientId, activeFilter = 'all') {
                             ${stats.scheduledCount}
                         </div>
                         <div class="session-stat-sub">
-                            <span>📅 En calendario</span>
+                            <span>En calendario</span>
                         </div>
                     </div>
                 </div>
@@ -4745,7 +4745,7 @@ function renderTabHistorialSesiones(patientId, activeFilter = 'all') {
                 </div>
 
                 <div class="session-adherence-insight">
-                    <strong>💡 Observación Clínica:</strong> ${stats.adherenceDesc}
+                    <strong>Observación Clínica:</strong> ${stats.adherenceDesc}
                 </div>
             </div>
 
@@ -4777,7 +4777,7 @@ function renderTabHistorialSesiones(patientId, activeFilter = 'all') {
             <div class="session-history-list">
                 ${apps.length === 0 ? `
                     <div class="empty-state" style="padding:32px 16px;">
-                        <div class="empty-icon">📅</div>
+                        <div class="empty-icon"><i class="fas fa-calendar-check"></i></div>
                         <p>No se encontraron registros de sesiones con el filtro seleccionado.</p>
                         <button class="btn-secondary btn-sm" onclick="filterPatientSessionHistory('all', '${patientId}')" style="margin-top:8px;">
                             Ver todas las sesiones
@@ -4851,12 +4851,12 @@ function renderTabHistorialSesiones(patientId, activeFilter = 'all') {
                             <div class="session-history-actions-row">
                                 <!-- Selector Rápido de Estado de Asistencia -->
                                 <select class="session-quick-status-select" onchange="quickChangeSessionAttendance('${a.id}', this.value, '${patientId}')" title="Cambiar asistencia de esta sesión">
-                                    <option value="agendada" ${status === 'agendada' ? 'selected' : ''}>📅 Agendada</option>
-                                    <option value="confirmada" ${status === 'confirmada' ? 'selected' : ''}>✔️ Confirmada (Paciente)</option>
-                                    <option value="completada" ${status === 'completada' ? 'selected' : ''}>✅ Asistió / Completada</option>
-                                    <option value="reprogramada" ${status === 'reprogramada' ? 'selected' : ''}>🔄 Reprogramada</option>
-                                    <option value="cancelada" ${status === 'cancelada' ? 'selected' : ''}>❌ Cancelada</option>
-                                    <option value="no_asistio" ${status === 'no_asistio' ? 'selected' : ''}>⚠️ No Asistió</option>
+                                    <option value="agendada" ${status === 'agendada' ? 'selected' : ''}>Agendada</option>
+                                    <option value="confirmada" ${status === 'confirmada' ? 'selected' : ''}>Confirmada (Paciente)</option>
+                                    <option value="completada" ${status === 'completada' ? 'selected' : ''}>Asistió / Completada</option>
+                                    <option value="reprogramada" ${status === 'reprogramada' ? 'selected' : ''}>Reprogramada</option>
+                                    <option value="cancelada" ${status === 'cancelada' ? 'selected' : ''}>Cancelada</option>
+                                    <option value="no_asistio" ${status === 'no_asistio' ? 'selected' : ''}>No Asistió</option>
                                 </select>
 
                                 <!-- Enlace a Nota Clínica -->
@@ -4936,12 +4936,12 @@ function quickChangeSessionAttendance(appId, newStatus, patientId) {
     }
 
     const labels = {
-        confirmada: '✔️ Sesión confirmada (asistencia validada por el paciente)',
-        completada: '✅ Sesión marcada como Asistida / Completada',
-        reprogramada: '🔄 Sesión marcada como Reprogramada',
-        cancelada: '❌ Sesión marcada como Cancelada',
-        no_asistio: '⚠️ Sesión marcada como No Asistió (Inasistencia)',
-        agendada: '📅 Sesión marcada como Agendada'
+        confirmada: 'Sesión confirmada (asistencia validada por el paciente)',
+        completada: 'Sesión marcada como Asistida / Completada',
+        reprogramada: 'Sesión marcada como Reprogramada',
+        cancelada: 'Sesión marcada como Cancelada',
+        no_asistio: 'Sesión marcada como No Asistió (Inasistencia)',
+        agendada: 'Sesión marcada como Agendada'
     };
     showToast(labels[newStatus] || `Estado actualizado a ${newStatus}`, 'success');
 
@@ -4989,7 +4989,7 @@ function renderTabHistoria(patient) {
         const referralList = Array.isArray(patient.referral) ? patient.referral.join(', ') : (patient.referral || patient.referredBy || 'No especificado');
         const sections = [
             {
-                title: '📋 1. Ficha del Paciente (Adolescente)',
+                title: '1. Ficha del Paciente (Adolescente)',
                 content: `<strong>Nombre Completo:</strong> ${patient.name || 'Sin registrar'}<br>
                           <strong>Edad:</strong> ${patient.age || (patient.birthdate ? calculateAge(patient.birthdate) + ' años' : 'No registrada')}<br>
                           <strong>Sexo:</strong> ${patient.gender || 'No registrado'}<br>
@@ -4999,7 +4999,7 @@ function renderTabHistoria(patient) {
                           <strong>Correo Electrónico:</strong> ${patient.email || 'Sin registrar'}`
             },
             {
-                title: '🛡️ 2. Ficha del Representante / Tutor Legal',
+                title: '2. Ficha del Representante / Tutor Legal',
                 content: `<strong>Nombre Completo:</strong> ${patient.guardianName || 'No registrado'}<br>
                           <strong>Parentesco:</strong> ${patient.guardianRelation || 'No registrado'}<br>
                           <strong>Edad:</strong> ${patient.guardianAge ? patient.guardianAge + ' años' : 'No registrada'}<br>
@@ -5008,10 +5008,10 @@ function renderTabHistoria(patient) {
                           <strong>Estado Civil:</strong> ${patient.guardianMaritalStatus || 'No registrado'}<br>
                           <strong>Teléfono:</strong> ${patient.guardianPhone || 'Sin registrar'}<br>
                           <strong>Correo Electrónico:</strong> ${patient.guardianEmail || 'Sin registrar'}<br>
-                          <strong>Consentimiento Informado:</strong> ${patient.guardianConsent === 'firmado' ? '✅ Firmado' : '⏳ Pendiente'}`
+                          <strong>Consentimiento Informado:</strong> ${patient.guardianConsent === 'firmado' ? 'Firmado' : 'Pendiente'}`
             },
             {
-                title: '🧠 3. Información Referente a la Consulta Psicológica',
+                title: '3. Información Referente a la Consulta Psicológica',
                 content: `<strong>¿Ha asistido antes a Consulta Psicológica?:</strong> ${patient.previousPsych || 'No'}<br>
                           <strong>Nombre de la Persona que solicita la Consulta:</strong> ${patient.applicantName || 'No especificada'}<br>
                           <strong>¿Quién tomó la iniciativa?:</strong> ${patient.initiative || 'No registrada'} ${patient.initiative === 'Otro' && patient.initiativeOther ? '(' + patient.initiativeOther + ')' : ''}<br>
@@ -5027,7 +5027,7 @@ function renderTabHistoria(patient) {
                           <strong>Factores de Protección:</strong> ${patient.protectiveFactors || 'Sin información'}`
             },
             {
-                title: '🤝 4. Encuadre y Acuerdos de Consulta',
+                title: '4. Encuadre y Acuerdos de Consulta',
                 content: `<strong>Frecuencia Acordada:</strong> ${patient.frequency || 'Por acordar'}<br>
                           <strong>Modalidad:</strong> ${patient.modality || 'No definida'}<br>
                           <strong>Turno:</strong> ${patient.shift || 'No definido'}`
@@ -5041,30 +5041,30 @@ function renderTabHistoria(patient) {
     // Secciones específicas por etapa del ciclo vital
     if (cat === 'child') {
         sections.push({
-            title: '👨‍👧 Representante Legal y Tutoría Pediátrica',
-            content: patient.guardianName ? `<strong>Tutor/a:</strong> ${patient.guardianName} (${patient.guardianRelation || 'Tutor'})<br><strong>Teléfono de contacto:</strong> ${patient.guardianPhone || 'Sin registrar'}<br><strong>Consentimiento Informado:</strong> ${patient.guardianConsent === 'firmado' ? '✅ Firmado y en custodia' : '⏳ Pendiente de firma'}` : null
+            title: 'Representante Legal y Tutoría Pediátrica',
+            content: patient.guardianName ? `<strong>Tutor/a:</strong> ${patient.guardianName} (${patient.guardianRelation || 'Tutor'})<br><strong>Teléfono de contacto:</strong> ${patient.guardianPhone || 'Sin registrar'}<br><strong>Consentimiento Informado:</strong> ${patient.guardianConsent === 'firmado' ? 'Firmado y en custodia' : 'Pendiente de firma'}` : null
         });
         sections.push({
-            title: '📚 Contexto Escolar',
+            title: 'Contexto Escolar',
             content: patient.schoolGrade ? `<strong>Nivel de Escolaridad:</strong> ${patient.schoolGrade}` : null
         });
         sections.push({
-            title: '🌱 Hitos del Neurodesarrollo',
+            title: 'Hitos del Neurodesarrollo',
             content: patient.developmentalMilestones
         });
     } else if (cat === 'adolescent') {
         sections.push({
-            title: '🛡️ Representante Legal & Tutoría',
-            content: patient.guardianName ? `<strong>Tutor/a:</strong> ${patient.guardianName} (${patient.guardianRelation || 'Tutor'})<br><strong>Teléfono tutor:</strong> ${patient.guardianPhone || 'Sin registrar'}<br><strong>Consentimiento Informado:</strong> ${patient.guardianConsent === 'firmado' ? '✅ Firmado y en custodia' : '⏳ Pendiente de firma'}` : null
+            title: 'Representante Legal & Tutoría',
+            content: patient.guardianName ? `<strong>Tutor/a:</strong> ${patient.guardianName} (${patient.guardianRelation || 'Tutor'})<br><strong>Teléfono tutor:</strong> ${patient.guardianPhone || 'Sin registrar'}<br><strong>Consentimiento Informado:</strong> ${patient.guardianConsent === 'firmado' ? 'Firmado y en custodia' : 'Pendiente de firma'}` : null
         });
         sections.push({
-            title: '📚 Escolaridad',
+            title: 'Escolaridad',
             content: patient.schoolGrade ? `<strong>Nivel de Escolaridad:</strong> ${patient.schoolGrade}` : null
         });
     } else {
         if (patient.maritalStatus) {
             sections.push({
-                title: '💍 Estado Civil / Situación Convivencial',
+                title: 'Estado Civil / Situación Convivencial',
                 content: patient.maritalStatus
             });
         }
@@ -5103,17 +5103,17 @@ function renderTabTimeline(patientId) {
     });
     goals.forEach(g => {
         if (g.status === 'logrado') {
-            events.push({ date: new Date(g.createdAt || Date.now()), type: 'goal', title: `🎯 Objetivo logrado: ${g.title}`, description: g.description || '', tags: ['✅ Completado'] });
+            events.push({ date: new Date(g.createdAt || Date.now()), type: 'goal', title: `Objetivo logrado: ${g.title}`, description: g.description || '', tags: ['Completado'] });
         }
     });
     events.sort((a, b) => b.date - a.date);
-    if (events.length === 0) return '<div class="empty-state"><div class="empty-icon">📭</div><p>Sin eventos registrados</p></div>';
+    if (events.length === 0) return '<div class="empty-state"><div class="empty-icon"><i class="fas fa-inbox"></i></div><p>Sin eventos registrados</p></div>';
     return `<div class="timeline">${events.map(e => `<div class="timeline-item ${e.type}"><div class="timeline-date">${e.date.toLocaleDateString('es-ES', { day: 'numeric', month: 'long', year: 'numeric' })}</div><div class="timeline-title" style="display:flex;justify-content:space-between;align-items:center;"><span>${e.title}</span>${e.type === 'session' && e.id ? `<button class="btn-icon" onclick="event.stopPropagation(); ClinicalHistorySystem.exportReporteAtencionPDF('${e.id}')" title="Imprimir Reporte de Atención Oficial (PDF)"><i class="fas fa-file-invoice" style="color:var(--accent-primary);"></i></button>` : ''}</div><div class="timeline-description">${e.description}</div>${e.tags.length > 0 ? `<div class="timeline-tags">${e.tags.map(t => `<span class="timeline-tag">${t}</span>`).join('')}</div>` : ''}</div>`).join('')}</div>`;
 }
 
 function renderTabObjetivos(patientId) {
     const goals = AppState.treatmentPlans.filter(g => g.patientId === patientId);
-    return `<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;"><h4 style="margin:0;">Plan de Tratamiento</h4><button class="btn-primary" onclick="addTreatmentGoal('${patientId}'); viewPatient('${patientId}');"><i class="fas fa-plus"></i> Nuevo objetivo</button></div>${goals.length === 0 ? '<div class="empty-state"><div class="empty-icon">🎯</div><p>Sin objetivos definidos</p></div>' : `<div class="goals-progress">${goals.map(g => `<div class="goal-progress-item"><div class="goal-progress-header"><div class="goal-progress-title">${g.title}</div><div style="display:flex;gap:4px;align-items:center;"><span class="tag tag-${g.status}">${g.status}</span><div class="goal-progress-percent">${g.progress}%</div></div></div>${g.description ? `<div style="font-size:13px;color:var(--text-secondary);margin-bottom:8px;">${g.description}</div>` : ''}<div class="goal-progress-bar"><div class="goal-progress-fill" style="width:${g.progress}%"></div></div><div style="display:flex;justify-content:space-between;align-items:center;margin-top:8px;"><div class="goal-progress-deadline">📅 ${g.deadline ? formatDate(g.deadline) : 'Sin fecha'}</div><div style="display:flex;gap:4px;"><button class="btn-icon" onclick="updateGoalProgress('${g.id}'); viewPatient('${patientId}');"><i class="fas fa-chart-line"></i></button><button class="btn-icon" onclick="deleteGoal('${g.id}','${patientId}'); viewPatient('${patientId}');"><i class="fas fa-trash"></i></button></div></div></div>`).join('')}</div>`}`;
+    return `<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;"><h4 style="margin:0;">Plan de Tratamiento</h4><button class="btn-primary" onclick="addTreatmentGoal('${patientId}'); viewPatient('${patientId}');"><i class="fas fa-plus"></i> Nuevo objetivo</button></div>${goals.length === 0 ? '<div class="empty-state"><div class="empty-icon"><i class="fas fa-bullseye"></i></div><p>Sin objetivos definidos</p></div>' : `<div class="goals-progress">${goals.map(g => `<div class="goal-progress-item"><div class="goal-progress-header"><div class="goal-progress-title">${g.title}</div><div style="display:flex;gap:4px;align-items:center;"><span class="tag tag-${g.status}">${g.status}</span><div class="goal-progress-percent">${g.progress}%</div></div></div>${g.description ? `<div style="font-size:13px;color:var(--text-secondary);margin-bottom:8px;">${g.description}</div>` : ''}<div class="goal-progress-bar"><div class="goal-progress-fill" style="width:${g.progress}%"></div></div><div style="display:flex;justify-content:space-between;align-items:center;margin-top:8px;"><div class="goal-progress-deadline"><i class="fas fa-calendar-alt"></i> ${g.deadline ? formatDate(g.deadline) : 'Sin fecha'}</div><div style="display:flex;gap:4px;"><button class="btn-icon" onclick="updateGoalProgress('${g.id}'); viewPatient('${patientId}');"><i class="fas fa-chart-line"></i></button><button class="btn-icon" onclick="deleteGoal('${g.id}','${patientId}'); viewPatient('${patientId}');"><i class="fas fa-trash"></i></button></div></div></div>`).join('')}</div>`}`;
 }
 
 function renderTabEscalasEnhanced(patientId) {
@@ -5293,7 +5293,7 @@ function renderTabEscalasEnhanced(patientId) {
             <!-- BENTO DE 3 TARJETAS CLÍNICAS -->
             <div class="summary-grid" style="margin-bottom: 20px;">
                 <div class="summary-mini-card">
-                    <div class="summary-mini-icon">🌧️</div>
+                    <div class="summary-mini-icon"><i class="fas fa-cloud-rain"></i></div>
                     <div class="summary-mini-info">
                         <div class="summary-mini-label">Depresión (PHQ-9)</div>
                         <div class="summary-mini-value">${latestPhq ? `${latestPhq.score}/27` : '—'}</div>
@@ -5304,7 +5304,7 @@ function renderTabEscalasEnhanced(patientId) {
                 </div>
 
                 <div class="summary-mini-card">
-                    <div class="summary-mini-icon">🌊</div>
+                    <div class="summary-mini-icon"><i class="fas fa-water"></i></div>
                     <div class="summary-mini-info">
                         <div class="summary-mini-label">Ansiedad (GAD-7)</div>
                         <div class="summary-mini-value">${latestGad ? `${latestGad.score}/21` : '—'}</div>
@@ -5315,7 +5315,7 @@ function renderTabEscalasEnhanced(patientId) {
                 </div>
 
                 <div class="summary-mini-card">
-                    <div class="summary-mini-icon">🎯</div>
+                    <div class="summary-mini-icon"><i class="fas fa-bullseye"></i></div>
                     <div class="summary-mini-info">
                         <div class="summary-mini-label">Evolución Clínica</div>
                         <div class="summary-mini-value" style="font-size: 15px;">
@@ -5336,7 +5336,7 @@ function renderTabEscalasEnhanced(patientId) {
                 <h4><i class="fas fa-list-ol"></i> Registro Histórico de Evaluaciones Psicométricas (${allEvals.length})</h4>
                 ${allEvals.length === 0 ? `
                     <div class="empty-state" style="padding: 24px;">
-                        <div class="empty-icon">📊</div>
+                        <div class="empty-icon"><i class="fas fa-chart-line"></i></div>
                         <p>No hay evaluaciones psicométricas registradas aún</p>
                         <small>Aplica el PHQ-9 o GAD-7 en consulta o solicita al paciente completarlo desde su portal móvil.</small>
                     </div>
@@ -5443,7 +5443,7 @@ function openSoapAiModal() {
                     </div>
 
                     <div style="background:var(--bg-secondary); border-radius:8px; padding:12px; margin-bottom:14px; font-size:13px; border-left:3px solid var(--accent-primary);">
-                        <strong>💡 Dos vías de captura:</strong> Graba la sesión ambiental completa en segundo plano (Zero-Retention) o dicta/escribe tus apuntes para estructurar automáticamente en formato <span id="selectedFormatLabel" style="font-weight:700; color:var(--accent-primary);">SOAP</span>.
+                        <strong>Dos vías de captura:</strong> Graba la sesión ambiental completa en segundo plano (Zero-Retention) o dicta/escribe tus apuntes para estructurar automáticamente en formato <span id="selectedFormatLabel" style="font-weight:700; color:var(--accent-primary);">SOAP</span>.
                     </div>
 
                     <div class="form-group">
@@ -5463,7 +5463,7 @@ function openSoapAiModal() {
 
                     <div style="margin-bottom:16px;">
                         <button type="button" class="btn-primary full-width" id="btnGenerateSoapAi" onclick="generateSoapFromAiModal()">
-                            <i class="fas fa-sparkles"></i> ✨ Sintetizar con Gemini AI
+                            <i class="fas fa-sparkles"></i> Sintetizar con Gemini AI
                         </button>
                     </div>
 
@@ -5475,7 +5475,7 @@ function openSoapAiModal() {
                         </h4>
                         <div id="dynamicMultiformatGrid" style="display:grid; grid-template-columns:repeat(auto-fit, minmax(240px, 1fr)); gap:10px; margin-bottom:12px;"></div>
                         <button type="button" class="btn-primary full-width" onclick="applyGeneratedSoapToForm()">
-                            <i class="fas fa-check"></i> 📥 Aplicar al Formulario de la Sesión
+                            <i class="fas fa-check"></i> Aplicar al Formulario de la Sesión
                         </button>
                     </div>
                 </div>
@@ -5566,7 +5566,7 @@ async function generateSoapFromAiModal() {
     } finally {
         if (btn) {
             btn.disabled = false;
-            btn.innerHTML = '<i class="fas fa-sparkles"></i> ✨ Sintetizar con Gemini AI';
+            btn.innerHTML = '<i class="fas fa-sparkles"></i> Sintetizar con Gemini AI';
         }
     }
 }
@@ -6082,7 +6082,7 @@ async function syncPortalAppointmentsToTherapist() {
                 const timeStr = cApp.time ? ` a las ${formatTime(cApp.time)}` : '';
                 const dateStr = formatDate(cApp.date);
                 if (typeof showToast === 'function') {
-                    showToast(`✅ ¡Asistencia Confirmada! ${pName} confirmó su cita para el ${dateStr}${timeStr}.`, 'success');
+                    showToast(`¡Asistencia Confirmada! ${pName} confirmó su cita para el ${dateStr}${timeStr}.`, 'success');
                 }
             });
             if (typeof updateSessionRemindersUI === 'function') {
@@ -6090,7 +6090,7 @@ async function syncPortalAppointmentsToTherapist() {
             }
         } else if (newlyAddedCount > 0) {
             if (typeof showToast === 'function') {
-                showToast('🔔 Se sincronizó una nueva cita agendada desde el portal', 'info');
+                showToast('Se sincronizó una nueva cita agendada desde el portal', 'info');
             }
         }
     }
@@ -6318,7 +6318,7 @@ async function openPortalAccessModal(patientId) {
             <!-- ALERTA DE CRISIS SI ESTÁ ACTIVA -->
             ${hasCrisis ? `
                 <div class="portal-crisis-callout">
-                    <div class="crisis-icon">🚨</div>
+                    <div class="crisis-icon"><i class="fas fa-exclamation-triangle"></i></div>
                     <div class="crisis-info">
                         <strong>Alerta SOS Activa:</strong> El paciente ha solicitado asistencia inmediata o registrado indicadores de riesgo elevado desde su portal.
                     </div>
@@ -6453,21 +6453,21 @@ async function openPortalAccessModal(patientId) {
                 <div class="capabilities-header">¿Qué puede realizar el paciente en su portal?</div>
                 <div class="capabilities-grid">
                     <div class="capability-item">
-                        <span class="cap-icon">🧘</span>
+                        <span class="cap-icon"><i class="fas fa-heart"></i></span>
                         <div class="cap-text">
                             <strong>Check-in Diario de Bienestar</strong>
                             <span>Monitoreo de estado de ánimo, horas de sueño y nivel de energía vital.</span>
                         </div>
                     </div>
                     <div class="capability-item">
-                        <span class="cap-icon">📝</span>
+                        <span class="cap-icon"><i class="fas fa-edit"></i></span>
                         <div class="cap-text">
                             <strong>Tareas TCC y Autoregistros</strong>
                             <span>Ejercicios intersesión guiados, reestructuración de pensamientos y activación conductual.</span>
                         </div>
                     </div>
                     <div class="capability-item">
-                        <span class="cap-icon">🚨</span>
+                        <span class="cap-icon"><i class="fas fa-bell"></i></span>
                         <div class="cap-text">
                             <strong>Protocolo SOS 24/7</strong>
                             <span>Líneas gratuitas de atención en crisis y alerta inmediata al terapeuta en caso de emergencia.</span>
@@ -6526,7 +6526,7 @@ function launchPatientPortal(patientId) {
 
     const toastMsg = isKid 
         ? `🎈 Abriendo Portal KIDS de ${patient.name}...` 
-        : `🚀 Abriendo portal de ${patient.name}...`;
+        : `Abriendo portal de ${patient.name}...`;
     showToast(toastMsg, 'success');
 
     const cleanBase = window.location.origin + window.location.pathname.replace(/\/[^\/]*$/, '/');
@@ -6552,7 +6552,7 @@ function sharePortalViaWhatsApp(patientId) {
     if (isKid) {
         text = `Hola ${patient.guardianName || patient.name}, te saluda ${therapistName}. Te comparto el enlace al espacio lúdico interactivo 'Kids Space' de ${patient.name} en SERENA:\n\n🎈 Enlace directo: ${portalUrl}\n🔑 Tu código PIN: ${token}\n\nAquí ${patient.name} podrá explorar su clima emocional, crear su avatar, dibujar en el lienzo mágico y jugar con el globo de la calma. ¡Nos vemos en nuestra próxima sesión!`;
     } else {
-        text = `Hola ${patient.name}, te saluda ${therapistName}. Te comparto el enlace a tu portal terapéutico digital "Mi Espacio" en SERENA:\n\n🔗 Enlace directo: ${portalUrl}\n🔑 Tu código de acceso: ${token}\n\nAquí podrás registrar tus reflexiones diarias, tareas intersesión y monitorear tu bienestar. ¡Nos vemos en nuestra próxima sesión!`;
+        text = `Hola ${patient.name}, te saluda ${therapistName}. Te comparto el enlace a tu portal terapéutico digital "Mi Espacio" en SERENA:\n\nEnlace directo: ${portalUrl}\nTu código de acceso: ${token}\n\nAquí podrás registrar tus reflexiones diarias, tareas intersesión y monitorear tu bienestar. ¡Nos vemos en nuestra próxima sesión!`;
     }
 
     const rawPhone = patient.phone || patient.guardianPhone || '';
@@ -6580,9 +6580,9 @@ function showPortalQrCode(patientId) {
                     <img src="${qrImageUrl}" alt="Código QR Portal ${patient.name}" onerror="this.onerror=null; this.parentElement.innerHTML='<div style=\\'padding:20px;font-weight:600;color:var(--text-secondary);\\'>Acceso directo:<br><code style=\\'font-size:16px;color:var(--color-primary);\\'>${portalUrl}</code></div>';">
                 </div>
                 <div class="qr-instructions-list">
-                    <div>📱 <strong>1.</strong> Pide al consultante ${isKid ? 'o a su tutor ' : ''}que abra la cámara de su teléfono inteligente.</div>
-                    <div>🎯 <strong>2.</strong> Apunta al código QR en la pantalla para abrir su portal ${isKid ? 'KIDS ' : ''}de inmediato.</div>
-                    <div>✨ <strong>3.</strong> Entrada segura con token automático, sin recordar contraseñas.</div>
+                    <div><strong>1.</strong> Pide al consultante ${isKid ? 'o a su tutor ' : ''}que abra la cámara de su teléfono inteligente.</div>
+                    <div><strong>2.</strong> Apunta al código QR en la pantalla para abrir su portal ${isKid ? 'KIDS ' : ''}de inmediato.</div>
+                    <div><strong>3.</strong> Entrada segura con token automático, sin recordar contraseñas.</div>
                 </div>
                 <div style="display:flex;gap:10px;justify-content:center;">
                     <button class="btn-secondary" onclick="copyPortalLink('${patient.id}');">
@@ -6603,7 +6603,7 @@ function copyPortalToken(patientId) {
     if (!patient || !patient.portalToken) return;
     if (navigator.clipboard && navigator.clipboard.writeText) {
         navigator.clipboard.writeText(patient.portalToken).then(() => {
-            showToast(`✅ Código ${patient.portalToken} copiado al portapapeles`, 'success');
+            showToast(`Código ${patient.portalToken} copiado al portapapeles`, 'success');
         }).catch(() => {
             showToast(`Código: ${patient.portalToken}`, 'info');
         });
@@ -6620,7 +6620,7 @@ function copyPortalLink(patientId) {
     const portalUrl = `${baseUrl}portal.html?token=${patient.portalToken}${isKid ? '&mode=kid' : ''}`;
     if (navigator.clipboard && navigator.clipboard.writeText) {
         navigator.clipboard.writeText(portalUrl).then(() => {
-            showToast(`✅ Enlace directo al portal ${isKid ? 'KIDS ' : ''}copiado al portapapeles`, 'success');
+            showToast(`Enlace directo al portal ${isKid ? 'KIDS ' : ''}copiado al portapapeles`, 'success');
         }).catch(() => {
             showToast(`Enlace: ${portalUrl}`, 'info');
         });
@@ -6639,7 +6639,7 @@ function regeneratePortalToken(patientId) {
     patient.portalCreatedAt = new Date().toISOString();
     saveData();
     syncPatientToPortalStorage(patient);
-    showToast(`✅ Nuevo código ${patient.portalToken} generado con éxito`, 'success');
+    showToast(`Nuevo código ${patient.portalToken} generado con éxito`, 'success');
     openPortalAccessModal(patientId);
 }
 
@@ -6781,7 +6781,7 @@ async function syncPortalDataForPatient(patientId) {
             kidActivities: remoteKidActivities
         };
     } catch (e) {
-        console.warn('⚠️ No se pudo sincronizar datos del portal en este momento:', e);
+        console.warn('No se pudo sincronizar datos del portal en este momento:', e);
         return null;
     }
 }
@@ -8173,11 +8173,11 @@ function renderCalendarDay(container) {
                         </div>
                         <div style="display:flex;gap:6px;align-items:center;">
                             <select class="status-badge status-${app.status || 'agendada'}" style="border:none;cursor:pointer;font-weight:700;font-size:11px;padding:3px 6px;border-radius:10px;outline:none;" onchange="setAppointmentStatus('${app.id}', this.value)" title="Cambiar estado de la cita">
-                                <option value="agendada" ${app.status === 'agendada' || app.status === 'pendiente' ? 'selected' : ''}>📅 Agendada</option>
+                                <option value="agendada" ${app.status === 'agendada' || app.status === 'pendiente' ? 'selected' : ''}>Agendada</option>
                                 <option value="confirmada" ${app.status === 'confirmada' ? 'selected' : ''}>✔️ Confirmada</option>
                                 <option value="completada" ${app.status === 'completada' ? 'selected' : ''}>✅ Completada</option>
-                                <option value="reprogramada" ${app.status === 'reprogramada' ? 'selected' : ''}>🔄 Reprogramada</option>
-                                <option value="cancelada" ${app.status === 'cancelada' ? 'selected' : ''}>❌ Cancelada</option>
+                                <option value="reprogramada" ${app.status === 'reprogramada' ? 'selected' : ''}>Reprogramada</option>
+                                <option value="cancelada" ${app.status === 'cancelada' ? 'selected' : ''}>Cancelada</option>
                             </select>
                             <button class="btn-primary" style="padding:5px 10px;font-size:11px;" onclick="openReporteAtencionFromAppointment('${app.id}')" title="Llenar Reporte de Atención">
                                 <i class="fas fa-file-signature"></i> Reporte
@@ -8287,7 +8287,7 @@ function renderAppointments() {
     if (subtitleEl) subtitleEl.textContent = `${apps.length} cita${apps.length === 1 ? '' : 's'} registrada${apps.length === 1 ? '' : 's'}`;
 
     if (apps.length === 0) {
-        container.innerHTML = `<div class="empty-state" style="padding:24px 16px;"><div class="empty-icon">📅</div><p>Sin citas para el ${dateFormatted}</p><button class="btn-secondary" onclick="openAppointmentModalWithSlot('${toDateInputValue(AppState.selectedDate)}', '09:00')" style="margin-top:8px;"><i class="fas fa-plus"></i> Agendar cita en este día</button></div>`;
+        container.innerHTML = `<div class="empty-state" style="padding:24px 16px;"><div class="empty-icon"><i class="fas fa-calendar-check"></i></div><p>Sin citas para el ${dateFormatted}</p><button class="btn-secondary" onclick="openAppointmentModalWithSlot('${toDateInputValue(AppState.selectedDate)}', '09:00')" style="margin-top:8px;"><i class="fas fa-plus"></i> Agendar cita en este día</button></div>`;
         return;
     }
     container.innerHTML = apps.map(app => {
@@ -8313,11 +8313,11 @@ function renderAppointments() {
             
             <div style="display:flex;align-items:center;gap:6px;">
                 <select class="status-badge status-${st}" style="border:none;cursor:pointer;font-weight:700;font-size:11.5px;padding:4px 8px;border-radius:12px;outline:none;" onchange="setAppointmentStatus('${app.id}', this.value)" title="Cambiar estado de la cita">
-                    <option value="agendada" ${st === 'agendada' || st === 'pendiente' ? 'selected' : ''}>📅 Agendada</option>
+                    <option value="agendada" ${st === 'agendada' || st === 'pendiente' ? 'selected' : ''}>Agendada</option>
                     <option value="confirmada" ${st === 'confirmada' ? 'selected' : ''}>✔️ Confirmada</option>
                     <option value="completada" ${st === 'completada' ? 'selected' : ''}>✅ Completada</option>
-                    <option value="reprogramada" ${st === 'reprogramada' ? 'selected' : ''}>🔄 Reprogramada</option>
-                    <option value="cancelada" ${st === 'cancelada' ? 'selected' : ''}>❌ Cancelada</option>
+                    <option value="reprogramada" ${st === 'reprogramada' ? 'selected' : ''}>Reprogramada</option>
+                    <option value="cancelada" ${st === 'cancelada' ? 'selected' : ''}>Cancelada</option>
                 </select>
             </div>
 
@@ -9217,7 +9217,7 @@ function renderNotes(filter = '') {
         });
     }
     if (notes.length === 0) {
-        container.innerHTML = `<div class="empty-state"><div class="empty-icon">📝</div><p>${filter ? 'Sin coincidencias' : 'No hay reportes de atención registrados'}</p>${!filter ? '<button class="btn-primary" onclick="openReporteAtencionModal()"><i class="fas fa-file-signature"></i> Registrar Primer Reporte de Atención</button>' : ''}</div>`;
+        container.innerHTML = `<div class="empty-state"><div class="empty-icon"><i class="fas fa-file-alt"></i></div><p>${filter ? 'Sin coincidencias' : 'No hay reportes de atención registrados'}</p>${!filter ? '<button class="btn-primary" onclick="openReporteAtencionModal()"><i class="fas fa-file-signature"></i> Registrar Primer Reporte de Atención</button>' : ''}</div>`;
         return;
     }
     container.innerHTML = notes.map(n => {
@@ -9598,7 +9598,7 @@ function handleNoteSubmit(e) {
                 author: AppState.currentUser?.name || 'Psicólogo Clínico',
                 text: newAddendumText
             });
-            showToast('✍️ Adendum clínico agregado al expediente firmado', 'success');
+            showToast('Adendum clínico agregado al expediente firmado', 'success');
         } else {
             showToast('Documento firmado: registro inmutable preservado sin alteraciones', 'info');
         }
@@ -9610,7 +9610,7 @@ function handleNoteSubmit(e) {
             note.signedAt = new Date().toISOString();
             note.signedRegistry = localStorage.getItem('psico_therapist_registry') || 'FPV';
             note.addendums = [];
-            showToast(`✍️ Reporte de Atención firmado oficialmente (Sesión #${sessionNum})`, 'success');
+            showToast(`Reporte de Atención firmado oficialmente (Sesión #${sessionNum})`, 'success');
         } else {
             note.status = 'borrador';
             note.isSigned = false;
@@ -9646,7 +9646,7 @@ function handleNoteSubmit(e) {
         if (typeof showCrisisProtocol === 'function' && p) {
             showCrisisProtocol(p);
         } else {
-            alert(`🚨 RIESGO ALTO DETECTADO\n\nPaciente: ${p ? p.name : 'Desconocido'}\nActive protocolo de contención.`);
+            alert(`RIESGO ALTO DETECTADO\n\nPaciente: ${p ? p.name : 'Desconocido'}\nActive protocolo de contención.`);
         }
     }
 }
@@ -9784,7 +9784,7 @@ function removeIntersessionTask(i) { tempIntersessionTasks.splice(i, 1); renderI
 // ESCALAS CLÍNICAS
 // ============================================
 const CLINICAL_SCALES = {
-    phq9: { name: 'PHQ-9 (Depresión)', questions: ['Poco interés o placer en hacer cosas', 'Se ha sentido decaído/a, deprimido/a o sin esperanza', 'Ha tenido problemas para dormir', 'Se ha sentido cansado/a o con poca energía', 'Sin apetito o ha comido en exceso', 'Se ha sentido mal consigo mismo/a', 'Ha tenido dificultad para concentrarse', 'Se ha movido o hablado tan lento que otros lo notaron, o muy inquieto', 'Pensamientos de que estaría mejor muerto/a o de hacerse daño'], options: ['Nunca (0)', 'Varios días (1)', 'Más de la mitad de los días (2)', 'Casi todos los días (3)'], interpret: (s) => s <= 4 ? { level: 'Mínima', color: '#4dab87', action: 'Seguimiento rutinario' } : s <= 9 ? { level: 'Leve', color: '#7cb342', action: 'Considerar plan de tratamiento' } : s <= 14 ? { level: 'Moderada', color: '#fdcb6e', action: 'Plan de tratamiento activo' } : s <= 19 ? { level: 'Moderadamente severa', color: '#e67e22', action: 'Intervención activa + farmacoterapia' } : { level: 'Severa', color: '#e16259', action: '⚠️ Iniciar tratamiento inmediato' } },
+    phq9: { name: 'PHQ-9 (Depresión)', questions: ['Poco interés o placer en hacer cosas', 'Se ha sentido decaído/a, deprimido/a o sin esperanza', 'Ha tenido problemas para dormir', 'Se ha sentido cansado/a o con poca energía', 'Sin apetito o ha comido en exceso', 'Se ha sentido mal consigo mismo/a', 'Ha tenido dificultad para concentrarse', 'Se ha movido o hablado tan lento que otros lo notaron, o muy inquieto', 'Pensamientos de que estaría mejor muerto/a o de hacerse daño'], options: ['Nunca (0)', 'Varios días (1)', 'Más de la mitad de los días (2)', 'Casi todos los días (3)'], interpret: (s) => s <= 4 ? { level: 'Mínima', color: '#4dab87', action: 'Seguimiento rutinario' } : s <= 9 ? { level: 'Leve', color: '#7cb342', action: 'Considerar plan de tratamiento' } : s <= 14 ? { level: 'Moderada', color: '#fdcb6e', action: 'Plan de tratamiento activo' } : s <= 19 ? { level: 'Moderadamente severa', color: '#e67e22', action: 'Intervención activa + farmacoterapia' } : { level: 'Severa', color: '#e16259', action: 'Iniciar tratamiento inmediato' } },
     gad7: { name: 'GAD-7 (Ansiedad)', questions: ['Sentirse nervioso/a, ansioso/a', 'No ser capaz de parar las preocupaciones', 'Preocuparse demasiado', 'Dificultad para relajarse', 'Estar tan inquieto/a que es difícil permanecer sentado/a', 'Molestarse o irritarse con facilidad', 'Sentir miedo como si algo terrible fuera a pasar'], options: ['Nunca (0)', 'Varios días (1)', 'Más de la mitad de los días (2)', 'Casi todos los días (3)'], interpret: (s) => s <= 4 ? { level: 'Mínima', color: '#4dab87', action: 'Seguimiento' } : s <= 9 ? { level: 'Leve', color: '#7cb342', action: 'Psicoeducación' } : s <= 14 ? { level: 'Moderada', color: '#fdcb6e', action: 'Plan de tratamiento' } : { level: 'Severa', color: '#e16259', action: 'Evaluación urgente' } }
 };
 
@@ -9893,7 +9893,7 @@ async function handleAiChatSubmit(e) {
 
     const botDiv = document.createElement('div');
     botDiv.className = 'ai-msg bot';
-    botDiv.innerHTML = `<div class="ai-avatar">🤖</div><div class="ai-bubble"><em>Pensando con Gemini AI...</em></div>`;
+    botDiv.innerHTML = `<div class="ai-avatar"><i class="fas fa-brain"></i></div><div class="ai-bubble"><em>Pensando con Gemini AI...</em></div>`;
     chatBox.appendChild(botDiv);
     chatBox.scrollTop = chatBox.scrollHeight;
 
@@ -9904,7 +9904,7 @@ async function handleAiChatSubmit(e) {
         
         botDiv.querySelector('.ai-bubble').innerHTML = formatMarkdownResponse(reply);
     } catch (err) {
-        botDiv.querySelector('.ai-bubble').innerHTML = `<span style="color:#e16259;">❌ Error: ${err.message}</span>`;
+        botDiv.querySelector('.ai-bubble').innerHTML = `<span style="color:#e16259;">Error: ${err.message}</span>`;
     }
     chatBox.scrollTop = chatBox.scrollHeight;
 }
@@ -9915,7 +9915,7 @@ async function runAiDiagnosticAnalysis() {
     if (!output) return;
 
     if (!patientId) {
-        output.innerHTML = `<div class="empty-state"><div class="empty-icon">🧠</div><p>Selecciona un paciente para analizar su expediente.</p></div>`;
+        output.innerHTML = `<div class="empty-state"><div class="empty-icon"><i class="fas fa-brain"></i></div><p>Selecciona un paciente para analizar su expediente.</p></div>`;
         return;
     }
 
@@ -9931,7 +9931,7 @@ async function runAiDiagnosticAnalysis() {
         const result = await ClinicalAI.generateDiagnosticHypotheses(patient, notes, scaleResults);
         output.innerHTML = `<div class="ai-analysis-card">${formatMarkdownResponse(result)}</div>`;
     } catch (err) {
-        output.innerHTML = `<div class="alert-box error">❌ Error en el análisis: ${err.message}</div>`;
+        output.innerHTML = `<div class="alert-box error">Error en el análisis: ${err.message}</div>`;
     }
 }
 
@@ -9961,7 +9961,7 @@ async function runAiSoapSynthesis() {
             </div>
         `;
     } catch (err) {
-        resDiv.innerHTML = `<div class="alert-box error">❌ Error: ${err.message}</div>`;
+        resDiv.innerHTML = `<div class="alert-box error">Error: ${err.message}</div>`;
     }
 }
 
@@ -10080,7 +10080,7 @@ function exportPatientReport(patientId) {
     const notes = AppState.notes.filter(n => n.patientId === patientId);
     const apps = AppState.appointments.filter(a => a.patientId === patientId);
     const plans = AppState.treatmentPlans.filter(x => x.patientId === patientId);
-    const html = `<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Informe - ${p.name}</title><style>body{font-family:'Inter',sans-serif;max-width:800px;margin:40px auto;padding:20px;color:#37352f;}h1{border-bottom:2px solid #6b9080;padding-bottom:8px;color:#6b9080;}h2{color:#6b9080;margin-top:24px;}.meta{background:#f7f6f3;padding:16px;border-radius:8px;margin:16px 0;}.note{border-left:3px solid #6b9080;padding:12px;margin:12px 0;background:#fafafa;}.footer{margin-top:40px;font-size:11px;color:#9a9a9a;text-align:center;}@media print{body{margin:0;}}</style></head><body><h1>🧠 Informe Clínico</h1><div class="meta"><strong>Paciente:</strong> ${p.name}<br><strong>Nacimiento:</strong> ${p.birthdate || 'No registrada'}<br><strong>Diagnóstico:</strong> ${p.diagnosis || 'Pendiente'}<br><strong>Motivo:</strong> ${p.reason || 'No registrado'}<br><strong>Generado:</strong> ${new Date().toLocaleDateString('es-ES')}</div><h2>Antecedentes</h2><p>${p.medical || 'Sin antecedentes'}</p>${plans.length > 0 ? `<h2>Plan de Tratamiento</h2><ul>${plans.map(g => `<li><strong>${g.title}</strong> — ${g.progress}%</li>`).join('')}</ul>` : ''}<h2>Sesiones (${apps.length})</h2>${apps.map(a => `<div class="note"><strong>${formatDate(a.date)}</strong> · ${a.duration} min · ${a.type}</div>`).join('')}<h2>Notas SOAP (${notes.length})</h2>${notes.map(n => `<div class="note"><strong>${n.title}</strong> — ${formatDate(n.date)}<br><em>S:</em> ${n.subjetivo || '—'}<br><em>O:</em> ${n.objetivo || '—'}<br><em>A:</em> ${n.analisis || '—'}<br><em>P:</em> ${n.plan || '—'}</div>`).join('')}<div class="footer">Documento confidencial · ${AppState.currentUser?.name || 'Terapeuta'} · ${new Date().toLocaleString('es-ES')}</div><script>window.onload=()=>window.print();</script></body></html>`;
+    const html = `<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Informe - ${p.name}</title><style>body{font-family:'Inter',sans-serif;max-width:800px;margin:40px auto;padding:20px;color:#37352f;}h1{border-bottom:2px solid #6b9080;padding-bottom:8px;color:#6b9080;}h2{color:#6b9080;margin-top:24px;}.meta{background:#f7f6f3;padding:16px;border-radius:8px;margin:16px 0;}.note{border-left:3px solid #6b9080;padding:12px;margin:12px 0;background:#fafafa;}.footer{margin-top:40px;font-size:11px;color:#9a9a9a;text-align:center;}@media print{body{margin:0;}}</style></head><body><h1>Informe Clínico</h1><div class="meta"><strong>Paciente:</strong> ${p.name}<br><strong>Nacimiento:</strong> ${p.birthdate || 'No registrada'}<br><strong>Diagnóstico:</strong> ${p.diagnosis || 'Pendiente'}<br><strong>Motivo:</strong> ${p.reason || 'No registrado'}<br><strong>Generado:</strong> ${new Date().toLocaleDateString('es-ES')}</div><h2>Antecedentes</h2><p>${p.medical || 'Sin antecedentes'}</p>${plans.length > 0 ? `<h2>Plan de Tratamiento</h2><ul>${plans.map(g => `<li><strong>${g.title}</strong> — ${g.progress}%</li>`).join('')}</ul>` : ''}<h2>Sesiones (${apps.length})</h2>${apps.map(a => `<div class="note"><strong>${formatDate(a.date)}</strong> · ${a.duration} min · ${a.type}</div>`).join('')}<h2>Notas SOAP (${notes.length})</h2>${notes.map(n => `<div class="note"><strong>${n.title}</strong> — ${formatDate(n.date)}<br><em>S:</em> ${n.subjetivo || '—'}<br><em>O:</em> ${n.objetivo || '—'}<br><em>A:</em> ${n.analisis || '—'}<br><em>P:</em> ${n.plan || '—'}</div>`).join('')}<div class="footer">Documento confidencial · ${AppState.currentUser?.name || 'Terapeuta'} · ${new Date().toLocaleString('es-ES')}</div><script>window.onload=()=>window.print();</script></body></html>`;
     const w = window.open('', '_blank');
     w.document.write(html); w.document.close();
 }
@@ -10090,12 +10090,12 @@ function exportPatientReport(patientId) {
 // ============================================
 function handleGlobalSearch(query) {
     const c = document.getElementById('searchResults');
-    if (!query.trim()) { c.innerHTML = `<div class="empty-state"><div class="empty-icon">🔍</div><p>Escriba para buscar...</p></div>`; return; }
+    if (!query.trim()) { c.innerHTML = `<div class="empty-state"><div class="empty-icon"><i class="fas fa-search"></i></div><p>Escriba para buscar...</p></div>`; return; }
     const lq = query.toLowerCase();
     const results = [];
     AppState.patients.forEach(p => { if (p.name.toLowerCase().includes(lq) || (p.diagnosis && p.diagnosis.toLowerCase().includes(lq))) results.push({ type: 'patient', data: p, title: p.name, meta: `Diag: ${p.diagnosis}` }); });
     AppState.notes.forEach(n => { const p = AppState.patients.find(x => x.id === n.patientId); if (n.title.toLowerCase().includes(lq) || (n.subjetivo && n.subjetivo.toLowerCase().includes(lq))) results.push({ type: 'note', data: n, title: n.title, meta: `${p ? p.name : 'Paciente'} · ${formatDate(n.date)}` }); });
-    if (results.length === 0) { c.innerHTML = `<div class="empty-state"><div class="empty-icon">🔍</div><p>Sin coincidencias</p></div>`; return; }
+    if (results.length === 0) { c.innerHTML = `<div class="empty-state"><div class="empty-icon"><i class="fas fa-search"></i></div><p>Sin coincidencias</p></div>`; return; }
     const tl = { patient: 'Paciente', note: 'Nota SOAP' };
     c.innerHTML = results.map(r => `<div class="search-result-item" onclick="handleSearchResult('${r.type}', '${r.data.id}')"><div class="search-result-info"><div class="search-result-title">${r.title}</div><div class="search-result-meta">${r.meta}</div></div><span class="search-result-type">${tl[r.type]}</span></div>`).join('');
 }
@@ -10146,7 +10146,7 @@ function renderAgendaHeatmap() {
 
     let html = `
         <div style="font-size:13px;font-weight:600;margin-bottom:12px;color:var(--text-primary);display:flex;justify-content:space-between;align-items:center;">
-            <span>🔥 Mapa de Calor de Ocupación Semanal de Agenda</span>
+            <span>Mapa de Ocupación Semanal de Agenda</span>
             <span style="font-size:11px;color:var(--text-tertiary);font-weight:normal;">Basado en historial de citas</span>
         </div>
         <div style="display:grid;grid-template-columns: 50px repeat(6, 1fr);gap:6px;font-size:11px;text-align:center;">
@@ -10417,7 +10417,7 @@ function showToast(message, type = 'info') {
 
     const t = document.createElement('div');
     t.className = `toast ${type}`;
-    const icons = { info: 'ℹ️', success: '✅', error: '❌', warning: '⚠️' };
+    const icons = { info: '<i class="fas fa-info-circle"></i>', success: '<i class="fas fa-check-circle"></i>', error: '<i class="fas fa-exclamation-circle"></i>', warning: '<i class="fas fa-exclamation-triangle"></i>' };
     t.innerHTML = `<span>${icons[type] || 'ℹ️'}</span> ${message}`;
     c.appendChild(t);
     setTimeout(() => { 
@@ -10505,7 +10505,7 @@ function isSameDay(d1, d2) {
     if (!dt1 || !dt2 || isNaN(dt1.getTime()) || isNaN(dt2.getTime())) return false;
     return dt1.getFullYear() === dt2.getFullYear() && dt1.getMonth() === dt2.getMonth() && dt1.getDate() === dt2.getDate();
 }
-function getMoodEmoji(mood) { return { 'muy-bueno': 'Eutímico 😊', 'bueno': 'Estable 🙂', 'neutral': 'Aplanado 😐', 'bajo': 'Ansioso 😔', 'muy-bajo': 'Depresivo 😞' }[mood] || mood; }
+function getMoodEmoji(mood) { return { 'muy-bueno': 'Eutímico', 'bueno': 'Estable', 'neutral': 'Aplanado', 'bajo': 'Ansioso', 'muy-bajo': 'Depresivo' }[mood] || mood; }
 
 // ============================================
 // ATAJOS DE TECLADO
@@ -10732,7 +10732,7 @@ async function checkPortalCrisisAlerts() {
     if (alertPatient && banner && textEl) {
         window._activeCrisisPatient = alertPatient;
         window._activeCrisisAlertId = serverAlertId;
-        textEl.innerHTML = `<strong>🚨 ALERTA CLÍNICA SOS:</strong> Paciente <strong>${alertPatient.name}</strong> ha registrado indicadores de crisis (${reasonText}).`;
+        textEl.innerHTML = `<strong>ALERTA CLÍNICA SOS:</strong> Paciente <strong>${alertPatient.name}</strong> ha registrado indicadores de crisis (${reasonText}).`;
         banner.style.display = 'block';
     } else if (banner && !window._activeCrisisPatient) {
         banner.style.display = 'none';
@@ -10995,7 +10995,7 @@ async function loadSyntheticClinicalPilotCase() {
     if (typeof renderNotes === 'function') renderNotes();
     if (typeof updateCounts === 'function') updateCounts();
     if (typeof showToast === 'function') {
-        showToast('🎯 Caso clínico piloto cargado con éxito en el expediente', 'success');
+        showToast('Caso clínico piloto cargado con éxito en el expediente', 'success');
     }
 
     return { pilotPatient, pilotAppointment, pilotNote, phq9Evaluation, cssrsRecord };

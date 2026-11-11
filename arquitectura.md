@@ -4068,3 +4068,98 @@ flowchart TB
 
 
 
+
+
+---
+
+## 41. Módulo de Examen Mental Protocolizado v6.5 — Correcciones Semiológicas Oficiales y Ficha de Adultos
+
+**Autor:** Agente 1 — Arquitecto de Software y Project Manager  
+**Estado:** Especificación Técnica Aprobada  
+**Fecha:** Noviembre 2026  
+
+### 41.1. Visión y Objetivos Semiológicos
+Alineación estricta del Examen Mental con las observaciones clínicas y requerimientos provistos por el especialista en psicología clínica. Se eliminan frases redundantes ("comprometida con presencia de...", "ilusiones:", etc.), se estandarizan las respuestas normotípicas a frases directas ("Sin alteraciones observables en..."), se incorporan preguntas de cribado dicotómico (SÍ/NO) con despliegue progresivo, se habilita el deseleccionado reactivo de opciones (uncheck/toggle) y se refactoriza el orden y la síntesis semiológica.
+
+### 41.2. Diagrama de Flujo de Interacción y Generación de Síntesis (Mermaid)
+
+```mermaid
+flowchart TD
+    subgraph UI_Examen_Mental["🖥️ Módulo Examen Mental / Ficha Adultos"]
+        ChipsBasal["Selección Afecto Basal (Eutímico / etc. + Desclic)"]
+        ToggleAlt["Switches Dicótomos (¿Presenta Alteraciones? SÍ / NO)"]
+        ChipsOpciones["Chips de Síntomas Semiológicos Específicos"]
+        ChecklistModal["Modal Check-List Rápido (Historia Clínica Adultos)"]
+    end
+
+    subgraph Estado_Reactivo["⚙️ Motor de Estado y Validación"]
+        StateStore["MentalExamModule.collectCurrentState()"]
+        ToggleLogic["Lógica de Deselección (Toggle Off)"]
+        PresetNormo["Preset Normotípico / Conservado"]
+    end
+
+    subgraph Generador_Narrativa["📝 Motor Generador de Síntesis Clínica (18 Funciones)"]
+        G1["1. Presentación (Género, Edad, Biotipo)"]
+        G2["2. Aspecto (Aseada/o, Vestimenta acorde)"]
+        G3["3. Actitud (Colaboradora, etc.)"]
+        G4["4. Nivel de Conciencia (Conservado o Alteración)"]
+        G5["5. Atención (Conservada o Hipoprosexia/etc.)"]
+        G6["6. Orientación (Alopsíquica y Autopsíquicamente)"]
+        G7["7. Memoria (Conservada o Lista sin añadiduras)"]
+        G8["8. Juicio Práctico (Conservado)"]
+        G9["9. Inteligencia (Igual al promedio / etc.)"]
+        G10["10. Pensamiento (Sin prefijos, directo)"]
+        G11["11. Lenguaje (Sin alteraciones o Directo)"]
+        G12["12. Afectividad (Eutímico / Hipertimia estructurada)"]
+        G13["13. Sensopercepción (Sin alteraciones o Directo)"]
+        G14["14. Psicomotricidad (Sin alteraciones o Directo)"]
+        G15["15. Vida Instintiva (Sin alteraciones o Directo)"]
+        G16["16. Volición (Sin alteraciones o Directo)"]
+        G17["17. Conciencia de Enfermedad (Presente / etc.)"]
+        G18["18. Juicio de Realidad (Conservado)"]
+    end
+
+    subgraph Destinos_Clinicos["📋 Destinos y Persistencia"]
+        ExpedienteTextarea["#mentalExamOutputText (Editor en vivo)"]
+        HistoriaClinicaAdulto["Ficha Adultos (#fh_mentalExam)"]
+        PDFReport["Exportación PDF / Nota de Evolución"]
+        DBCache["Persistencia en Paciente (patient.mentalExam)"]
+    end
+
+    ChipsBasal --> ToggleLogic --> StateStore
+    ToggleAlt --> StateStore
+    ChipsOpciones --> StateStore
+    ChecklistModal --> StateStore
+    PresetNormo --> StateStore
+
+    StateStore --> G1 & G2 & G3 & G4 & G5 & G6 & G7 & G8 & G9 & G10 & G11 & G12 & G13 & G14 & G15 & G16 & G17 & G18
+    G1 & G2 & G3 & G4 & G5 & G6 & G7 & G8 & G9 & G10 & G11 & G12 & G13 & G14 & G15 & G16 & G17 & G18 --> ExpedienteTextarea
+    ExpedienteTextarea --> HistoriaClinicaAdulto & PDFReport & DBCache
+```
+
+### 41.3. Matriz de Cambios por Función Semiológica
+
+| # | Función | Título UI Oficial | Ajustes de Interfaz | Regla de Generación en Síntesis Clínica |
+|---|---|---|---|---|
+| **7** | Memoria | `Memoria` | Eliminar subtítulos de fijación/evocación. | Si conservada: `"Memoria Conservada."`. Si alterada: solo las opciones seleccionadas (ej: `"Amnesia anterógrada, Amnesia retrógrada."`), eliminando `"Memoria comprometida con presencia de..."`. |
+| **8** | Juicio Práctico | `Juicio Práctico` | Mantener chips. | `"Juicio Práctico Conservado."` / `"Parcialmente conservado."` / `"Desviado."`. |
+| **9** | Inteligencia | `INTELIGENCIA` | Cambiar título de "Capacidad Intelectual Estimada". Quitar control/pregunta de pruebas psicométricas. | Si "Promedio": `"Inteligencia igual al promedio."`. Otras opciones: `"Inteligencia [Opción]."` |
+| **10** | Pensamiento | `Pensamiento` | Quitar opción "NORMAL". Cambiar "Otros contenidos patológicos:" por `"Otros"`. | Opciones seleccionadas directamente (ej: `"Taquipsiquia."`), sin prefijo `"Ideas delirantes de tipo:"`. Si no hay alteraciones: se omite o mantiene estado normotípico sin redundancia. |
+| **11** | Lenguaje | `Lenguaje` | Quitar chip `"Adecuado / Mímica normal"`. | Si no hay opciones marcadas: `"Sin alteraciones observables en el Lenguaje."`. Al marcar opciones: únicamente las opciones seleccionadas (ej: `"Taquilalia."`), sin prefijos ni añadiduras. |
+| **12** | Afectividad | `Afectividad` | En afecto basal: quitar `"Modulado/eutímico"` y colocar `"Eutímico"`. Habilitar deselección (desclicar chip activo). | Sintetizar hipertimia estructurada completa: `"[Tipo de Hipertimia] Orientada al Polo de la [Polo] con Sentimientos de [Sentimientos]."`. Si es basal: `"[Afecto Basal]."` (ej: `"Eutímico."`). |
+| **13** | Sensopercepción | `Sensopercepción` | Quitar chip `"Conservada"`. Pregunta dicótoma: `"¿Presenta alteraciones? SÍ / NO"`. Al marcar SÍ, desplegar opciones. | Al marcar NO: `"Sin alteraciones observables en la Sensopercepción."`. Al marcar SÍ: únicamente las opciones seleccionadas (ej: `"Aceleración de la Percepción."`), eliminando `"Ilusiones:"` y prefijos. |
+| **14** | Psicomotricidad | `Psicomotricidad` | Selector dicótomo `"¿Presenta alteraciones? SÍ / NO"`. Al marcar SÍ, desplegar lista. | Al marcar NO: `"Sin alteraciones observables en la Psicomotricidad."`. Al marcar SÍ: solo las opciones seleccionadas (ej: `"Tics."`). |
+| **15** | Vida Instintiva | `Vida Instintiva` | Cambiar título a `"Vida Instintiva"`. Selector dicótomo `"¿Presenta alteraciones? SÍ / NO"`. | Al marcar NO: `"Sin alteraciones observables en la Vida Instintiva."`. Al marcar SÍ: solo las opciones seleccionadas (ej: `"Insomnio, Pica."`). |
+| **16** | Volición | `Volición` | Cambiar título a `"Volición"`. Quitar opción `"Normobulia"`. | Si no hay opciones marcadas: `"Sin alteraciones observables en la Volición."`. Al marcar opción: la opción seleccionada directamente (ej: `"Hiperbulia."`). |
+| **17** | Conciencia de Enfermedad | `Conciencia de Enfermedad` | Cambiar título eliminando `"(Insight)"`. | `"Conciencia de Enfermedad [Presente / Parcial / Ausente]."` |
+| **18** | Juicio de Realidad | `Juicio de Realidad` | Mantener. | `"Juicio de Realidad Conservado."` |
+
+### 41.4. Ejemplo de Síntesis Semiológica Estándar de Referencia
+```text
+Paciente femenina de 18 años edad aparente a edad cronológica y biotipo mesomorfo. Aseada y arreglada, vestimenta de acuerdo a la edad y ocasión. Nivel de Conciencia Conservado. Atención Conservada. Orientada Alopsíquica y Autopsíquicamente. Memoria Conservada. Juicio Práctico Conservado. Inteligencia igual al promedio. Taquipsiquia. Taquilalia. Hipertimia Displacentera Orientada al Polo de la Tristeza con Sentimientos de Minusvalía. Aceleración de la Percepción. Tics. Insomnio, Pica. Hiperbulia. Conciencia de Enfermedad Presente. Juicio de Realidad Conservado.
+```
+
+### 41.5. Plan de Ejecución para los Agentes Especializados
+- **Agente 2 (Backend)**: Garantizar que la persistencia en `db.js` y `patient.mentalExam` soporte los nuevos campos limpios (`vidaInstintivaAlterada`, `sensopercepcionAlterada`, `psicomotricidadAlterada`, etc.) y mantenga retrocompatibilidad con esquemas anteriores.
+- **Agente 3 (Frontend)**: Implementar las correcciones visuales en `mental-exam.js` y `historia-clinica.js` (títulos limpios, botones SÍ/NO con toggle desplegable, chip Eutímico, capacidad de desclicar chips individuales, eliminación de controles obsoletos y actualización de `openChecklistModal`).
+- **Agente 4 (QA / DevOps)**: Actualizar los casos de prueba `TC-MSE-01`, `TC-MSE-02`, `TC-MSE-03` y `TC-MEJ-05` en `tests.js` para validar la nueva síntesis al 100% de éxito.

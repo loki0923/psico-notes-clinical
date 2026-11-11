@@ -210,7 +210,7 @@ async function fetchBcvExchangeRates(forceRefresh = false) {
                 isManual: false
             });
             if (forceRefresh && typeof _financeUtilScope.showToast === 'function') {
-                _financeUtilScope.showToast(`🇻🇪 Tasa BCV actualizada: 1 USD = ${updated.usdRate.toLocaleString('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} Bs.`, 'success');
+                _financeUtilScope.showToast(`Tasa BCV actualizada: 1 USD = ${updated.usdRate.toLocaleString('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} Bs.`, 'success');
             }
             if (typeof renderFinanceView === 'function') {
                 renderFinanceView();
@@ -656,12 +656,12 @@ function renderFinanceView() {
             <!-- BANNER DE COTIZACIÓN AUTOMATIZADA BCV Y VISUALIZACIÓN DUAL -->
             <div class="finance-bcv-banner" style="background:var(--bg-card);border:1px solid var(--border-primary);border-radius:12px;padding:12px 18px;margin-bottom:18px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:12px;box-shadow:0 2px 8px rgba(0,0,0,0.03);">
                 <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;">
-                    <div style="font-size:24px;line-height:1;">🇻🇪</div>
+                    <div style="font-size:18px;line-height:1;"><i class="fas fa-coins"></i></div>
                     <div>
                         <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
                             <span style="font-size:11.5px;font-weight:700;letter-spacing:0.5px;color:var(--text-tertiary);text-transform:uppercase;">Tasa Oficial BCV</span>
                             <span style="font-size:11px;padding:2px 8px;border-radius:12px;font-weight:600;background:${bcvRates.isManual ? 'rgba(245,158,11,0.15)' : 'rgba(16,185,129,0.15)'};color:${bcvRates.isManual ? '#d97706' : '#059669'};">
-                                ${bcvRates.isManual ? '🔒 Tasa Manual Personalizada' : '🟢 Automatizada'}
+                                ${bcvRates.isManual ? 'Tasa Manual Personalizada' : 'Automatizada'}
                             </span>
                             <span style="font-size:11px;color:var(--text-tertiary);">${lastUpdatedText}</span>
                         </div>
@@ -675,9 +675,9 @@ function renderFinanceView() {
                 <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
                     <!-- Selector de visualización de moneda -->
                     <div style="display:inline-flex;background:var(--bg-secondary);border:1px solid var(--border-primary);border-radius:8px;padding:2px;font-size:12px;">
-                        <button type="button" class="btn-sm" onclick="setFinanceCurrencyMode('USD')" style="padding:4px 10px;border-radius:6px;border:none;cursor:pointer;background:${currencyMode === 'USD' ? 'var(--accent-primary, #2563eb)' : 'transparent'};color:${currencyMode === 'USD' ? '#fff' : 'var(--text-secondary)'};font-weight:${currencyMode === 'USD' ? '700' : '500'};" title="Ver saldos en Dólares ($ USD)">💵 USD</button>
-                        <button type="button" class="btn-sm" onclick="setFinanceCurrencyMode('VES')" style="padding:4px 10px;border-radius:6px;border:none;cursor:pointer;background:${currencyMode === 'VES' ? 'var(--accent-primary, #2563eb)' : 'transparent'};color:${currencyMode === 'VES' ? '#fff' : 'var(--text-secondary)'};font-weight:${currencyMode === 'VES' ? '700' : '500'};" title="Ver saldos en Bolívares (Bs. VES)">🇻🇪 Bs.</button>
-                        <button type="button" class="btn-sm" onclick="setFinanceCurrencyMode('DUAL')" style="padding:4px 10px;border-radius:6px;border:none;cursor:pointer;background:${currencyMode === 'DUAL' ? 'var(--accent-primary, #2563eb)' : 'transparent'};color:${currencyMode === 'DUAL' ? '#fff' : 'var(--text-secondary)'};font-weight:${currencyMode === 'DUAL' ? '700' : '500'};" title="Ver saldos en ambas monedas simultáneamente">⚖️ Dual</button>
+                        <button type="button" class="btn-sm" onclick="setFinanceCurrencyMode('USD')" style="padding:4px 10px;border-radius:6px;border:none;cursor:pointer;background:${currencyMode === 'USD' ? 'var(--accent-primary, #2563eb)' : 'transparent'};color:${currencyMode === 'USD' ? '#fff' : 'var(--text-secondary)'};font-weight:${currencyMode === 'USD' ? '700' : '500'};" title="Ver saldos en Dólares ($ USD)">USD</button>
+                        <button type="button" class="btn-sm" onclick="setFinanceCurrencyMode('VES')" style="padding:4px 10px;border-radius:6px;border:none;cursor:pointer;background:${currencyMode === 'VES' ? 'var(--accent-primary, #2563eb)' : 'transparent'};color:${currencyMode === 'VES' ? '#fff' : 'var(--text-secondary)'};font-weight:${currencyMode === 'VES' ? '700' : '500'};" title="Ver saldos en Bolívares (Bs. VES)">Bs.</button>
+                        <button type="button" class="btn-sm" onclick="setFinanceCurrencyMode('DUAL')" style="padding:4px 10px;border-radius:6px;border:none;cursor:pointer;background:${currencyMode === 'DUAL' ? 'var(--accent-primary, #2563eb)' : 'transparent'};color:${currencyMode === 'DUAL' ? '#fff' : 'var(--text-secondary)'};font-weight:${currencyMode === 'DUAL' ? '700' : '500'};" title="Ver saldos en ambas monedas simultáneamente">Dual</button>
                     </div>
                     <button type="button" class="btn-secondary btn-sm" onclick="fetchBcvExchangeRates(true)" style="padding:5px 10px;font-size:12px;" title="Actualizar cotización en vivo desde el Banco Central de Venezuela">
                         <i class="fas fa-arrows-rotate"></i> Actualizar BCV
@@ -716,7 +716,7 @@ function renderFinanceView() {
         console.error('[Finance] Error al renderizar vista de finanzas:', err);
         container.innerHTML = `
             <div class="empty-state" style="padding:48px 20px;text-align:center;">
-                <div class="empty-icon">📊</div>
+                <div class="empty-icon"><i class="fas fa-chart-bar"></i></div>
                 <h3 style="margin-bottom:8px;color:var(--text-primary);">Módulo de Finanzas</h3>
                 <p style="color:var(--text-secondary);max-width:500px;margin:0 auto 16px auto;">
                     Se ha recuperado el estado operativo del módulo contable.
@@ -813,7 +813,7 @@ function renderTransactionsTabHtml(txs, totalIncome, totalExpense, netBalance) {
     return `
         <div class="summary-cards">
             <div class="summary-card">
-                <div class="summary-icon">💵</div>
+                <div class="summary-icon"><i class="fas fa-arrow-down"></i></div>
                 <div class="summary-info">
                     <h3>Ingresos Totales</h3>
                     <div class="summary-value" style="color:#4dab87;">
@@ -825,7 +825,7 @@ function renderTransactionsTabHtml(txs, totalIncome, totalExpense, netBalance) {
                 </div>
             </div>
             <div class="summary-card">
-                <div class="summary-icon">💸</div>
+                <div class="summary-icon"><i class="fas fa-arrow-up"></i></div>
                 <div class="summary-info">
                     <h3>Egresos Totales</h3>
                     <div class="summary-value" style="color:#e16259;">
@@ -837,7 +837,7 @@ function renderTransactionsTabHtml(txs, totalIncome, totalExpense, netBalance) {
                 </div>
             </div>
             <div class="summary-card priority">
-                <div class="summary-icon">⚖️</div>
+                <div class="summary-icon"><i class="fas fa-balance-scale"></i></div>
                 <div class="summary-info">
                     <h3>Balance Neto</h3>
                     <div class="summary-value" style="color:${(netBalance || 0) >= 0 ? 'var(--text-primary)' : '#e16259'};">
@@ -857,15 +857,15 @@ function renderTransactionsTabHtml(txs, totalIncome, totalExpense, netBalance) {
                     <input type="text" id="financeSearchInput" placeholder="Buscar concepto o referencia..." value="${_scope._financeSearchText || ''}" oninput="setFinanceSearchText(this.value)" style="padding:6px 12px;border:1px solid var(--border-primary);border-radius:var(--radius-sm);background:var(--bg-card);color:var(--text-primary);font-size:13px;">
                     <select onchange="setFinanceFilterType(this.value)" style="padding:6px 10px;border:1px solid var(--border-primary);border-radius:var(--radius-sm);background:var(--bg-card);color:var(--text-primary);font-size:13px;">
                         <option value="all" ${filterType === 'all' ? 'selected' : ''}>Todos</option>
-                        <option value="income" ${filterType === 'income' ? 'selected' : ''}>Solo Ingresos 🟢</option>
-                        <option value="expense" ${filterType === 'expense' ? 'selected' : ''}>Solo Egresos 🔴</option>
+                        <option value="income" ${filterType === 'income' ? 'selected' : ''}>Solo Ingresos</option>
+                        <option value="expense" ${filterType === 'expense' ? 'selected' : ''}>Solo Egresos</option>
                     </select>
                 </div>
             </div>
 
             ${filteredTxs.length === 0 ? `
                 <div class="empty-state">
-                    <div class="empty-icon">📊</div>
+                    <div class="empty-icon"><i class="fas fa-chart-bar"></i></div>
                     <p>${safeTxs.length === 0 ? 'No hay transacciones financieras registradas' : 'No se encontraron transacciones con el filtro actual'}</p>
                 </div>
             ` : `
@@ -895,7 +895,7 @@ function renderTransactionsTabHtml(txs, totalIncome, totalExpense, netBalance) {
                         return `
                         <div style="padding:12px 16px;background:var(--bg-secondary);border-radius:var(--radius-md);display:flex;justify-content:space-between;align-items:center;gap:12px;">
                             <div style="display:flex;align-items:center;gap:12px;min-width:0;flex:1;">
-                                <div style="font-size:20px;flex-shrink:0;">${t.type === 'income' ? '🟢' : '🔴'}</div>
+                                <div style="flex-shrink:0;"><i class="fas fa-circle" style="font-size:11px;color:${t.type === 'income' ? '#10b981' : '#ef4444'};"></i></div>
                                 <div style="min-width:0;">
                                     <div style="font-weight:600;font-size:14px;color:var(--text-primary);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${t.concept}</div>
                                     <div style="font-size:12px;color:var(--text-tertiary);display:flex;align-items:center;gap:6px;flex-wrap:wrap;margin-top:2px;">
@@ -992,7 +992,7 @@ function renderGoalsTabHtml(txs, netBalance) {
     return `
         <div class="summary-cards" style="grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));">
             <div class="summary-card">
-                <div class="summary-icon">🎯</div>
+                <div class="summary-icon"><i class="fas fa-bullseye"></i></div>
                 <div class="summary-info">
                     <h3>Metas Activas</h3>
                     <div class="summary-value">${goals.length}</div>
@@ -1000,7 +1000,7 @@ function renderGoalsTabHtml(txs, netBalance) {
                 </div>
             </div>
             <div class="summary-card">
-                <div class="summary-icon">🏆</div>
+                <div class="summary-icon"><i class="fas fa-trophy"></i></div>
                 <div class="summary-info">
                     <h3>Metas Alcanzadas</h3>
                     <div class="summary-value" style="color:#4dab87;">${completedGoals} / ${goals.length}</div>
@@ -1008,7 +1008,7 @@ function renderGoalsTabHtml(txs, netBalance) {
                 </div>
             </div>
             <div class="summary-card priority">
-                <div class="summary-icon">📅</div>
+                <div class="summary-icon"><i class="fas fa-calendar-alt"></i></div>
                 <div class="summary-info">
                     <h3>Ingresos Mes En Curso</h3>
                     <div class="summary-value" style="color:var(--accent-primary);">$${currentMonthIncomeSum.toFixed(2)}</div>
@@ -1027,7 +1027,7 @@ function renderGoalsTabHtml(txs, netBalance) {
 
             ${goalsWithProgress.length === 0 ? `
                 <div class="empty-state">
-                    <div class="empty-icon">🎯</div>
+                    <div class="empty-icon"><i class="fas fa-bullseye"></i></div>
                     <p>No tienes metas financieras registradas. ¡Crea una para motivar el crecimiento de tu consulta!</p>
                 </div>
             ` : `
@@ -1037,7 +1037,7 @@ function renderGoalsTabHtml(txs, netBalance) {
                             <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:12px;">
                                 <div>
                                     <span style="font-size:11px;font-weight:700;text-transform:uppercase;padding:2px 8px;border-radius:10px;background:var(--accent-light);color:var(--accent-primary);display:inline-block;margin-bottom:6px;">
-                                        ${g.period === 'monthly' ? '📅 Mensual' : '🏁 Total / Acumulado'}
+                                        ${g.period === 'monthly' ? 'Mensual' : 'Total / Acumulado'}
                                     </span>
                                     <h3 style="margin:0;font-size:16px;color:var(--text-primary);font-weight:700;">${g.title}</h3>
                                     ${g.description ? `<p style="margin:4px 0 0 0;font-size:12px;color:var(--text-tertiary);">${g.description}</p>` : ''}
@@ -1062,7 +1062,7 @@ function renderGoalsTabHtml(txs, netBalance) {
 
                                 <div style="display:flex;justify-content:space-between;align-items:center;font-size:12px;color:var(--text-tertiary);">
                                     <span>${g.pct}% Alcanzado</span>
-                                    <span>${g.pct >= 100 ? '🎉 ¡Meta Cumplida!' : g.isSessionsUnit ? `Faltan ${Math.max(0, Math.round(Number(g.targetAmount || 0) - Number(g.currentVal || 0)))} sesiones` : `Faltan $${Number(Math.max(0, Number(g.targetAmount || 0) - Number(g.currentVal || 0))).toFixed(2)}`}</span>
+                                    <span>${g.pct >= 100 ? 'Meta Cumplida' : g.isSessionsUnit ? `Faltan ${Math.max(0, Math.round(Number(g.targetAmount || 0) - Number(g.currentVal || 0)))} sesiones` : `Faltan $${Number(Math.max(0, Number(g.targetAmount || 0) - Number(g.currentVal || 0))).toFixed(2)}`}</span>
                                 </div>
                             </div>
                         </div>
@@ -1096,9 +1096,9 @@ function openGoalModal(goalId = null) {
                 <div class="form-group">
                     <label>Tipo de Indicador *</label>
                     <select id="goalCategory">
-                        <option value="income" ${g && g.category === 'income' ? 'selected' : ''}>💵 Ingresos Totales ($)</option>
-                        <option value="sessions" ${g && g.category === 'sessions' ? 'selected' : ''}>👥 Cantidad de Sesiones Atendidas</option>
-                        <option value="balance" ${g && g.category === 'balance' ? 'selected' : ''}>⚖️ Balance Neto de la Consulta ($)</option>
+                        <option value="income" ${g && g.category === 'income' ? 'selected' : ''}>Ingresos Totales ($)</option>
+                        <option value="sessions" ${g && g.category === 'sessions' ? 'selected' : ''}>Cantidad de Sesiones Atendidas</option>
+                        <option value="balance" ${g && g.category === 'balance' ? 'selected' : ''}>Balance Neto de la Consulta ($)</option>
                     </select>
                 </div>
             </div>
@@ -1106,8 +1106,8 @@ function openGoalModal(goalId = null) {
                 <div class="form-group">
                     <label>Período *</label>
                     <select id="goalPeriod">
-                        <option value="monthly" ${g && g.period === 'monthly' ? 'selected' : ''}>📅 Mensual (Sincronizado con el mes en curso)</option>
-                        <option value="total" ${g && g.period === 'total' ? 'selected' : ''}>🏁 Total Acumulado</option>
+                        <option value="monthly" ${g && g.period === 'monthly' ? 'selected' : ''}>Mensual (Sincronizado con el mes en curso)</option>
+                        <option value="total" ${g && g.period === 'total' ? 'selected' : ''}>Total Acumulado</option>
                     </select>
                 </div>
             </div>
@@ -1166,7 +1166,7 @@ function deleteFinanceGoal(goalId) {
             goals = goals.filter(g => String(g.id) !== String(goalId));
             saveFinanceGoals(goals);
             renderFinanceView();
-            showToast('🗑️ Meta eliminada', 'info');
+            showToast('Meta eliminada', 'info');
         }
     );
 }
@@ -1357,9 +1357,9 @@ function openRateModal(rateId = null) {
                 <div class="form-group" style="flex:1;">
                     <label>Moneda de la Tarifa *</label>
                     <select id="rateCurrency" onchange="onRateCurrencyChange()">
-                        <option value="USD" ${initialCurrency === 'USD' ? 'selected' : ''}>💵 Divisas ($ USD)</option>
-                        <option value="EUR" ${initialCurrency === 'EUR' ? 'selected' : ''}>💶 Euros (€ EUR)</option>
-                        <option value="VES" ${initialCurrency === 'VES' ? 'selected' : ''}>🇻🇪 Bolívares (Bs. VES)</option>
+                        <option value="USD" ${initialCurrency === 'USD' ? 'selected' : ''}>Divisas ($ USD)</option>
+                        <option value="EUR" ${initialCurrency === 'EUR' ? 'selected' : ''}>Euros (€ EUR)</option>
+                        <option value="VES" ${initialCurrency === 'VES' ? 'selected' : ''}>Bolívares (Bs. VES)</option>
                     </select>
                 </div>
             </div>
@@ -1373,7 +1373,7 @@ function openRateModal(rateId = null) {
                     <label>Tasa de Cambio para Sesiones *</label>
                     <select id="rateExchangeRateType" onchange="onRateExchangeRateTypeChange()">
                         <option value="current" ${!hasCustomRate ? 'selected' : ''}>⭐ Mi Tasa Actual (${(bcv.usdRate || 888.89).toFixed(2)} Bs.)</option>
-                        <option value="custom" ${hasCustomRate ? 'selected' : ''}>✏️ Tasa Personalizada para esta Tarifa</option>
+                        <option value="custom" ${hasCustomRate ? 'selected' : ''}>Tasa Personalizada para esta Tarifa</option>
                     </select>
                 </div>
             </div>
@@ -1474,7 +1474,7 @@ function deleteRate(rateId) {
             rates = rates.filter(r => String(r.id) !== String(rateId));
             saveFinanceRates(rates);
             renderFinanceView();
-            showToast('🗑️ Tarifa eliminada', 'info');
+            showToast('Tarifa eliminada', 'info');
         }
     );
 }
@@ -1553,9 +1553,9 @@ function openTransactionModal(type = 'income') {
                 <div class="form-group" style="flex:1;">
                     <label>Moneda de Pago *</label>
                     <select id="txCurrency" onchange="onTransactionCurrencyChange()">
-                        <option value="VES" selected>🇻🇪 Bolívares (Bs. VES)</option>
-                        <option value="USD">💵 Divisas ($ USD)</option>
-                        <option value="EUR">💶 Euros (€ EUR)</option>
+                        <option value="VES" selected>Bolívares (Bs. VES)</option>
+                        <option value="USD">Divisas ($ USD)</option>
+                        <option value="EUR">Euros (€ EUR)</option>
                     </select>
                 </div>
                 <div class="form-group" style="flex:1.5;">
@@ -1581,15 +1581,15 @@ function openTransactionModal(type = 'income') {
                 <div class="form-group">
                     <label>Forma de Pago</label>
                     <select id="txPaymentMethod">
-                        <option value="Pago Móvil">📲 Pago Móvil (Bs.)</option>
-                        <option value="Transferencia Bancaria Nacional">🏦 Transferencia Bancaria Bs.</option>
-                        <option value="Efectivo Bolívares">💵 Efectivo Bolívares</option>
-                        <option value="Punto de Venta / Tarjeta">💳 Punto de Venta / Tarjeta</option>
-                        <option value="Zelle">💵 Zelle (USD)</option>
-                        <option value="Efectivo Divisas">💵 Efectivo Divisas ($ USD)</option>
-                        <option value="Efectivo Euros">💶 Efectivo Euros (€ EUR)</option>
-                        <option value="Binance Pay">🟡 Binance Pay (USDT)</option>
-                        <option value="Transferencia Internacional">🌐 Transferencia Internacional</option>
+                        <option value="Pago Móvil">Pago Móvil (Bs.)</option>
+                        <option value="Transferencia Bancaria Nacional">Transferencia Bancaria Bs.</option>
+                        <option value="Efectivo Bolívares">Efectivo Bolívares</option>
+                        <option value="Punto de Venta / Tarjeta">Punto de Venta / Tarjeta</option>
+                        <option value="Zelle">Zelle (USD)</option>
+                        <option value="Efectivo Divisas">Efectivo Divisas ($ USD)</option>
+                        <option value="Efectivo Euros">Efectivo Euros (€ EUR)</option>
+                        <option value="Binance Pay">Binance Pay (USDT)</option>
+                        <option value="Transferencia Internacional">Transferencia Internacional</option>
                     </select>
                 </div>
                 <div class="form-group">
@@ -1690,9 +1690,9 @@ function openEditTransactionModal(id) {
                 <div class="form-group" style="flex:1;">
                     <label>Moneda de Pago *</label>
                     <select id="txCurrency" onchange="onTransactionCurrencyChange()">
-                        <option value="VES" ${curr === 'VES' ? 'selected' : ''}>🇻🇪 Bolívares (Bs. VES)</option>
-                        <option value="USD" ${curr === 'USD' ? 'selected' : ''}>💵 Divisas ($ USD)</option>
-                        <option value="EUR" ${curr === 'EUR' ? 'selected' : ''}>💶 Euros (€ EUR)</option>
+                        <option value="VES" ${curr === 'VES' ? 'selected' : ''}>Bolívares (Bs. VES)</option>
+                        <option value="USD" ${curr === 'USD' ? 'selected' : ''}>Divisas ($ USD)</option>
+                        <option value="EUR" ${curr === 'EUR' ? 'selected' : ''}>Euros (€ EUR)</option>
                     </select>
                 </div>
                 <div class="form-group" style="flex:1.5;">
@@ -1718,14 +1718,14 @@ function openEditTransactionModal(id) {
                 <div class="form-group">
                     <label>Forma de Pago</label>
                     <select id="txPaymentMethod">
-                        <option value="Pago Móvil" ${tx.paymentMethod === 'Pago Móvil' ? 'selected' : ''}>📲 Pago Móvil (Bs.)</option>
-                        <option value="Transferencia Bancaria Nacional" ${tx.paymentMethod === 'Transferencia Bancaria Nacional' ? 'selected' : ''}>🏦 Transferencia Bancaria Bs.</option>
-                        <option value="Efectivo Bolívares" ${tx.paymentMethod === 'Efectivo Bolívares' ? 'selected' : ''}>💵 Efectivo Bolívares</option>
-                        <option value="Punto de Venta / Tarjeta" ${tx.paymentMethod === 'Punto de Venta / Tarjeta' ? 'selected' : ''}>💳 Punto de Venta / Tarjeta</option>
-                        <option value="Zelle" ${tx.paymentMethod === 'Zelle' ? 'selected' : ''}>💵 Zelle (USD)</option>
-                        <option value="Efectivo Divisas" ${tx.paymentMethod === 'Efectivo Divisas' ? 'selected' : ''}>💵 Efectivo Divisas ($ USD)</option>
-                        <option value="Binance Pay" ${tx.paymentMethod === 'Binance Pay' ? 'selected' : ''}>🟡 Binance Pay (USDT)</option>
-                        <option value="Transferencia Internacional" ${tx.paymentMethod === 'Transferencia Internacional' ? 'selected' : ''}>🌐 Transferencia Internacional</option>
+                        <option value="Pago Móvil" ${tx.paymentMethod === 'Pago Móvil' ? 'selected' : ''}>Pago Móvil (Bs.)</option>
+                        <option value="Transferencia Bancaria Nacional" ${tx.paymentMethod === 'Transferencia Bancaria Nacional' ? 'selected' : ''}>Transferencia Bancaria Bs.</option>
+                        <option value="Efectivo Bolívares" ${tx.paymentMethod === 'Efectivo Bolívares' ? 'selected' : ''}>Efectivo Bolívares</option>
+                        <option value="Punto de Venta / Tarjeta" ${tx.paymentMethod === 'Punto de Venta / Tarjeta' ? 'selected' : ''}>Punto de Venta / Tarjeta</option>
+                        <option value="Zelle" ${tx.paymentMethod === 'Zelle' ? 'selected' : ''}>Zelle (USD)</option>
+                        <option value="Efectivo Divisas" ${tx.paymentMethod === 'Efectivo Divisas' ? 'selected' : ''}>Efectivo Divisas ($ USD)</option>
+                        <option value="Binance Pay" ${tx.paymentMethod === 'Binance Pay' ? 'selected' : ''}>Binance Pay (USDT)</option>
+                        <option value="Transferencia Internacional" ${tx.paymentMethod === 'Transferencia Internacional' ? 'selected' : ''}>Transferencia Internacional</option>
                     </select>
                 </div>
                 <div class="form-group">
@@ -1908,7 +1908,7 @@ function handleBcvRateSettingsSubmit(e) {
 
     closeModal('financeBcvRateModal');
     renderFinanceView();
-    showToast(isManual ? '🔒 Tasa de cambio manual establecida' : '🟢 Tasa sincronizada con BCV guardada', 'success');
+    showToast(isManual ? 'Tasa de cambio manual establecida' : 'Tasa sincronizada con BCV guardada', 'success');
 }
 
 function deleteTransaction(id) {
@@ -1920,7 +1920,7 @@ function deleteTransaction(id) {
             txs = txs.filter(t => String(t.id) !== String(id));
             saveFinanceTransactions(txs);
             renderFinanceView();
-            showToast('🗑️ Transacción eliminada', 'info');
+            showToast('Transacción eliminada', 'info');
         }
     );
 }
@@ -1928,11 +1928,11 @@ function deleteTransaction(id) {
 function clearAllFinanceTransactions() {
     showConfirmModal(
         'Vaciar Registro Financiero',
-        '⚠️ ¿Desea eliminar TODAS las transacciones registradas en finanzas? Esta acción no se puede deshacer.',
+        '¿Desea eliminar TODAS las transacciones registradas en finanzas? Esta acción no se puede deshacer.',
         () => {
             saveFinanceTransactions([]);
             renderFinanceView();
-            showToast('🗑️ Registro de finanzas vaciado correctamente', 'info');
+            showToast('Registro de finanzas vaciado correctamente', 'info');
         }
     );
 }
@@ -2045,7 +2045,7 @@ function renderDebtsTabHtml() {
     return `
         <div class="summary-cards">
             <div class="summary-card priority">
-                <div class="summary-icon">🔴</div>
+                <div class="summary-icon"><i class="fas fa-exclamation-circle"></i></div>
                 <div class="summary-info">
                     <h3>Total Deudas Pendientes</h3>
                     <div class="summary-value" style="color:#e16259;">$${Number(totalPending || 0).toFixed(2)}</div>
@@ -2053,7 +2053,7 @@ function renderDebtsTabHtml() {
                 </div>
             </div>
             <div class="summary-card">
-                <div class="summary-icon">👥</div>
+                <div class="summary-icon"><i class="fas fa-users"></i></div>
                 <div class="summary-info">
                     <h3>Pacientes con Deuda</h3>
                     <div class="summary-value">${debts.length}</div>
@@ -2061,7 +2061,7 @@ function renderDebtsTabHtml() {
                 </div>
             </div>
             <div class="summary-card">
-                <div class="summary-icon">📅</div>
+                <div class="summary-icon"><i class="fas fa-calendar-alt"></i></div>
                 <div class="summary-info">
                     <h3>Sesiones Impagadas</h3>
                     <div class="summary-value">${totalSessions}</div>
@@ -2077,7 +2077,7 @@ function renderDebtsTabHtml() {
 
             ${debts.length === 0 ? `
                 <div class="empty-state">
-                    <div class="empty-icon">✅</div>
+                    <div class="empty-icon"><i class="fas fa-check-circle"></i></div>
                     <p>¡Excelente! No hay cuentas ni honorarios pendientes de cobro.</p>
                 </div>
             ` : `
@@ -2087,8 +2087,8 @@ function renderDebtsTabHtml() {
                             <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;">
                                 <div>
                                     <h3 style="margin:0;font-size:17px;font-weight:700;color:var(--text-primary);display:flex;align-items:center;gap:8px;">
-                                        👤 ${d.patientName}
-                                        ${d.patientPhone ? `<span style="font-size:12px;font-weight:500;color:var(--text-tertiary);">📞 ${d.patientPhone}</span>` : ''}
+                                        ${d.patientName}
+                                        ${d.patientPhone ? `<span style="font-size:12px;font-weight:500;color:var(--text-tertiary);"><i class="fas fa-phone"></i> ${d.patientPhone}</span>` : ''}
                                     </h3>
                                     <p style="margin:4px 0 0 0;font-size:12px;color:var(--text-secondary);">
                                         ${(d.appointments || []).length} sesión(es) impagada(s)
@@ -2119,11 +2119,11 @@ function renderDebtsTabHtml() {
                                     const aVES = convertCurrency(a.amount, aCurr, 'VES', a.exchangeRate);
                                     return `
                                     <div style="display:flex;justify-content:space-between;align-items:center;font-size:13px;">
-                                        <span>🗓️ <strong>${formatDate(a.date)}</strong> (${a.time || 'Sesión'}) · ${a.type || 'Individual'}</span>
+                                        <span><strong>${formatDate(a.date)}</strong> (${a.time || 'Sesión'}) · ${a.type || 'Individual'}</span>
                                         <div style="display:flex;align-items:center;gap:8px;">
                                             <strong style="color:var(--text-primary);">${aSym}${Number(a.amount || 0).toFixed(2)} <span style="font-size:11px;font-weight:500;color:var(--text-tertiary);">(≈ Bs. ${aVES.toLocaleString('es-VE', {minimumFractionDigits: 2, maximumFractionDigits: 2})})</span></strong>
                                             <button class="btn-secondary btn-sm" onclick="settlePatientDebt('${d.patientId}', '${a.id}')" title="Marcar esta sesión como pagada">
-                                                💵 Saldar Cita
+                                                Saldar Cita
                                             </button>
                                         </div>
                                     </div>
@@ -2254,7 +2254,7 @@ function renderPortalPaymentsTabHtml(reports = []) {
                 </div>
             </div>
             <div class="summary-card">
-                <div class="summary-icon">✅</div>
+                <div class="summary-icon"><i class="fas fa-check-circle"></i></div>
                 <div class="summary-info">
                     <h3>Pagos Aprobados</h3>
                     <div class="summary-value" style="color:#059669;">${approved.length}</div>
@@ -2262,7 +2262,7 @@ function renderPortalPaymentsTabHtml(reports = []) {
                 </div>
             </div>
             <div class="summary-card">
-                <div class="summary-icon">📑</div>
+                <div class="summary-icon"><i class="fas fa-file-invoice"></i></div>
                 <div class="summary-info">
                     <h3>Total Comprobantes</h3>
                     <div class="summary-value">${safeReports.length}</div>
@@ -2281,7 +2281,7 @@ function renderPortalPaymentsTabHtml(reports = []) {
 
             ${safeReports.length === 0 ? `
                 <div class="empty-state">
-                    <div class="empty-icon">🧾</div>
+                    <div class="empty-icon"><i class="fas fa-receipt"></i></div>
                     <p>No hay comprobantes de pago reportados por tus pacientes aún.</p>
                 </div>
             ` : `
@@ -2291,7 +2291,7 @@ function renderPortalPaymentsTabHtml(reports = []) {
                         const isPending = status === 'pendiente';
                         const isApproved = status === 'aprobado' || status === 'verificado';
                         const badgeColor = isApproved ? 'background:#d1fae5; color:#065f46;' : (isPending ? 'background:#fef3c7; color:#92400e;' : 'background:#fee2e2; color:#991b1b;');
-                        const statusLabel = isApproved ? 'Aprobado ✓' : (isPending ? 'Pendiente ⏳' : 'Rechazado ✕');
+                        const statusLabel = isApproved ? 'Aprobado' : (isPending ? 'Pendiente' : 'Rechazado');
                         const pName = pay.patientName || pay.patient_name || 'Paciente';
                         const pId = pay.patientId || pay.patient_id || '';
 
@@ -2300,7 +2300,7 @@ function renderPortalPaymentsTabHtml(reports = []) {
                                 <div style="display:flex; flex-direction:column; gap:4px; min-width:240px; flex:1;">
                                     <div style="display:flex; align-items:center; gap:10px; flex-wrap:wrap;">
                                         <h3 style="margin:0; font-size:16px; font-weight:700; color:var(--text-primary); cursor:pointer;" onclick="viewPatientDetail('${pId}')" title="Ver expediente del paciente">
-                                            👤 ${_esc(pName)}
+                                            ${_esc(pName)}
                                         </h3>
                                         <span style="font-size:11px; padding:2px 8px; border-radius:10px; font-weight:700; ${badgeColor}">
                                             ${statusLabel}
@@ -2360,7 +2360,7 @@ function sendPaymentReminderWhatsApp(patientId) {
         return `${formatDate(a.date)} (${a.time || 'Sesión'}) - ${aSym}${aAmt.toFixed(2)} ${aCurr} (≈ Bs. ${aVES.toLocaleString('es-VE', {minimumFractionDigits:2, maximumFractionDigits:2})})`;
     }).join('\n• ');
 
-    const message = `Hola ${patientDebt.patientName}, espero que te encuentres muy bien. 👋\n\nTe escribo para hacer un cordial recordatorio sobre el pago pendiente de las siguientes sesiones de consulta psicológica con ${therapistName}:\n\n• ${datesList}\n\n📌 *Monto Total Pendiente: ${dSym}${totalAmount.toFixed(2)} ${dCurr} (o Bs. ${totalVES.toLocaleString('es-VE', {minimumFractionDigits: 2, maximumFractionDigits: 2})} a la tasa de consulta: ${Number(bcv.usdRate || 888.89).toLocaleString('es-VE', {minimumFractionDigits:2, maximumFractionDigits:2})} Bs.)*\n\n💡 *Formas de Pago:*\n• Pago Móvil o Transferencia en Bolívares\n• Divisas en efectivo, Zelle o Transferencia\n\nPor favor infórmame al realizar el pago adjuntando el comprobante o referencia. ¡Quedo atento/a a tus comentarios! 😊`;
+    const message = `Hola ${patientDebt.patientName}, espero que se encuentre muy bien.\n\nTe escribo para hacer un cordial recordatorio sobre el pago pendiente de las siguientes sesiones de consulta psicológica con ${therapistName}:\n\n• ${datesList}\n\n*Monto Total Pendiente: ${dSym}${totalAmount.toFixed(2)} ${dCurr} (o Bs. ${totalVES.toLocaleString('es-VE', {minimumFractionDigits: 2, maximumFractionDigits: 2})} a la tasa de consulta: ${Number(bcv.usdRate || 888.89).toLocaleString('es-VE', {minimumFractionDigits:2, maximumFractionDigits:2})} Bs.)*\n\n*Formas de Pago:*\n• Pago Móvil o Transferencia en Bolívares\n• Divisas en efectivo, Zelle o Transferencia\n\nPor favor infórmame al realizar el pago adjuntando el comprobante o referencia. Quedo atento/a a sus comentarios.`;
 
     const encodedMsg = encodeURIComponent(message);
     const rawPhone = (patientDebt.patientPhone || '').replace(/\D/g, '');
@@ -2369,7 +2369,7 @@ function sendPaymentReminderWhatsApp(patientId) {
         window.open(`https://wa.me/${rawPhone}?text=${encodedMsg}`, '_blank');
     } else {
         navigator.clipboard.writeText(message);
-        showToast('📋 Número no válido para WhatsApp directo. Mensaje de cobro copiado al portapapeles.', 'info');
+        showToast('Número no válido para WhatsApp directo. Mensaje de cobro copiado al portapapeles.', 'info');
     }
 }
 
@@ -2392,10 +2392,10 @@ function copyPaymentReminderText(patientId) {
         return `${formatDate(a.date)} (${a.time || 'Sesión'}) - ${aSym}${aAmt.toFixed(2)} ${aCurr} (≈ Bs. ${aVES.toLocaleString('es-VE', {minimumFractionDigits:2, maximumFractionDigits:2})})`;
     }).join('\n• ');
 
-    const message = `Hola ${patientDebt.patientName}, espero que te encuentres muy bien. 👋\n\nTe escribo para hacer un cordial recordatorio sobre el pago pendiente de las siguientes sesiones de consulta psicológica con ${therapistName}:\n\n• ${datesList}\n\n📌 *Monto Total Pendiente: ${dSym}${totalAmount.toFixed(2)} ${dCurr} (o Bs. ${totalVES.toLocaleString('es-VE', {minimumFractionDigits: 2, maximumFractionDigits: 2})} a la tasa de consulta: ${Number(bcv.usdRate || 888.89).toLocaleString('es-VE', {minimumFractionDigits:2, maximumFractionDigits:2})} Bs.)*\n\n💡 *Formas de Pago:*\n• Pago Móvil o Transferencia en Bolívares\n• Divisas en efectivo, Zelle o Transferencia\n\nPor favor infórmame al realizar el pago. ¡Quedo atento/a! 😊`;
+    const message = `Hola ${patientDebt.patientName}, espero que se encuentre muy bien.\n\nTe escribo para hacer un cordial recordatorio sobre el pago pendiente de las siguientes sesiones de consulta psicológica con ${therapistName}:\n\n• ${datesList}\n\n*Monto Total Pendiente: ${dSym}${totalAmount.toFixed(2)} ${dCurr} (o Bs. ${totalVES.toLocaleString('es-VE', {minimumFractionDigits: 2, maximumFractionDigits: 2})} a la tasa de consulta: ${Number(bcv.usdRate || 888.89).toLocaleString('es-VE', {minimumFractionDigits:2, maximumFractionDigits:2})} Bs.)*\n\n*Formas de Pago:*\n• Pago Móvil o Transferencia en Bolívares\n• Divisas en efectivo, Zelle o Transferencia\n\nPor favor infórmame al realizar el pago. Quedo atento/a.`;
 
     navigator.clipboard.writeText(message);
-    showToast('📋 Mensaje de cobro copiado al portapapeles', 'success');
+    showToast('Mensaje de cobro copiado al portapapeles', 'success');
 }
 
 function settlePatientDebt(patientId, appointmentId = null) {
@@ -2453,7 +2453,7 @@ function settlePatientDebt(patientId, appointmentId = null) {
     if (typeof saveData === 'function') saveData();
     const firstCurr = (appsToSettle[0] && appsToSettle[0].currency) ? appsToSettle[0].currency : 'USD';
     const sym = firstCurr === 'EUR' ? '€' : (firstCurr === 'VES' ? 'Bs.' : '$');
-    showToast(`✅ Pago saldado: ${sym}${Number(totalSettled || 0).toFixed(2)} ${firstCurr} (${patient ? (patient.name || 'Paciente') : 'Paciente'})`, 'success');
+    showToast(`Pago saldado: ${sym}${Number(totalSettled || 0).toFixed(2)} ${firstCurr} (${patient ? (patient.name || 'Paciente') : 'Paciente'})`, 'success');
 
     if (state.currentView === 'finance') renderFinanceView();
     if (state.currentView === 'patients' && typeof renderPatients === 'function') renderPatients();
@@ -2471,7 +2471,7 @@ function settleAllPatientDebtsGlobal() {
             debts.forEach(d => {
                 settlePatientDebt(d.patientId);
             });
-            showToast('✅ Todas las deudas han sido saldadas correctamente', 'success');
+            showToast('Todas las deudas han sido saldadas correctamente', 'success');
         }
     );
 }

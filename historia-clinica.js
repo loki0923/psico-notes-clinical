@@ -301,7 +301,7 @@ const ClinicalHistorySystem = {
         return `
             <div class="clinical-history-toolbar">
                 <div class="cht-title">
-                    <span class="cht-badge">🧒 Historia Clínica Infantil (7 Pág. Oficial)</span>
+                    <span class="cht-badge">Historia Clínica Infantil (7 Pág. Oficial)</span>
                     <small>Modelo Oficial Protocolizado · ${therapist.name} (${therapist.specialty}${regInfo})</small>
                 </div>
                 <div class="cht-actions">
@@ -345,7 +345,7 @@ const ClinicalHistorySystem = {
                     <div class="hist-acc-header" onclick="ClinicalHistorySystem.toggleAccordion('acc_sec_1')">
                         <div class="hist-acc-title">
                             <span class="acc-num">1</span>
-                            <strong>📋 Datos de Identificación del Paciente & Convivencia</strong>
+                            <strong>Datos de Identificación del Paciente & Convivencia</strong>
                         </div>
                         <i class="fas fa-chevron-down acc-arrow"></i>
                     </div>
@@ -409,7 +409,7 @@ const ClinicalHistorySystem = {
                     <div class="hist-acc-header" onclick="ClinicalHistorySystem.toggleAccordion('acc_sec_2')">
                         <div class="hist-acc-title">
                             <span class="acc-num">2</span>
-                            <strong>👁️ Motivo de Consulta & Examen Mental</strong>
+                            <strong>Motivo de Consulta & Examen Mental</strong>
                         </div>
                         <i class="fas fa-chevron-down acc-arrow"></i>
                     </div>
@@ -442,7 +442,7 @@ const ClinicalHistorySystem = {
                         </div>
 
                         <!-- HIPÓTESIS BIOPSICOSOCIALES Y FACTORES (TC-CHILD-01) -->
-                        <div class="hist-sub-heading" style="margin-top:18px;">💡 Formulación Clínica e Hipótesis Biopsicosociales</div>
+                        <div class="hist-sub-heading" style="margin-top:18px;">Formulación Clínica e Hipótesis Biopsicosociales</div>
                         <div style="display:grid;grid-template-columns:repeat(auto-fit, minmax(260px, 1fr));gap:12px;margin-bottom:12px;">
                             <div style="background:var(--bg-secondary);padding:12px;border-radius:8px;border-left:4px solid #10b981;">
                                 <div style="font-weight:700;font-size:12px;color:var(--text-secondary);text-transform:uppercase;">Hipótesis Biológica</div>
@@ -476,7 +476,7 @@ const ClinicalHistorySystem = {
                     <div class="hist-acc-header" onclick="ClinicalHistorySystem.toggleAccordion('acc_sec_3')">
                         <div class="hist-acc-title">
                             <span class="acc-num">3</span>
-                            <strong>🏥 Antecedentes Médicos, Psiquiátricos y Pedagógicos</strong>
+                            <strong>Antecedentes Médicos, Psiquiátricos y Pedagógicos</strong>
                         </div>
                         <i class="fas fa-chevron-down acc-arrow"></i>
                     </div>
@@ -508,7 +508,7 @@ const ClinicalHistorySystem = {
                     <div class="hist-acc-header" onclick="ClinicalHistorySystem.toggleAccordion('acc_sec_4')">
                         <div class="hist-acc-title">
                             <span class="acc-num">4</span>
-                            <strong>🌱 Neurodesarrollo Prenatal, Parto, Hitos y Escolaridad</strong>
+                            <strong>Neurodesarrollo Prenatal, Parto, Hitos y Escolaridad</strong>
                         </div>
                         <i class="fas fa-chevron-down acc-arrow"></i>
                     </div>
@@ -574,7 +574,7 @@ const ClinicalHistorySystem = {
                     <div class="hist-acc-header" onclick="ClinicalHistorySystem.toggleAccordion('acc_sec_5')">
                         <div class="hist-acc-title">
                             <span class="acc-num">5</span>
-                            <strong>🏡 Dinámica Familiar, Social y Vivienda</strong>
+                            <strong>Dinámica Familiar, Social y Vivienda</strong>
                         </div>
                         <i class="fas fa-chevron-down acc-arrow"></i>
                     </div>
@@ -613,7 +613,7 @@ const ClinicalHistorySystem = {
                     <div class="hist-acc-header" onclick="ClinicalHistorySystem.toggleAccordion('acc_sec_6')">
                         <div class="hist-acc-title">
                             <span class="acc-num">6</span>
-                            <strong>⚡ Hábitos Psicobiológicos</strong>
+                            <strong>Hábitos Psicobiológicos</strong>
                         </div>
                         <i class="fas fa-chevron-down acc-arrow"></i>
                     </div>
@@ -641,7 +641,7 @@ const ClinicalHistorySystem = {
                     <div class="hist-acc-header" onclick="ClinicalHistorySystem.toggleAccordion('acc_sec_7')">
                         <div class="hist-acc-title">
                             <span class="acc-num">7</span>
-                            <strong>🎯 Metas y Proyecto de Vida</strong>
+                            <strong>Metas y Proyecto de Vida</strong>
                         </div>
                         <i class="fas fa-chevron-down acc-arrow"></i>
                     </div>
@@ -673,7 +673,7 @@ const ClinicalHistorySystem = {
         return `
             <div class="clinical-history-toolbar">
                 <div class="cht-title">
-                    <span class="cht-badge">🧑 Historia Clínica Adolescente</span>
+                    <span class="cht-badge">Historia Clínica Adolescente</span>
                     <small>Modelo Oficial Protocolizado · ${therapist.name} (${therapist.specialty}${regInfo})</small>
                 </div>
                 <div class="cht-actions">
@@ -715,7 +715,7 @@ const ClinicalHistorySystem = {
                     <div class="hist-acc-header" onclick="ClinicalHistorySystem.toggleAccordion('acc_teen_1')">
                         <div class="hist-acc-title">
                             <span class="acc-num">1</span>
-                            <strong>📋 Ficha del Paciente (Adolescente)</strong>
+                            <strong>Ficha del Paciente (Adolescente)</strong>
                         </div>
                         <i class="fas fa-chevron-down acc-arrow"></i>
                     </div>
@@ -744,7 +744,7 @@ const ClinicalHistorySystem = {
                     <div class="hist-acc-header" onclick="ClinicalHistorySystem.toggleAccordion('acc_teen_2')">
                         <div class="hist-acc-title">
                             <span class="acc-num">2</span>
-                            <strong>🛡️ Ficha del Representante / Tutor Legal</strong>
+                            <strong>Ficha del Representante / Tutor Legal</strong>
                         </div>
                         <i class="fas fa-chevron-down acc-arrow"></i>
                     </div>
@@ -794,7 +794,7 @@ const ClinicalHistorySystem = {
                     <div class="hist-acc-header" onclick="ClinicalHistorySystem.toggleAccordion('acc_teen_3')">
                         <div class="hist-acc-title">
                             <span class="acc-num">3</span>
-                            <strong>🧠 Información Referente a la Consulta Psicológica</strong>
+                            <strong>Información Referente a la Consulta Psicológica</strong>
                         </div>
                         <i class="fas fa-chevron-down acc-arrow"></i>
                     </div>
@@ -855,7 +855,7 @@ const ClinicalHistorySystem = {
                     <div class="hist-acc-header" onclick="ClinicalHistorySystem.toggleAccordion('acc_teen_4')">
                         <div class="hist-acc-title">
                             <span class="acc-num">4</span>
-                            <strong>🤝 Encuadre y Acuerdos de Consulta</strong>
+                            <strong>Encuadre y Acuerdos de Consulta</strong>
                         </div>
                         <i class="fas fa-chevron-down acc-arrow"></i>
                     </div>
@@ -873,7 +873,7 @@ const ClinicalHistorySystem = {
                     <div class="hist-acc-header" onclick="ClinicalHistorySystem.toggleAccordion('acc_teen_5')">
                         <div class="hist-acc-title">
                             <span class="acc-num">5</span>
-                            <strong>🧠 Examen Mental & Tríada Sintomatológica</strong>
+                            <strong>Examen Mental & Tríada Sintomatológica</strong>
                         </div>
                         <i class="fas fa-chevron-down acc-arrow"></i>
                     </div>
@@ -895,15 +895,15 @@ const ClinicalHistorySystem = {
                         </div>
                         <div class="symptom-triad-grid">
                             <div class="triad-card">
-                                <h6>🏃 Características Conductuales</h6>
+                                <h6>Características Conductuales</h6>
                                 <p>${h.symptomsBehavioral || 'Sin reporte conductual adverso'}</p>
                             </div>
                             <div class="triad-card">
-                                <h6>🎭 Características Emocionales</h6>
+                                <h6>Características Emocionales</h6>
                                 <p>${h.symptomsEmotional || 'Sin desborde emocional'}</p>
                             </div>
                             <div class="triad-card">
-                                <h6>🫀 Características Orgánicas / Somáticas</h6>
+                                <h6>Características Orgánicas / Somáticas</h6>
                                 <p>${h.symptomsOrganic || 'Sin quejas somáticas agudas'}</p>
                             </div>
                         </div>
@@ -915,7 +915,7 @@ const ClinicalHistorySystem = {
                     <div class="hist-acc-header" onclick="ClinicalHistorySystem.toggleAccordion('acc_teen_6')">
                         <div class="hist-acc-title">
                             <span class="acc-num">6</span>
-                            <strong>🩺 Antecedentes Médicos, Neurológicos & Quirúrgicos</strong>
+                            <strong>Antecedentes Médicos, Neurológicos & Quirúrgicos</strong>
                         </div>
                         <i class="fas fa-chevron-down acc-arrow"></i>
                     </div>
@@ -947,7 +947,7 @@ const ClinicalHistorySystem = {
                     <div class="hist-acc-header" onclick="ClinicalHistorySystem.toggleAccordion('acc_teen_perinatal')">
                         <div class="hist-acc-title">
                             <span class="acc-num"><i class="fas fa-baby" style="font-size:12px;"></i></span>
-                            <strong>🍼 Desarrollo Prenatal, Parto e Hitos (Primeros Años de Vida)</strong>
+                            <strong>Desarrollo Prenatal, Parto e Hitos (Primeros Años de Vida)</strong>
                         </div>
                         <i class="fas fa-chevron-down acc-arrow"></i>
                     </div>
@@ -996,7 +996,7 @@ const ClinicalHistorySystem = {
                     <div class="hist-acc-header" onclick="ClinicalHistorySystem.toggleAccordion('acc_teen_7')">
                         <div class="hist-acc-title">
                             <span class="acc-num">7</span>
-                            <strong>🏫 Área Escolar, Académica & Dinámica de Aprendizaje</strong>
+                            <strong>Área Escolar, Académica & Dinámica de Aprendizaje</strong>
                         </div>
                         <i class="fas fa-chevron-down acc-arrow"></i>
                     </div>
@@ -1035,7 +1035,7 @@ const ClinicalHistorySystem = {
                     <div class="hist-acc-header" onclick="ClinicalHistorySystem.toggleAccordion('acc_teen_8')">
                         <div class="hist-acc-title">
                             <span class="acc-num">8</span>
-                            <strong>🧑‍🎤 Áreas Vitales & Entrevista Privada con el Adolescente</strong>
+                            <strong>Áreas Vitales & Entrevista Privada con el Adolescente</strong>
                         </div>
                         <i class="fas fa-chevron-down acc-arrow"></i>
                     </div>
@@ -1057,7 +1057,7 @@ const ClinicalHistorySystem = {
                     <div class="hist-acc-header" onclick="ClinicalHistorySystem.toggleAccordion('acc_teen_9')">
                         <div class="hist-acc-title">
                             <span class="acc-num">9</span>
-                            <strong>🏠 Vivienda, Hábitos Psicobiológicos, Sueño & Fobias</strong>
+                            <strong>Vivienda, Hábitos Psicobiológicos, Sueño & Fobias</strong>
                         </div>
                         <i class="fas fa-chevron-down acc-arrow"></i>
                     </div>
@@ -1093,7 +1093,7 @@ const ClinicalHistorySystem = {
                     <div class="hist-acc-header" onclick="ClinicalHistorySystem.toggleAccordion('acc_teen_10')">
                         <div class="hist-acc-title">
                             <span class="acc-num">10</span>
-                            <strong>📑 Impresión Diagnóstica & Plan Terapéutico (CIE-10/11 & DSM-5-TR)</strong>
+                            <strong>Impresión Diagnóstica & Plan Terapéutico (CIE-10/11 & DSM-5-TR)</strong>
                         </div>
                         <i class="fas fa-chevron-down acc-arrow"></i>
                     </div>
@@ -1408,7 +1408,7 @@ const ClinicalHistorySystem = {
             return this.renderAdultHistoryIntegral(patient, h, therapist, regInfo);
         }
 
-        const stageTitle = isChild ? '🧒 Historia Clínica Infantil (7 Pág.)' : 'Historia Clínica Adulto (5 Pág.)';
+        const stageTitle = isChild ? 'Historia Clínica Infantil (7 Pág.)' : 'Historia Clínica Adulto (5 Pág.)';
 
         return `
             <div class="clinical-history-toolbar">
@@ -1454,7 +1454,7 @@ const ClinicalHistorySystem = {
                             <div><strong>Consulta previa:</strong> ${h.hasAttendedBefore === 'SI' ? `Sí (${h.previousAttendanceDate || 'Fecha no esp.'})` : 'Primera vez'}</div>
                         </div>
 
-                        <div class="hist-sub-heading">${isAdult ? 'Datos Filiatorios de los Progenitores (Padres)' : '👨‍👩‍👧 Datos Filiatorios de los Progenitores (Padres)'}</div>
+                        <div class="hist-sub-heading">${isAdult ? 'Datos Filiatorios de los Progenitores (Padres)' : 'Datos Filiatorios de los Progenitores (Padres)'}</div>
                         <div class="hist-grid-parents">
                             <div class="parent-box">
                                 <h5>Madre: ${h.motherName || 'No registrada'}</h5>
@@ -1484,7 +1484,7 @@ const ClinicalHistorySystem = {
                     <div class="hist-acc-header" onclick="ClinicalHistorySystem.toggleAccordion('acc_sec_2')">
                         <div class="hist-acc-title">
                             <span class="acc-num">2</span>
-                            <strong>${isAdult ? 'Motivo de Consulta & Situación Actual' : '👁️ Motivo de Consulta & Situación Actual'}</strong>
+                            <strong>${isAdult ? 'Motivo de Consulta & Situación Actual' : 'Motivo de Consulta & Situación Actual'}</strong>
                         </div>
                         <i class="fas fa-chevron-down acc-arrow"></i>
                     </div>
@@ -1494,11 +1494,11 @@ const ClinicalHistorySystem = {
                             <p>${patient.reason || 'Sin motivo explicitado aún.'}</p>
                         </div>
                         <div class="hist-field-block">
-                            <label>🩺 Situación / Enfermedad Actual (Historia del Problema y Evolución):</label>
+                            <label>Situación / Enfermedad Actual (Historia del Problema y Evolución):</label>
                             <p>${h.currentIllness || '<em>En proceso de indagación semiológica inicial.</em>'}</p>
                         </div>
                         <div class="hist-field-block highlight-semiology">
-                            <label>🔍 Gestualidad Observada al Explicitar el Motivo de Consulta:</label>
+                            <label>Gestualidad Observada al Explicitar el Motivo de Consulta:</label>
                             <p>${h.observedGestures || '<em>Pendiente de registro semiológico durante la entrevista de exploración.</em>'}</p>
                         </div>
                         ${h.processExpectations ? `
@@ -1514,7 +1514,7 @@ const ClinicalHistorySystem = {
                     <div class="hist-acc-header" onclick="ClinicalHistorySystem.toggleAccordion('acc_sec_3')">
                         <div class="hist-acc-title">
                             <span class="acc-num">3</span>
-                            <strong>${isAdult ? 'Examen Mental & Tríada Sintomatológica' : '🧠 Examen Mental & Tríada Sintomatológica'}</strong>
+                            <strong>${isAdult ? 'Examen Mental & Tríada Sintomatológica' : 'Examen Mental & Tríada Sintomatológica'}</strong>
                         </div>
                         <i class="fas fa-chevron-down acc-arrow"></i>
                     </div>
@@ -1536,15 +1536,15 @@ const ClinicalHistorySystem = {
                         </div>
                         <div class="symptom-triad-grid">
                             <div class="triad-card">
-                                <h6>${isAdult ? 'Características Conductuales' : '🏃 Características Conductuales'}</h6>
+                                <h6>${isAdult ? 'Características Conductuales' : 'Características Conductuales'}</h6>
                                 <p>${h.symptomsBehavioral || 'Sin reporte conductual'}</p>
                             </div>
                             <div class="triad-card">
-                                <h6>${isAdult ? 'Características Emocionales' : '🎭 Características Emocionales'}</h6>
+                                <h6>${isAdult ? 'Características Emocionales' : 'Características Emocionales'}</h6>
                                 <p>${h.symptomsEmotional || 'Sin reporte emocional'}</p>
                             </div>
                             <div class="triad-card">
-                                <h6>${isAdult ? 'Características Orgánicas / Somáticas' : '🫀 Características Orgánicas / Somáticas'}</h6>
+                                <h6>${isAdult ? 'Características Orgánicas / Somáticas' : 'Características Orgánicas / Somáticas'}</h6>
                                 <p>${h.symptomsOrganic || 'Sin reporte orgánico'}</p>
                             </div>
                         </div>
@@ -1556,7 +1556,7 @@ const ClinicalHistorySystem = {
                     <div class="hist-acc-header" onclick="ClinicalHistorySystem.toggleAccordion('acc_sec_4')">
                         <div class="hist-acc-title">
                             <span class="acc-num">4</span>
-                            <strong>${isAdult ? 'Antecedentes Médicos, Neurológicos & Quirúrgicos' : '🩺 Antecedentes Médicos, Neurológicos & Quirúrgicos'}</strong>
+                            <strong>${isAdult ? 'Antecedentes Médicos, Neurológicos & Quirúrgicos' : 'Antecedentes Médicos, Neurológicos & Quirúrgicos'}</strong>
                         </div>
                         <i class="fas fa-chevron-down acc-arrow"></i>
                     </div>
@@ -1584,7 +1584,7 @@ const ClinicalHistorySystem = {
                     <div class="hist-acc-header" onclick="ClinicalHistorySystem.toggleAccordion('acc_sec_5')">
                         <div class="hist-acc-title">
                             <span class="acc-num">5</span>
-                            <strong>🍼 Neurodesarrollo Prenatal, Parto e Hitos 0-3 años</strong>
+                            <strong>Neurodesarrollo Prenatal, Parto e Hitos 0-3 años</strong>
                         </div>
                         <i class="fas fa-chevron-down acc-arrow"></i>
                     </div>
@@ -1603,7 +1603,7 @@ const ClinicalHistorySystem = {
                             <div><strong>Reanimación:</strong> ${h.resuscitation}</div>
                             <div><strong>Incubadora:</strong> ${h.incubator}</div>
                         </div>
-                        <div class="hist-sub-heading">🌱 Hitos del Primer Año y Psicomotricidad</div>
+                        <div class="hist-sub-heading">Hitos del Primer Año y Psicomotricidad</div>
                         <div class="milestones-chips">
                             <span>Sostén cefálico: <b>${h.headControl || 'Normal'}</b></span>
                             <span>Sedestación: <b>${h.sittingAge || '6m'}</b></span>
@@ -1622,7 +1622,7 @@ const ClinicalHistorySystem = {
                     <div class="hist-acc-header" onclick="ClinicalHistorySystem.toggleAccordion('acc_sec_6')">
                         <div class="hist-acc-title">
                             <span class="acc-num">6</span>
-                            <strong>🏫 Escolaridad, Rendimiento & Apoyo Escolar</strong>
+                            <strong>Escolaridad, Rendimiento & Apoyo Escolar</strong>
                         </div>
                         <i class="fas fa-chevron-down acc-arrow"></i>
                     </div>
@@ -1654,13 +1654,13 @@ const ClinicalHistorySystem = {
                     <div class="hist-acc-header" onclick="ClinicalHistorySystem.toggleAccordion('acc_sec_7')">
                         <div class="hist-acc-title">
                             <span class="acc-num">7</span>
-                            <strong>🧑‍🎤 Entrevista Confidencial con el Adolescente</strong>
+                            <strong>Entrevista Confidencial con el Adolescente</strong>
                         </div>
                         <i class="fas fa-chevron-down acc-arrow"></i>
                     </div>
                     <div class="hist-acc-body">
                         <div class="teen-confidential-banner">
-                            🔒 <strong>Espacio Reservado:</strong> Declaraciones directas del adolescente en el marco de la alianza terapéutica y el secreto profesional.
+                            <strong>Espacio Reservado:</strong> Declaraciones directas del adolescente en el marco de la alianza terapéutica y el secreto profesional.
                         </div>
                         <div class="hist-field-block">
                             <label>Vivencia de su Infancia (Según el Adolescente):</label>
@@ -1712,7 +1712,7 @@ const ClinicalHistorySystem = {
                     <div class="hist-acc-header" onclick="ClinicalHistorySystem.toggleAccordion('acc_sec_8')">
                         <div class="hist-acc-title">
                             <span class="acc-num">8</span>
-                            <strong>${isAdult ? 'Vivienda, Hábitos Psicobiológicos, Sueño & Fobias' : '🏠 Vivienda, Hábitos Psicobiológicos, Sueño & Fobias'}</strong>
+                            <strong>${isAdult ? 'Vivienda, Hábitos Psicobiológicos, Sueño & Fobias' : 'Vivienda, Hábitos Psicobiológicos, Sueño & Fobias'}</strong>
                         </div>
                         <i class="fas fa-chevron-down acc-arrow"></i>
                     </div>
@@ -1724,7 +1724,7 @@ const ClinicalHistorySystem = {
                             <div><strong>Convivientes Hogar:</strong> Adultos: ${h.occupantsAdultsM}M/${h.occupantsAdultsF}F · Jóvenes: ${h.occupantsTeensM}M/${h.occupantsTeensF}F · Niños: ${h.occupantsChildrenM}M/${h.occupantsChildrenF}F</div>
                         </div>
 
-                        <div class="hist-sub-heading">${isAdult ? 'Hábitos Psicobiológicos y Patrones Conductuales' : '🌿 Hábitos Psicobiológicos y Patrones Conductuales'}</div>
+                        <div class="hist-sub-heading">${isAdult ? 'Hábitos Psicobiológicos y Patrones Conductuales' : 'Hábitos Psicobiológicos y Patrones Conductuales'}</div>
                         <table class="hist-table-medical">
                             <tr><th>Indicador</th><th>Observación Clínica</th></tr>
                             <tr><td>Consumos / Adicciones (Alcohol, Nicotina, Pantallas, Drogas)</td><td>${h.addictions || 'Negativo'}</td></tr>
@@ -1745,7 +1745,7 @@ const ClinicalHistorySystem = {
                     <div class="hist-acc-header" onclick="ClinicalHistorySystem.toggleAccordion('acc_sec_9')">
                         <div class="hist-acc-title">
                             <span class="acc-num">9</span>
-                            <strong>${isAdult ? 'Impresión Diagnóstica & Plan Terapéutico (CIE-10/11 & DSM-5-TR)' : '📑 Impresión Diagnóstica & Plan Terapéutico (CIE-10/11 & DSM-5-TR)'}</strong>
+                            <strong>${isAdult ? 'Impresión Diagnóstica & Plan Terapéutico (CIE-10/11 & DSM-5-TR)' : 'Impresión Diagnóstica & Plan Terapéutico (CIE-10/11 & DSM-5-TR)'}</strong>
                         </div>
                         <i class="fas fa-chevron-down acc-arrow"></i>
                     </div>
@@ -1874,7 +1874,7 @@ const ClinicalHistorySystem = {
             <div class="modal-content modal-xl" style="max-height:92vh;display:flex;flex-direction:column;overflow:hidden;">
                 <div class="modal-header" style="flex-shrink:0;">
                     <div>
-                        <h2 style="margin:0;">🧒 Historia Clínica Infantil — ${patient.name}</h2>
+                        <h2 style="margin:0;">Historia Clínica Infantil — ${patient.name}</h2>
                         <small style="color:var(--text-tertiary);">Formato Oficial Protocolizado (7 Páginas) · ${therapistTag}</small>
                     </div>
                     <button class="btn-icon" onclick="closeModal('fullHistoryModal')"><i class="fas fa-times"></i></button>
@@ -2457,7 +2457,7 @@ const ClinicalHistorySystem = {
             <div class="modal-content modal-xl" style="max-height:92vh;display:flex;flex-direction:column;overflow:hidden;">
                 <div class="modal-header" style="flex-shrink:0;">
                     <div>
-                        <h2 style="margin:0;">📑 Historia Clínica Adolescente — ${patient.name}</h2>
+                        <h2 style="margin:0;">Historia Clínica Adolescente — ${patient.name}</h2>
                         <small style="color:var(--text-tertiary);">Formato Oficial Protocolizado (7 Páginas) · ${therapistTag}</small>
                     </div>
                     <button class="btn-icon" onclick="closeModal('fullHistoryModal')"><i class="fas fa-times"></i></button>
@@ -2971,7 +2971,7 @@ const ClinicalHistorySystem = {
             <div class="modal-content modal-xl" style="max-height:92vh;display:flex;flex-direction:column;overflow:hidden;">
                 <div class="modal-header" style="flex-shrink:0;">
                     <div>
-                        <h2 style="margin:0;">📑 Historia Clínica Adulto — ${patient.name}</h2>
+                        <h2 style="margin:0;">Historia Clínica Adulto — ${patient.name}</h2>
                         <small style="color:var(--text-tertiary);">Formato Oficial Protocolizado (5 Páginas) · ${therapistTag}</small>
                     </div>
                     <button class="btn-icon" onclick="closeModal('fullHistoryModal')"><i class="fas fa-times"></i></button>
@@ -3423,7 +3423,7 @@ const ClinicalHistorySystem = {
             <div class="modal-content modal-xl" style="max-height:92vh;display:flex;flex-direction:column;overflow:hidden;">
                 <div class="modal-header" style="flex-shrink:0;">
                     <div>
-                        <h2 style="margin:0;">📑 Expediente Clínico Completo — ${patient.name}</h2>
+                        <h2 style="margin:0;">Expediente Clínico Completo — ${patient.name}</h2>
                         <small style="color:var(--text-tertiary);">Formato Oficial Protocolizado · ${therapistTag} · Etapa: ${cat === 'child' ? 'Niñez' : cat === 'adolescent' ? 'Adolescencia' : 'Adultez'}</small>
                     </div>
                     <button class="btn-icon" onclick="closeModal('fullHistoryModal')"><i class="fas fa-times"></i></button>
@@ -3500,11 +3500,11 @@ const ClinicalHistorySystem = {
                             <textarea id="fh_reason" rows="3">${patient.reason || ''}</textarea>
                         </div>
                         <div class="form-group">
-                            <label>🩺 Situación / Enfermedad Actual (Cronología, desencadenantes e impacto funcional):</label>
+                            <label>Situación / Enfermedad Actual (Cronología, desencadenantes e impacto funcional):</label>
                             <textarea id="fh_currentIllness" rows="3" placeholder="Fecha aproximada de inicio, curso continuo/episódico, factores disparadores, tratamientos previos e interferencia en la vida diaria...">${h.currentIllness || ''}</textarea>
                         </div>
                         <div class="form-group">
-                            <label>🔍 Gestualidad Observada al Explicitar el Motivo (Tensión, postura, llanto, evitación de mirada):</label>
+                            <label>Gestualidad Observada al Explicitar el Motivo (Tensión, postura, llanto, evitación de mirada):</label>
                             <textarea id="fh_observedGestures" rows="3" placeholder="Describa la gestualidad y microexpresiones registradas...">${h.observedGestures}</textarea>
                         </div>
                         <div class="form-group">
@@ -3896,7 +3896,7 @@ const ClinicalHistorySystem = {
             <div class="modal-overlay" onclick="closeModal('genogramModal')"></div>
             <div class="modal-content modal-large" style="max-width:960px;">
                 <div class="modal-header">
-                    <h2>🌳 Genograma Familiar Sistémico — ${patient.name}</h2>
+                    <h2>Genograma Familiar Sistémico — ${patient.name}</h2>
                     <button class="btn-icon" onclick="closeModal('genogramModal')"><i class="fas fa-times"></i></button>
                 </div>
                 <div style="padding:16px;">
@@ -5783,7 +5783,7 @@ const ClinicalHistorySystem = {
             <div class="modal-overlay" onclick="closeModal('preconsultaModal')"></div>
             <div class="modal-content modal-large">
                 <div class="modal-header">
-                    <h2>📲 Pre-consulta Clínica & Onboarding</h2>
+                    <h2>Pre-consulta Clínica & Onboarding</h2>
                     <button class="btn-icon" onclick="closeModal('preconsultaModal')"><i class="fas fa-times"></i></button>
                 </div>
                 <div style="padding:16px;">
@@ -5810,8 +5810,8 @@ const ClinicalHistorySystem = {
                         <div class="form-group">
                             <label>Seleccionar Etapa Vital para Pre-consulta:</label>
                             <select id="preconsultaStageSelect" onchange="ClinicalHistorySystem.updatePreconsultaLink(this.value)">
-                                <option value="adult">👤 Persona Adulta (18 reactivos individuales)</option>
-                                <option value="child_teen">🧒🧑 Niñez / Adolescencia (32 reactivos con datos de padres y nexo)</option>
+                                <option value="adult">Persona Adulta (18 reactivos individuales)</option>
+                                <option value="child_teen">Niñez / Adolescencia (32 reactivos con datos de padres y nexo)</option>
                             </select>
                         </div>
                     </div>
@@ -5876,7 +5876,7 @@ const ClinicalHistorySystem = {
             <div class="modal-overlay" onclick="closeModal('gfImportModal')"></div>
             <div class="modal-content modal-large">
                 <div class="modal-header">
-                    <h2>📥 Importar Respuestas de Google Form</h2>
+                    <h2>Importar Respuestas de Google Form</h2>
                     <button class="btn-icon" onclick="closeModal('gfImportModal')"><i class="fas fa-times"></i></button>
                 </div>
                 <div style="padding:16px;">
@@ -5956,7 +5956,7 @@ Motivo de Consulta: Dificultades de concentración y ansiedad escolar
         closeModal('preconsultaModal');
         renderPatients();
         updateCounts();
-        showToast(`✅ Expediente creado con éxito para: ${newPatient.name}`, 'success');
+        showToast(`Expediente creado con éxito para: ${newPatient.name}`, 'success');
         viewPatient(newPatient.id);
     },
 
@@ -6121,13 +6121,13 @@ Motivo de Consulta: Dificultades de concentración y ansiedad escolar
                             <span style="font-weight:700;font-size:13px;color:var(--text-primary);">Etapa Vital:</span>
                             <div style="display:flex;gap:6px;">
                                 <button type="button" class="btn-tab-toggle ${initialStage === 'child' ? 'active' : ''}" id="inapp_btn_child" onclick="ClinicalHistorySystem.setInAppStage('child')" style="padding:6px 12px;border-radius:6px;font-size:12px;font-weight:600;cursor:pointer;${initialStage === 'child' ? 'background:var(--accent-primary);color:#fff;' : ''}">
-                                    🧒 Niñez
+                                    Niñez
                                 </button>
                                 <button type="button" class="btn-tab-toggle ${initialStage === 'adolescent' ? 'active' : ''}" id="inapp_btn_adolescent" onclick="ClinicalHistorySystem.setInAppStage('adolescent')" style="padding:6px 12px;border-radius:6px;font-size:12px;font-weight:600;cursor:pointer;${initialStage === 'adolescent' ? 'background:var(--accent-primary);color:#fff;' : ''}">
-                                    🧑 Adolescencia
+                                    Adolescencia
                                 </button>
                                 <button type="button" class="btn-tab-toggle ${initialStage === 'adult' ? 'active' : ''}" id="inapp_btn_adult" onclick="ClinicalHistorySystem.setInAppStage('adult')" style="padding:6px 12px;border-radius:6px;font-size:12px;font-weight:600;cursor:pointer;${initialStage === 'adult' ? 'background:var(--accent-primary);color:#fff;' : ''}">
-                                    👤 Adulto
+                                    Adulto
                                 </button>
                             </div>
                         </div>
@@ -6597,7 +6597,7 @@ Motivo de Consulta: Dificultades de concentración y ansiedad escolar
             if (typeof saveData === 'function') saveData();
             if (typeof renderPatients === 'function') renderPatients();
             closeModal('inAppPreconsultaModal');
-            showToast(`✅ Pre-consulta clínica actualizada en el expediente de: ${targetPatient.name}`, 'success');
+            showToast(`Pre-consulta clínica actualizada en el expediente de: ${targetPatient.name}`, 'success');
             if (typeof viewPatient === 'function') viewPatient(targetPatient.id);
         } else {
             const newId = (typeof generateId === 'function') ? generateId() : ('pat_' + Date.now().toString(36));
@@ -6615,7 +6615,7 @@ Motivo de Consulta: Dificultades de concentración y ansiedad escolar
             if (typeof updateCounts === 'function') updateCounts();
             if (typeof updatePatientSelects === 'function') updatePatientSelects();
             closeModal('inAppPreconsultaModal');
-            showToast(`🎉 ¡Pre-consulta completada! Expediente creado para: ${newPatient.name}`, 'success');
+            showToast(`Pre-consulta completada. Expediente creado para: ${newPatient.name}`, 'success');
             if (typeof viewPatient === 'function') viewPatient(newPatient.id);
         }
     },

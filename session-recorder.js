@@ -133,7 +133,7 @@ const SessionRecorder = {
                 this.showFloatingWidget();
                 this.notifyStatus();
                 if (typeof showToast === 'function') {
-                    showToast(`🎙️ Grabación ambiental de sesión iniciada (${this.selectedFormat})`, 'info');
+                    showToast(`Grabación ambiental de sesión iniciada (${this.selectedFormat})`, 'info');
                 }
             };
 

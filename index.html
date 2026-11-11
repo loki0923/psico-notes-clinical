@@ -31,7 +31,7 @@
 <div id="fileProtocolNotice" style="display:none; background: linear-gradient(135deg, #123F36 0%, #285C50 100%); color: #ffffff; padding: 10px 16px; font-size: 13px; line-height: 1.4; border-bottom: 2px solid #7FA38F; position: sticky; top: 0; z-index: 99999;">
     <div style="max-width: 1200px; margin: 0 auto; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 8px;">
         <div style="display: flex; align-items: center; gap: 8px;">
-            <span style="font-size: 18px;">💡</span>
+            <span style="font-size: 16px;"><i class="fas fa-info-circle"></i></span>
             <span><strong>Modo Local Activo (file:///):</strong> Para habilitar el Service Worker offline y la sincronización multi-dispositivo en la nube, abre la versión en línea en Render o inicia el servidor local (<code>npm start</code>).</span>
         </div>
         <div style="display: flex; align-items: center; gap: 8px;">
@@ -365,7 +365,7 @@
     <!-- BANNER DE CRISIS EN TIEMPO REAL -->
     <div id="crisisLiveBanner" class="crisis-live-banner" style="display:none;">
         <div class="crisis-live-content">
-            <span class="crisis-beacon">🚨</span>
+            <span class="crisis-beacon"><i class="fas fa-exclamation-triangle"></i></span>
             <span id="crisisLiveText"><strong>ALERTA CLÍNICA:</strong> Un paciente ha registrado indicadores de crisis en su portal.</span>
             <button type="button" style="background:#e16259;color:white;border:none;border-radius:4px;padding:4px 10px;font-size:12px;font-weight:600;cursor:pointer;" onclick="openActiveCrisisProtocol()">Atender Ahora</button>
             <button type="button" class="btn-icon" onclick="dismissCrisisBanner()"><i class="fas fa-times"></i></button>
@@ -404,7 +404,7 @@
             </div>
             <div class="summary-cards">
                 <div class="summary-card">
-                    <div class="summary-icon">🗓️</div>
+                    <div class="summary-icon"><i class="fas fa-calendar-alt"></i></div>
                     <div class="summary-info">
                         <h3>Sesiones hoy</h3>
                         <div class="summary-value" id="todaySessions">0</div>
@@ -412,7 +412,7 @@
                     </div>
                 </div>
                 <div class="summary-card priority">
-                    <div class="summary-icon">❤️</div>
+                    <div class="summary-icon"><i class="fas fa-heartbeat"></i></div>
                     <div class="summary-info">
                         <h3>Prioritarios</h3>
                         <div class="summary-value" id="priorityPatients">0</div>
@@ -420,7 +420,7 @@
                     </div>
                 </div>
                 <div class="summary-card" onclick="openMonthlyGoalsModal()" style="cursor:pointer;" title="Click para configurar u editar los objetivos del mes">
-                    <div class="summary-icon">🎯</div>
+                    <div class="summary-icon"><i class="fas fa-bullseye"></i></div>
                     <div class="summary-info">
                         <div style="display:flex;justify-content:space-between;align-items:center;">
                             <h3>Objetivos del mes</h3>
@@ -431,7 +431,7 @@
                     </div>
                 </div>
                 <div class="summary-card">
-                    <div class="summary-icon">😊</div>
+                    <div class="summary-icon"><i class="fas fa-chart-line"></i></div>
                     <div class="summary-info">
                         <h3>Ánimo promedio</h3>
                         <div class="summary-value" id="avgMood">—</div>
@@ -453,7 +453,7 @@
                 <h2 class="section-title"><i class="fas fa-bell"></i> Alertas Clínicas</h2>
                 <div class="clinical-alerts" id="clinicalAlerts">
                     <div class="empty-state">
-                        <div class="empty-icon">✅</div>
+                        <div class="empty-icon"><i class="fas fa-check-circle"></i></div>
                         <p>Sin alertas pendientes</p>
                     </div>
                 </div>
@@ -483,7 +483,7 @@
                 <h2 class="section-title"><i class="fas fa-calendar-day"></i> Agenda del Día</h2>
                 <div class="contextual-agenda" id="contextualAgenda">
                     <div class="empty-state">
-                        <div class="empty-icon">📅</div>
+                        <div class="empty-icon"><i class="fas fa-calendar-check"></i></div>
                         <p>No hay sesiones hoy</p>
                         <button class="btn-primary" onclick="openModal('appointmentModal')">Agendar cita</button>
                     </div>
@@ -675,7 +675,7 @@
             </div>
             <div class="search-results" id="searchResults">
                 <div class="empty-state">
-                    <div class="empty-icon">🔍</div>
+                    <div class="empty-icon"><i class="fas fa-search"></i></div>
                     <p>Escriba para buscar...</p>
                 </div>
             </div>
@@ -691,28 +691,28 @@
             </div>
             <div class="stats-grid">
                 <div class="stat-card">
-                    <div class="stat-icon">👥</div>
+                    <div class="stat-icon"><i class="fas fa-users"></i></div>
                     <div class="stat-info">
                         <h3>Activos</h3>
                         <div class="stat-value" id="activePatients">0</div>
                     </div>
                 </div>
                 <div class="stat-card">
-                    <div class="stat-icon">📅</div>
+                    <div class="stat-icon"><i class="fas fa-calendar-alt"></i></div>
                     <div class="stat-info">
                         <h3>Sesiones / Mes</h3>
                         <div class="stat-value" id="monthAppointments">0</div>
                     </div>
                 </div>
                 <div class="stat-card">
-                    <div class="stat-icon">📝</div>
+                    <div class="stat-icon"><i class="fas fa-clipboard-list"></i></div>
                     <div class="stat-info">
                         <h3>Notas SOAP</h3>
                         <div class="stat-value" id="totalNotes">0</div>
                     </div>
                 </div>
                 <div class="stat-card">
-                    <div class="stat-icon">⏱️</div>
+                    <div class="stat-icon"><i class="fas fa-user-clock"></i></div>
                     <div class="stat-info">
                         <h3>Horas clínicas</h3>
                         <div class="stat-value" id="consultationHours">0</div>
@@ -795,12 +795,12 @@
                 <div class="form-group">
                     <label>Estatus del Paciente *</label>
                     <select id="patientStatus" required onchange="onPatientStatusChange()">
-                        <option value="Por iniciar">🟡 Por iniciar</option>
-                        <option value="En Evaluación">🔍 En Evaluación</option>
-                        <option value="Plan de Intervención">🎯 Plan de Intervención</option>
-                        <option value="Seguimiento">🔄 Seguimiento</option>
-                        <option value="Alta">✅ Alta</option>
-                        <option value="Inactivo">⏸️ Inactivo</option>
+                        <option value="Por iniciar">Por iniciar</option>
+                        <option value="En Evaluación">En Evaluación</option>
+                        <option value="Plan de Intervención">Plan de Intervención</option>
+                        <option value="Seguimiento">Seguimiento</option>
+                        <option value="Alta">Alta</option>
+                        <option value="Inactivo">Inactivo</option>
                     </select>
                 </div>
                 <div class="form-group">
@@ -1031,8 +1031,8 @@
                     <div class="form-group">
                         <label>Consentimiento Informado *</label>
                         <select id="patientGuardianConsent">
-                            <option value="firmado">✅ Consentimiento Informado Firmado</option>
-                            <option value="pendiente">⏳ Pendiente de firma</option>
+                            <option value="firmado">Consentimiento Informado Firmado</option>
+                            <option value="pendiente">Pendiente de firma</option>
                             <option value="no-aplica">No aplica / Mayoría de edad</option>
                         </select>
                     </div>
@@ -1294,12 +1294,12 @@
             <div class="form-group">
                 <label>Estado de la Cita *</label>
                 <select id="appointmentStatus">
-                    <option value="agendada" selected>📅 Agendada / Programada</option>
-                    <option value="confirmada">✔️ Confirmada (Asistencia validada)</option>
-                    <option value="completada">✅ Completada / Asistió</option>
-                    <option value="reprogramada">🔄 Reprogramada</option>
-                    <option value="cancelada">❌ Cancelada</option>
-                    <option value="no_asistio">⚠️ No Asistió / Inasistencia</option>
+                    <option value="agendada" selected>Agendada / Programada</option>
+                    <option value="confirmada">Confirmada (Asistencia validada)</option>
+                    <option value="completada">Completada / Asistió</option>
+                    <option value="reprogramada">Reprogramada</option>
+                    <option value="cancelada">Cancelada</option>
+                    <option value="no_asistio">No Asistió / Inasistencia</option>
                 </select>
             </div>
             <div class="form-group">
@@ -1566,16 +1566,16 @@
                     </div>
                     <div style="display:flex; gap:8px; flex-wrap:wrap;">
                         <button type="button" class="btn-sm btn-secondary" onclick="startAmbientSessionRecording()" style="font-size:12px; font-weight:700; gap:5px;">
-                            <i class="fas fa-record-vinyl" style="color:#ef4444;"></i> 🔴 Grabar Sesión
+                            <i class="fas fa-record-vinyl" style="color:#ef4444;"></i> Grabar Sesión
                         </button>
                         <button type="button" class="btn-sm btn-primary" onclick="openSoapAiModal()" style="font-size:12px; font-weight:700; gap:5px;">
-                            <i class="fas fa-sparkles"></i> ✨ Sintetizar con IA
+                            <i class="fas fa-sparkles"></i> Sintetizar con IA
                         </button>
                     </div>
                 </div>
 
                 <div class="form-group">
-                    <label>📋 Cargar Plantilla Clínica</label>
+                    <label>Cargar Plantilla Clínica</label>
                     <select onchange="applySoapTemplate(this.value)">
                         <option value="">— Seleccionar modelo teórico —</option>
                         <option value="tcc">TCC (Terapia Cognitivo-Conductual)</option>
@@ -1624,7 +1624,7 @@
                 </div>
             </div>
             <div class="form-group">
-                <label>📋 Tareas Intersesión (Se sincronizan con el portal del paciente)</label>
+                <label>Tareas Intersesión (Se sincronizan con el portal del paciente)</label>
                 <div id="intersessionTasksEditor"></div>
                 <button type="button" class="btn-secondary" onclick="addIntersessionTask()" style="margin-top:8px;">
                     <i class="fas fa-plus"></i> Añadir tarea
@@ -1634,34 +1634,34 @@
                 <div class="form-group">
                     <label>Evaluación de Riesgo</label>
                     <select id="noteRisk">
-                        <option value="bajo">🟢 Bajo</option>
-                        <option value="medio">🟡 Medio</option>
-                        <option value="alto">🔴 Alto (Activa Protocolo)</option>
+                        <option value="bajo">Bajo</option>
+                        <option value="medio">Medio</option>
+                        <option value="alto">Alto (Activa Protocolo)</option>
                     </select>
                 </div>
                 <div class="form-group">
                     <label>Afecto Predominante</label>
                     <select id="noteMood">
                         <option value="">Seleccionar</option>
-                        <option value="muy-bueno">😊 Eutímico</option>
-                        <option value="bueno">🙂 Estable</option>
-                        <option value="neutral">😐 Aplanado</option>
-                        <option value="bajo">😔 Ansioso</option>
-                        <option value="muy-bajo">😞 Depresivo</option>
+                        <option value="muy-bueno">Eutímico</option>
+                        <option value="bueno">Estable</option>
+                        <option value="neutral">Aplanado</option>
+                        <option value="bajo">Ansioso</option>
+                        <option value="muy-bajo">Depresivo</option>
                     </select>
                 </div>
             </div>
             <div class="form-group">
                 <label class="checkbox-label">
-                    <input type="checkbox" id="noteConfidential"> 🔒 Confidencial / Nota reservada
+                    <input type="checkbox" id="noteConfidential"> Confidencial / Nota reservada
                 </label>
             </div>
             <div class="form-row" style="background:var(--bg-secondary);padding:10px;border-radius:8px;margin-bottom:12px;">
                 <div class="form-group" style="margin:0;">
                     <label style="font-size:12px;font-weight:700;">Estado del Documento (CLI-005)</label>
                     <select id="noteStatus" style="font-size:12.5px;padding:6px;">
-                        <option value="borrador">📝 Borrador (En redacción / Modificable)</option>
-                        <option value="firmada">✍️ Firmada (Inmutable - Cierre Oficial)</option>
+                        <option value="borrador">Borrador (En redacción / Modificable)</option>
+                        <option value="firmada">Firmada (Inmutable - Cierre Oficial)</option>
                     </select>
                 </div>
                 <div class="form-group" style="margin:0;">
@@ -1673,7 +1673,7 @@
             <!-- SECCIÓN DE ADENDUMS PARA NOTAS FIRMADAS (CLI-005) -->
             <div id="noteAddendumsSection" style="display:none;margin-bottom:14px;background:var(--bg-secondary);border:1px solid var(--border-color);border-left:4px solid var(--accent-primary);padding:12px;border-radius:8px;">
                 <div style="font-size:13px;font-weight:700;color:var(--text-primary);margin-bottom:6px;">
-                    📜 Historial de Anexos y Adendums Clínicos (Inmutabilidad del registro firmado)
+                    Historial de Anexos y Adendums Clínicos (Inmutabilidad del registro firmado)
                 </div>
                 <div id="noteAddendumsList" style="font-size:12px;color:var(--text-secondary);margin-bottom:10px;"></div>
                 <div class="form-group" style="margin:0;">
@@ -1728,7 +1728,7 @@
     <div class="modal-overlay" onclick="closeModal('backupModal')"></div>
     <div class="modal-content">
         <div class="modal-header">
-            <h2 id="backupModalTitle">💾 Centro de Backups</h2>
+            <h2 id="backupModalTitle">Centro de Backups</h2>
             <button class="btn-icon" onclick="closeModal('backupModal')">
                 <i class="fas fa-times"></i>
             </button>
@@ -1807,10 +1807,10 @@
 
         <div class="drawer-filter-bar">
             <span class="drawer-filter-pill active" data-cat="all" onclick="filterReminderDrawerCategory('all')">Todos</span>
-            <span class="drawer-filter-pill" data-cat="no_note" onclick="filterReminderDrawerCategory('no_note')">📝 Sin Nota</span>
-            <span class="drawer-filter-pill" data-cat="starting_soon" onclick="filterReminderDrawerCategory('starting_soon')">⏰ En Breve</span>
-            <span class="drawer-filter-pill" data-cat="unconfirmed" onclick="filterReminderDrawerCategory('unconfirmed')">📲 Sin Confirmar</span>
-            <span class="drawer-filter-pill" data-cat="custom" onclick="filterReminderDrawerCategory('custom')">📌 Personalizados</span>
+            <span class="drawer-filter-pill" data-cat="no_note" onclick="filterReminderDrawerCategory('no_note')">Sin Nota</span>
+            <span class="drawer-filter-pill" data-cat="starting_soon" onclick="filterReminderDrawerCategory('starting_soon')">En Breve</span>
+            <span class="drawer-filter-pill" data-cat="unconfirmed" onclick="filterReminderDrawerCategory('unconfirmed')">Sin Confirmar</span>
+            <span class="drawer-filter-pill" data-cat="custom" onclick="filterReminderDrawerCategory('custom')">Personalizados</span>
         </div>
 
         <div class="reminder-drawer-body" id="reminderDrawerList"></div>
@@ -1848,7 +1848,7 @@
         <div class="ai-tab-content active" id="aiTabCopilot">
             <div class="ai-chat-box" id="aiChatBox">
                 <div class="ai-msg bot">
-                    <div class="ai-avatar">🤖</div>
+                    <div class="ai-avatar"><i class="fas fa-brain"></i></div>
                     <div class="ai-bubble">
                         ¡Hola! Soy tu <strong>Copiloto Clínico</strong> impulsado por Gemini AI. Puedo ayudarte a formular hipótesis, consultar técnicas basadas en evidencia (TCC, ACT, DBT) o preparar intervenciones para tus pacientes. ¿En qué te puedo asistir hoy?
                     </div>
@@ -1870,7 +1870,7 @@
             </div>
             <div class="ai-diag-output" id="aiDiagOutput">
                 <div class="empty-state">
-                    <div class="empty-icon">🧠</div>
+                    <div class="empty-icon"><i class="fas fa-brain"></i></div>
                     <p>Selecciona un paciente para analizar su historial, test aplicados y notas clínicas.</p>
                 </div>
             </div>
@@ -1897,13 +1897,13 @@
     <div class="modal-overlay" onclick="closeModal('apiKeyModal')"></div>
     <div class="modal-content" style="max-width: 480px;">
         <div class="modal-header">
-            <h2>🤖 Estado de IA Clínica (Gemini API)</h2>
+            <h2><i class="fas fa-robot"></i> Estado de IA Clínica (Gemini API)</h2>
             <button class="btn-icon" onclick="closeModal('apiKeyModal')"><i class="fas fa-times"></i></button>
         </div>
         <div style="padding:16px 0;">
             <div style="background:rgba(59, 130, 246, 0.08);border:1px solid rgba(59, 130, 246, 0.2);border-radius:var(--radius-md);padding:14px;margin-bottom:14px;font-size:13px;line-height:1.5;">
                 <p style="margin:0 0 8px 0;font-weight:600;color:var(--text-primary);">
-                    🔒 Arquitectura Segura con Proxy Centralizado
+                    <i class="fas fa-shield-alt"></i> Arquitectura Segura con Proxy Centralizado
                 </p>
                 <p style="margin:0;color:var(--text-secondary);font-size:12px;">
                     Conforme a normativas médicas (HIPAA) y estándares OWASP, las claves privadas de API se administran <strong>exclusivamente en el servidor</strong> (variable <code>GEMINI_API_KEY</code>). Los navegadores clientes no almacenan ni transmiten claves privadas.
@@ -2023,7 +2023,7 @@
             </div>
             <div class="form-group" style="margin-top:14px; border-top:1px solid var(--border-primary); padding-top:14px;">
                 <label style="font-weight:600; display:flex; justify-content:space-between; align-items:center;">
-                    <span>✍️ Firma Digitalizada del Terapeuta (Para Hojas Oficiales y PDF):</span>
+                    <span><i class="fas fa-file-signature"></i> Firma Digitalizada del Terapeuta (Para Hojas Oficiales y PDF):</span>
                     <button type="button" class="btn-secondary btn-sm" onclick="clearTherapistSignaturePad()">Limpiar</button>
                 </label>
                 <div style="border: 2px dashed var(--color-primary); border-radius: var(--radius-md); background: #ffffff; overflow: hidden; margin-top: 6px;">
@@ -2056,9 +2056,7 @@
     <div class="modal-content modal-large" style="max-width: 780px; max-height: 90vh; display: flex; flex-direction: column;">
         <div class="modal-header" style="flex-shrink: 0;">
             <div style="display: flex; align-items: center; gap: 12px;">
-                <div style="width: 40px; height: 40px; border-radius: 10px; background: rgba(99, 102, 241, 0.15); color: #6366f1; display: flex; align-items: center; justify-content: center; font-size: 20px;">
-                    💳
-                </div>
+                <div style="width: 40px; height: 40px; border-radius: 10px; background: rgba(99, 102, 241, 0.15); color: #6366f1; display: flex; align-items: center; justify-content: center; font-size: 18px;"><i class="fas fa-credit-card"></i></div>
                 <div>
                     <h2 style="margin: 0; font-size: 17px; font-weight: 700;">Formas de Pago — Portal del Paciente</h2>
                     <p style="margin: 2px 0 0 0; font-size: 12px; color: var(--text-secondary);">Personaliza los métodos de pago y datos bancarios que verán tus pacientes al reportar transferencias o abonar sus sesiones.</p>
@@ -2102,9 +2100,7 @@
     <div class="modal-content modal-large" style="max-width: 680px; max-height: 90vh; display: flex; flex-direction: column;">
         <div class="modal-header" style="flex-shrink: 0;">
             <div style="display: flex; align-items: center; gap: 12px;">
-                <div style="width: 40px; height: 40px; border-radius: 10px; background: rgba(13, 148, 136, 0.15); color: #0d9488; display: flex; align-items: center; justify-content: center; font-size: 20px;">
-                    🧾
-                </div>
+                <div style="width: 40px; height: 40px; border-radius: 10px; background: rgba(13, 148, 136, 0.15); color: #0d9488; display: flex; align-items: center; justify-content: center; font-size: 18px;"><i class="fas fa-file-invoice-dollar"></i></div>
                 <div>
                     <h2 style="margin: 0; font-size: 17px; font-weight: 700;" id="receiptModalTitle">Comprobante de Pago</h2>
                     <p style="margin: 2px 0 0 0; font-size: 12px; color: var(--text-secondary);" id="receiptModalSubtitle">Verificación de comprobante bancario del paciente</p>
@@ -2165,9 +2161,7 @@
     <div class="modal-content modal-large" style="max-width: 720px;">
         <div class="modal-header">
             <div style="display:flex; align-items:center; gap:12px;">
-                <div style="width: 40px; height: 40px; border-radius: 10px; background: rgba(255, 184, 76, 0.2); color: #d97706; display: flex; align-items: center; justify-content: center; font-size: 20px;">
-                    🎨
-                </div>
+                <div style="width: 40px; height: 40px; border-radius: 10px; background: rgba(255, 184, 76, 0.2); color: #d97706; display: flex; align-items: center; justify-content: center; font-size: 18px;"><i class="fas fa-palette"></i></div>
                 <div>
                     <h2 style="margin:0; font-size:17px; font-weight:700;">Lienzo Infantil — Expresión Gráfica</h2>
                     <p style="margin:2px 0 0 0; font-size:12px; color:var(--text-secondary);" id="kidDrawingPreviewDate">Dibujo del paciente</p>
@@ -2198,7 +2192,7 @@
 <!-- OVERLAY DE BLOQUEO DE PANTALLA POR PRIVACIDAD (HIPAA / GDPR) -->
 <div id="screenLockOverlay" class="screen-lock-overlay" style="display: none;">
     <div class="screen-lock-card" style="background: var(--bg-primary, #0e1524); border: 1px solid var(--border-primary, #1e293b); border-radius: 16px; box-shadow: 0 25px 60px -15px rgba(0, 0, 0, 0.7); max-width: 440px; width: 100%; padding: 36px 32px; text-align: center; margin: auto; position: relative; z-index: 10000000; box-sizing: border-box;">
-        <div class="lock-avatar-orb" style="width: 72px; height: 72px; border-radius: 50%; background: linear-gradient(135deg, #0d9488, #0284c7); color: white; font-size: 32px; display: flex; align-items: center; justify-content: center; margin: 0 auto 16px auto; box-shadow: 0 10px 25px rgba(13, 148, 136, 0.35);">🔒</div>
+        <div class="lock-avatar-orb" style="width: 72px; height: 72px; border-radius: 50%; background: linear-gradient(135deg, #0d9488, #0284c7); color: white; font-size: 32px; display: flex; align-items: center; justify-content: center; margin: 0 auto 16px auto; box-shadow: 0 10px 25px rgba(13, 148, 136, 0.35);"><i class="fas fa-lock"></i></div>
         <h2 class="lock-title" style="font-size: 20px; font-weight: 700; color: var(--text-primary, #f8fafc); margin: 0 0 4px 0;">Expedientes Protegidos</h2>
         <p class="lock-subtitle" id="lockTherapistName" style="font-size: 13px; font-weight: 600; color: var(--color-primary, #2dd4bf); margin: 0 0 12px 0;">Lic. en Psicología Clínica</p>
         <p class="lock-desc" style="font-size: 12.5px; color: var(--text-secondary, #94a3b8); line-height: 1.5; margin: 0 0 24px 0;">
@@ -2221,7 +2215,7 @@
     <div class="modal-overlay" onclick="closeModal('qrModal')"></div>
     <div class="modal-content" style="max-width: 440px;">
         <div class="modal-header">
-            <h2>📱 Código QR para el Paciente</h2>
+            <h2><i class="fas fa-qrcode"></i> Código QR para el Paciente</h2>
             <button class="btn-icon" onclick="closeModal('qrModal')"><i class="fas fa-times"></i></button>
         </div>
         <div class="modal-body" id="qrModalBody">
@@ -2235,7 +2229,7 @@
     <div class="modal-overlay" onclick="closeModal('monthlyGoalsModal')"></div>
     <div class="modal-content" style="max-width: 520px;">
         <div class="modal-header">
-            <h2>🎯 Configurar Objetivos del Mes</h2>
+            <h2><i class="fas fa-bullseye"></i> Configurar Objetivos del Mes</h2>
             <button class="btn-icon" onclick="closeModal('monthlyGoalsModal')"><i class="fas fa-times"></i></button>
         </div>
         <form id="monthlyGoalsForm" class="modal-form" onsubmit="handleMonthlyGoalsSubmit(event)">
@@ -2269,7 +2263,7 @@
     <div class="modal-overlay" onclick="closeModal('scaleEditorModal')"></div>
     <div class="modal-content modal-large" style="max-width: 680px;">
         <div class="modal-header">
-            <h2 id="scaleEditorModalTitle">🧪 Crear / Editar Escala o Test Psicológico</h2>
+            <h2 id="scaleEditorModalTitle"><i class="fas fa-vial"></i> Crear / Editar Escala o Test Psicológico</h2>
             <button class="btn-icon" onclick="closeModal('scaleEditorModal')"><i class="fas fa-times"></i></button>
         </div>
         <form id="scaleEditorForm" class="modal-form" onsubmit="handleSaveCustomScale(event)">
@@ -2414,9 +2408,9 @@
                     <div class="form-group" style="flex:1;">
                         <label><i class="fas fa-tag"></i> Estado Clínico</label>
                         <select id="roadmapSessionStatus" class="input-clinical-styled">
-                            <option value="pendiente">🕒 Pendiente (Por realizar)</option>
-                            <option value="completada">✅ Completada (Realizada con éxito)</option>
-                            <option value="agendada">📅 En Curso / Agendada</option>
+                            <option value="pendiente">Pendiente (Por realizar)</option>
+                            <option value="completada">Completada (Realizada con éxito)</option>
+                            <option value="agendada">En Curso / Agendada</option>
                         </select>
                     </div>
                 </div>
@@ -2426,7 +2420,7 @@
             <div id="roadmapModalTab-foco" class="roadmap-modal-tab-content">
                 <div class="form-group">
                     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;">
-                        <label style="margin:0;"><i class="fas fa-wand-magic-sparkles" style="color:#7c3aed;"></i> Foco Clínico / Resumen Terapéutico (✨)</label>
+                        <label style="margin:0;"><i class="fas fa-wand-magic-sparkles" style="color:#7c3aed;"></i> Foco Clínico / Resumen Terapéutico</label>
                         <span style="font-size:11.5px;color:var(--text-tertiary);">Visible en la tarjeta de ruta</span>
                     </div>
                     <textarea id="roadmapSessionFocus" rows="4" placeholder="Detalle los objetivos, focos de trabajo cognitivo-conductual o intervenciones aplicadas en esta sesión..." class="input-clinical-styled textarea-clinical"></textarea>
@@ -2434,9 +2428,9 @@
 
                 <div class="quick-focus-templates">
                     <span class="quick-title-label">Plantillas TCC:</span>
-                    <button type="button" class="chip-suggestion" onclick="appendRoadmapFocusTemplate('Exploración de pensamientos automáticos, registro de distorsiones y flecha descendente.')">🎯 Distorsiones Cognitivas</button>
-                    <button type="button" class="chip-suggestion" onclick="appendRoadmapFocusTemplate('Técnicas de regulación somática: respiración diafragmática 4-7-8 y anclaje sensorial 5-4-3-2-1.')">🧘 Regulación Somática</button>
-                    <button type="button" class="chip-suggestion" onclick="appendRoadmapFocusTemplate('Diseño y revisión de experimento conductual para contrastar creencias desadaptativas.')">🧪 Experimento Conductual</button>
+                    <button type="button" class="chip-suggestion" onclick="appendRoadmapFocusTemplate('Exploración de pensamientos automáticos, registro de distorsiones y flecha descendente.')">Distorsiones Cognitivas</button>
+                    <button type="button" class="chip-suggestion" onclick="appendRoadmapFocusTemplate('Técnicas de regulación somática: respiración diafragmática 4-7-8 y anclaje sensorial 5-4-3-2-1.')">Regulación Somática</button>
+                    <button type="button" class="chip-suggestion" onclick="appendRoadmapFocusTemplate('Diseño y revisión de experimento conductual para contrastar creencias desadaptativas.')">Experimento Conductual</button>
                 </div>
             </div>
 
@@ -2500,7 +2494,7 @@ if ('caches' in window) {
 if ('serviceWorker' in navigator && (window.location.protocol === 'http:' || window.location.protocol === 'https:')) {
     navigator.serviceWorker.register('/sw.js?v=7.1.0-serena')
         .then(reg => {
-            console.log('✅ ServiceWorker SERENA registrado');
+            console.log('ServiceWorker SERENA registrado');
             reg.update();
         })
         .catch(err => console.log('SW Error:', err));

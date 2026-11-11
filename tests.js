@@ -7707,7 +7707,7 @@ ClinicalTestSuite.add('TC-MSE-01', 'Examen Mental Protocolizado (18 Funciones Me
     if (!narrative.includes('Atención Conservada')) {
         throw new Error('Falta función 5: Atención');
     }
-    if (!narrative.includes('Orientado Alopsíquica y Autopsíquicamente')) {
+    if (!narrative.includes('Orientada Alopsíquica y Autopsíquicamente') && !narrative.includes('Orientado Alopsíquica y Autopsíquicamente')) {
         throw new Error('Falta función 6: Orientación');
     }
     if (!narrative.includes('Memoria Conservada')) {
@@ -7716,7 +7716,7 @@ ClinicalTestSuite.add('TC-MSE-01', 'Examen Mental Protocolizado (18 Funciones Me
     if (!narrative.includes('Juicio Práctico Conservado')) {
         throw new Error('Falta función 8: Juicio Práctico');
     }
-    if (!narrative.includes('Inteligencia Normal')) {
+    if (!narrative.includes('Inteligencia igual al promedio') && !narrative.includes('Inteligencia Normal')) {
         throw new Error('Falta función 9: Inteligencia');
     }
     if (!narrative.includes('Taquipsiquia')) {
@@ -7902,6 +7902,278 @@ ClinicalTestSuite.add('TC-MSE-03', 'Examen Mental - Correcciones Semiológicas (
     const narOrient = MentalExamModule.generateNarrative(fieldsOrientacion, testPatient);
     if (!narOrient.includes('Orientado Autopsíquicamente con Desorientación Temporal.')) {
         throw new Error('La síntesis debe reflejar la orientación y desorientación seleccionadas');
+    }
+});
+
+// ============================================
+// TC-MSE-04: Examen Mental - Correcciones Semiológicas (Memoria, Inteligencia, Pensamiento, Lenguaje y Sensopercepción)
+// ============================================
+ClinicalTestSuite.add('TC-MSE-04', 'Examen Mental - Correcciones Semiológicas (Memoria, Inteligencia, Pensamiento, Lenguaje y Sensopercepción)', async () => {
+    await import('./mental-exam.js');
+    const MentalExamModule = globalThis.MentalExamModule;
+
+    const testPatient = {
+        id: 'px_mse_test_04',
+        name: 'Elena Fuentes',
+        gender: 'Femenino',
+        age: 29
+    };
+
+    const html = MentalExamModule.renderTab(testPatient);
+
+    // 1. Memoria (Función 7)
+    if (!html.includes('<span class="me-card-title">Memoria</span>')) {
+        throw new Error('Tarjeta 7 debe llamarse "Memoria" sin añadiduras');
+    }
+    const fieldsMemNo = MentalExamModule.getInitialState(testPatient);
+    fieldsMemNo.memoriaConservada = 'NO';
+    fieldsMemNo.memoriaCualitativo = ['Amnesia Anterógrada o de Fijación'];
+    const narMemNo = MentalExamModule.generateNarrative(fieldsMemNo, testPatient);
+    if (narMemNo.includes('Memoria comprometida con presencia de')) {
+        throw new Error('La síntesis de memoria no debe incluir "Memoria comprometida con presencia de"');
+    }
+    if (!narMemNo.includes('Amnesia Anterógrada o de Fijación.')) {
+        throw new Error('La síntesis de memoria debe reflejar las opciones seleccionadas directamente');
+    }
+
+    // 2. Inteligencia (Función 9)
+    if (!html.includes('<span class="me-card-title">INTELIGENCIA</span>')) {
+        throw new Error('Tarjeta 9 debe tener por título "INTELIGENCIA"');
+    }
+    if (html.includes('¿Se realizaron pruebas psicométricas?:')) {
+        throw new Error('Tarjeta 9 no debe mostrar la pregunta de pruebas psicométricas');
+    }
+    const fieldsIntelPromedio = MentalExamModule.getInitialState(testPatient);
+    fieldsIntelPromedio.inteligencia = 'Promedio';
+    const narIntelPromedio = MentalExamModule.generateNarrative(fieldsIntelPromedio, testPatient);
+    if (!narIntelPromedio.includes('Inteligencia igual al promedio.')) {
+        throw new Error('Al seleccionar Promedio debe generarse "Inteligencia igual al promedio."');
+    }
+
+    // 3. Pensamiento (Función 10)
+    if (!html.includes('<span class="me-card-title">Pensamiento</span>')) {
+        throw new Error('Tarjeta 10 debe tener por título "Pensamiento"');
+    }
+    if (html.includes('Pensamiento (Velocidad, Estructura y Contenido)')) {
+        throw new Error('Título no debe contener "(Velocidad, Estructura y Contenido)"');
+    }
+    if (html.includes('data-field="pensamientoVelocidad"') && html.includes("data-value='Normal'")) {
+        throw new Error('Tarjeta 10 no debe contener chip con opción "Normal"');
+    }
+    if (!html.includes('<label class="me-field-label" style="margin-top:12px;">Otros:</label>')) {
+        throw new Error('Tarjeta 10 debe mostrar la etiqueta "Otros:"');
+    }
+    const fieldsPens = MentalExamModule.getInitialState(testPatient);
+    fieldsPens.pensamientoDelirios = 'SI';
+    fieldsPens.pensamientoDeliriosLista = ['Delirio de Persecución'];
+    const narPens = MentalExamModule.generateNarrative(fieldsPens, testPatient);
+    if (narPens.includes('Ideas delirantes de tipo:')) {
+        throw new Error('La síntesis no debe anteponer "Ideas delirantes de tipo:"');
+    }
+    if (!narPens.includes('Delirio de Persecución.')) {
+        throw new Error('La síntesis debe reflejar el delirio seleccionado directamente');
+    }
+
+    // 4. Lenguaje (Función 11)
+    if (!html.includes('<span class="me-card-title">Lenguaje</span>')) {
+        throw new Error('Tarjeta 11 debe llamarse "Lenguaje"');
+    }
+    if (html.includes('Adecuado / Mímica normal')) {
+        throw new Error('Tarjeta 11 no debe incluir "Adecuado / Mímica normal"');
+    }
+    const fieldsLengVacio = MentalExamModule.getInitialState(testPatient);
+    fieldsLengVacio.lenguajeOrganico = [];
+    fieldsLengVacio.lenguajePsicogeno = [];
+    fieldsLengVacio.lenguajeNoVerbal = [];
+    const narLengVacio = MentalExamModule.generateNarrative(fieldsLengVacio, testPatient);
+    if (!narLengVacio.includes('Sin alteraciones observables en el Lenguaje.')) {
+        throw new Error('Al no marcar opciones en Lenguaje debe quedar "Sin alteraciones observables en el Lenguaje."');
+    }
+
+    // 5. Sensopercepción (Función 13)
+    if (html.includes("data-value='Conservada'") && html.includes('data-field="sensopercepcionCuantitativa"')) {
+        throw new Error('Tarjeta 13 no debe incluir la opción "Conservada" en cuantitativa');
+    }
+    if (!html.includes('data-field="sensopercepcionAlterada"')) {
+        throw new Error('Tarjeta 13 debe contar con selector dicótomo ¿Presenta alteraciones? SÍ/NO');
+    }
+    const fieldsSenNo = MentalExamModule.getInitialState(testPatient);
+    fieldsSenNo.sensopercepcionAlterada = 'NO';
+    const narSenNo = MentalExamModule.generateNarrative(fieldsSenNo, testPatient);
+    if (!narSenNo.includes('Sin alteraciones observables en la Sensopercepción.')) {
+        throw new Error('Al marcar NO en Sensopercepción debe quedar "Sin alteraciones observables en la Sensopercepción."');
+    }
+    const fieldsSenSi = MentalExamModule.getInitialState(testPatient);
+    fieldsSenSi.sensopercepcionAlterada = 'SI';
+    fieldsSenSi.ilusionesPresenta = 'SI';
+    fieldsSenSi.ilusionesTipo = ['Ilusiones Catatímicas'];
+    const narSenSi = MentalExamModule.generateNarrative(fieldsSenSi, testPatient);
+    if (narSenSi.includes('Ilusiones:')) {
+        throw new Error('La síntesis no debe anteponer "Ilusiones:"');
+    }
+    if (!narSenSi.includes('Ilusiones Catatímicas.')) {
+        throw new Error('La síntesis debe reflejar la ilusión seleccionada directamente');
+    }
+});
+
+// ============================================
+// TC-MSE-05: Examen Mental - Correcciones Semiológicas (Afectividad, Psicomotricidad, Vida Instintiva y Volición)
+// ============================================
+ClinicalTestSuite.add('TC-MSE-05', 'Examen Mental - Correcciones Semiológicas (Afectividad, Psicomotricidad, Vida Instintiva y Volición)', async () => {
+    await import('./mental-exam.js');
+    const MentalExamModule = globalThis.MentalExamModule;
+
+    const testPatient = {
+        id: 'px_mse_test_05',
+        name: 'Mauricio Ramos',
+        gender: 'Masculino',
+        age: 38
+    };
+
+    const html = MentalExamModule.renderTab(testPatient);
+
+    // 1. Afectividad (Función 12)
+    if (html.includes('Modulado / Eutímico')) {
+        throw new Error('Tarjeta 12 debe mostrar "Eutímico" en lugar de "Modulado / Eutímico"');
+    }
+    const fieldsHipertimia = MentalExamModule.getInitialState(testPatient);
+    fieldsHipertimia.hipertimiaPresenta = 'SI';
+    fieldsHipertimia.hipertimiaTipo = 'Hipertimia Displacentera';
+    fieldsHipertimia.hipertimiaPolo = 'De la Tristeza';
+    fieldsHipertimia.hipertimiaSentimientos = ['Minusvalía'];
+    const narHipertimia = MentalExamModule.generateNarrative(fieldsHipertimia, testPatient);
+    if (!narHipertimia.includes('Hipertimia Displacentera Orientada al Polo de la Tristeza con Sentimientos de Minusvalía.')) {
+        throw new Error('La síntesis debe generar exactamente el patrón de hipertimia compuesta del psicólogo');
+    }
+
+    // 2. Psicomotricidad (Función 14)
+    if (!html.includes('data-field="psicomotricidadAlterada"')) {
+        throw new Error('Tarjeta 14 debe contar con selector dicótomo ¿Presenta alteraciones? SÍ/NO');
+    }
+    const fieldsPsicoNo = MentalExamModule.getInitialState(testPatient);
+    fieldsPsicoNo.psicomotricidadAlterada = 'NO';
+    const narPsicoNo = MentalExamModule.generateNarrative(fieldsPsicoNo, testPatient);
+    if (!narPsicoNo.includes('Sin alteraciones observables en la Psicomotricidad.')) {
+        throw new Error('Al marcar NO en Psicomotricidad debe quedar "Sin alteraciones observables en la Psicomotricidad."');
+    }
+
+    // 3. Vida Instintiva (Función 15)
+    if (!html.includes('<span class="me-card-title">Vida Instintiva</span>')) {
+        throw new Error('Tarjeta 15 debe titularse "Vida Instintiva"');
+    }
+    if (html.includes('Vida Instintiva (Sueño, Apetito y Conducta)')) {
+        throw new Error('Tarjeta 15 no debe incluir subtítulos');
+    }
+    const fieldsInstintoNo = MentalExamModule.getInitialState(testPatient);
+    fieldsInstintoNo.vidaInstintivaAlterada = 'NO';
+    const narInstintoNo = MentalExamModule.generateNarrative(fieldsInstintoNo, testPatient);
+    if (!narInstintoNo.includes('Sin alteraciones observables en la Vida Instintiva.')) {
+        throw new Error('Al marcar NO en Vida Instintiva debe quedar "Sin alteraciones observables en la Vida Instintiva."');
+    }
+
+    // 4. Volición (Función 16)
+    if (!html.includes('<span class="me-card-title">Volición</span>')) {
+        throw new Error('Tarjeta 16 debe titularse "Volición"');
+    }
+    if (html.includes('Volición (Voluntad y Motivación)')) {
+        throw new Error('Tarjeta 16 no debe incluir subtítulos');
+    }
+    if (html.includes("data-value='Normobulia'")) {
+        throw new Error('Tarjeta 16 no debe incluir la opción "Normobulia"');
+    }
+    const fieldsVolicionVacia = MentalExamModule.getInitialState(testPatient);
+    fieldsVolicionVacia.volicion = '';
+    const narVolicionVacia = MentalExamModule.generateNarrative(fieldsVolicionVacia, testPatient);
+    if (!narVolicionVacia.includes('Sin alteraciones observables en la Volición.')) {
+        throw new Error('Al no marcar opción en Volición debe quedar "Sin alteraciones observables en la Volición."');
+    }
+
+    // 5. Conciencia de Enfermedad (Función 17)
+    if (!html.includes('<span class="me-card-title">Conciencia de Enfermedad</span>')) {
+        throw new Error('Tarjeta 17 debe titularse "Conciencia de Enfermedad"');
+    }
+    if (html.includes('Conciencia de Enfermedad (Insight)')) {
+        throw new Error('Tarjeta 17 no debe incluir "(Insight)"');
+    }
+});
+
+// ============================================
+// TC-MSE-06: Examen Mental - Validación con el Párrafo Clínico Estándar del Psicólogo
+// ============================================
+ClinicalTestSuite.add('TC-MSE-06', 'Examen Mental - Validación con el Párrafo Clínico Estándar del Psicólogo', async () => {
+    await import('./mental-exam.js');
+    const MentalExamModule = globalThis.MentalExamModule;
+
+    const testPatient = {
+        id: 'px_mse_test_06',
+        name: 'Gabriela Silva',
+        gender: 'Femenino',
+        age: 18
+    };
+
+    const fields = MentalExamModule.getInitialState(testPatient);
+    fields.sexo = 'Femenino';
+    fields.edad = 18;
+    fields.edadAparenteCronologica = 'SI';
+    fields.biotipo = 'Mesomorfo';
+    fields.aspectoVestimenta = ['Aseada', 'Arreglada', 'Vestimenta de acuerdo a edad y ocasión'];
+    fields.actitud = []; // Sin actitud explícita, tal como en el ejemplo oficial
+    fields.concienciaAlterada = 'NO';
+    fields.atencionAlterada = 'NO';
+    fields.orientacion = ['Orientado Alopsíquicamente', 'Orientado Autopsíquicamente'];
+    fields.memoriaConservada = 'SI';
+    fields.juicioPractico = 'Conservado';
+    fields.inteligencia = 'Normal';
+    fields.pensamientoVelocidad = 'Taquipsiquia';
+    fields.lenguajePsicogeno = ['Taquilalia'];
+    fields.hipertimiaPresenta = 'SI';
+    fields.hipertimiaTipo = 'Hipertimia Displacentera';
+    fields.hipertimiaPolo = 'De la Tristeza';
+    fields.hipertimiaSentimientos = ['Minusvalía'];
+    fields.sensopercepcionAlterada = 'SI';
+    fields.sensopercepcionCuantitativa = 'Aceleración de la Percepción';
+    fields.psicomotricidadAlterada = 'SI';
+    fields.psicomotricidadNoOrganico = ['Tics'];
+    fields.vidaInstintivaAlterada = 'SI';
+    fields.vidaInstintivaLista = ['Insomnio', 'Pica'];
+    fields.volicion = 'Hiperbulia';
+    fields.concienciaEnfermedad = 'Presente';
+    fields.juicioRealidad = 'Conservado';
+
+    const narrative = MentalExamModule.generateNarrative(fields, testPatient);
+
+    // Texto de referencia oficial del psicólogo (Páginas 2 y 3 del PDF)
+    const expectedTokens = [
+        'Paciente femenina de 18 años',
+        'biotipo mesomorfo',
+        'Aseada y arreglada, vestimenta de acuerdo a la edad y ocasión',
+        'Nivel de Conciencia Conservado',
+        'Atención Conservada',
+        'Orientada Alopsíquica y Autopsíquicamente',
+        'Memoria Conservada',
+        'Juicio Práctico Conservado',
+        'Inteligencia Normal',
+        'Taquipsiquia',
+        'Taquilalia',
+        'Hipertimia Displacentera Orientada al Polo de la Tristeza con Sentimientos de Minusvalía',
+        'Aceleración de la Percepción',
+        'Tics',
+        'Insomnio, Pica',
+        'Hiperbulia',
+        'Conciencia de Enfermedad Presente',
+        'Juicio de Realidad Conservado'
+    ];
+
+    let lastIndex = 0;
+    for (const token of expectedTokens) {
+        const idx = narrative.indexOf(token);
+        if (idx === -1) {
+            throw new Error(`El párrafo generado debe contener "${token}". Síntesis actual: "${narrative}"`);
+        }
+        if (idx < lastIndex) {
+            throw new Error(`El token "${token}" no se encuentra en el orden secuencial estricto de las 18 funciones`);
+        }
+        lastIndex = idx;
     }
 });
 

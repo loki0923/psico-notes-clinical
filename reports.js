@@ -20,7 +20,7 @@ const ClinicalReports = {
             <div class="modal-overlay" onclick="closeModal('reportModal')"></div>
             <div class="modal-content modal-large" style="max-width: 720px;">
                 <div class="modal-header">
-                    <h2>📑 Generador de Informes Clínicos Oficiales</h2>
+                    <h2>Generador de Informes Clínicos Oficiales</h2>
                     <button class="btn-icon" onclick="closeModal('reportModal')"><i class="fas fa-times"></i></button>
                 </div>
                 <div style="padding:16px 0;">
@@ -36,12 +36,12 @@ const ClinicalReports = {
                             <div class="form-group">
                                 <label>Tipo de Informe *</label>
                                 <select id="repType" required class="form-control" onchange="ClinicalReports.onTypeChange(this.value)">
-                                    <option value="derivacion">📩 Derivación Psiquiátrica / Médica</option>
-                                    <option value="general">🧠 Informe Psicopatológico General</option>
-                                    <option value="epicrisis">📊 Epicrisis Clínica de Cierre / Alta</option>
-                                    <option value="justificativo">💼 Constancia / Justificativo de Asistencia</option>
-                                    <option value="asistencia">📜 Certificado de Atención Psicoterapéutica</option>
-                                    <option value="cierre">🏁 Informe de Evolución y Cierre</option>
+                                    <option value="derivacion">Derivación Psiquiátrica / Médica</option>
+                                    <option value="general">Informe Psicopatológico General</option>
+                                    <option value="epicrisis">Epicrisis Clínica de Cierre / Alta</option>
+                                    <option value="justificativo">Constancia / Justificativo de Asistencia</option>
+                                    <option value="asistencia">Certificado de Atención Psicoterapéutica</option>
+                                    <option value="cierre">Informe de Evolución y Cierre</option>
                                 </select>
                             </div>
                         </div>
@@ -67,7 +67,7 @@ const ClinicalReports = {
                         </div>
 
                         <div style="border-top:1px solid var(--border-primary);padding-top:12px;margin-top:16px;">
-                            <h4 style="margin:0 0 10px 0;font-size:13px;color:var(--text-secondary);">⚙️ Datos de Membrete Profesional</h4>
+                            <h4 style="margin:0 0 10px 0;font-size:13px;color:var(--text-secondary);">Datos de Membrete Profesional</h4>
                             <div class="form-row">
                                 <div class="form-group">
                                     <label>Colegiado / Licencia Nº:</label>

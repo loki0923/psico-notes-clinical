@@ -23,10 +23,10 @@ function openInformedConsentModal(patientId) {
     const cat = (typeof getPatientCategory === 'function') ? getPatientCategory(patient) : 'adult';
     let consentIntro = '';
     let consentClauses = '';
-    let modalDocTitle = '📜 Consentimiento Informado & Firma Digital';
+    let modalDocTitle = 'Consentimiento Informado & Firma Digital';
 
     if (cat === 'child') {
-        modalDocTitle = '🧒 Consentimiento Informado — Representación Legal en la Niñez';
+        modalDocTitle = 'Consentimiento Informado — Representación Legal en la Niñez';
         consentIntro = `Yo, <strong>${patient.guardianName || 'Representante Legal'}</strong>, en calidad de <strong>${patient.guardianRelation || 'Tutor/a Legal'}</strong> del/de la menor <strong>${patient.name}</strong>, autorizo el inicio del proceso psicoterapéutico y de acompañamiento en la infancia con <strong>${AppState.currentUser?.name || 'el/la profesional'}</strong>.`;
         consentClauses = `
             <p><strong>1. Encuadre en la Niñez:</strong> La intervención contempla sesiones de evaluación, actividades terapéuticas adaptadas y devoluciones periódicas de orientación a los tutores.</p>
@@ -34,7 +34,7 @@ function openInformedConsentModal(patientId) {
             <p><strong>3. Orientación y Acompañamiento Parental:</strong> Se brindarán pautas de acompañamiento psicoemocional y parental para favorecer el bienestar integral del menor.</p>
         `;
     } else if (cat === 'adolescent') {
-        modalDocTitle = '🧑 Consentimiento Informado — Adolescencia y Representación Legal';
+        modalDocTitle = 'Consentimiento Informado — Adolescencia y Representación Legal';
         consentIntro = `En representación de <strong>${patient.name}</strong> (adolescente) y con su asentimiento, yo <strong>${patient.guardianName || 'Tutor/a Legal'}</strong> (${patient.guardianRelation || 'Tutor'}), acordamos el encuadre psicoterapéutico con <strong>${AppState.currentUser?.name || 'el/la profesional'}</strong>.`;
         consentClauses = `
             <p><strong>1. Espacio Privado y Reserva Profesional:</strong> El espacio terapéutico brinda un marco de escucha confidencial. Se garantiza reserva frente a terceros, salvo situación de riesgo vital o vulneración grave.</p>
@@ -103,7 +103,7 @@ function openInformedConsentModal(patientId) {
 
                 <div class="form-group">
                     <label style="font-weight:600;display:flex;justify-content:space-between;align-items:center;">
-                        <span>✍️ ${cat === 'child' ? 'Firma del Representante Legal / Tutor:' : cat === 'adolescent' ? 'Firma del Tutor / Asentimiento Adolescente:' : 'Firma del Paciente en pantalla:'}</span>
+                        <span>${cat === 'child' ? 'Firma del Representante Legal / Tutor:' : cat === 'adolescent' ? 'Firma del Tutor / Asentimiento Adolescente:' : 'Firma del Paciente en pantalla:'}</span>
                         <button type="button" class="btn-secondary btn-sm" onclick="clearSignatureCanvas()">Limpiar Trazo</button>
                     </label>
                     <div style="border: 2px dashed var(--accent-primary); border-radius: var(--radius-md); background: #ffffff; overflow: hidden; margin-top: 6px;">
@@ -280,7 +280,7 @@ function generateSignedInformedConsent() {
         CloudSyncManager.schedulePush();
     }
     if (typeof showToast === 'function') {
-        showToast(`✅ Consentimiento informado registrado para ${patient.name}`, 'success');
+        showToast(`Consentimiento informado registrado para ${patient.name}`, 'success');
     }
 
     const html = `

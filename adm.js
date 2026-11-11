@@ -211,7 +211,7 @@ function openInvoicesList() {
             </div>
             ${invoices.length === 0 ? `
                 <div class="empty-state">
-                    <div class="empty-icon">📄</div>
+                    <div class="empty-icon"><i class="fas fa-file-invoice"></i></div>
                     <p>No se han emitido facturas aún</p>
                     <button class="btn-primary" onclick="openInvoiceCreator()">Emitir primera factura</button>
                 </div>
@@ -245,7 +245,7 @@ function deleteInvoice(id) {
             invoices = invoices.filter(inv => String(inv.id) !== String(id));
             saveInvoices(invoices);
             openInvoicesList();
-            showToast('🗑️ Factura eliminada correctamente', 'info');
+            showToast('Factura eliminada correctamente', 'info');
         }
     );
 }
@@ -253,11 +253,11 @@ function deleteInvoice(id) {
 function clearAllInvoices() {
     showConfirmModal(
         'Vaciar Registro de Facturas',
-        '⚠️ ¿Desea eliminar TODAS las facturas emitidas? Esta acción no se puede deshacer.',
+        '¿Desea eliminar TODAS las facturas emitidas? Esta acción no se puede deshacer.',
         () => {
             saveInvoices([]);
             openInvoicesList();
-            showToast('🗑️ Registro de facturas vaciado', 'info');
+            showToast('Registro de facturas vaciado', 'info');
         }
     );
 }

@@ -92,7 +92,7 @@ const PortalOfflineQueue = {
         this.updateBadge();
 
         if (successCount > 0 && typeof showToast === 'function') {
-            showToast(`🔄 Sincronizados ${successCount} registros pendientes con tu terapeuta`, 'success');
+            showToast(`Sincronizados ${successCount} registros pendientes con tu terapeuta`, 'success');
         }
     },
 
@@ -142,13 +142,13 @@ window.addEventListener('online', () => {
 
 
 const REFLECTIONS = [
-    "Cada pequeño paso cuenta. No necesitas ser perfecto, solo constante. 🌱",
-    "Tus emociones son válidas. Permitirte sentirlas es el primer paso. 💚",
-    "El progreso no es lineal. Los días difíciles también forman parte del camino. 🌊",
-    "Hoy es un nuevo día para practicar la compasión contigo mismo. 🌸",
-    "No tienes que tener todas las respuestas. A veces, solo respirar es suficiente. 🌬️",
-    "Celebra tus logros, por pequeños que parezcan. ✨",
-    "La vulnerabilidad no es debilidad, es valentía. 💪",
+    "Cada pequeño paso cuenta. No necesitas ser perfecto, solo constante.",
+    "Tus emociones son válidas. Permitirte sentirlas es el primer paso.",
+    "El progreso no es lineal. Los días difíciles también forman parte del camino.",
+    "Hoy es un nuevo día para practicar la compasión contigo mismo.",
+    "No tienes que tener todas las respuestas. A veces, solo respirar es suficiente.",
+    "Celebra tus logros, por pequeños que parezcan.",
+    "La vulnerabilidad no es debilidad, es valentía.",
     "Está bien descansar. El descanso también es parte del crecimiento. 🌙",
     "Confía en tu proceso. Estás haciendo más de lo que crees. 🌟",
     "Hoy, elige una cosa pequeña que te haga sentir bien. 🌈",

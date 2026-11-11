@@ -96,14 +96,14 @@ function evaluateSessionReminders() {
                     patientName: patient ? patient.name : 'Paciente desconocido',
                     patientPhone: patient ? patient.phone : '',
                     category: 'no_note',
-                    level: 'critical', // 🚨 Urgencia máxima
+                    level: 'critical', // Urgencia máxima
                     badgeText: 'Falta Nota SOAP',
                     title: `Sesión sin Nota Clínica`,
                     description: `Sesión del ${formatDate(app.date)} (${app.time}) aún no tiene evolución registrada (${hoursAgo > 0 ? `hace ${hoursAgo}h` : 'recién finalizada'}).`,
                     timeStr: `${formatDate(app.date)} · ${app.time}`,
                     priorityScore: 1,
                     actions: [
-                        { label: '📝 Redactar Nota', type: 'note', primary: true },
+                        { label: 'Redactar Nota', type: 'note', primary: true },
                         { label: '⏰ Posponer', type: 'snooze' },
                         { label: '✕ Ocultar', type: 'dismiss' }
                     ]
@@ -130,7 +130,7 @@ function evaluateSessionReminders() {
             let title = `Sesión en ${diffMinutes} minutos`;
             if (diffMinutes <= 15 && diffMinutes >= -10) {
                 level = 'critical';
-                title = `🚨 Sesión por comenzar (${diffMinutes <= 0 ? 'En curso' : `${diffMinutes} min`})`;
+                title = `Sesión por comenzar (${diffMinutes <= 0 ? 'En curso' : `${diffMinutes} min`})`;
             }
 
             reminders.push({
@@ -147,9 +147,9 @@ function evaluateSessionReminders() {
                 timeStr: `Hoy a las ${app.time}`,
                 priorityScore: diffMinutes <= 15 ? 2 : 3,
                 actions: [
-                    { label: '👤 Ver Expediente', type: 'view_patient', primary: true },
-                    { label: '💬 Recordatorio WA', type: 'whatsapp' },
-                    { label: '✅ Iniciar Sesión', type: 'complete' }
+                    { label: 'Ver Expediente', type: 'view_patient', primary: true },
+                    { label: 'Recordatorio WhatsApp', type: 'whatsapp' },
+                    { label: 'Iniciar Sesión', type: 'complete' }
                 ]
             });
         }
@@ -185,9 +185,9 @@ function evaluateSessionReminders() {
                 timeStr: `${isToday ? 'Hoy' : 'Mañana'} · ${app.time}`,
                 priorityScore: isToday ? 4 : 5,
                 actions: [
-                    { label: '🔔 Solicitar en Portal', type: 'request_portal_confirm', primary: true },
-                    { label: '📲 Recordatorio WhatsApp', type: 'whatsapp' },
-                    { label: '✅ Marcar Confirmada', type: 'confirm' },
+                    { label: 'Solicitar en Portal', type: 'request_portal_confirm', primary: true },
+                    { label: 'Recordatorio WhatsApp', type: 'whatsapp' },
+                    { label: 'Marcar Confirmada', type: 'confirm' },
                     { label: '⏰ Posponer', type: 'snooze' }
                 ]
             });
@@ -212,8 +212,8 @@ function evaluateSessionReminders() {
             timeStr: cust.dateStr ? `${formatDate(cust.dateStr)} ${cust.timeStr || ''}` : 'Pendiente',
             priorityScore: cust.priority === 'critical' ? 2 : 6,
             actions: [
-                patient ? { label: '👤 Ver Paciente', type: 'view_patient', primary: true } : null,
-                { label: '✅ Listo / Eliminar', type: 'dismiss_custom', primary: !patient }
+                patient ? { label: 'Ver Paciente', type: 'view_patient', primary: true } : null,
+                { label: 'Listo / Eliminar', type: 'dismiss_custom', primary: !patient }
             ].filter(Boolean)
         });
     });
@@ -280,7 +280,7 @@ function renderDashboardRemindersWidget(reminders) {
     if (reminders.length === 0) {
         container.innerHTML = `
             <div class="empty-state-card">
-                <div class="empty-icon">✨</div>
+                <div class="empty-icon"><i class="fas fa-check-circle"></i></div>
                 <div>
                     <strong>¡Al día con tus sesiones!</strong>
                     <p style="font-size:12px;color:var(--text-tertiary);margin-top:2px;">
@@ -299,9 +299,9 @@ function renderDashboardRemindersWidget(reminders) {
 
     let summaryChipsHtml = '<div class="reminder-chips-bar">';
     summaryChipsHtml += `<span class="reminder-chip active">Todos (${reminders.length})</span>`;
-    if (noNoteCount > 0) summaryChipsHtml += `<span class="reminder-chip critical">📝 Sin Nota (${noNoteCount})</span>`;
+    if (noNoteCount > 0) summaryChipsHtml += `<span class="reminder-chip critical">Sin Nota (${noNoteCount})</span>`;
     if (startingCount > 0) summaryChipsHtml += `<span class="reminder-chip urgent">⏰ En Breve (${startingCount})</span>`;
-    if (unconfirmedCount > 0) summaryChipsHtml += `<span class="reminder-chip warning">📲 Sin Confirmar (${unconfirmedCount})</span>`;
+    if (unconfirmedCount > 0) summaryChipsHtml += `<span class="reminder-chip warning">Sin Confirmar (${unconfirmedCount})</span>`;
     summaryChipsHtml += '</div>';
 
     // Renderizar las 4 primeras tarjetas prioritarias
@@ -326,17 +326,17 @@ function renderDashboardRemindersWidget(reminders) {
 // Renderiza el HTML de una tarjeta individual de recordatorio
 function renderReminderCardHtml(rem) {
     const iconMap = {
-        no_note: '📝',
-        starting_soon: '⏰',
-        unconfirmed: '📲',
-        custom: '📌'
+        no_note: '<i class="fas fa-file-medical-alt"></i>',
+        starting_soon: '<i class="fas fa-clock"></i>',
+        unconfirmed: '<i class="fas fa-mobile-alt"></i>',
+        custom: '<i class="fas fa-thumbtack"></i>'
     };
 
     return `
         <div class="reminder-card card-level-${rem.level}">
             <div class="reminder-card-header">
                 <div class="reminder-badge-pill pill-${rem.level}">
-                    <span>${iconMap[rem.category] || '🔔'}</span> ${rem.badgeText}
+                    <span>${iconMap[rem.category] || '<i class="fas fa-bell"></i>'}</span> ${rem.badgeText}
                 </div>
                 <div class="reminder-time-tag">${rem.timeStr}</div>
             </div>
@@ -374,7 +374,7 @@ function renderReminderDrawerList(reminders) {
     if (filtered.length === 0) {
         container.innerHTML = `
             <div class="empty-state" style="padding:40px 20px;">
-                <div class="empty-icon">✅</div>
+                <div class="empty-icon"><i class="fas fa-check-circle"></i></div>
                 <p style="font-weight:600;margin-bottom:4px;">Sin recordatorios en esta categoría</p>
                 <span style="font-size:12px;color:var(--text-tertiary);">Todas tus sesiones y notas están al día.</span>
             </div>
@@ -441,7 +441,7 @@ function handleReminderAction(reminderId, actionType, patientId, appointmentId) 
         case 'dismiss_custom':
             // Eliminar recordatorio personalizado
             deleteCustomReminder(reminderId);
-            showToast('✅ Recordatorio completado', 'success');
+            showToast('Recordatorio completado', 'success');
             break;
     }
 
@@ -499,7 +499,7 @@ function sendWhatsAppSessionReminder(patientId, appointmentId) {
     const waUrl = `https://wa.me/${cleanPhone}?text=${encodedMsg}`;
 
     window.open(waUrl, '_blank');
-    showToast('💬 Abriendo WhatsApp con el mensaje de confirmación', 'success');
+    showToast('Abriendo WhatsApp con el mensaje de confirmación', 'success');
 }
 
 // 3. Confirmar cita directamente
@@ -519,7 +519,7 @@ function confirmAppointmentFromReminder(appointmentId) {
             }
             renderAppointments();
             renderCalendar();
-            showToast('✅ Cita marcada como confirmada', 'success');
+            showToast('Cita marcada como confirmada', 'success');
         }
     }
 }
@@ -532,7 +532,7 @@ function completeAppointmentFromReminder(appointmentId) {
         saveData();
         renderAppointments();
         renderCalendar();
-        showToast('✅ Sesión marcada como iniciada / completada', 'success');
+        showToast('Sesión marcada como iniciada / completada', 'success');
     }
 }
 
@@ -575,7 +575,7 @@ function openCustomReminderModal() {
         <div class="modal-overlay" onclick="closeModal('${modalId}')"></div>
         <div class="modal-content">
             <div class="modal-header">
-                <h2>📌 Nuevo Recordatorio de Sesión</h2>
+                <h2>Nuevo Recordatorio de Sesión</h2>
                 <button class="btn-icon" onclick="closeModal('${modalId}')"><i class="fas fa-times"></i></button>
             </div>
             <form id="customReminderForm" onsubmit="saveCustomReminderForm(event)">
@@ -599,9 +599,9 @@ function openCustomReminderModal() {
                         <div class="form-group">
                             <label>Prioridad / Urgencia</label>
                             <select id="customReminderPriority">
-                                <option value="warning">🟠 Normal / Importante</option>
-                                <option value="critical">🚨 Alta / Urgente</option>
-                                <option value="info">🔵 Informativa / Seguimiento</option>
+                                <option value="warning">Normal / Importante</option>
+                                <option value="critical">Alta / Urgente</option>
+                                <option value="info">Informativa / Seguimiento</option>
                             </select>
                         </div>
                         <div class="form-group">
@@ -650,7 +650,7 @@ function saveCustomReminderForm(e) {
     ReminderState.customReminders.push(newRem);
     saveReminderState();
     closeModal('customReminderModal');
-    showToast('📌 Recordatorio guardado con éxito', 'success');
+    showToast('Recordatorio guardado con éxito', 'success');
     updateSessionRemindersUI();
 }
 

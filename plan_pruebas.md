@@ -193,3 +193,14 @@ flowchart TD
 
 
 
+
+
+---
+
+## 11. Casos de Prueba — Examen Mental Protocolizado v6.5 (Correcciones Semiológicas Oficiales)
+
+| ID | Módulo | Nombre de la Prueba | Criterio de Aprobación |
+|---|---|---|---|
+| **TC-MSE-04** | Examen Mental | Generación Semiológica Limpia (Memoria, Pensamiento, Lenguaje y Sensopercepción) | Supresión de prefijos ("comprometida con presencia de...", "Ilusiones:", "Ideas delirantes de tipo:"). Frase exacta "Sin alteraciones observables en el Lenguaje" y "Sin alteraciones observables en la Sensopercepción" en estado normal. |
+| **TC-MSE-05** | Examen Mental | Afectividad Estructurada e Hipertimia Compuesta | Generación exacta del patrón `[Tipo Hipertimia] Orientada al Polo de la [Polo] con Sentimientos de [Sentimientos]`. Deselección/toggle de chips de afecto y selección limpia de "Eutímico". |
+| **TC-MSE-06** | Examen Mental | Concurrencia de 18 Funciones y Síntesis de Referencia Oficial | Verificación de los 18 ejes en el orden estricto de la dirección psicológica y validación con el párrafo de referencia de paciente femenina de 18 años. |

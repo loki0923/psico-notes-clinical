@@ -7,55 +7,55 @@ const PsychoEd = {
     worksheets: [
         {
             id: 'tcc_5col',
-            title: '🧠 Registro de Pensamientos Automáticos (TCC)',
+            title: 'Registro de Pensamientos Automáticos (TCC)',
             subtitle: 'Identificación de distorsiones y respuestas racionales alternativas',
             category: 'TCC'
         },
         {
             id: 'act_matrix',
-            title: '🎯 Matriz de Aceptación y Compromiso (ACT)',
+            title: 'Matriz de Aceptación y Compromiso (ACT)',
             subtitle: 'Clarificación de valores, defusión y acciones comprometidas',
             category: 'ACT'
         },
         {
             id: 'suds_scale',
-            title: '📊 Jerarquía de Ansiedad y Desensibilización (SUDS 0-100)',
+            title: 'Jerarquía de Ansiedad y Desensibilización (SUDS 0-100)',
             subtitle: 'Escala de Unidades Subjetivas de Malestar para exposición graduada',
             category: 'Exposición'
         },
         {
             id: 'grounding_54321',
-            title: '🌿 Técnica de Anclaje Grounding 5-4-3-2-1 y Respiración',
+            title: 'Técnica de Anclaje Grounding 5-4-3-2-1 y Respiración',
             subtitle: 'Ejercicio de regulación emocional y conciencia del momento presente',
             category: 'Mindfulness'
         },
         {
             id: 'sleep_hygiene',
-            title: '🌙 Protocolo de Higiene del Sueño y Control de Estímulos',
+            title: 'Protocolo de Higiene del Sueño y Control de Estímulos',
             subtitle: 'Pautas conductuales para la reducción del insomnio y la rumiación nocturna',
             category: 'Conductual'
         },
         {
             id: 'behavioral_activation',
-            title: '⚡ Activación Conductual: Registro de Placer y Logro',
+            title: 'Activación Conductual: Registro de Placer y Logro',
             subtitle: 'Programación de actividades graduales para romper la inercia depresiva',
             category: 'TCC'
         },
         {
             id: 'dbt_tipp',
-            title: '🧊 Habilidades TIPP para Tolerancia al Malestar (DBT)',
+            title: 'Habilidades TIPP para Tolerancia al Malestar (DBT)',
             subtitle: 'Temperatura, Ejercicio Intenso, Respiración Pausada y Relajación Muscular',
             category: 'DBT'
         },
         {
             id: 'child_feelings_thermometer',
-            title: '🎨 Termómetro Emocional y Monstruo de la Calma (Infantil)',
+            title: 'Termómetro Emocional y Regulación de la Calma (Infantil)',
             subtitle: 'Identificación lúdica de emociones básicas y caja de herramientas de calma para niños',
             category: 'Infantil'
         },
         {
             id: 'teen_values_compass',
-            title: '🧭 Brújula de Autonomía y Presión de Pares (Adolescentes)',
+            title: 'Brújula de Autonomía y Presión de Pares (Adolescentes)',
             subtitle: 'Diferenciación entre lo que esperan los demás vs mis valores e identidad propia',
             category: 'Adolescentes'
         }
@@ -174,7 +174,7 @@ const PsychoEd = {
         if (id === 'sleep_hygiene') {
             return `
                 <div style="background:var(--bg-secondary);padding:14px;border-radius:var(--radius-md);font-size:13px;line-height:1.6;">
-                    <h4>🌙 Reglas Básicas de Control de Estímulos:</h4>
+                    <h4>Reglas Básicas de Control de Estímulos:</h4>
                     <ul style="margin-left:20px;">
                         <li><strong>Cama = Solo Dormir:</strong> Nada de pantallas, trabajo ni comidas en el lecho.</li>
                         <li><strong>Regla de los 20 minutos:</strong> Si no concilia el sueño en 20 min, levantarse y realizar una actividad relajante con luz tenue.</li>
@@ -201,7 +201,7 @@ const PsychoEd = {
         if (id === 'dbt_tipp') {
             return `
                 <div style="background:var(--bg-secondary);padding:14px;border-radius:var(--radius-md);font-size:13px;line-height:1.6;">
-                    <h4>🧊 Protocolo TIPP para Crisis de Ansiedad o Ira:</h4>
+                    <h4>Protocolo TIPP para Crisis de Ansiedad o Ira:</h4>
                     <ol style="margin-left:20px;">
                         <li><strong>T - Temperatura:</strong> Agua fría en el rostro o sostener un hielo para activar el reflejo de inmersión y bajar la frecuencia cardíaca.</li>
                         <li><strong>I - Intensidad (Ejercicio breve):</strong> 2 minutos de saltos, sentadillas o flexiones para liberar adrenalina acumulada.</li>
@@ -219,20 +219,20 @@ const PsychoEd = {
             return `
                 <div style="display:flex;flex-direction:column;gap:12px;">
                     <div style="background:var(--bg-secondary);padding:12px;border-radius:var(--radius-md);font-size:13px;line-height:1.5;">
-                        <h4 style="margin-top:0;">🎨 El Semáforo / Termómetro de las Emociones:</h4>
+                        <h4 style="margin-top:0;">El Semáforo / Termómetro de las Emociones:</h4>
                         <p style="margin-bottom:6px;">Ayuda al niño/a a identificar cómo se siente en su cuerpo y qué color tiene su emoción:</p>
                         <ul style="margin-left:18px;">
-                            <li>🟢 <strong>Verde / Zona Calma:</strong> Tranquilo/a, contento/a, listo/a para jugar o aprender.</li>
-                            <li>🟡 <strong>Amarillo / Zona Alerta:</strong> Nervioso/a, frustrado/a, con ganas de llorar o inquieto/a.</li>
-                            <li>🔴 <strong>Rojo / Zona Volcán:</strong> Mucha rabia, fuera de control, necesita parar y respirar.</li>
+                            <li><strong>Verde / Zona Calma:</strong> Tranquilo/a, contento/a, listo/a para jugar o aprender.</li>
+                            <li><strong>Amarillo / Zona Alerta:</strong> Nervioso/a, frustrado/a, con ganas de llorar o inquieto/a.</li>
+                            <li><strong>Rojo / Zona Volcán:</strong> Mucha rabia, fuera de control, necesita parar y respirar.</li>
                         </ul>
                     </div>
                     <div class="form-group">
                         <label>1. ¿En qué color se siente el/la niño/a hoy?</label>
                         <select id="ws_child_color">
-                            <option value="verde">🟢 Verde (Calma y alegría)</option>
-                            <option value="amarillo">🟡 Amarillo (Inquieto/a o preocupado/a)</option>
-                            <option value="rojo">🔴 Rojo (Muy enojado/a o asustado/a)</option>
+                            <option value="verde">Verde (Calma y bienestar)</option>
+                            <option value="amarillo">Amarillo (Inquietud o preocupación)</option>
+                            <option value="rojo">Rojo (Elevada reactividad o angustia)</option>
                         </select>
                     </div>
                     <div class="form-group">
@@ -250,7 +250,7 @@ const PsychoEd = {
             return `
                 <div style="display:flex;flex-direction:column;gap:12px;">
                     <div style="background:var(--bg-secondary);padding:12px;border-radius:var(--radius-md);font-size:13px;line-height:1.5;">
-                        <h4 style="margin-top:0;">🧭 Brújula de Autonomía vs Presión Social:</h4>
+                        <h4 style="margin-top:0;">Brújula de Autonomía vs Presión Social:</h4>
                         <p style="margin-bottom:0;">Identifica decisiones guiadas por lo que tú realmente valoras vs lo que sientes que otros esperan de ti (amigos, redes, familia).</p>
                     </div>
                     <div class="form-group">
@@ -274,7 +274,7 @@ const PsychoEd = {
         }
         return `
             <div style="background:var(--bg-secondary);padding:14px;border-radius:var(--radius-md);font-size:13px;line-height:1.6;">
-                <h4>🌿 Pasos del Ejercicio Grounding 5-4-3-2-1:</h4>
+                <h4>Pasos del Ejercicio Grounding 5-4-3-2-1:</h4>
                 <ol style="margin-left:20px;">
                     <li><strong>5 cosas que puedas VER:</strong> Mira a tu alrededor y nombra 5 objetos detallados.</li>
                     <li><strong>4 cosas que puedas TOCAR:</strong> Siente la textura de tu ropa, el suelo o una superficie.</li>
@@ -297,7 +297,7 @@ const PsychoEd = {
 
         let bodyText = '';
         if (id === 'tcc_5col') {
-            bodyText = `📋 REGISTRO DE PENSAMIENTOS AUTOMÁTICOS (TCC)
+            bodyText = `REGISTRO DE PENSAMIENTOS AUTOMÁTICOS (TCC)
 Paciente: ${name}
 Fecha: ${new Date().toLocaleDateString('es-ES')}
 
@@ -316,7 +316,7 @@ ${document.getElementById('ws_resp')?.value || '—'}
 5. RESULTADO:
 ${document.getElementById('ws_res')?.value || '—'}`;
         } else if (id === 'act_matrix') {
-            bodyText = `🎯 MATRIZ DE ACEPTACIÓN Y COMPROMISO (ACT)
+            bodyText = `MATRIZ DE ACEPTACIÓN Y COMPROMISO (ACT)
 Paciente: ${name}
 Fecha: ${new Date().toLocaleDateString('es-ES')}
 
@@ -325,7 +325,7 @@ Fecha: ${new Date().toLocaleDateString('es-ES')}
 - CONDUCTAS DE EVITACIÓN: ${document.getElementById('ws_act_avoid')?.value || '—'}
 - ACCIONES COMPROMETIDAS: ${document.getElementById('ws_act_action')?.value || '—'}`;
         } else if (id === 'suds_scale') {
-            bodyText = `📊 JERARQUÍA SUDS (0-100)
+            bodyText = `JERARQUÍA SUDS (0-100)
 Paciente: ${name}
 
 - SUDS 25 (Leve): ${document.getElementById('ws_suds_25')?.value || '—'}
@@ -333,23 +333,23 @@ Paciente: ${name}
 - SUDS 75 (Intenso): ${document.getElementById('ws_suds_75')?.value || '—'}
 - SUDS 100 (Máximo): ${document.getElementById('ws_suds_100')?.value || '—'}`;
         } else if (id === 'sleep_hygiene') {
-            bodyText = `🌙 HIGIENE DEL SUEÑO
+            bodyText = `HIGIENE DEL SUEÑO
 Paciente: ${name}
 Acuerdos pactados:
 ${document.getElementById('ws_sleep_agreements')?.value || 'Pautas de control de estímulos y horario regular'}`;
         } else if (id === 'behavioral_activation') {
-            bodyText = `⚡ ACTIVACIÓN CONDUCTUAL
+            bodyText = `ACTIVACIÓN CONDUCTUAL
 Paciente: ${name}
 1. ${document.getElementById('ws_ba_1')?.value || 'Actividad 1'}
 2. ${document.getElementById('ws_ba_2')?.value || 'Actividad 2'}
 3. ${document.getElementById('ws_ba_3')?.value || 'Actividad 3'}`;
         } else if (id === 'dbt_tipp') {
-            bodyText = `🧊 PROTOCOLO TIPP (DBT)
+            bodyText = `PROTOCOLO TIPP (DBT)
 Paciente: ${name}
 Plan de aplicación:
 ${document.getElementById('ws_tipp_plan')?.value || 'Temperatura fría, respiración pausada y relajación'}`;
         } else {
-            bodyText = `🌿 GROUNDING 5-4-3-2-1
+            bodyText = `GROUNDING 5-4-3-2-1
 Paciente: ${name}
 Notas del ejercicio: ${document.getElementById('ws_ground_notes')?.value || 'Completado exitosamente'}`;
         }

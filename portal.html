@@ -40,7 +40,7 @@
                 <label>Código de acceso</label>
                 <input type="text" id="accessCode" placeholder="Ingresa tu código personal" autocomplete="off" style="text-transform: uppercase; letter-spacing: 2px; font-weight: 600;">
                 <small style="color: var(--text-tertiary); font-size: 11px; display: block; margin-top: 6px;">
-                    💡 Tu terapeuta te proporcionó este código
+                    Tu terapeuta te proporcionó este código
                 </small>
             </div>
             <div id="accessError" class="error-message"></div>
@@ -51,7 +51,7 @@
         
         <div id="welcomeBack" style="display: none;">
             <div class="welcome-back-info">
-                <div class="patient-avatar-large" id="portalPatientAvatar">👤</div>
+                <div class="patient-avatar-large" id="portalPatientAvatar"><i class="fas fa-user"></i></div>
                 <h2 id="portalPatientName">Bienvenido/a</h2>
                 <p style="color: var(--text-secondary); font-size: 13px;">¿Continuamos donde lo dejamos?</p>
             </div>
@@ -71,7 +71,7 @@
     <!-- HEADER -->
     <header class="portal-header">
         <div class="portal-header-left">
-            <div class="portal-avatar" id="headerAvatar">👤</div>
+            <div class="portal-avatar" id="headerAvatar"><i class="fas fa-user"></i></div>
             <div>
                 <div class="portal-greeting" id="headerGreeting">Hola</div>
                 <div class="portal-patient-name" id="headerName">Paciente</div>
@@ -79,16 +79,16 @@
         </div>
         <div style="display: flex; align-items: center; gap: 8px;">
             <button id="btnKidSoundToggle" class="btn-kid-sound" style="display: none;" onclick="KidAudioEffects.toggleMute()" title="Efectos de sonido">
-                🔊
+                <i class="fas fa-volume-up"></i>
             </button>
             <div id="kidStarsBadge" class="kid-stars-counter" style="display: none;" title="Tus estrellas mágicas acumuladas">
                 ⭐ <span id="kidStarsCount">0</span>
             </div>
             <div id="kidCoinsBadge" class="kid-coins-counter" style="display: none;" title="Tus monedas mágicas acumuladas">
-                🪙 <span id="kidCoinsCount">50</span>
+                <i class="fas fa-coins" style="color:#f59e0b;"></i> <span id="kidCoinsCount">50</span>
             </div>
             <button id="btnKidModeToggle" class="btn-kid-toggle" style="display: none !important;" onclick="toggleKidMode()" title="Cambiar a Modo Kids / Espacio Lúdico">
-                <span class="kid-toggle-icon">🎈</span> <span class="kid-toggle-label">Modo Kids</span>
+                <span class="kid-toggle-icon"><i class="fas fa-shapes"></i></span> <span class="kid-toggle-label">Modo Kids</span>
             </button>
             <span id="offlineSyncBadge" class="offline-sync-badge" style="display: none;" title="Registros pendientes de sincronizar con el terapeuta. Clic para sincronizar ahora." onclick="PortalOfflineQueue.flush()">
                 <i class="fas fa-cloud-arrow-up"></i> <span id="offlineSyncCount">0</span>
@@ -108,7 +108,7 @@
     <!-- BANNER PWA INSTALABLE -->
     <div id="pwaInstallBanner" class="pwa-install-banner" style="display: none;">
         <div class="pwa-banner-content">
-            <span class="pwa-banner-icon">📲</span>
+            <span class="pwa-banner-icon"><i class="fas fa-mobile-alt"></i></span>
             <div>
                 <strong>Instala la App en tu Celular</strong>
                 <small>Acceso directo con un solo toque desde tu pantalla de inicio</small>
@@ -178,7 +178,7 @@
                 <div class="mood-word-box" id="moodWordBox" style="margin-top: 14px; padding-top: 12px; border-top: 1px dashed var(--border-primary, rgba(0,0,0,0.08));">
                     <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
                         <label for="inputDailyWord" style="font-size: 13px; font-weight: 700; color: var(--text-primary); display: flex; align-items: center; gap: 6px;">
-                            <span>🏷️</span> Una palabra con la que te sientas identificado hoy
+                            <span><i class="fas fa-tag"></i></span> Una palabra con la que te sientas identificado hoy
                         </label>
                         <span id="dailyWordSavedTag" class="badge-word-saved" style="display: none;">Registrada ✓</span>
                     </div>
@@ -190,14 +190,14 @@
                     </div>
                     <!-- Quick emotion chips -->
                     <div class="mood-chips-container" style="display: flex; flex-wrap: wrap; gap: 6px; margin-top: 10px;">
-                        <button type="button" class="mood-word-chip" onclick="selectDailyWordChip('Esperanza')">🌱 Esperanza</button>
-                        <button type="button" class="mood-word-chip" onclick="selectDailyWordChip('Tranquilidad')">🌊 Tranquilidad</button>
-                        <button type="button" class="mood-word-chip" onclick="selectDailyWordChip('Ansiedad')">⚡ Ansiedad</button>
-                        <button type="button" class="mood-word-chip" onclick="selectDailyWordChip('Gratitud')">🙏 Gratitud</button>
-                        <button type="button" class="mood-word-chip" onclick="selectDailyWordChip('Cansancio')">🔋 Cansancio</button>
-                        <button type="button" class="mood-word-chip" onclick="selectDailyWordChip('Motivación')">🔥 Motivación</button>
-                        <button type="button" class="mood-word-chip" onclick="selectDailyWordChip('Paz')">🕊️ Paz</button>
-                        <button type="button" class="mood-word-chip" onclick="selectDailyWordChip('Abrumado')">🌪️ Abrumado</button>
+                        <button type="button" class="mood-word-chip" onclick="selectDailyWordChip('Esperanza')">Esperanza</button>
+                        <button type="button" class="mood-word-chip" onclick="selectDailyWordChip('Tranquilidad')">Tranquilidad</button>
+                        <button type="button" class="mood-word-chip" onclick="selectDailyWordChip('Ansiedad')">Ansiedad</button>
+                        <button type="button" class="mood-word-chip" onclick="selectDailyWordChip('Gratitud')">Gratitud</button>
+                        <button type="button" class="mood-word-chip" onclick="selectDailyWordChip('Cansancio')">Cansancio</button>
+                        <button type="button" class="mood-word-chip" onclick="selectDailyWordChip('Motivación')">Motivación</button>
+                        <button type="button" class="mood-word-chip" onclick="selectDailyWordChip('Paz')">Paz</button>
+                        <button type="button" class="mood-word-chip" onclick="selectDailyWordChip('Abrumado')">Abrumado</button>
                     </div>
                 </div>
             </div>
@@ -205,7 +205,7 @@
             <!-- TARJETA DE CONSENTIMIENTO INFORMADO -->
             <div id="consentCardPortal" class="portal-consent-card" style="display: none;">
                 <div class="consent-card-left">
-                    <span class="consent-badge-icon">📜</span>
+                    <span class="consent-badge-icon"><i class="fas fa-file-signature"></i></span>
                     <div>
                         <strong id="consentCardTitle">Acuerdo Terapéutico y Confidencialidad</strong>
                         <p id="consentCardDesc" style="margin:2px 0 0 0;font-size:12px;color:var(--text-secondary);">Revisa y firma digitalmente el marco de confidencialidad.</p>
@@ -218,28 +218,28 @@
 
             <div class="quick-stats">
                 <div class="quick-stat" onclick="switchView('tasks')" style="cursor: pointer;" title="Ver mis tareas intersesión">
-                    <div class="stat-icon">📋</div>
+                    <div class="stat-icon"><i class="fas fa-tasks"></i></div>
                     <div class="stat-info">
                         <div class="stat-value" id="pendingTasksCount">0</div>
                         <div class="stat-label">Tareas pendientes</div>
                     </div>
                 </div>
                 <div class="quick-stat" onclick="switchView('sessions')" style="cursor: pointer;" title="Ver y gestionar mis sesiones">
-                    <div class="stat-icon">📅</div>
+                    <div class="stat-icon"><i class="fas fa-calendar-alt"></i></div>
                     <div class="stat-info">
                         <div class="stat-value" id="nextSessionText">—</div>
                         <div class="stat-label">Próxima sesión</div>
                     </div>
                 </div>
                 <div class="quick-stat" onclick="switchView('tests')" style="cursor: pointer;" title="Realizar chequeo o evaluaciones">
-                    <div class="stat-icon">❤️</div>
+                    <div class="stat-icon"><i class="fas fa-heart"></i></div>
                     <div class="stat-info">
                         <div class="stat-value">Bienestar</div>
                         <div class="stat-label">Evaluaciones</div>
                     </div>
                 </div>
                 <div class="quick-stat" onclick="switchView('progress')" style="cursor: pointer;" title="Ver mi evolución clínica">
-                    <div class="stat-icon">📈</div>
+                    <div class="stat-icon"><i class="fas fa-chart-line"></i></div>
                     <div class="stat-info">
                         <div class="stat-value">Evolución</div>
                         <div class="stat-label">Mi Progreso</div>
@@ -253,7 +253,7 @@
             <!-- ESPACIO INFORMATIVO: MI PSICÓLOGO TRATANTE -->
             <div id="therapistInfoCard" class="portal-therapist-card section-card">
                 <div class="therapist-card-header">
-                    <div class="therapist-card-avatar" id="therapistCardAvatar">👨‍⚕️</div>
+                    <div class="therapist-card-avatar" id="therapistCardAvatar"><i class="fas fa-user-md"></i></div>
                     <div class="therapist-card-main">
                         <span class="therapist-card-badge">MI PSICÓLOGO TRATANTE</span>
                         <h3 class="therapist-card-name" id="therapistCardName">Licenciado(a) en Psicología</h3>
@@ -289,14 +289,14 @@
             <div class="calm-kit-card">
                 <div class="calm-kit-header">
                     <div>
-                        <span class="calm-kit-badge">✨ BOTIQUÍN EMOCIONAL</span>
+                        <span class="calm-kit-badge">BOTIQUÍN EMOCIONAL</span>
                         <h3 class="calm-kit-title">Herramientas de Calma Inmediata</h3>
                         <p class="calm-kit-subtitle">Técnicas clínicas para regular la ansiedad y desacelerar tu mente</p>
                     </div>
                 </div>
                 <div class="calm-kit-grid">
                     <div class="calm-tool-btn" onclick="openBreathingExercise()">
-                        <div class="calm-tool-icon">🫁</div>
+                        <div class="calm-tool-icon"><i class="fas fa-lungs"></i></div>
                         <div class="calm-tool-info">
                             <strong>Respiración 4-7-8</strong>
                             <small>Reduce taquicardia y estrés en 2 min</small>
@@ -305,7 +305,7 @@
                     </div>
 
                     <div class="calm-tool-btn" onclick="openGroundingExercise()">
-                        <div class="calm-tool-icon">⚓</div>
+                        <div class="calm-tool-icon"><i class="fas fa-anchor"></i></div>
                         <div class="calm-tool-info">
                             <strong>Anclaje 5-4-3-2-1</strong>
                             <small>Frena pensamientos intrusivos y pánico</small>
@@ -393,7 +393,7 @@
             
             <div id="tasksList" class="tasks-list">
                 <div class="empty-state">
-                    <div class="empty-icon">✨</div>
+                    <div class="empty-icon"><i class="fas fa-check-circle"></i></div>
                     <p>No tienes tareas pendientes</p>
                     <small>Tu terapeuta te asignará actividades entre sesiones</small>
                 </div>
@@ -409,7 +409,7 @@
 
             <div class="tests-grid">
                 <div class="test-card" onclick="openTest('phq9')">
-                    <div class="test-icon">🌧️</div>
+                    <div class="test-icon"><i class="fas fa-cloud-rain"></i></div>
                     <div class="test-info">
                         <h3>Evaluación del Estado de Ánimo (PHQ-9)</h3>
                         <p>9 preguntas · 2 minutos</p>
@@ -419,7 +419,7 @@
                 </div>
 
                 <div class="test-card" onclick="openTest('gad7')">
-                    <div class="test-icon">🌊</div>
+                    <div class="test-icon"><i class="fas fa-water"></i></div>
                     <div class="test-info">
                         <h3>Evaluación de Ansiedad (GAD-7)</h3>
                         <p>7 preguntas · 2 minutos</p>
@@ -429,7 +429,7 @@
                 </div>
 
                 <div class="test-card" onclick="openTest('mood')">
-                    <div class="test-icon">💭</div>
+                    <div class="test-icon"><i class="fas fa-comment-dots"></i></div>
                     <div class="test-info">
                         <h3>Registro de Ánimo Diario</h3>
                         <p>3 preguntas · 1 minuto</p>
@@ -439,7 +439,7 @@
                 </div>
 
                 <div class="test-card" onclick="openTest('cbt_thought')">
-                    <div class="test-icon">🧠</div>
+                    <div class="test-icon"><i class="fas fa-brain"></i></div>
                     <div class="test-info">
                         <h3>Registro de Pensamientos (ABC)</h3>
                         <p>Identifica pensamientos, distorsiones y emociones · 3 min</p>
@@ -466,14 +466,14 @@
 
             <div class="progress-summary">
                 <div class="progress-card">
-                    <div class="progress-icon">📅</div>
+                    <div class="progress-icon"><i class="fas fa-calendar-alt"></i></div>
                     <div class="progress-info">
                         <div class="progress-value" id="totalSessions">0</div>
                         <div class="progress-label">Evaluaciones realizadas</div>
                     </div>
                 </div>
                 <div class="progress-card">
-                    <div class="progress-icon">✅</div>
+                    <div class="progress-icon"><i class="fas fa-check"></i></div>
                     <div class="progress-info">
                         <div class="progress-value" id="completedTasks">0</div>
                         <div class="progress-label">Tareas realizadas</div>
@@ -485,7 +485,7 @@
                 <h3><i class="fas fa-star"></i> Logros recientes</h3>
                 <div id="achievementsList" class="achievements-list">
                     <div class="achievement">
-                        <div class="achievement-icon">🌱</div>
+                        <div class="achievement-icon"><i class="fas fa-seedling"></i></div>
                         <div class="achievement-info">
                             <div class="achievement-title">Primer paso</div>
                             <div class="achievement-desc">Comenzaste tu proceso terapéutico</div>
@@ -526,11 +526,11 @@
                         <div>
                             <label for="docCategorySelect" style="display: block; font-size: 12px; font-weight: 600; margin-bottom: 5px;">Categoría</label>
                             <select id="docCategorySelect" class="portal-input" style="width: 100%; padding: 10px 12px; border-radius: 8px; border: 1px solid var(--border-primary);">
-                                <option value="tarea">📝 Tarea intersesión</option>
-                                <option value="informe">📄 Informe médico / psicológico</option>
-                                <option value="estudio">🔬 Estudio o Evaluación</option>
-                                <option value="comprobante">🧾 Comprobante o Trámite</option>
-                                <option value="general">📁 General / Otro</option>
+                                <option value="tarea">Tarea intersesión</option>
+                                <option value="informe">Informe médico / psicológico</option>
+                                <option value="estudio">Estudio o Evaluación</option>
+                                <option value="comprobante">Comprobante o Trámite</option>
+                                <option value="general">General / Otro</option>
                             </select>
                         </div>
                         <div>
@@ -622,11 +622,11 @@
                         <div>
                             <label for="payMethodSelect" style="display: block; font-size: 12px; font-weight: 600; margin-bottom: 5px;">Método Utilizado</label>
                             <select id="payMethodSelect" class="portal-input" style="width: 100%; padding: 10px 12px; border-radius: 8px; border: 1px solid var(--border-primary);">
-                                <option value="pago_movil">📱 Pago Móvil</option>
-                                <option value="zelle">💵 Zelle</option>
-                                <option value="transferencia">🏦 Transferencia Bancaria</option>
-                                <option value="binance">🟡 Binance Pay</option>
-                                <option value="efectivo">💶 Efectivo en Consulta</option>
+                                <option value="pago_movil">Pago Móvil</option>
+                                <option value="zelle">Zelle</option>
+                                <option value="transferencia">Transferencia Bancaria</option>
+                                <option value="binance">Binance Pay</option>
+                                <option value="efectivo">Efectivo en Consulta</option>
                             </select>
                         </div>
                         <div>
@@ -680,8 +680,8 @@
 
             <div class="section-card">
                 <div style="display: flex; align-items: center; gap: 14px; margin-bottom: 20px; padding-bottom: 16px; border-bottom: 1px solid var(--border-primary);">
-                    <div class="profile-avatar-large" id="profileLargeAvatar" style="width: 56px; height: 56px; border-radius: 50%; background: var(--accent-gradient, linear-gradient(135deg, #4f46e5, #7c3aed)); color: white; display: flex; align-items: center; justify-content: center; font-size: 22px; font-weight: 700; box-shadow: 0 4px 12px rgba(79,70,229,0.25);">
-                        👤
+                    <div class="profile-avatar-large" id="profileLargeAvatar" style="width: 56px; height: 56px; border-radius: 50%; background: var(--accent-gradient, linear-gradient(135deg, #4f46e5, #7c3aed)); color: white; display: flex; align-items: center; justify-content: center; font-size: 20px; font-weight: 700; box-shadow: 0 4px 12px rgba(79,70,229,0.25);">
+                        <i class="fas fa-user"></i>
                     </div>
                     <div>
                         <h3 id="profileDisplayName" style="margin: 0; font-size: 18px; font-weight: 700; color: var(--text-primary);">Paciente</h3>
