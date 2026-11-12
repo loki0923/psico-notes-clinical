@@ -871,6 +871,18 @@ function updateSidebarUser() {
     if (roleEl) roleEl.textContent = AppState.currentUser.specialty || 'Psicología Clínica';
     const regEl = document.getElementById('sidebarUserRegistry');
     if (regEl) regEl.textContent = AppState.currentUser.registryNumber || '';
+
+    // Actualizar foto de perfil del profesional si existe personalizada
+    const photo = AppState.currentUser.photo || localStorage.getItem('psico_therapist_photo');
+    const avatarEl = document.getElementById('sidebarUserAvatar');
+    if (avatarEl && photo) {
+        let img = avatarEl.querySelector('img');
+        if (!img) {
+            avatarEl.innerHTML = `<img src="${photo}" alt="Terapeuta" style="width:38px;height:38px;border-radius:50%;object-fit:cover;display:block;">`;
+        } else {
+            img.src = photo;
+        }
+    }
 }
 
 function initAuthEventListeners() {
@@ -1288,9 +1300,74 @@ function openTherapistProfileModal() {
     if (phoneInput) phoneInput.value = user.phone || localStorage.getItem('psico_therapist_phone') || '';
     if (instInput) instInput.value = user.institution || localStorage.getItem('psico_therapist_institution') || '';
 
+    // Cargar foto de perfil en preview si existe
+    const photo = user.photo || localStorage.getItem('psico_therapist_photo');
+    const photoPreview = document.getElementById('therapistProfilePhotoPreview');
+    if (photoPreview) {
+        photoPreview.src = photo || 'assets/avatar/serena-avatar.jpg?v=7.2.0';
+    }
+
     openModal('therapistProfileModal');
     setTimeout(() => initTherapistSignaturePad(), 80);
 }
+
+function handleTherapistPhotoSelected(event) {
+    const file = event.target.files && event.target.files[0];
+    if (!file) return;
+    if (!file.type.startsWith('image/')) {
+        showToast('Por favor seleccione un archivo de imagen válido', 'warning');
+        return;
+    }
+    if (file.size > 2 * 1024 * 1024) {
+        showToast('La imagen excede el límite de 2MB', 'warning');
+        return;
+    }
+    const reader = new FileReader();
+    reader.onload = function(e) {
+        const base64 = e.target.result;
+        const preview = document.getElementById('therapistProfilePhotoPreview');
+        if (preview) preview.src = base64;
+        localStorage.setItem('psico_therapist_photo', base64);
+        if (AppState.currentUser) {
+            AppState.currentUser.photo = base64;
+            const users = getUsers();
+            const idx = users.findIndex(u => u.id === AppState.currentUser.id);
+            if (idx !== -1) {
+                users[idx].photo = base64;
+                saveUsers(users);
+            }
+        }
+        updateSidebarUser();
+        showToast('Foto de perfil cargada con éxito', 'success');
+    };
+    reader.readAsDataURL(file);
+}
+window.handleTherapistPhotoSelected = handleTherapistPhotoSelected;
+
+function removeTherapistPhoto() {
+    localStorage.removeItem('psico_therapist_photo');
+    if (AppState.currentUser) {
+        delete AppState.currentUser.photo;
+        const users = getUsers();
+        const idx = users.findIndex(u => u.id === AppState.currentUser.id);
+        if (idx !== -1) {
+            delete users[idx].photo;
+            saveUsers(users);
+        }
+    }
+    const preview = document.getElementById('therapistProfilePhotoPreview');
+    if (preview) preview.src = 'assets/avatar/serena-avatar.jpg?v=7.2.0';
+    const input = document.getElementById('therapistProfilePhotoInput');
+    if (input) input.value = '';
+    const avatarEl = document.getElementById('sidebarUserAvatar');
+    if (avatarEl) {
+        let img = avatarEl.querySelector('img');
+        if (img) img.src = 'assets/avatar/serena-avatar.jpg?v=7.2.0';
+    }
+    updateSidebarUser();
+    showToast('Foto de perfil restablecida', 'info');
+}
+window.removeTherapistPhoto = removeTherapistPhoto;
 
 let therapistSignatureCtx = null;
 let isTherapistSignatureDrawing = false;
@@ -1410,6 +1487,8 @@ function handleSaveTherapistProfile(e) {
 
         const users = getUsers();
         const idx = users.findIndex(u => u.id === AppState.currentUser.id);
+        const savedPhoto = localStorage.getItem('psico_therapist_photo');
+        if (savedPhoto) AppState.currentUser.photo = savedPhoto;
         if (idx !== -1) {
             users[idx].name = name;
             users[idx].specialty = specialty;
@@ -1417,9 +1496,11 @@ function handleSaveTherapistProfile(e) {
             if (email) users[idx].email = email;
             users[idx].phone = phone;
             users[idx].institution = institution;
+            if (savedPhoto) users[idx].photo = savedPhoto;
             saveUsers(users);
         }
     } else {
+        const savedPhoto = localStorage.getItem('psico_therapist_photo');
         AppState.currentUser = {
             id: 'local_therapist',
             name,
@@ -1427,7 +1508,8 @@ function handleSaveTherapistProfile(e) {
             registryNumber: registry,
             email,
             phone,
-            institution
+            institution,
+            photo: savedPhoto || undefined
         };
     }
 
@@ -1959,12 +2041,25 @@ async function approvePatientPayment(reportId, patientId) {
             const txs = getFinanceTransactions() || [];
             if (!txs.some(t => t.paymentReportId === reportId)) {
                 const patient = (AppState.patients || []).find(p => String(p.id) === String(patientId));
+                const rawAmount = Number(targetReport.amount) || 0;
+                const rawCur = (targetReport.currency || 'USD').toUpperCase();
+                const isVes = rawCur === 'VES' || rawCur === 'BS' || rawCur === 'BS.';
+                const payCurrency = isVes ? 'VES' : rawCur;
+                let bcvRateUsed = null;
+                if (isVes) {
+                    const bcvRate = (typeof FinanceModule !== 'undefined' && FinanceModule.getBcvExchangeRates)
+                        ? Number(FinanceModule.getBcvExchangeRates()?.usdRate || 0)
+                        : (Number(localStorage.getItem('psico_bcv_rate')) || 0);
+                    if (bcvRate > 0) bcvRateUsed = bcvRate;
+                }
                 txs.push({
                     id: 'tx_pay_' + Date.now().toString(36),
                     type: 'income',
-                    concept: `Abono Portal: ${targetReport.concept || 'Sesión'} (Ref: ${targetReport.reference}) - ${patient ? patient.name : 'Paciente'}`,
-                    amount: Number(targetReport.amount) || 0,
-                    currency: targetReport.currency || 'USD',
+                    concept: `Abono Portal: ${targetReport.concept || 'Sesión'} (Ref: ${targetReport.reference || 'S/R'}) - ${patient ? patient.name : 'Paciente'}`,
+                    amount: rawAmount,
+                    originalAmount: rawAmount,
+                    currency: payCurrency,
+                    bcvRate: bcvRateUsed || undefined,
                     category: 'Consulta Clínica',
                     patientId: patientId,
                     paymentReportId: reportId,
@@ -2911,6 +3006,10 @@ function updateModalCategorySections(category) {
     // Hipótesis Biopsicosociales y Factores Clínicos (Universal para Infantil, Adolescente y Adulto)
     if (getEl('clinicalHypothesisSection')) getEl('clinicalHypothesisSection').style.display = 'block';
 
+    // Antecedentes Médicos y Familiares (Ocultar en ficha rápida del Adolescente a solicitud del equipo clínico)
+    if (getEl('patientMedicalGroup')) getEl('patientMedicalGroup').style.display = isTeen ? 'none' : 'block';
+    if (getEl('patientFamilyHistoryGroup')) getEl('patientFamilyHistoryGroup').style.display = isTeen ? 'none' : 'block';
+
     // Encuadre y Acuerdos (Universal: Frecuencia, Modalidad, Turno)
     if (getEl('encuadreSection')) getEl('encuadreSection').style.display = 'block';
     if (getEl('patientShiftGroup')) getEl('patientShiftGroup').style.display = 'block';
@@ -3318,8 +3417,8 @@ const DEFAULT_PATIENT_TABS_ORDER = [
 const PATIENT_TAB_RENDERERS = {
     'resumen': (active) => `<button class="patient-tab ${active ? 'active' : ''}" data-tab-id="resumen" draggable="true" title="Arrastra para reorganizar esta pestaña" ondragstart="handlePatientTabDragStart(event)" ondragover="handlePatientTabDragOver(event)" ondragleave="handlePatientTabDragLeave(event)" ondrop="handlePatientTabDrop(event)" ondragend="handlePatientTabDragEnd(event)" onclick="switchPatientTab('resumen', this)"><i class="fas fa-grip-vertical tab-drag-handle" title="Arrastrar"></i><i class="fas fa-folder-open"></i> Expediente Clínico</button>`,
     'notas': (active, data) => `<button class="patient-tab ${active ? 'active' : ''}" data-tab-id="notas" draggable="true" title="Arrastra para reorganizar esta pestaña" ondragstart="handlePatientTabDragStart(event)" ondragover="handlePatientTabDragOver(event)" ondragleave="handlePatientTabDragLeave(event)" ondrop="handlePatientTabDrop(event)" ondragend="handlePatientTabDragEnd(event)" onclick="switchPatientTab('notas', this)"><i class="fas fa-grip-vertical tab-drag-handle" title="Arrastrar"></i><i class="fas fa-file-invoice"></i> Notas de sesión (${data.patientNotesCount})</button>`,
-    'sesiones': (active, data) => `<button class="patient-tab ${active ? 'active' : ''}" data-tab-id="sesiones" draggable="true" title="Arrastra para reorganizar esta pestaña" ondragstart="handlePatientTabDragStart(event)" ondragover="handlePatientTabDragOver(event)" ondragleave="handlePatientTabDragLeave(event)" ondrop="handlePatientTabDrop(event)" ondragend="handlePatientTabDragEnd(event)" onclick="switchPatientTab('sesiones', this)"><i class="fas fa-grip-vertical tab-drag-handle" title="Arrastrar"></i><i class="fas fa-calendar-check"></i> Historial de Sesiones (${data.patientAppsCount})</button>`,
-    'historia': (active) => `<button class="patient-tab ${active ? 'active' : ''}" data-tab-id="historia" draggable="true" title="Arrastra para reorganizar esta pestaña" ondragstart="handlePatientTabDragStart(event)" ondragover="handlePatientTabDragOver(event)" ondragleave="handlePatientTabDragLeave(event)" ondrop="handlePatientTabDrop(event)" ondragend="handlePatientTabDragEnd(event)" onclick="switchPatientTab('historia', this)"><i class="fas fa-grip-vertical tab-drag-handle" title="Arrastrar"></i><i class="fas fa-book-medical"></i> Historia</button>`,
+    'sesiones': (active, data) => `<button class="patient-tab ${active ? 'active' : ''}" data-tab-id="sesiones" draggable="true" title="Arrastra para reorganizar esta pestaña" ondragstart="handlePatientTabDragStart(event)" ondragover="handlePatientTabDragOver(event)" ondragleave="handlePatientTabDragLeave(event)" ondrop="handlePatientTabDrop(event)" ondragend="handlePatientTabDragEnd(event)" onclick="switchPatientTab('sesiones', this)"><i class="fas fa-grip-vertical tab-drag-handle" title="Arrastrar"></i><i class="fas fa-calendar-check"></i> Planificación de Sesiones (${data.patientAppsCount})</button>`,
+    'historia': (active) => `<button class="patient-tab ${active ? 'active' : ''}" data-tab-id="historia" draggable="true" title="Arrastra para reorganizar esta pestaña" ondragstart="handlePatientTabDragStart(event)" ondragover="handlePatientTabDragOver(event)" ondragleave="handlePatientTabDragLeave(event)" ondrop="handlePatientTabDrop(event)" ondragend="handlePatientTabDragEnd(event)" onclick="switchPatientTab('historia', this)"><i class="fas fa-grip-vertical tab-drag-handle" title="Arrastrar"></i><i class="fas fa-book-medical"></i> Historia Clínica</button>`,
     'examen-mental': (active) => `<button class="patient-tab ${active ? 'active' : ''}" data-tab-id="examen-mental" draggable="true" title="Arrastra para reorganizar esta pestaña" ondragstart="handlePatientTabDragStart(event)" ondragover="handlePatientTabDragOver(event)" ondragleave="handlePatientTabDragLeave(event)" ondrop="handlePatientTabDrop(event)" ondragend="handlePatientTabDragEnd(event)" onclick="switchPatientTab('examen-mental', this)"><i class="fas fa-grip-vertical tab-drag-handle" title="Arrastrar"></i><i class="fas fa-brain"></i> Examen Mental</button>`,
     'timeline': (active) => `<button class="patient-tab ${active ? 'active' : ''}" data-tab-id="timeline" draggable="true" title="Arrastra para reorganizar esta pestaña" ondragstart="handlePatientTabDragStart(event)" ondragover="handlePatientTabDragOver(event)" ondragleave="handlePatientTabDragLeave(event)" ondrop="handlePatientTabDrop(event)" ondragend="handlePatientTabDragEnd(event)" onclick="switchPatientTab('timeline', this)"><i class="fas fa-grip-vertical tab-drag-handle" title="Arrastrar"></i><i class="fas fa-stream"></i> Línea de Tiempo</button>`,
     'objetivos': (active) => `<button class="patient-tab ${active ? 'active' : ''}" data-tab-id="objetivos" draggable="true" title="Arrastra para reorganizar esta pestaña" ondragstart="handlePatientTabDragStart(event)" ondragover="handlePatientTabDragOver(event)" ondragleave="handlePatientTabDragLeave(event)" ondrop="handlePatientTabDrop(event)" ondragend="handlePatientTabDragEnd(event)" onclick="switchPatientTab('objetivos', this)"><i class="fas fa-grip-vertical tab-drag-handle" title="Arrastrar"></i><i class="fas fa-bullseye"></i> Objetivos</button>`,
@@ -3473,8 +3572,8 @@ function renderPatientTabsReorderList() {
     const TAB_INFO_MAP = {
         'resumen': { label: 'Expediente Clínico', icon: 'fas fa-folder-open' },
         'notas': { label: 'Notas de sesión', icon: 'fas fa-file-invoice' },
-        'sesiones': { label: 'Historial de Sesiones', icon: 'fas fa-calendar-check' },
-        'historia': { label: 'Historia', icon: 'fas fa-book-medical' },
+        'sesiones': { label: 'Planificación de Sesiones', icon: 'fas fa-calendar-check' },
+        'historia': { label: 'Historia Clínica', icon: 'fas fa-book-medical' },
         'examen-mental': { label: 'Examen Mental', icon: 'fas fa-brain' },
         'timeline': { label: 'Línea de Tiempo', icon: 'fas fa-stream' },
         'objetivos': { label: 'Objetivos', icon: 'fas fa-bullseye' },
@@ -3555,9 +3654,19 @@ function refreshPatientTabsBar() {
 }
 
 function viewPatient(id) {
+    const activeTab = arguments[1] || null;
     AppState.selectedPatientId = id;
     const patient = AppState.patients.find(p => p.id === id);
     if (!patient) return;
+
+    // Preservar la pestaña activa actual si ya está visualizándose en el modal
+    const previousActiveTab = activeTab || (
+        document.getElementById('patientDetailModal')?.classList.contains('active') 
+            ? document.querySelector('#patientTabsContainer .patient-tab.active')?.getAttribute('data-tab-id') 
+            : null
+    ) || 'resumen';
+    const targetTab = DEFAULT_PATIENT_TABS_ORDER.includes(previousActiveTab) ? previousActiveTab : 'resumen';
+
     const cat = getPatientCategory(patient);
     const age = patient.birthdate ? calculateAge(patient.birthdate) : null;
     const badge = getCategoryBadge(cat, age);
@@ -3641,20 +3750,20 @@ function viewPatient(id) {
 
         <!-- BARRA SUPERIOR DE PESTAÑAS CLÍNICAS (ACCESO INMEDIATO EN LA PARTE SUPERIOR) -->
         <div class="patient-tabs" id="patientTabsContainer" ondragover="handlePatientTabDragOver(event)">
-            ${renderPatientTabsBar(patientNotes.length, patientApps.length, portalCount, 'resumen')}
+            ${renderPatientTabsBar(patientNotes.length, patientApps.length, portalCount, targetTab)}
         </div>
 
-        <div id="tab-resumen" class="patient-tab-content active">${renderTabResumen(id, wellbeing, sessionPrep, emotionalProfile, clinicalInsights)}</div>
-        <div id="tab-notas" class="patient-tab-content">${renderTabNotasSesion(id)}</div>
-        <div id="tab-sesiones" class="patient-tab-content">${renderTabHistorialSesiones(id)}</div>
-        <div id="tab-historia" class="patient-tab-content">${renderTabHistoria(patient)}</div>
-        <div id="tab-examen-mental" class="patient-tab-content">${typeof MentalExamModule !== 'undefined' ? MentalExamModule.renderTab(patient) : '<div class="empty-state"><p>Módulo de examen mental cargando...</p></div>'}</div>
-        <div id="tab-timeline" class="patient-tab-content">${renderTabTimeline(id)}</div>
-        <div id="tab-objetivos" class="patient-tab-content">${renderTabObjetivos(id)}</div>
-        <div id="tab-escalas" class="patient-tab-content">${renderTabEscalas(id)}</div>
-        <div id="tab-genograma" class="patient-tab-content">${typeof GenogramModule !== 'undefined' ? GenogramModule.renderTabGenograma(patient) : '<div class="empty-state"><p>Módulo de genograma cargando...</p></div>'}</div>
-        <div id="tab-apoyo" class="patient-tab-content">${renderTabApoyo(patient)}</div>
-        <div id="tab-portal" class="patient-tab-content">${renderPortalTab(id)}</div>
+        <div id="tab-resumen" class="patient-tab-content ${targetTab === 'resumen' ? 'active' : ''}">${renderTabResumen(id, wellbeing, sessionPrep, emotionalProfile, clinicalInsights)}</div>
+        <div id="tab-notas" class="patient-tab-content ${targetTab === 'notas' ? 'active' : ''}">${renderTabNotasSesion(id)}</div>
+        <div id="tab-sesiones" class="patient-tab-content ${targetTab === 'sesiones' ? 'active' : ''}">${renderTabHistorialSesiones(id)}</div>
+        <div id="tab-historia" class="patient-tab-content ${targetTab === 'historia' ? 'active' : ''}">${renderTabHistoria(patient)}</div>
+        <div id="tab-examen-mental" class="patient-tab-content ${targetTab === 'examen-mental' ? 'active' : ''}">${typeof MentalExamModule !== 'undefined' ? MentalExamModule.renderTab(patient) : '<div class="empty-state"><p>Módulo de examen mental cargando...</p></div>'}</div>
+        <div id="tab-timeline" class="patient-tab-content ${targetTab === 'timeline' ? 'active' : ''}">${renderTabTimeline(id)}</div>
+        <div id="tab-objetivos" class="patient-tab-content ${targetTab === 'objetivos' ? 'active' : ''}">${renderTabObjetivos(id)}</div>
+        <div id="tab-escalas" class="patient-tab-content ${targetTab === 'escalas' ? 'active' : ''}">${renderTabEscalas(id)}</div>
+        <div id="tab-genograma" class="patient-tab-content ${targetTab === 'genograma' ? 'active' : ''}">${typeof GenogramModule !== 'undefined' ? GenogramModule.renderTabGenograma(patient) : '<div class="empty-state"><p>Módulo de genograma cargando...</p></div>'}</div>
+        <div id="tab-apoyo" class="patient-tab-content ${targetTab === 'apoyo' ? 'active' : ''}">${renderTabApoyo(patient)}</div>
+        <div id="tab-portal" class="patient-tab-content ${targetTab === 'portal' ? 'active' : ''}">${renderPortalTab(id)}</div>
     `;
     openModal('patientDetailModal');
     // Sincronizar de forma reactiva en segundo plano desde PostgreSQL
@@ -3834,7 +3943,7 @@ function renderTabResumen(patientId, wellbeing, sessionPrep, emotionalProfile, c
                 </div>
             </div>
 
-            <div class="expediente-kpi-card" style="cursor:pointer;" onclick="switchPatientTab('sesiones')" title="Ver Historial de Sesiones, Asistencias y Estadísticas">
+            <div class="expediente-kpi-card" style="cursor:pointer;" onclick="switchPatientTab('sesiones')" title="Ver Planificación de Sesiones, Asistencias y Estadísticas">
                 <div class="expediente-kpi-icon" style="background: rgba(16, 185, 129, 0.15); color: #059669;">
                     <i class="fas fa-calendar-check"></i>
                 </div>
@@ -3956,9 +4065,6 @@ function renderTabResumen(patientId, wellbeing, sessionPrep, emotionalProfile, c
                 </div>
             </div>
 
-            <!-- MAPA DE RUTA Y ORGANIZADOR DE SESIONES DE TERAPIA -->
-            ${renderTherapySessionsRoadmap(patientId)}
-
             <!-- PREPARACIÓN DE SESIÓN CLÍNICA -->
             ${sessionPrep ? renderSessionPrepCard(sessionPrep) : ''}
 
@@ -4057,7 +4163,22 @@ function getTherapyRoadmapSessionsForPatient(patientId) {
         }
     });
 
-    // Si el paciente aún no tiene sesiones ni notas, generar un recorrido inicial demostrativo alineado con la referencia visual
+    // Limpiar respuestas automáticas demo previas si existieran
+    const DEMO_SUMMARIES = [
+        'Evaluación inicial revela ansiedad y estrés laboral crecientes tras cambios de puesto...',
+        'Se introdujo psicoeducación sobre la respuesta al estrés y el triángulo cognitivo...',
+        'Se aplicó reestructuración cognitiva para desafiar pensamiento todo o nada...',
+        'Enfoque en confianza en liderazgo y establecimiento de límites saludables...',
+        'Revisión integral de progreso mostrando ansiedad reducida de moderada a leve...',
+        'Consolidación de logros, plan de acción ante eventos estresores y cierre...'
+    ];
+    sessions.forEach(s => {
+        if (s.focusSummary && DEMO_SUMMARIES.some(demo => s.focusSummary.includes(demo.slice(0, 30)))) {
+            s.focusSummary = '';
+        }
+    });
+
+    // Si el paciente aún no tiene sesiones ni notas, generar un recorrido inicial demostrativo limpio sin textos automáticos
     if (sessions.length === 0) {
         sessions = [
             {
@@ -4066,7 +4187,7 @@ function getTherapyRoadmapSessionsForPatient(patientId) {
                 sessionNumber: 1,
                 title: 'Evaluación Inicial',
                 date: '2026-07-31',
-                focusSummary: 'Evaluación inicial revela ansiedad y estrés laboral crecientes tras cambios de puesto...',
+                focusSummary: '',
                 status: 'pendiente',
                 displayOrder: 1
             },
@@ -4076,7 +4197,7 @@ function getTherapyRoadmapSessionsForPatient(patientId) {
                 sessionNumber: 2,
                 title: 'Sesión 2 - Psicoeducación',
                 date: '2026-08-14',
-                focusSummary: 'Se introdujo psicoeducación sobre la respuesta al estrés y el triángulo cognitivo...',
+                focusSummary: '',
                 status: 'pendiente',
                 displayOrder: 2
             },
@@ -4086,7 +4207,7 @@ function getTherapyRoadmapSessionsForPatient(patientId) {
                 sessionNumber: 3,
                 title: 'Sesión 5 - Reestructuración Cognitiva',
                 date: '2026-09-11',
-                focusSummary: 'Se aplicó reestructuración cognitiva para desafiar pensamiento todo o nada...',
+                focusSummary: '',
                 status: 'pendiente',
                 displayOrder: 3
             },
@@ -4096,7 +4217,7 @@ function getTherapyRoadmapSessionsForPatient(patientId) {
                 sessionNumber: 4,
                 title: 'Sesión 8 - Fortaleciendo la Autoeficacia',
                 date: '2026-10-09',
-                focusSummary: 'Enfoque en confianza en liderazgo y establecimiento de límites saludables...',
+                focusSummary: '',
                 status: 'pendiente',
                 displayOrder: 4
             },
@@ -4106,7 +4227,7 @@ function getTherapyRoadmapSessionsForPatient(patientId) {
                 sessionNumber: 5,
                 title: 'Sesión 9 - Revisión de Progreso',
                 date: '2026-10-16',
-                focusSummary: 'Revisión integral de progreso mostrando ansiedad reducida de moderada a leve...',
+                focusSummary: '',
                 status: 'pendiente',
                 displayOrder: 5
             },
@@ -4116,7 +4237,7 @@ function getTherapyRoadmapSessionsForPatient(patientId) {
                 sessionNumber: 6,
                 title: 'Sesión 10 - Prevención de Recaídas',
                 date: '2026-10-30',
-                focusSummary: 'Consolidación de logros, plan de acción ante eventos estresores y cierre...',
+                focusSummary: '',
                 status: 'pendiente',
                 displayOrder: 6
             }
@@ -4126,7 +4247,13 @@ function getTherapyRoadmapSessionsForPatient(patientId) {
         saveDataLocallyOnly();
     }
 
-    return sessions.sort((a, b) => (Number(a.sessionNumber) || 0) - (Number(b.sessionNumber) || 0));
+    // Ordenar cronológicamente de la más antigua a la más reciente
+    return sessions.sort((a, b) => {
+        const da = a.date ? new Date(a.date).getTime() : 0;
+        const db = b.date ? new Date(b.date).getTime() : 0;
+        if (da !== db) return da - db;
+        return (Number(a.sessionNumber) || 0) - (Number(b.sessionNumber) || 0);
+    });
 }
 
 function renderRoadmapCardHtml(s, patientId) {
@@ -4215,44 +4342,45 @@ function renderRoadmapBoard(sessions, patientId) {
         `;
     }
 
-    // Disposición idéntica a la imagen:
-    // Fila 1 (inferior): Sesiones 3, 2, 1 (de izquierda a derecha)
-    // Fila 2 (superior): Sesiones 4, 5, 6 (de izquierda a derecha)
-    const rowBottomSessions = [sessions[2] || null, sessions[1] || null, sessions[0] || null];
-    const rowTopSessions = [sessions[3] || null, sessions[4] || null, sessions[5] || null];
+    // Dividir en filas de 3 sesiones cada una
+    // sessions ya viene ordenado cronológicamente de la más antigua a la más reciente (ej: [1, 2, 3, 4, 5, 6])
+    // Se agrupan en chunks de 3: Chunk 0 = [1, 2, 3] (más antiguas), Chunk 1 = [4, 5, 6] (más recientes)
+    const chunks = [];
+    for (let i = 0; i < sessions.length; i += 3) {
+        chunks.push(sessions.slice(i, i + 3));
+    }
 
-    let html = `
-        <!-- Fila Superior (Sesiones 4, 5, 6) -->
-        <div class="therapy-roadmap-row">
-            ${rowTopSessions.map(s => renderRoadmapCardHtml(s, patientId)).join('')}
-        </div>
+    // Para dejar las sesiones más recientes en la primera fila (arriba),
+    // invertimos el orden de las filas (chunks): la última fila cronológica va primero arriba
+    // Y dentro de cada fila, las sesiones se leen de izquierda a derecha de la más antigua a la más reciente
+    const reversedChunks = [...chunks].reverse();
 
-        <!-- Pista Media con Conector Vertical Izquierdo -->
-        <div style="position:relative;">
-            ${renderRoadmapTrackHtml(3)}
-            <div class="therapy-roadmap-vertical-connector connector-left" style="height:36px;top:-18px;"></div>
-        </div>
+    let html = '';
+    reversedChunks.forEach((chunk, index) => {
+        // Rellenar visualmente con null si la fila tiene menos de 3
+        const rowSlots = [chunk[0] || null, chunk[1] || null, chunk[2] || null];
+        const isLastRenderedRow = index === reversedChunks.length - 1;
 
-        <!-- Fila Inferior (Sesiones 3, 2, 1) -->
-        <div class="therapy-roadmap-row">
-            ${rowBottomSessions.map(s => renderRoadmapCardHtml(s, patientId)).join('')}
-        </div>
-
-        <!-- Pista Inferior con Nodos -->
-        ${renderRoadmapTrackHtml(3)}
-    `;
-
-    if (sessions.length > 6) {
-        const extraSessions = sessions.slice(6);
         html += `
-            <div style="margin-top:20px;border-top:1px dashed var(--border-secondary);padding-top:16px;">
-                <h4 style="font-size:13px;color:var(--text-tertiary);text-transform:uppercase;margin-bottom:12px;">Sesiones Posteriores Planificadas</h4>
-                <div class="therapy-roadmap-row">
-                    ${extraSessions.map(s => renderRoadmapCardHtml(s, patientId)).join('')}
-                </div>
+            <div class="therapy-roadmap-row">
+                ${rowSlots.map(s => renderRoadmapCardHtml(s, patientId)).join('')}
             </div>
         `;
-    }
+
+        if (!isLastRenderedRow) {
+            // Conector vertical alternado entre filas continuas
+            const connectorClass = (index % 2 === 0) ? 'connector-left' : 'connector-right';
+            html += `
+                <div style="position:relative;">
+                    ${renderRoadmapTrackHtml(3)}
+                    <div class="therapy-roadmap-vertical-connector ${connectorClass}" style="height:36px;top:-18px;"></div>
+                </div>
+            `;
+        } else {
+            // Pista final sin conector inferior
+            html += renderRoadmapTrackHtml(chunk.length);
+        }
+    });
 
     return html;
 }
@@ -4308,7 +4436,7 @@ async function quickToggleRoadmapStatus(patientId, sessionId, currentStatus) {
         }
     } catch {}
 
-    viewPatient(patientId);
+    viewPatient(patientId, 'sesiones');
 }
 
 function handleRoadmapSessionClick(sessionId, patientId) {
@@ -4483,7 +4611,7 @@ async function handleSaveRoadmapSession(event) {
         showToast('Sesión guardada en el mapa de ruta', 'success');
     }
 
-    viewPatient(patientId);
+    viewPatient(patientId, 'sesiones');
 }
 
 async function handleDeleteRoadmapSession() {
@@ -4511,7 +4639,7 @@ async function handleDeleteRoadmapSession() {
         showToast('Sesión eliminada del mapa de ruta', 'info');
     }
 
-    viewPatient(patientId);
+    viewPatient(patientId, 'sesiones');
 }
 
 function switchRoadmapModalTab(tabName, btn) {
@@ -4837,6 +4965,9 @@ function renderTabHistorialSesiones(patientId, activeFilter = 'all') {
 
     return `
         <div class="session-history-container">
+            <!-- MAPA DE RUTA Y ORGANIZADOR DE SESIONES DE TERAPIA -->
+            ${renderTherapySessionsRoadmap(patientId)}
+
             <!-- Header con título y botón de acción -->
             <div class="session-history-header">
                 <div>
@@ -6353,6 +6484,7 @@ async function syncAppointmentStatusToPortalAndBackend(appId, newStatus, meta = 
         const date = meta.date || app?.date;
         const time = meta.time || app?.time;
         const duration = meta.duration || app?.duration || 50;
+        const type = meta.type || app?.type || app?.appointment_type || 'Presencial';
         const isConfirmed = newStatus === 'confirmada';
         const canceledBy = meta.canceledBy || app?.canceledBy || null;
         const cancelReason = meta.cancelReason || app?.cancelReason || null;
@@ -6377,6 +6509,7 @@ async function syncAppointmentStatusToPortalAndBackend(appId, newStatus, meta = 
                         date: date,
                         time: time,
                         duration: duration,
+                        type: type,
                         notes: notes,
                         status: newStatus,
                         attendanceConfirmed: isConfirmed,
@@ -6394,6 +6527,7 @@ async function syncAppointmentStatusToPortalAndBackend(appId, newStatus, meta = 
                         bridge[appId].attendance_confirmed = true;
                         bridge[appId].confirmedAt = new Date().toISOString();
                     }
+                    if (type) bridge[appId].type = type;
                     if (notes !== undefined) bridge[appId].notes = notes;
                     if (date) bridge[appId].date = date;
                     if (time) bridge[appId].time = time;
@@ -6427,6 +6561,7 @@ async function syncAppointmentStatusToPortalAndBackend(appId, newStatus, meta = 
                                     pData.appointments[targetIdx].attendance_confirmed = true;
                                     pData.appointments[targetIdx].confirmedAt = new Date().toISOString();
                                 }
+                                if (type) pData.appointments[targetIdx].type = type;
                                 if (notes !== undefined) pData.appointments[targetIdx].notes = notes;
                                 if (date) pData.appointments[targetIdx].date = date;
                                 if (time) pData.appointments[targetIdx].time = time;
@@ -8842,7 +8977,7 @@ function handleAppointmentSubmit(e) {
     }
     saveData(); 
     if (typeof syncAppointmentStatusToPortalAndBackend === 'function') {
-        syncAppointmentStatusToPortalAndBackend(app.id, app.status, { patientId: app.patientId, date: app.date, time: app.time, duration: app.duration, notes: app.notes });
+        syncAppointmentStatusToPortalAndBackend(app.id, app.status, { patientId: app.patientId, date: app.date, time: app.time, duration: app.duration, notes: app.notes, type: app.type });
     }
     if (app.status === 'completada' && typeof registerIncomeFromAppointment === 'function') {
         registerIncomeFromAppointment(app);

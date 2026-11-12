@@ -152,7 +152,7 @@ const ClinicalHistorySystem = {
             observedGestures: patient.observedGestures || '',
 
             // C. Examen Mental & Tríada Sintomatológica
-            mentalExam: patient.mentalExam || '',
+            mentalExam: (typeof patient.mentalExam === 'object' && patient.mentalExam !== null) ? (patient.mentalExam.text || '') : (patient.mentalExam || ''),
             mentalOrientation: patient.mentalOrientation || '',
             mentalAttention: patient.mentalAttention || '',
             mentalThought: patient.mentalThought || '',
@@ -782,9 +782,6 @@ const ClinicalHistorySystem = {
                         <div style="padding: 10px 14px; background: rgba(45, 212, 191, 0.08); border-radius: 8px; border: 1px solid rgba(45, 212, 191, 0.25);">
                             <strong>Consentimiento Informado:</strong> 
                             ${h.guardianConsent === 'firmado' ? '<span style="color:#059669; font-weight:700;"><i class="fas fa-check-circle"></i> FIRMADO POR EL REPRESENTANTE</span>' : '<span style="color:#d97706; font-weight:600;"><i class="fas fa-clock"></i> Pendiente de firma y ratificación</span>'}
-                            <div style="margin-top:6px;font-size:12px;color:var(--text-secondary);">
-                                <i class="fas fa-hand-holding-heart" style="color:var(--accent-primary);"></i> <strong>Asentimiento Informado del Adolescente (LOPNNA Art. 80):</strong> Consignado en alianza terapéutica y proceso de escucha activa.
-                            </div>
                         </div>
                     </div>
                 </div>
@@ -1177,20 +1174,23 @@ const ClinicalHistorySystem = {
 
                         <div class="hist-sub-heading" style="margin-top:16px;display:flex;justify-content:space-between;align-items:center;">
                             <span>GENOGRAMA</span>
-                            <button class="btn-secondary btn-sm" onclick="ClinicalHistorySystem.openGenogramModal('${patient.id}')"><i class="fas fa-sitemap"></i> Abrir Genograma</button>
+                            <button class="btn-secondary btn-sm" onclick="ClinicalHistorySystem.goToGenogramTab('${patient.id}')"><i class="fas fa-sitemap"></i> Abrir Constructor de Genograma</button>
                         </div>
-                        <div class="box-container" style="background:var(--bg-secondary);padding:12px;border-radius:8px;border:1px solid var(--border-secondary);min-height:70px;">
+                        <div class="genogram-preview-container" style="margin-top:10px; margin-bottom:12px; border:1px solid var(--border-secondary); border-radius:8px; overflow:auto; background:var(--bg-secondary); padding:10px; text-align:center;">
+                            ${typeof GenogramModule !== 'undefined' ? GenogramModule.renderSVG(GenogramModule.getGenogramForPatient(patient), { width: 900, height: 400, interactive: false }) : ''}
+                        </div>
+                        <div class="box-container" style="background:var(--bg-secondary);padding:12px;border-radius:8px;border:1px solid var(--border-secondary);min-height:50px;">
                             ${h.genogramNotes ? `<p style="margin:0;">${h.genogramNotes}</p>` : '<p style="margin:0;color:var(--text-tertiary);font-style:italic;">Diagrama de genograma disponible en el editor interactivo.</p>'}
                         </div>
                     </div>
                 </div>
 
-                <!-- SECCIÓN 2: MOTIVO DE CONSULTA Y EXAMEN MENTAL -->
+                <!-- SECCIÓN 2: MOTIVO DE CONSULTA -->
                 <div class="hist-acc-item" id="acc_adult_2">
                     <div class="hist-acc-header" onclick="ClinicalHistorySystem.toggleAccordion('acc_adult_2')">
                         <div class="hist-acc-title">
                             <span class="acc-num">2</span>
-                            <strong>2. Motivo de Consulta y Examen Mental</strong>
+                            <strong>2. Motivo de Consulta</strong>
                         </div>
                         <i class="fas fa-chevron-down acc-arrow"></i>
                     </div>
@@ -1205,11 +1205,6 @@ const ClinicalHistorySystem = {
                             <p>${h.observedGestures || '<em style="color:var(--text-tertiary);">Sin observaciones registradas.</em>'}</p>
                         </div>
 
-                        <div class="hist-sub-heading" style="margin-top:16px;">EXAMEN MENTAL</div>
-                        <div class="hist-field-block">
-                            <p>${h.mentalExam || '<em style="color:var(--text-tertiary);">Sin hallazgos patológicos registrados / En evaluación.</em>'}</p>
-                        </div>
-
                         <div class="hist-sub-heading" style="margin-top:16px;">SINTOMATOLOGÍA PRESENTADA</div>
                         <table class="hist-table-medical">
                             <thead><tr><th style="width:35%;">Eje Sintomático</th><th>Descripción Clínica</th></tr></thead>
@@ -1222,12 +1217,34 @@ const ClinicalHistorySystem = {
                     </div>
                 </div>
 
-                <!-- SECCIÓN 3: ANTECEDENTES -->
+                <!-- SECCIÓN 3: EXAMEN MENTAL -->
                 <div class="hist-acc-item" id="acc_adult_3">
                     <div class="hist-acc-header" onclick="ClinicalHistorySystem.toggleAccordion('acc_adult_3')">
                         <div class="hist-acc-title">
                             <span class="acc-num">3</span>
-                            <strong>3. Antecedentes</strong>
+                            <strong>3. Examen Mental</strong>
+                        </div>
+                        <i class="fas fa-chevron-down acc-arrow"></i>
+                    </div>
+                    <div class="hist-acc-body">
+                        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">
+                            <div class="hist-sub-heading" style="margin:0;">EXPLORACIÓN PSICOPATOLÓGICA Y ESTADO MENTAL</div>
+                            <button class="btn-secondary btn-sm" onclick="ClinicalHistorySystem.openFullHistoryEditor('${patient.id}'); setTimeout(() => { const b = document.querySelectorAll('.hist-nav-tab')[2]; if (b) ClinicalHistorySystem.switchEditorTab('adult-3', b); }, 80);" title="Abrir y editar Examen Mental">
+                                <i class="fas fa-edit"></i> Editar Examen Mental
+                            </button>
+                        </div>
+                        <div class="box-container" style="background:var(--bg-secondary);padding:14px;border-radius:8px;border:1px solid var(--border-secondary);min-height:70px;line-height:1.6;">
+                            <p style="margin:0;white-space:pre-wrap;">${h.mentalExam || '<em style="color:var(--text-tertiary);">Sin hallazgos patológicos registrados / En evaluación psicopatológica clínica.</em>'}</p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- SECCIÓN 4: ANTECEDENTES -->
+                <div class="hist-acc-item" id="acc_adult_4">
+                    <div class="hist-acc-header" onclick="ClinicalHistorySystem.toggleAccordion('acc_adult_4')">
+                        <div class="hist-acc-title">
+                            <span class="acc-num">4</span>
+                            <strong>4. Antecedentes</strong>
                         </div>
                         <i class="fas fa-chevron-down acc-arrow"></i>
                     </div>
@@ -1274,12 +1291,12 @@ const ClinicalHistorySystem = {
                     </div>
                 </div>
 
-                <!-- SECCIÓN 4: SITUACIÓN ACTUAL Y ÁREAS VITALES -->
-                <div class="hist-acc-item" id="acc_adult_4">
-                    <div class="hist-acc-header" onclick="ClinicalHistorySystem.toggleAccordion('acc_adult_4')">
+                <!-- SECCIÓN 5: SITUACIÓN ACTUAL Y ÁREAS VITALES -->
+                <div class="hist-acc-item" id="acc_adult_5">
+                    <div class="hist-acc-header" onclick="ClinicalHistorySystem.toggleAccordion('acc_adult_5')">
                         <div class="hist-acc-title">
-                            <span class="acc-num">4</span>
-                            <strong>4. Situación Actual y Áreas Vitales</strong>
+                            <span class="acc-num">5</span>
+                            <strong>5. Situación Actual y Áreas Vitales</strong>
                         </div>
                         <i class="fas fa-chevron-down acc-arrow"></i>
                     </div>
@@ -1321,12 +1338,12 @@ const ClinicalHistorySystem = {
                     </div>
                 </div>
 
-                <!-- SECCIÓN 5: HÁBITOS PSICOBIOLÓGICOS -->
-                <div class="hist-acc-item" id="acc_adult_5">
-                    <div class="hist-acc-header" onclick="ClinicalHistorySystem.toggleAccordion('acc_adult_5')">
+                <!-- SECCIÓN 6: HÁBITOS PSICOBIOLÓGICOS -->
+                <div class="hist-acc-item" id="acc_adult_6">
+                    <div class="hist-acc-header" onclick="ClinicalHistorySystem.toggleAccordion('acc_adult_6')">
                         <div class="hist-acc-title">
-                            <span class="acc-num">5</span>
-                            <strong>5. Hábitos Psicobiológicos</strong>
+                            <span class="acc-num">6</span>
+                            <strong>6. Hábitos Psicobiológicos</strong>
                         </div>
                         <i class="fas fa-chevron-down acc-arrow"></i>
                     </div>
@@ -1350,12 +1367,12 @@ const ClinicalHistorySystem = {
                     </div>
                 </div>
 
-                <!-- SECCIÓN 6: METAS Y PROYECTO DE VIDA -->
-                <div class="hist-acc-item" id="acc_adult_6">
-                    <div class="hist-acc-header" onclick="ClinicalHistorySystem.toggleAccordion('acc_adult_6')">
+                <!-- SECCIÓN 7: METAS Y PROYECTO DE VIDA -->
+                <div class="hist-acc-item" id="acc_adult_7">
+                    <div class="hist-acc-header" onclick="ClinicalHistorySystem.toggleAccordion('acc_adult_7')">
                         <div class="hist-acc-title">
-                            <span class="acc-num">6</span>
-                            <strong>6. Metas y Proyecto de Vida</strong>
+                            <span class="acc-num">7</span>
+                            <strong>7. Metas y Proyecto de Vida</strong>
                         </div>
                         <i class="fas fa-chevron-down acc-arrow"></i>
                     </div>
@@ -1996,12 +2013,15 @@ const ClinicalHistorySystem = {
 
                         <h4 style="margin-top:20px;">GENOGRAMA:</h4>
                         <div style="background:var(--bg-secondary);border:1px dashed var(--border-secondary);border-radius:10px;padding:16px;margin-bottom:14px;text-align:center;">
-                            <p style="margin:0 0 10px 0;font-size:13px;color:var(--text-secondary);">
-                                Estructura vincular y constelación familiar del niño:
-                            </p>
-                            <button type="button" class="btn-secondary" onclick="ClinicalHistorySystem.openGenogramModal('${patient.id}')">
-                                <i class="fas fa-sitemap"></i> Abrir Constructor de Genograma
-                            </button>
+                            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px; flex-wrap:wrap; gap:8px;">
+                                <span style="font-size:13px;color:var(--text-secondary);">Genograma del paciente:</span>
+                                <button type="button" class="btn-secondary btn-sm" onclick="ClinicalHistorySystem.goToGenogramTab('${patient.id}')">
+                                    <i class="fas fa-sitemap"></i> Abrir Constructor de Genograma
+                                </button>
+                            </div>
+                            <div class="genogram-preview-container" style="margin-top:8px; margin-bottom:12px; border:1px solid var(--border-secondary); border-radius:8px; overflow:auto; background:var(--bg-primary); padding:10px; text-align:center;">
+                                ${typeof GenogramModule !== 'undefined' ? GenogramModule.renderSVG(GenogramModule.getGenogramForPatient(patient), { width: 900, height: 380, interactive: false }) : ''}
+                            </div>
                             <div class="form-group" style="margin-top:12px;text-align:left;">
                                 <label>Observaciones del Genograma:</label>
                                 <textarea id="fh_genogramNotes" rows="2" placeholder="Notas sobre la estructura familiar, alianzas, conflictos o dinámicas observadas...">${h.genogramNotes || ''}</textarea>
@@ -2116,6 +2136,7 @@ const ClinicalHistorySystem = {
                                 <select id="fh_pregnancyDesired">
                                     <option value="SI" ${h.pregnancyDesired === 'SI' ? 'selected' : ''}>SI</option>
                                     <option value="NO" ${h.pregnancyDesired === 'NO' ? 'selected' : ''}>NO</option>
+                                    <option value="Dato no Obtenido" ${h.pregnancyDesired === 'Dato no Obtenido' ? 'selected' : ''}>Dato no Obtenido</option>
                                 </select>
                             </div>
                             <div class="form-group" style="flex:1;">
@@ -2123,6 +2144,7 @@ const ClinicalHistorySystem = {
                                 <select id="fh_pregnancyPlanned">
                                     <option value="SI" ${h.pregnancyPlanned === 'SI' ? 'selected' : ''}>SI</option>
                                     <option value="NO" ${h.pregnancyPlanned === 'NO' ? 'selected' : ''}>NO</option>
+                                    <option value="Dato no Obtenido" ${h.pregnancyPlanned === 'Dato no Obtenido' ? 'selected' : ''}>Dato no Obtenido</option>
                                 </select>
                             </div>
                             <div class="form-group" style="flex:1;">
@@ -2627,9 +2649,12 @@ const ClinicalHistorySystem = {
 
                         <div style="display:flex; justify-content:space-between; align-items:center; margin-top:20px;">
                             <h4 style="margin:0;">GENOGRAMA:</h4>
-                            <button type="button" class="btn-secondary btn-sm" onclick="ClinicalHistorySystem.openGenogramModal('${patient.id}')">
+                            <button type="button" class="btn-secondary btn-sm" onclick="ClinicalHistorySystem.goToGenogramTab('${patient.id}')">
                                 <i class="fas fa-sitemap"></i> Abrir Constructor de Genograma
                             </button>
+                        </div>
+                        <div class="genogram-preview-container" style="margin-top:10px; margin-bottom:12px; border:1px solid var(--border-secondary); border-radius:8px; overflow:auto; background:var(--bg-secondary); padding:10px; text-align:center;">
+                            ${typeof GenogramModule !== 'undefined' ? GenogramModule.renderSVG(GenogramModule.getGenogramForPatient(patient), { width: 900, height: 380, interactive: false }) : ''}
                         </div>
                         <div class="form-group" style="margin-top:8px;">
                             <label>Notas y Estructura del Genograma:</label>
@@ -2708,6 +2733,7 @@ const ClinicalHistorySystem = {
                                 <select id="fh_pregnancyDesired">
                                     <option value="SI" ${h.pregnancyDesired === 'SI' ? 'selected' : ''}>SI</option>
                                     <option value="NO" ${h.pregnancyDesired === 'NO' ? 'selected' : ''}>NO</option>
+                                    <option value="Dato no Obtenido" ${h.pregnancyDesired === 'Dato no Obtenido' ? 'selected' : ''}>Dato no Obtenido</option>
                                 </select>
                             </div>
                             <div class="form-group" style="flex:1;">
@@ -2715,6 +2741,7 @@ const ClinicalHistorySystem = {
                                 <select id="fh_pregnancyPlanned">
                                     <option value="SI" ${h.pregnancyPlanned === 'SI' ? 'selected' : ''}>SI</option>
                                     <option value="NO" ${h.pregnancyPlanned === 'NO' ? 'selected' : ''}>NO</option>
+                                    <option value="Dato no Obtenido" ${h.pregnancyPlanned === 'Dato no Obtenido' ? 'selected' : ''}>Dato no Obtenido</option>
                                 </select>
                             </div>
                             <div class="form-group" style="flex:1;">
@@ -2979,11 +3006,12 @@ const ClinicalHistorySystem = {
                 
                 <div class="history-editor-nav" style="flex-shrink:0;">
                     <button type="button" class="hist-nav-tab active" onclick="ClinicalHistorySystem.switchEditorTab('adult-1', this)">1. Identificación del Paciente</button>
-                    <button type="button" class="hist-nav-tab" onclick="ClinicalHistorySystem.switchEditorTab('adult-2', this)">2. Motivo de Consulta y Examen Mental</button>
-                    <button type="button" class="hist-nav-tab" onclick="ClinicalHistorySystem.switchEditorTab('adult-3', this)">3. Antecedentes</button>
-                    <button type="button" class="hist-nav-tab" onclick="ClinicalHistorySystem.switchEditorTab('adult-4', this)">4. Situación Actual y Áreas Vitales</button>
-                    <button type="button" class="hist-nav-tab" onclick="ClinicalHistorySystem.switchEditorTab('adult-5', this)">5. Hábitos Psicobiológicos</button>
-                    <button type="button" class="hist-nav-tab" onclick="ClinicalHistorySystem.switchEditorTab('adult-6', this)">6. Metas y Proyecto de Vida</button>
+                    <button type="button" class="hist-nav-tab" onclick="ClinicalHistorySystem.switchEditorTab('adult-2', this)">2. Motivo de Consulta</button>
+                    <button type="button" class="hist-nav-tab" onclick="ClinicalHistorySystem.switchEditorTab('adult-3', this)">3. Examen Mental</button>
+                    <button type="button" class="hist-nav-tab" onclick="ClinicalHistorySystem.switchEditorTab('adult-4', this)">4. Antecedentes</button>
+                    <button type="button" class="hist-nav-tab" onclick="ClinicalHistorySystem.switchEditorTab('adult-5', this)">5. Situación Actual y Áreas Vitales</button>
+                    <button type="button" class="hist-nav-tab" onclick="ClinicalHistorySystem.switchEditorTab('adult-6', this)">6. Hábitos Psicobiológicos</button>
+                    <button type="button" class="hist-nav-tab" onclick="ClinicalHistorySystem.switchEditorTab('adult-7', this)">7. Metas y Proyecto de Vida</button>
                 </div>
 
                 <form id="fullHistoryForm" style="flex:1;min-height:0;overflow-y:auto;padding:20px;" onsubmit="ClinicalHistorySystem.handleSaveFullHistory(event, '${patient.id}')">
@@ -3104,9 +3132,12 @@ const ClinicalHistorySystem = {
 
                         <div style="display:flex; justify-content:space-between; align-items:center; margin-top:20px;">
                             <h4 style="margin:0;">GENOGRAMA</h4>
-                            <button type="button" class="btn-secondary btn-sm" onclick="ClinicalHistorySystem.openGenogramModal('${patient.id}')">
+                            <button type="button" class="btn-secondary btn-sm" onclick="ClinicalHistorySystem.goToGenogramTab('${patient.id}')">
                                 <i class="fas fa-sitemap"></i> Abrir Constructor de Genograma
                             </button>
+                        </div>
+                        <div class="genogram-preview-container" style="margin-top:10px; margin-bottom:12px; border:1px solid var(--border-secondary); border-radius:8px; overflow:auto; background:var(--bg-secondary); padding:10px; text-align:center;">
+                            ${typeof GenogramModule !== 'undefined' ? GenogramModule.renderSVG(GenogramModule.getGenogramForPatient(patient), { width: 900, height: 400, interactive: false }) : ''}
                         </div>
                         <div class="form-group" style="margin-top:8px;">
                             <label>Notas / Descripción del Genograma:</label>
@@ -3114,7 +3145,7 @@ const ClinicalHistorySystem = {
                         </div>
                     </div>
 
-                    <!-- TAB 2: MOTIVO DE CONSULTA Y EXAMEN MENTAL -->
+                    <!-- TAB 2: MOTIVO DE CONSULTA -->
                     <div id="htab-adult-2" class="hist-tab-pane">
                         <h4>MOTIVO DE CONSULTA</h4>
                         <div class="form-group">
@@ -3126,17 +3157,6 @@ const ClinicalHistorySystem = {
                         <div class="form-group">
                             <label>Gestualidad observada:</label>
                             <textarea id="fh_observedGestures" rows="3" placeholder="Postura, contacto visual, gesticulación, microexpresiones, tensión somática...">${h.observedGestures || ''}</textarea>
-                        </div>
-
-                        <div style="display:flex;justify-content:space-between;align-items:center;margin-top:20px;margin-bottom:8px;">
-                            <h4 style="margin:0;">EXAMEN MENTAL</h4>
-                            <button type="button" class="btn-secondary btn-sm" onclick="if (typeof MentalExamModule !== 'undefined') MentalExamModule.openChecklistModal('fh_mentalExam')" title="Completar mediante casillas de verificación rápida">
-                                <i class="fas fa-tasks"></i> Check-List Rápido
-                            </button>
-                        </div>
-                        <div class="form-group">
-                            <label>Examen Mental:</label>
-                            <textarea id="fh_mentalExam" rows="5" placeholder="Porte, actitud, conciencia, orientación, pensamiento, sensopercepción, afecto, memoria, juicio...">${h.mentalExam || ''}</textarea>
                         </div>
 
                         <h4 style="margin-top:24px;">SINTOMATOLOGÍA PRESENTADA</h4>
@@ -3154,8 +3174,22 @@ const ClinicalHistorySystem = {
                         </div>
                     </div>
 
-                    <!-- TAB 3: ANTECEDENTES -->
+                    <!-- TAB 3: EXAMEN MENTAL -->
                     <div id="htab-adult-3" class="hist-tab-pane">
+                        <div style="display:flex;justify-content:space-between;align-items:center;margin-top:10px;margin-bottom:12px;">
+                            <h4 style="margin:0;">EXAMEN MENTAL</h4>
+                            <button type="button" class="btn-secondary btn-sm" onclick="if (typeof MentalExamModule !== 'undefined') MentalExamModule.openChecklistModal('fh_mentalExam')" title="Completar mediante casillas de verificación rápida">
+                                <i class="fas fa-tasks"></i> Check-List Rápido
+                            </button>
+                        </div>
+                        <div class="form-group">
+                            <label>Examen Mental:</label>
+                            <textarea id="fh_mentalExam" rows="7" placeholder="Porte, actitud, conciencia, orientación, pensamiento, sensopercepción, afecto, memoria, juicio...">${h.mentalExam || ''}</textarea>
+                        </div>
+                    </div>
+
+                    <!-- TAB 4: ANTECEDENTES -->
+                    <div id="htab-adult-4" class="hist-tab-pane">
                         <h4>ANTECEDENTES DEL PACIENTE</h4>
                         <div class="form-group">
                             <label>Evaluación Neurológica previa:</label>
@@ -3167,7 +3201,7 @@ const ClinicalHistorySystem = {
                         </div>
                         <div class="form-group">
                             <label>Operaciones:</label>
-                            <textarea id="fh_surgeries" rows="2" placeholder="Intervenciones quirúrgicas pasadas...">${h.surgeries || ''}</textarea>
+                            <textarea id="fh_surgeries" rows="2" placeholder="Intervenciones quirúrgicas previas...">${h.surgeries || ''}</textarea>
                         </div>
                         <div class="form-group">
                             <label>Convulsiones:</label>
@@ -3199,7 +3233,7 @@ const ClinicalHistorySystem = {
                         <h4 style="margin-top:24px;">ANTECEDENTES PSIQUIÁTRICOS O PSICOLÓGICOS DEL PACIENTE</h4>
                         <div class="form-group">
                             <label>Antecedentes Psiquiátricos o psicológicos del Paciente:</label>
-                            <textarea id="fh_patientPsychiatricHistory" rows="3" placeholder="Trastornos previos, internamientos, psicoterapia previa, psicofármacos...">${h.patientPsychiatricHistory || ''}</textarea>
+                            <textarea id="fh_patientPsychiatricHistory" rows="3" placeholder="Acompañamiento psicológico previo Y otros antecedentes psicológicos del paciente...">${h.patientPsychiatricHistory || ''}</textarea>
                         </div>
 
                         <h4 style="margin-top:24px;">HISTORIA EVOLUTIVA</h4>
@@ -3209,12 +3243,12 @@ const ClinicalHistorySystem = {
                         </div>
                         <div class="form-group">
                             <label>Adolescencia:</label>
-                            <textarea id="fh_adultAdolescenceHistory" rows="3" placeholder="Desarrollo puberal, socialización, conflictos, eventos críticos en la adolescencia...">${h.adultAdolescenceHistory || ''}</textarea>
+                            <textarea id="fh_adultAdolescenceHistory" rows="3" placeholder="Desarrollo, socialización y eventos críticos en la adolescencia...">${h.adultAdolescenceHistory || ''}</textarea>
                         </div>
                     </div>
 
-                    <!-- TAB 4: SITUACIÓN ACTUAL Y ÁREAS VITALES -->
-                    <div id="htab-adult-4" class="hist-tab-pane">
+                    <!-- TAB 5: SITUACIÓN ACTUAL Y ÁREAS VITALES -->
+                    <div id="htab-adult-5" class="hist-tab-pane">
                         <h4>SITUACIÓN ACTUAL / ÁREAS VITALES</h4>
                         <div class="form-group">
                             <label>Área Social y Relaciones Interpersonales:</label>
@@ -3230,7 +3264,7 @@ const ClinicalHistorySystem = {
                         </div>
                         <div class="form-group">
                             <label>Área Sexual:</label>
-                            <textarea id="fh_adultSexual" rows="3" placeholder="Vida de pareja, sexualidad, satisfacción, disfunciones o inquietudes afectivas...">${h.adultSexual || ''}</textarea>
+                            <textarea id="fh_adultSexual" rows="3" placeholder="Aspectos relacionados a la sexualidad...">${h.adultSexual || ''}</textarea>
                         </div>
                         <div class="form-group">
                             <label>Área Laboral:</label>
@@ -3238,7 +3272,7 @@ const ClinicalHistorySystem = {
                         </div>
                         <div class="form-group">
                             <label>Aspectos Legales:</label>
-                            <textarea id="fh_adultLegal" rows="3" placeholder="Litigios, custodias, antecedentes penales o procesos legales en curso...">${h.adultLegal || ''}</textarea>
+                            <textarea id="fh_adultLegal" rows="3" placeholder="Antecedentes penales o procesos legales previos o en curso...">${h.adultLegal || ''}</textarea>
                         </div>
 
                         <h4 style="margin-top:24px;">ÁREA DE VIVIENDA</h4>
@@ -3304,8 +3338,8 @@ const ClinicalHistorySystem = {
                         </div>
                     </div>
 
-                    <!-- TAB 5: HÁBITOS PSICOBIOLÓGICOS -->
-                    <div id="htab-adult-5" class="hist-tab-pane">
+                    <!-- TAB 6: HÁBITOS PSICOBIOLÓGICOS -->
+                    <div id="htab-adult-6" class="hist-tab-pane">
                         <h4>HÁBITOS PSICOBIOLÓGICOS</h4>
                         <div class="form-group">
                             <label>Adicciones (Drogas, alcohol, tecnología, cigarrillos, etc.):</label>
@@ -3349,8 +3383,8 @@ const ClinicalHistorySystem = {
                         </div>
                     </div>
 
-                    <!-- TAB 6: METAS Y PROYECTO DE VIDA -->
-                    <div id="htab-adult-6" class="hist-tab-pane">
+                    <!-- TAB 7: METAS Y PROYECTO DE VIDA -->
+                    <div id="htab-adult-7" class="hist-tab-pane">
                         <h4>METAS Y PROYECTO DE VIDA</h4>
                         <div class="form-group">
                             <label>Metas a Mediano Plazo:</label>
@@ -3566,8 +3600,8 @@ const ClinicalHistorySystem = {
                     ${cat !== 'adult' ? `
                     <div id="htab-perinatal" class="hist-tab-pane">
                         <div class="form-row">
-                            <div class="form-group"><label>Embarazo Deseado:</label><select id="fh_pregnancyDesired"><option ${h.pregnancyDesired==='SI'?'selected':''}>SI</option><option ${h.pregnancyDesired==='NO'?'selected':''}>NO</option></select></div>
-                            <div class="form-group"><label>Embarazo Planificado:</label><select id="fh_pregnancyPlanned"><option ${h.pregnancyPlanned==='SI'?'selected':''}>SI</option><option ${h.pregnancyPlanned==='NO'?'selected':''}>NO</option></select></div>
+                            <div class="form-group"><label>Embarazo Deseado:</label><select id="fh_pregnancyDesired"><option ${h.pregnancyDesired==='SI'?'selected':''}>SI</option><option ${h.pregnancyDesired==='NO'?'selected':''}>NO</option><option ${h.pregnancyDesired==='Dato no Obtenido'?'selected':''}>Dato no Obtenido</option></select></div>
+                            <div class="form-group"><label>Embarazo Planificado:</label><select id="fh_pregnancyPlanned"><option ${h.pregnancyPlanned==='SI'?'selected':''}>SI</option><option ${h.pregnancyPlanned==='NO'?'selected':''}>NO</option><option ${h.pregnancyPlanned==='Dato no Obtenido'?'selected':''}>Dato no Obtenido</option></select></div>
                             <div class="form-group"><label>Tipo de Parto:</label><select id="fh_deliveryType"><option ${h.deliveryType==='Espontáneo'?'selected':''}>Espontáneo</option><option ${h.deliveryType==='Inducido'?'selected':''}>Inducido</option><option ${h.deliveryType==='Cesárea'?'selected':''}>Cesárea</option><option ${h.deliveryType==='Natural'?'selected':''}>Natural</option><option ${h.deliveryType==='Dato no Obtenido'?'selected':''}>Dato no Obtenido</option></select></div>
                         </div>
                         <div class="form-row">
@@ -3864,6 +3898,53 @@ const ClinicalHistorySystem = {
         const tabHistoria = document.getElementById('tab-historia');
         if (tabHistoria) {
             tabHistoria.innerHTML = ClinicalHistorySystem.renderTabHistoriaIntegral(p);
+        }
+    },
+
+    // Navegación directa hacia la pestaña "Genograma" de la barra principal
+    goToGenogramTab(patientId) {
+        if (!patientId && typeof AppState !== 'undefined' && AppState.selectedPatientId) {
+            patientId = AppState.selectedPatientId;
+        }
+        const p = (typeof AppState !== 'undefined' && Array.isArray(AppState.patients)) 
+            ? AppState.patients.find(x => String(x.id) === String(patientId))
+            : null;
+
+        // Si el formulario de historia completa está abierto, guardar borrador de lo editado
+        const form = document.getElementById('fullHistoryForm');
+        if (form && p) {
+            const getVal = id => {
+                const el = document.getElementById(id);
+                return el ? el.value.trim() : '';
+            };
+            if (document.getElementById('fh_genogramNotes')) p.genogramNotes = getVal('fh_genogramNotes');
+            if (document.getElementById('fh_reason')) p.reason = getVal('fh_reason');
+            if (document.getElementById('fh_observedGestures')) p.observedGestures = getVal('fh_observedGestures');
+            if (document.getElementById('fh_mentalExam')) {
+                const me = getVal('fh_mentalExam');
+                if (typeof p.mentalExam === 'object' && p.mentalExam !== null) {
+                    p.mentalExam.text = me;
+                    p.mentalExam.updatedAt = new Date().toISOString();
+                } else {
+                    p.mentalExam = me;
+                }
+            }
+            if (typeof savePatientsToStorage === 'function') {
+                try { savePatientsToStorage(); } catch (err) { console.warn('Borrador no persistido:', err); }
+            }
+        }
+
+        if (typeof closeModal === 'function') {
+            closeModal('fullHistoryModal');
+            closeModal('genogramModal');
+        }
+
+        if (p && typeof GenogramModule !== 'undefined' && typeof GenogramModule.initPatientGenogram === 'function') {
+            try { GenogramModule.initPatientGenogram(p.id); } catch (e) {}
+        }
+
+        if (typeof switchPatientTab === 'function') {
+            switchPatientTab('genograma');
         }
     },
 
@@ -5818,7 +5899,7 @@ const ClinicalHistorySystem = {
 
                     <div class="preconsulta-link-card">
                         <div class="link-display" id="preconsultaLinkText">
-                            https://psiconotes.app/preconsulta?etapa=adult
+                            ${this.getPreconsultaUrl('adult')}
                         </div>
                         <button class="btn-secondary" onclick="ClinicalHistorySystem.copyPreconsultaLink()">
                             <i class="fas fa-copy"></i> Copiar Enlace
@@ -5839,10 +5920,21 @@ const ClinicalHistorySystem = {
         openModal('preconsultaModal');
     },
 
+    getPreconsultaUrl(stage = 'adult') {
+        const origin = (typeof window !== 'undefined' && window.location && window.location.origin && !window.location.origin.startsWith('null'))
+            ? window.location.origin
+            : '';
+        const basePath = (typeof window !== 'undefined' && window.location && window.location.pathname)
+            ? window.location.pathname.substring(0, window.location.pathname.lastIndexOf('/') + 1)
+            : '/';
+        const cleanOrigin = origin ? `${origin}${basePath.endsWith('/') ? basePath : basePath + '/'}` : '';
+        return `${cleanOrigin}portal.html?preconsulta=1&etapa=${stage}`;
+    },
+
     updatePreconsultaLink(stage) {
         const link = document.getElementById('preconsultaLinkText');
         if (link) {
-            link.innerText = `https://psiconotes.app/preconsulta?etapa=${stage}`;
+            link.innerText = this.getPreconsultaUrl(stage);
         }
     },
 
@@ -5853,9 +5945,11 @@ const ClinicalHistorySystem = {
     },
 
     copyWhatsAppMessage() {
+        const stage = document.getElementById('preconsultaStageSelect')?.value || 'adult';
+        const url = this.getPreconsultaUrl(stage);
         const therapist = this.getTherapistInfo();
         const regBadge = therapist.registry ? ` (${therapist.registry})` : '';
-        const msg = `¡Saludos! Bienvenido(a) a lo que será nuestro espacio terapéutico.\nAntes de nuestra primera sesión le invito a llenar el siguiente formulario que me permitirá obtener información de valor para su proceso de atención clínica:\nhttps://psiconotes.app/preconsulta\n\nLe recuerdo que la información compartida será de carácter estrictamente confidencial bajo secreto profesional.\nAtentamente, ${therapist.name}${regBadge}.`;
+        const msg = `¡Saludos! Bienvenido(a) a lo que será nuestro espacio terapéutico.\nAntes de nuestra primera sesión le invito a llenar el siguiente formulario que me permitirá obtener información de valor para su proceso de atención clínica:\n${url}\n\nLe recuerdo que la información compartida será de carácter estrictamente confidencial bajo secreto profesional.\nAtentamente, ${therapist.name}${regBadge}.`;
         navigator.clipboard?.writeText(msg);
         showToast('Mensaje de WhatsApp copiado con éxito', 'success');
     },

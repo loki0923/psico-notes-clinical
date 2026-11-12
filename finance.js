@@ -551,7 +551,12 @@ function renderFinanceView() {
             if (!t) return;
             const curr = (t.currency || 'USD').toUpperCase();
             let val = roundCurrency(t.amount);
-            if (curr === 'EUR' && bcvRates.eurParity !== false) {
+            if (curr === 'VES' || curr === 'BS' || curr === 'BS.') {
+                const rate = Number(bcvRates.usdRate) || Number(localStorage.getItem('psico_bcv_rate')) || 0;
+                if (rate > 0) {
+                    val = roundCurrency(val / rate);
+                }
+            } else if (curr === 'EUR' && bcvRates.eurParity !== false) {
                 val = roundCurrency(t.originalAmount || t.amount);
             }
             if (t.type === 'income') totalIncome = roundCurrency(totalIncome + val);
@@ -2238,8 +2243,34 @@ function renderPortalPaymentsTabHtml(reports = []) {
         return s === 'aprobado' || s === 'verificado';
     });
 
-    const totalApprovedAmount = roundCurrency(approved.reduce((acc, r) => roundCurrency(acc + (Number(r.amount) || 0)), 0));
-    const totalPendingAmount = roundCurrency(pending.reduce((acc, r) => roundCurrency(acc + (Number(r.amount) || 0)), 0));
+    const calcTotals = (list) => {
+        let totalUsd = 0;
+        let totalVes = 0;
+        list.forEach(r => {
+            const amt = Number(r.amount) || 0;
+            const cur = (r.currency || 'USD').toUpperCase();
+            if (cur === 'VES' || cur === 'BS' || cur === 'BS.') {
+                totalVes += amt;
+            } else {
+                totalUsd += amt;
+            }
+        });
+        return { totalUsd: roundCurrency(totalUsd), totalVes: roundCurrency(totalVes) };
+    };
+
+    const approvedTotals = calcTotals(approved);
+    const pendingTotals = calcTotals(pending);
+
+    const formatTotalsLabel = (totals, suffix) => {
+        const parts = [];
+        if (totals.totalUsd > 0 || totals.totalVes === 0) {
+            parts.push(`$${totals.totalUsd.toFixed(2)}`);
+        }
+        if (totals.totalVes > 0) {
+            parts.push(`Bs. ${totals.totalVes.toLocaleString('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`);
+        }
+        return `${parts.join(' + ')} ${suffix}`;
+    };
 
     const _esc = (s) => (s ? String(s).replace(/[&<>"']/g, m => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#039;' })[m]) : '');
 
@@ -2250,7 +2281,7 @@ function renderPortalPaymentsTabHtml(reports = []) {
                 <div class="summary-info">
                     <h3>Por Validar</h3>
                     <div class="summary-value" style="color:#d97706;">${pending.length}</div>
-                    <div class="summary-label">$${totalPendingAmount.toFixed(2)} en espera de confirmación</div>
+                    <div class="summary-label">${formatTotalsLabel(pendingTotals, 'en espera')}</div>
                 </div>
             </div>
             <div class="summary-card">
@@ -2258,7 +2289,7 @@ function renderPortalPaymentsTabHtml(reports = []) {
                 <div class="summary-info">
                     <h3>Pagos Aprobados</h3>
                     <div class="summary-value" style="color:#059669;">${approved.length}</div>
-                    <div class="summary-label">$${totalApprovedAmount.toFixed(2)} validados</div>
+                    <div class="summary-label">${formatTotalsLabel(approvedTotals, 'validados')}</div>
                 </div>
             </div>
             <div class="summary-card">
@@ -2294,6 +2325,11 @@ function renderPortalPaymentsTabHtml(reports = []) {
                         const statusLabel = isApproved ? 'Aprobado' : (isPending ? 'Pendiente' : 'Rechazado');
                         const pName = pay.patientName || pay.patient_name || 'Paciente';
                         const pId = pay.patientId || pay.patient_id || '';
+                        const payCur = (pay.currency || 'USD').toUpperCase();
+                        const isPayVes = payCur === 'VES' || payCur === 'BS' || payCur === 'BS.';
+                        const formattedPayAmt = isPayVes
+                            ? `Bs. ${Number(pay.amount).toLocaleString('es-VE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
+                            : `$${Number(pay.amount).toFixed(2)}`;
 
                         return `
                             <div class="finance-goal-card" style="padding:16px 20px; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:14px; border-left:4px solid ${isApproved ? '#059669' : (isPending ? '#f59e0b' : '#ef4444')};">
@@ -2307,7 +2343,7 @@ function renderPortalPaymentsTabHtml(reports = []) {
                                         </span>
                                     </div>
                                     <div style="font-size:13px; color:var(--text-secondary); display:flex; align-items:center; gap:12px; flex-wrap:wrap; margin-top:2px;">
-                                        <span><strong>Monto:</strong> <span style="font-weight:700; color:var(--text-primary);">${pay.currency || 'USD'} ${Number(pay.amount).toFixed(2)}</span></span>
+                                        <span><strong>Monto:</strong> <span style="font-weight:700; color:var(--text-primary);">${formattedPayAmt}</span></span>
                                         <span><strong>Método:</strong> ${_esc(pay.payment_method || pay.paymentMethod || 'Pago')}</span>
                                         <span><strong>Ref:</strong> <span style="font-family:monospace; font-weight:700;">${_esc(pay.reference || '—')}</span></span>
                                         <span><strong>Fecha:</strong> ${_localFormatDate(pay.payment_date || pay.paymentDate)}</span>

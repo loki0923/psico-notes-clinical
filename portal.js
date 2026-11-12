@@ -297,9 +297,13 @@ if (typeof window !== 'undefined') {
 
 document.addEventListener('DOMContentLoaded', async () => {
     initPortalTheme();
-    // Soporte para acceso directo por parámetro de URL (?token=PN-XXXXX o ?code=PN-XXXXX)
+    // Soporte para acceso directo por parámetro de URL (?token=PN-XXXXX o ?code=PN-XXXXX o ?preconsulta=1)
     try {
         const urlParams = new URLSearchParams(window.location.search);
+        if (urlParams.get('preconsulta') === '1') {
+            renderPortalPreconsultaScreen(urlParams.get('etapa') || 'adult');
+            return;
+        }
         const queryToken = (urlParams.get('token') || urlParams.get('code') || '').trim();
         if (queryToken && window.location.protocol !== 'file:') {
             // Intentar autenticación contra backend PostgreSQL
@@ -377,6 +381,178 @@ function checkExistingSession() {
     }
     showAccessForm();
 }
+
+function renderPortalPreconsultaScreen(stage = 'adult') {
+    const accessScreen = document.getElementById('accessScreen');
+    if (!accessScreen) return;
+
+    const therapistName = localStorage.getItem('psico_therapist_name') || 'Tu Psicólogo Clínico';
+    const therapistSpec = localStorage.getItem('psico_therapist_specialty') || 'Psicología Clínica';
+    const therapistReg = localStorage.getItem('psico_therapist_registry') || '';
+    const regBadge = therapistReg ? ` · ${therapistReg}` : '';
+
+    const isChild = stage === 'child' || stage === 'child_teen';
+    const isTeen = stage === 'adolescent';
+
+    accessScreen.style.alignItems = 'flex-start';
+    accessScreen.style.padding = '24px 16px';
+    accessScreen.style.overflowY = 'auto';
+
+    accessScreen.innerHTML = `
+        <div style="max-width: 720px; width: 100%; margin: 20px auto; background: var(--bg-card); border-radius: 16px; border: 1px solid var(--border-color); box-shadow: var(--shadow-lg); overflow: hidden; padding: 24px;">
+            <div style="text-align: center; margin-bottom: 24px; border-bottom: 1px solid var(--border-secondary); padding-bottom: 18px;">
+                <div style="font-size: 32px; color: var(--accent-primary); margin-bottom: 8px;"><i class="fas fa-clipboard-list"></i></div>
+                <h2 style="font-size: 22px; margin: 0 0 6px 0; color: var(--text-primary);">Formulario Clínico de Pre-consulta</h2>
+                <div style="font-size: 13.5px; color: var(--text-secondary);">
+                    Atención: <strong>${escapeHtml(therapistName)}</strong> (${escapeHtml(therapistSpec)}${escapeHtml(regBadge)})
+                </div>
+                <p style="font-size: 12.5px; color: var(--text-tertiary); margin: 8px 0 0 0; line-height: 1.4;">
+                    Por favor complete la siguiente información antes de acudir a su primera sesión clínica. Los datos son estrictamente confidenciales bajo secreto profesional.
+                </p>
+            </div>
+
+            <form id="portalPreconsultaForm" onsubmit="handlePortalPreconsultaSubmit(event, '${stage}')">
+                <div style="display:flex; flex-direction:column; gap:16px;">
+                    <div class="form-group">
+                        <label style="font-weight:600; font-size:13px; display:block; margin-bottom:6px;">Nombre Completo del Paciente *</label>
+                        <input type="text" id="pre_patientName" required placeholder="Nombre y Apellidos" style="width:100%; padding:10px 12px; border-radius:8px; border:1px solid var(--border-secondary); background:var(--bg-primary); color:var(--text-primary);">
+                    </div>
+
+                    <div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap:12px;">
+                        <div class="form-group">
+                            <label style="font-weight:600; font-size:13px; display:block; margin-bottom:6px;">Cédula de Identidad / DNI</label>
+                            <input type="text" id="pre_patientCI" placeholder="V-12345678" style="width:100%; padding:10px 12px; border-radius:8px; border:1px solid var(--border-secondary); background:var(--bg-primary); color:var(--text-primary);">
+                        </div>
+                        <div class="form-group">
+                            <label style="font-weight:600; font-size:13px; display:block; margin-bottom:6px;">Fecha de Nacimiento *</label>
+                            <input type="date" id="pre_patientBirthdate" required style="width:100%; padding:10px 12px; border-radius:8px; border:1px solid var(--border-secondary); background:var(--bg-primary); color:var(--text-primary);">
+                        </div>
+                        <div class="form-group">
+                            <label style="font-weight:600; font-size:13px; display:block; margin-bottom:6px;">Género</label>
+                            <select id="pre_patientGender" style="width:100%; padding:10px 12px; border-radius:8px; border:1px solid var(--border-secondary); background:var(--bg-primary); color:var(--text-primary);">
+                                <option value="Femenino">Femenino</option>
+                                <option value="Masculino">Masculino</option>
+                                <option value="Otro">Otro / No binario</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap:12px;">
+                        <div class="form-group">
+                            <label style="font-weight:600; font-size:13px; display:block; margin-bottom:6px;">Teléfono de Contacto *</label>
+                            <input type="tel" id="pre_patientPhone" required placeholder="+58 412 1234567" style="width:100%; padding:10px 12px; border-radius:8px; border:1px solid var(--border-secondary); background:var(--bg-primary); color:var(--text-primary);">
+                        </div>
+                        <div class="form-group">
+                            <label style="font-weight:600; font-size:13px; display:block; margin-bottom:6px;">Correo Electrónico</label>
+                            <input type="email" id="pre_patientEmail" placeholder="correo@ejemplo.com" style="width:100%; padding:10px 12px; border-radius:8px; border:1px solid var(--border-secondary); background:var(--bg-primary); color:var(--text-primary);">
+                        </div>
+                    </div>
+
+                    ${(isChild || isTeen) ? `
+                        <div style="background:var(--bg-secondary); padding:16px; border-radius:10px; border:1px solid var(--border-primary); margin-top:8px;">
+                            <h4 style="margin:0 0 12px 0; font-size:14px; color:var(--accent-primary);"><i class="fas fa-user-shield"></i> Datos del Representante Legal</h4>
+                            <div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap:12px;">
+                                <div class="form-group">
+                                    <label style="font-size:12.5px; font-weight:600; display:block; margin-bottom:4px;">Nombre del Representante *</label>
+                                    <input type="text" id="pre_guardianName" required placeholder="Nombre completo" style="width:100%; padding:8px 12px; border-radius:6px; border:1px solid var(--border-secondary); background:var(--bg-primary); color:var(--text-primary);">
+                                </div>
+                                <div class="form-group">
+                                    <label style="font-size:12.5px; font-weight:600; display:block; margin-bottom:4px;">Parentesco con el Paciente</label>
+                                    <input type="text" id="pre_guardianRelation" placeholder="Madre / Padre / Tutor" style="width:100%; padding:8px 12px; border-radius:6px; border:1px solid var(--border-secondary); background:var(--bg-primary); color:var(--text-primary);">
+                                </div>
+                            </div>
+                        </div>
+                    ` : ''}
+
+                    <div class="form-group" style="margin-top:8px;">
+                        <label style="font-weight:600; font-size:13px; display:block; margin-bottom:6px;">Motivo Principal de Consulta *</label>
+                        <textarea id="pre_patientReason" rows="3" required placeholder="Describa brevemente qué situación o síntoma le motivó a solicitar la consulta..." style="width:100%; padding:10px 12px; border-radius:8px; border:1px solid var(--border-secondary); background:var(--bg-primary); color:var(--text-primary);"></textarea>
+                    </div>
+
+                    <div class="form-group">
+                        <label style="font-weight:600; font-size:13px; display:block; margin-bottom:6px;">Expectativas u Objetivos del Tratamiento</label>
+                        <textarea id="pre_patientGoals" rows="2" placeholder="¿Qué cambios o mejorías le gustaría alcanzar con el acompañamiento terapéutico?" style="width:100%; padding:10px 12px; border-radius:8px; border:1px solid var(--border-secondary); background:var(--bg-primary); color:var(--text-primary);"></textarea>
+                    </div>
+
+                    <div style="margin-top:16px; display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:12px;">
+                        <a href="portal.html" style="font-size:13px; color:var(--text-secondary); text-decoration:none;">
+                            <i class="fas fa-arrow-left"></i> Volver al Portal de Pacientes
+                        </a>
+                        <button type="submit" class="portal-btn-primary" style="padding:10px 24px; font-size:14px;">
+                            <i class="fas fa-paper-plane"></i> Enviar Formulario de Pre-consulta
+                        </button>
+                    </div>
+                </div>
+            </form>
+        </div>
+    `;
+}
+window.renderPortalPreconsultaScreen = renderPortalPreconsultaScreen;
+
+function handlePortalPreconsultaSubmit(e, stage) {
+    if (e) e.preventDefault();
+    const name = document.getElementById('pre_patientName')?.value.trim();
+    if (!name) return;
+
+    const ci = document.getElementById('pre_patientCI')?.value.trim() || '';
+    const birthdate = document.getElementById('pre_patientBirthdate')?.value || '';
+    const gender = document.getElementById('pre_patientGender')?.value || 'Otro';
+    const phone = document.getElementById('pre_patientPhone')?.value.trim() || '';
+    const email = document.getElementById('pre_patientEmail')?.value.trim() || '';
+    const reason = document.getElementById('pre_patientReason')?.value.trim() || '';
+    const goals = document.getElementById('pre_patientGoals')?.value.trim() || '';
+    const guardianName = document.getElementById('pre_guardianName')?.value.trim() || '';
+    const guardianRelation = document.getElementById('pre_guardianRelation')?.value.trim() || '';
+
+    // Guardar en la base de datos local y emitir puente
+    const patients = loadPortalPatients();
+    const newId = 'pat_pre_' + Date.now().toString(36);
+    const newToken = 'PN-' + Math.random().toString(36).substr(2, 8).toUpperCase();
+
+    const newPat = {
+        id: newId,
+        name: name,
+        ci: ci,
+        birthdate: birthdate,
+        gender: gender,
+        phone: phone,
+        email: email,
+        reason: reason,
+        goals: goals,
+        guardianName: guardianName,
+        guardianRelationship: guardianRelation,
+        category: stage === 'child' || stage === 'child_teen' ? 'child' : (stage === 'adolescent' ? 'adolescent' : 'adult'),
+        status: 'Por iniciar',
+        portalToken: newToken,
+        portalEnabled: true,
+        source: 'preconsulta_remota',
+        createdAt: new Date().toISOString()
+    };
+
+    patients.push(newPat);
+    savePortalPatients(patients);
+
+    const accessScreen = document.getElementById('accessScreen');
+    if (accessScreen) {
+        accessScreen.innerHTML = `
+            <div style="max-width:540px; margin:40px auto; background:var(--bg-card); padding:32px; border-radius:16px; border:1px solid var(--border-color); text-align:center; box-shadow:var(--shadow-lg);">
+                <div style="font-size:48px; color:#059669; margin-bottom:16px;"><i class="fas fa-check-circle"></i></div>
+                <h2 style="font-size:22px; color:var(--text-primary); margin:0 0 10px 0;">¡Pre-consulta Registrada con Éxito!</h2>
+                <p style="font-size:14px; color:var(--text-secondary); line-height:1.5;">
+                    Gracias <strong>${escapeHtml(name)}</strong>. Tu información ha sido enviada confidencialmente a tu psicólogo clínico para preparar tu primera sesión.
+                </p>
+                <div style="margin:20px 0; padding:14px; background:rgba(5, 150, 105, 0.08); border-radius:10px; border:1px solid rgba(5, 150, 105, 0.2);">
+                    <div style="font-size:12px; color:var(--text-secondary); margin-bottom:4px;">Tu Código de Acceso al Portal:</div>
+                    <div style="font-size:20px; font-weight:800; color:#059669; letter-spacing:1px; font-family:monospace;">${newToken}</div>
+                </div>
+                <a href="portal.html?token=${newToken}" class="portal-btn-primary" style="display:inline-block; padding:10px 20px; text-decoration:none; margin-top:8px;">
+                    <i class="fas fa-sign-in-alt"></i> Ir a mi Portal de Paciente
+                </a>
+            </div>
+        `;
+    }
+}
+window.handlePortalPreconsultaSubmit = handlePortalPreconsultaSubmit;
 
 function showAccessForm() {
     document.getElementById('accessScreen').style.display = 'flex';
@@ -637,7 +813,7 @@ async function loadPatientData() {
                             duration: Number(a.duration) || 50,
                             status: a.status || 'agendada',
                             attendanceConfirmed: Boolean(a.attendanceConfirmed || a.attendance_confirmed || a.status === 'confirmada'),
-                            type: a.type || 'Online',
+                            type: a.type || 'Presencial',
                             notes: a.notes || '',
                             createdAt: a.createdAt || new Date().toISOString()
                         }));
@@ -3497,7 +3673,8 @@ function renderNextSession() {
         nextSessionStatEl.textContent = `${dayNum} ${monthStr}`;
     }
 
-    const isOnline = (nextApp.type || 'Online').toLowerCase().includes('online');
+    const appType = nextApp.type || nextApp.appointment_type || nextApp.modality || 'Presencial';
+    const isOnline = appType.toLowerCase().includes('online') || appType.toLowerCase().includes('remot');
     const therapist = PortalState.therapistName || 'Tu Terapeuta';
 
     if (homeCardEl) {
@@ -3515,7 +3692,7 @@ function renderNextSession() {
                                 <i class="fas fa-calendar-check"></i> Próxima Sesión
                             </span>
                             <span class="portal-session-badge ${isOnline ? 'portal-badge-online' : 'portal-badge-presencial'}">
-                                <i class="fas ${isOnline ? 'fa-video' : 'fa-building'}"></i> ${nextApp.type || 'Online'}
+                                <i class="fas ${isOnline ? 'fa-video' : 'fa-building'}"></i> ${appType}
                             </span>
                         </div>
                         <h4 class="portal-session-title">${formattedDate} a las ${nextApp.time || '10:00'}</h4>
@@ -3596,7 +3773,8 @@ function renderSessionsView() {
             const dayNum = isNaN(dateObj.getDate()) ? '—' : dateObj.getDate();
             const monthStr = isNaN(dateObj.getDate()) ? '' : dateObj.toLocaleDateString('es-ES', { month: 'short' });
             const yearNum = isNaN(dateObj.getFullYear()) ? '' : dateObj.getFullYear();
-            const isOnline = (next.type || 'Online').toLowerCase().includes('online');
+            const appType = next.type || next.appointment_type || next.modality || 'Presencial';
+            const isOnline = appType.toLowerCase().includes('online') || appType.toLowerCase().includes('remot');
 
             container.innerHTML = `
                 <div class="portal-next-session-card" style="margin-top: 0; border-color: var(--accent-primary);">
@@ -3622,7 +3800,7 @@ function renderSessionsView() {
                                 </p>
                                 <div style="margin-top: 6px; font-size: 12px; color: var(--text-secondary);">
                                     <i class="fas ${isOnline ? 'fa-video' : 'fa-building'}" style="color: var(--accent-primary); margin-right: 4px;"></i>
-                                    <strong>Modalidad:</strong> ${next.type || 'Online (Videollamada)'}
+                                    <strong>Modalidad:</strong> ${appType}
                                 </div>
                                 ${next.notes ? `<div style="margin-top: 4px; font-size: 12px; color: var(--text-tertiary); font-style: italic;">"${next.notes}"</div>` : ''}
                             </div>
@@ -3692,7 +3870,7 @@ function renderSessionsView() {
                             </div>
                             <div>
                                 <div style="font-size: 13.5px; font-weight: 600; color: var(--text-primary);">
-                                    Sesión ${h.type || 'Online'} — ${h.time || 'Horario no especificado'}
+                                    Sesión ${h.type || 'Presencial'} — ${h.time || 'Horario no especificado'}
                                 </div>
                                 <div style="font-size: 11.5px; color: var(--text-secondary);">
                                     ${formatDateSafe(h.date)} (${h.duration || 50} min)
@@ -4264,7 +4442,7 @@ async function confirmSessionAttendance(appointmentId) {
                     date: app.date,
                     time: app.time,
                     duration: app.duration || 50,
-                    type: app.type || 'Online',
+                    type: app.type || 'Presencial',
                     status: 'confirmada',
                     attendanceConfirmed: true,
                     attendance_confirmed: true,
@@ -4360,7 +4538,7 @@ function checkAppointmentConfirmationAlert(forceShowToast = false) {
                 : '<i class="fas fa-calendar-check" style="color:#d97706;margin-right:6px;"></i> ¡Tienes una sesión pendiente de confirmar!';
         }
         if (detailsEl) {
-            detailsEl.textContent = `Sesión programada con ${therapist} para el ${formattedDate} a las ${timeStr} (${unconfirmed.type || 'Online'}). Por favor confirma tu asistencia para asegurar tu horario.`;
+            detailsEl.textContent = `Sesión programada con ${therapist} para el ${formattedDate} a las ${timeStr} (${unconfirmed.type || 'Presencial'}). Por favor confirma tu asistencia para asegurar tu horario.`;
         }
     }
 

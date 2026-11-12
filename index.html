@@ -1038,15 +1038,9 @@
                     </div>
                 </div>
 
-                <div class="form-row">
-                    <div class="form-group" style="flex:1;">
-                        <label>Nombre de la Escuela / Colegio</label>
-                        <input type="text" id="patientSchoolName" placeholder="Nombre de la institución educativa">
-                    </div>
-                    <div class="form-group" style="flex:1;">
-                        <label>Hitos del Neurodesarrollo / Observaciones</label>
-                        <input type="text" id="patientDevelopmentalMilestones" placeholder="Marcha, lenguaje, esfínteres...">
-                    </div>
+                <div class="form-group">
+                    <label>Nombre de la Escuela / Colegio</label>
+                    <input type="text" id="patientSchoolName" placeholder="Nombre de la institución educativa">
                 </div>
             </div>
 
@@ -1122,12 +1116,12 @@
                         <label>Tratamiento Farmacológico / Medicación</label>
                         <input type="text" id="patientMedication" placeholder="Fármacos, dosis y médico tratante si aplica">
                     </div>
-                    <div class="form-group">
+                    <div class="form-group" id="patientMedicalGroup">
                         <label>Antecedentes Médicos / Orgánicos</label>
                         <input type="text" id="patientMedical" placeholder="Enfermedades crónicas, intervenciones, alergias...">
                     </div>
                 </div>
-                <div class="form-group">
+                <div class="form-group" id="patientFamilyHistoryGroup">
                     <label>Antecedentes Familiares Psiquiátricos / Psicológicos</label>
                     <input type="text" id="patientFamilyHistory" placeholder="Historial familiar relevante...">
                 </div>
@@ -2024,6 +2018,23 @@
             <p style="font-size:13px;color:var(--text-secondary);margin-bottom:14px;line-height:1.4;">
                 Los datos ingresados se estamparán de forma dinámica en los <strong>membretes de Historias Clínicas Oficiales, Hojas de Evolución, Consentimientos Informados, firmas digitales y mensajes de WhatsApp</strong> enviados a los pacientes.
             </p>
+            <div style="display:flex;align-items:center;gap:16px;margin-bottom:16px;padding:12px;background:var(--bg-secondary);border-radius:10px;border:1px solid var(--border-color);">
+                <div style="position:relative;width:64px;height:64px;border-radius:50%;overflow:hidden;border:2px solid var(--accent-primary);flex-shrink:0;">
+                    <img id="therapistProfilePhotoPreview" src="assets/avatar/serena-avatar.jpg?v=7.2.0" alt="Foto de Perfil" style="width:100%;height:100%;object-fit:cover;display:block;">
+                </div>
+                <div style="flex:1;">
+                    <label style="font-weight:600;font-size:13px;display:block;margin-bottom:4px;">Foto de Perfil del Profesional</label>
+                    <div style="display:flex;gap:8px;flex-wrap:wrap;">
+                        <input type="file" id="therapistProfilePhotoInput" accept="image/*" style="display:none;" onchange="handleTherapistPhotoSelected(event)">
+                        <button type="button" class="btn-secondary btn-sm" onclick="document.getElementById('therapistProfilePhotoInput').click()">
+                            <i class="fas fa-camera"></i> Subir Foto
+                        </button>
+                        <button type="button" class="btn-secondary btn-sm" style="color:var(--text-tertiary);" onclick="removeTherapistPhoto()">
+                            <i class="fas fa-trash-alt"></i> Quitar
+                        </button>
+                    </div>
+                </div>
+            </div>
             <div class="form-group">
                 <label>Nombre Completo con Título Profesional *</label>
                 <input type="text" id="therapistProfileName" required placeholder="Ej. Dr. Carlos Mendoza / Dra. Elena Soto / Lic. Roberto Gil">
@@ -2454,14 +2465,7 @@
                         <label style="margin:0;"><i class="fas fa-wand-magic-sparkles" style="color:#7c3aed;"></i> Foco Clínico / Resumen Terapéutico</label>
                         <span style="font-size:11.5px;color:var(--text-tertiary);">Visible en la tarjeta de ruta</span>
                     </div>
-                    <textarea id="roadmapSessionFocus" rows="4" placeholder="Detalle los objetivos, focos de trabajo cognitivo-conductual o intervenciones aplicadas en esta sesión..." class="input-clinical-styled textarea-clinical"></textarea>
-                </div>
-
-                <div class="quick-focus-templates">
-                    <span class="quick-title-label">Plantillas TCC:</span>
-                    <button type="button" class="chip-suggestion" onclick="appendRoadmapFocusTemplate('Exploración de pensamientos automáticos, registro de distorsiones y flecha descendente.')">Distorsiones Cognitivas</button>
-                    <button type="button" class="chip-suggestion" onclick="appendRoadmapFocusTemplate('Técnicas de regulación somática: respiración diafragmática 4-7-8 y anclaje sensorial 5-4-3-2-1.')">Regulación Somática</button>
-                    <button type="button" class="chip-suggestion" onclick="appendRoadmapFocusTemplate('Diseño y revisión de experimento conductual para contrastar creencias desadaptativas.')">Experimento Conductual</button>
+                    <textarea id="roadmapSessionFocus" rows="4" placeholder="Detalle los objetivos, foco clínico o intervenciones aplicadas en esta sesión..." class="input-clinical-styled textarea-clinical"></textarea>
                 </div>
             </div>
 

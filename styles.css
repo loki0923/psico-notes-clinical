@@ -5984,6 +5984,10 @@ body.screen-locked .sidebar {
     position: relative;
 }
 
+.session-history-container .therapy-roadmap-container {
+    margin: 0 0 8px 0;
+}
+
 [data-theme="dark"] .therapy-roadmap-container {
     background: var(--bg-card, #1e293b);
     border-color: var(--border-secondary, #334155);

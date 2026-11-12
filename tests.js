@@ -4454,9 +4454,9 @@ ClinicalTestSuite.add('TC-ROA-01', 'Mapa de Ruta Longitudinal de Sesiones en Exp
         }
     }
 
-    // 3. Validar integración de renderTherapySessionsRoadmap dentro de renderTabResumen en app.js
+    // 3. Validar integración de renderTherapySessionsRoadmap dentro de la pestaña de Planificación de Sesiones en app.js
     if (!appJs.includes('renderTherapySessionsRoadmap(patientId)')) {
-        throw new Error('renderTabResumen en app.js debe invocar renderTherapySessionsRoadmap(patientId)');
+        throw new Error('renderTabHistorialSesiones en app.js debe invocar renderTherapySessionsRoadmap(patientId)');
     }
     if (!appJs.includes('function renderTherapySessionsRoadmap')) {
         throw new Error('app.js debe definir la función renderTherapySessionsRoadmap');
@@ -4807,14 +4807,15 @@ ClinicalTestSuite.add('TC-HIST-09', 'Historia Clínica Adulto (Paridad Estricta 
         }
     }
 
-    // 3. Verificación de que el editor de adultos HTML exclusivo genera las 6 pestañas organizadas por temática
+    // 3. Verificación de que el editor de adultos HTML exclusivo genera las 7 pestañas organizadas por temática
     const editorHtml = CHS.renderAdultHistoryEditorHTML(testAdult, h, therapist.registry);
-    if (!editorHtml.includes('htab-adult-1') || !editorHtml.includes('htab-adult-5') || !editorHtml.includes('htab-adult-6')) {
-        throw new Error('El editor de historia de adulto debe contener las 6 pestañas organizadas');
+    if (!editorHtml.includes('htab-adult-1') || !editorHtml.includes('htab-adult-3') || !editorHtml.includes('htab-adult-5') || !editorHtml.includes('htab-adult-6') || !editorHtml.includes('htab-adult-7')) {
+        throw new Error('El editor de historia de adulto debe contener las 7 pestañas organizadas');
     }
     const requiredTabNames = [
         'Identificación del Paciente',
-        'Motivo de Consulta y Examen Mental',
+        'Motivo de Consulta',
+        'Examen Mental',
         'Antecedentes',
         'Situación Actual y Áreas Vitales',
         'Hábitos Psicobiológicos',
@@ -8897,6 +8898,308 @@ ClinicalTestSuite.add('TC-EXP-05', 'Reorganización Personalizada de Pestañas d
     // 6. Validar que switchPatientTab soporte resolución flexible por data-tab-id
     if (!appJs.includes('.patient-tab[data-tab-id="') || !appJs.includes('isPatientTabDragging')) {
         throw new Error('switchPatientTab debe resolver el botón activo por data-tab-id y prevenir cambios accidentales durante el arrastre');
+    }
+});
+
+// 157. TC-HC-CORR-01: Correcciones de Psicólogos para Historia Clínica Adulto y Sincronización de Genograma
+ClinicalTestSuite.add('TC-HC-CORR-01', 'Historia Clínica Adulto: Pestaña 3 Examen Mental, 7 tabs, placeholders actualizados y sincronización con Genograma', async () => {
+    const fs = await import('fs');
+    const path = await import('path');
+
+    if (typeof ClinicalHistorySystem === 'undefined') {
+        await import('./historia-clinica.js');
+    }
+    if (typeof GenogramModule === 'undefined') {
+        await import('./genogram.js');
+    }
+
+    const appJs = fs.readFileSync(path.resolve('app.js'), 'utf8');
+    const hcJs = fs.readFileSync(path.resolve('historia-clinica.js'), 'utf8');
+
+    // 1. Nombre de la pestaña principal cambiado a "Historia Clínica"
+    if (!appJs.includes('<i class="fas fa-book-medical"></i> Historia Clínica</button>')) {
+        throw new Error('La pestaña principal debe llamarse "Historia Clínica" en PATIENT_TAB_RENDERERS');
+    }
+    if (!appJs.includes("'historia': { label: 'Historia Clínica', icon: 'fas fa-book-medical' }")) {
+        throw new Error("TAB_INFO_MAP debe tener 'historia' con label 'Historia Clínica'");
+    }
+
+    // 2. Método goToGenogramTab presente en ClinicalHistorySystem
+    if (typeof ClinicalHistorySystem.goToGenogramTab !== 'function') {
+        throw new Error('ClinicalHistorySystem debe exponer goToGenogramTab para navegar al constructor de genograma');
+    }
+
+    // 3. Verificación de renderAdultHistoryEditorHTML con objeto en mentalExam (prevención de [object Object])
+    const testPatient = {
+        id: 'pat_corr_test_01',
+        name: 'Carlos Mendoza',
+        category: 'adult',
+        gender: 'Masculino',
+        birthdate: '1988-06-20',
+        mentalExam: {
+            fields: { aspectoGeneral: 'Adecuado', conciencia: 'Lúcido' },
+            text: 'Paciente orientado en tiempo, espacio y persona. Afecto congruente.',
+            updatedAt: '2026-11-12T10:00:00Z'
+        }
+    };
+
+    const h = ClinicalHistorySystem.getFullHistory(testPatient);
+    if (typeof h.mentalExam !== 'string' || h.mentalExam.includes('[object Object]')) {
+        throw new Error('getFullHistory debe convertir mentalExam tipo objeto a texto limpio sin [object Object]');
+    }
+
+    const therapist = ClinicalHistorySystem.getTherapistInfo();
+    const editorHtml = ClinicalHistorySystem.renderAdultHistoryEditorHTML(testPatient, h, therapist.registry);
+
+    if (editorHtml.includes('[object Object]')) {
+        throw new Error('El editor HTML de Historia Clínica Adulto no debe contener [object Object]');
+    }
+
+    // 4. Pestaña 2 sin Examen Mental y Pestaña 3 como Examen Mental
+    if (!editorHtml.includes("ClinicalHistorySystem.switchEditorTab('adult-2', this)\">2. Motivo de Consulta</button>")) {
+        throw new Error('La pestaña 2 debe titularse "2. Motivo de Consulta" sin Examen Mental');
+    }
+    if (!editorHtml.includes("ClinicalHistorySystem.switchEditorTab('adult-3', this)\">3. Examen Mental</button>")) {
+        throw new Error('La pestaña 3 debe ser "3. Examen Mental"');
+    }
+    if (!editorHtml.includes('id="htab-adult-3"') || !editorHtml.includes('id="fh_mentalExam"')) {
+        throw new Error('El pane htab-adult-3 debe contener el campo fh_mentalExam');
+    }
+
+    // 5. Botón Abrir Constructor de Genograma con goToGenogramTab y preview SVG
+    if (!editorHtml.includes("ClinicalHistorySystem.goToGenogramTab('pat_corr_test_01')")) {
+        throw new Error('El botón Abrir Constructor de Genograma debe invocar goToGenogramTab');
+    }
+    if (!editorHtml.includes('genogram-preview-container') || !editorHtml.includes('<svg')) {
+        throw new Error('El recuadro de genograma en Historia Clínica debe incluir el contenedor y gráfico SVG del genograma');
+    }
+
+    // 6. Placeholders actualizados según requerimientos de psicólogos
+    if (!editorHtml.includes('placeholder="Acompañamiento psicológico previo Y otros antecedentes psicológicos del paciente..."')) {
+        throw new Error('El placeholder de antecedentes psiquiátricos/psicológicos del paciente debe ser actualizado');
+    }
+    if (!editorHtml.includes('placeholder="Desarrollo, socialización y eventos críticos en la adolescencia..."')) {
+        throw new Error('El placeholder de adolescencia debe ser actualizado');
+    }
+    if (!editorHtml.includes('placeholder="Aspectos relacionados a la sexualidad..."')) {
+        throw new Error('El placeholder de área sexual debe ser actualizado');
+    }
+    if (!editorHtml.includes('placeholder="Antecedentes penales o procesos legales previos o en curso..."')) {
+        throw new Error('El placeholder de aspectos legales debe ser actualizado');
+    }
+    if (!editorHtml.includes('placeholder="Intervenciones quirúrgicas previas..."')) {
+        throw new Error('El placeholder de operaciones debe ser actualizado a "Intervenciones quirúrgicas previas..."');
+    }
+
+    // 7. Visor Acordeón de Adulto con 7 secciones ordenadas
+    const viewerHtml = ClinicalHistorySystem.renderAdultHistoryIntegral(testPatient, h, therapist, therapist.registry);
+    if (!viewerHtml.includes('2. Motivo de Consulta</strong>') || !viewerHtml.includes('3. Examen Mental</strong>')) {
+        throw new Error('El visor de historia de adulto debe tener secciones 2 y 3 separadas');
+    }
+    if (!viewerHtml.includes('7. Metas y Proyecto de Vida</strong>')) {
+        throw new Error('El visor de historia de adulto debe tener la sección 7. Metas y Proyecto de Vida');
+    }
+});
+
+// 158. TC-HC-CORR-02: Correcciones del Equipo de Psicólogos (PDF 2)
+ClinicalTestSuite.add('TC-HC-CORR-02', 'Correcciones Clínicas PDF 2 (Ficha Representante, Genograma, Consentimiento, Foto Terapeuta, Modalidad Sesión y Multimoneda Finanzas)', async () => {
+    const fs = await import('fs');
+    const path = await import('path');
+
+    if (typeof ClinicalHistorySystem === 'undefined') {
+        await import('./historia-clinica.js');
+    }
+    if (typeof GenogramModule === 'undefined') {
+        await import('./genogram.js');
+    }
+    const CHS = globalThis.ClinicalHistorySystem;
+
+    // 1. Verificación de index.html: Eliminación de Hitos en Ficha del Representante y adición de grupos de antecedentes
+    const indexHtml = fs.readFileSync(path.resolve('index.html'), 'utf8');
+
+    // El representante es un adulto, no debe tener Hitos del Neurodesarrollo
+    const repSectionMatch = indexHtml.match(/<!-- 3\. FICHA DEL REPRESENTANTE \/ TUTOR LEGAL[\s\S]*?-->([\s\S]*?)<!-- 4\. INFORMACIÓN REFERENTE/);
+    if (!repSectionMatch) {
+        throw new Error('No se encontró la sección 3 en index.html');
+    }
+    if (repSectionMatch[1].includes('patientDevelopmentalMilestones')) {
+        throw new Error('La sección 3 de Ficha del Representante no debe contener Hitos del Neurodesarrollo / Observaciones');
+    }
+
+    // Grupos con IDs identificables para ocultar en adolescentes
+    if (!indexHtml.includes('id="patientMedicalGroup"') || !indexHtml.includes('id="patientFamilyHistoryGroup"')) {
+        throw new Error('index.html debe contener patientMedicalGroup y patientFamilyHistoryGroup para alternancia por categoría');
+    }
+
+    // Modal de perfil con soporte de foto y preview
+    if (!indexHtml.includes('id="therapistProfilePhotoInput"') || !indexHtml.includes('id="therapistProfilePhotoPreview"')) {
+        throw new Error('El modal de perfil del terapeuta debe incluir campos para foto de perfil y previsualización');
+    }
+
+    // 2. Verificación de historia-clinica.js: Genograma en infantil con título protocolizado
+    const testChild = {
+        id: 'pat_child_test_02',
+        name: 'Martina Rojas',
+        category: 'child',
+        status: 'Por iniciar'
+    };
+    const childFull = CHS.getFullHistory(testChild);
+    const childEditorHtml = CHS.renderChildHistoryEditorHTML(testChild, childFull, 'Dra. Terapeuta');
+    if (!childEditorHtml.includes('Genograma del paciente:')) {
+        throw new Error('El título de genograma en HC infantil debe ser "Genograma del paciente:"');
+    }
+    if (childEditorHtml.includes('Estructura vincular y constelación familiar del niño:')) {
+        throw new Error('Se debe haber reemplazado "Estructura vincular y constelación familiar del niño"');
+    }
+
+    // 3. Opciones "Dato no Obtenido" en embarazo deseado y planificado
+    if (!childEditorHtml.includes('id="fh_pregnancyDesired"') || !childEditorHtml.includes('value="Dato no Obtenido"')) {
+        throw new Error('fh_pregnancyDesired debe contener la opción "Dato no Obtenido"');
+    }
+    if (!childEditorHtml.includes('id="fh_pregnancyPlanned"') || !childEditorHtml.includes('value="Dato no Obtenido"')) {
+        throw new Error('fh_pregnancyPlanned debe contener la opción "Dato no Obtenido"');
+    }
+
+    // 4. Enlace dinámico de pre-consulta sin dominio quemado
+    const dynamicUrl = CHS.getPreconsultaUrl('adult');
+    if (!dynamicUrl.includes('portal.html?preconsulta=1&etapa=adult') || dynamicUrl.includes('psiconotes.app')) {
+        throw new Error(`La URL de pre-consulta debe ser dinámica hacia portal.html y no tener dominio externo quemado: ${dynamicUrl}`);
+    }
+
+    // 5. Visor de Adolescente: Sin duplicación de asentimiento en ficha de representante
+    const testTeen = {
+        id: 'pat_teen_test_02',
+        name: 'Carlos Rivas',
+        category: 'adolescent',
+        status: 'Por iniciar',
+        guardianConsent: 'firmado'
+    };
+    const teenFull = CHS.getFullHistory(testTeen);
+    const teenViewer = CHS.renderTeenHistoryIntegral(testTeen, teenFull, { name: 'Dra. Soto', registry: 'FPV 100' }, '');
+    if (teenViewer.includes('Asentimiento Informado del Adolescente (LOPNNA Art. 80)')) {
+        throw new Error('El cuadro de asentimiento en la ficha del representante de adolescente debe haber sido removido');
+    }
+    if (!teenViewer.includes('Consentimiento Informado:</strong>') || !teenViewer.includes('FIRMADO POR EL REPRESENTANTE')) {
+        throw new Error('El consentimiento informado firmado por el representante debe mantenerse visible');
+    }
+
+    // 6. Verificación de finance.js: Multimoneda y no quemar signo $ para pagos en Bolívares (VES)
+    const finModule = await import('./finance.js');
+    const renderPortalPayments = globalThis.renderPortalPaymentsTabHtml || finModule.renderPortalPaymentsTabHtml || finModule.default?.renderPortalPaymentsTabHtml;
+    if (typeof renderPortalPayments !== 'function') {
+        throw new Error('No se encontró la función renderPortalPaymentsTabHtml en finance.js');
+    }
+    const testReports = [
+        { id: 'rep_ves_1', amount: 9900, currency: 'VES', status: 'aprobado', patientName: 'Paciente VES', reference: '123456' },
+        { id: 'rep_usd_1', amount: 30, currency: 'USD', status: 'aprobado', patientName: 'Paciente USD', reference: 'USD99' }
+    ];
+    const portalPaymentsHtml = renderPortalPayments(testReports);
+    if (portalPaymentsHtml.includes('$9930.00 validados') || portalPaymentsHtml.includes('$9900.00 validados')) {
+        throw new Error('renderPortalPaymentsTabHtml no debe sumar Bolívares como si fueran dólares');
+    }
+    if (!portalPaymentsHtml.includes('Bs.') && !portalPaymentsHtml.includes('VES')) {
+        throw new Error('renderPortalPaymentsTabHtml debe reflejar los montos en Bolívares correctamente');
+    }
+
+    // 7. Verificación de portal.js: Sesiones presenciales no deben forzarse a Online ni mostrar botón de videollamada
+    const portalJs = fs.readFileSync(path.resolve('portal.js'), 'utf8');
+    if (!portalJs.includes("nextApp.type || nextApp.appointment_type || nextApp.modality || 'Presencial'")) {
+        throw new Error('portal.js debe resolver la modalidad de la próxima sesión preservando Presencial');
+    }
+    if (!portalJs.includes('renderPortalPreconsultaScreen') || !portalJs.includes('handlePortalPreconsultaSubmit')) {
+        throw new Error('portal.js debe contar con controladores para el formulario de pre-consulta remota');
+    }
+});
+
+// ============================================
+// TC-HC-CORR-03: Ruta de Sesiones de Terapia - Orden Cronológico y Remoción de Plantillas TCC / Textos Automáticos
+// ============================================
+ClinicalTestSuite.add('TC-HC-CORR-03', 'Ruta de Sesiones: Orden cronológico (recientes en fila 1), sin respuestas automáticas y sin plantillas TCC', async () => {
+    const fs = await import('fs');
+    const path = await import('path');
+
+    // 1. Verificación de index.html: No debe existir la clase quick-focus-templates ni chips de Plantillas TCC
+    const indexHtml = fs.readFileSync(path.resolve('index.html'), 'utf8');
+    if (indexHtml.includes('quick-focus-templates') || indexHtml.includes('Plantillas TCC:')) {
+        throw new Error('index.html no debe contener el bloque de Plantillas TCC (quick-focus-templates)');
+    }
+    if (indexHtml.includes('appendRoadmapFocusTemplate')) {
+        throw new Error('index.html no debe tener botones llamando a appendRoadmapFocusTemplate');
+    }
+
+    // 2. Extraer funciones de app.js para probar el comportamiento de getTherapyRoadmapSessionsForPatient y renderRoadmapBoard
+    const appJs = fs.readFileSync(path.resolve('app.js'), 'utf8');
+    const startIdx = appJs.indexOf('function getTherapyRoadmapSessionsForPatient(');
+    const endIdx = appJs.indexOf('function renderTherapySessionsRoadmap(');
+    if (startIdx === -1 || endIdx === -1) {
+        throw new Error('No se pudieron aislar las funciones del mapa de ruta en app.js');
+    }
+
+    const sandbox = {
+        AppState: {
+            therapyRoadmaps: [],
+            notes: []
+        },
+        saveDataLocallyOnly: async () => {},
+        formatRoadmapDate: (d) => d || '',
+        handleRoadmapSessionClick: () => {},
+        toggleRoadmapSnippet: () => {},
+        quickToggleRoadmapStatus: () => {},
+        openEditRoadmapSessionModal: () => {},
+        openAddRoadmapSessionModal: () => {}
+    };
+
+    const roadmapCode = `
+        const AppState = sandbox.AppState;
+        const saveDataLocallyOnly = sandbox.saveDataLocallyOnly;
+        const formatRoadmapDate = sandbox.formatRoadmapDate;
+        const handleRoadmapSessionClick = sandbox.handleRoadmapSessionClick;
+        const toggleRoadmapSnippet = sandbox.toggleRoadmapSnippet;
+        const quickToggleRoadmapStatus = sandbox.quickToggleRoadmapStatus;
+        const openEditRoadmapSessionModal = sandbox.openEditRoadmapSessionModal;
+        const openAddRoadmapSessionModal = sandbox.openAddRoadmapSessionModal;
+        ${appJs.slice(startIdx, endIdx)}
+        return { getTherapyRoadmapSessionsForPatient, renderRoadmapBoard };
+    `;
+
+    const f = new Function('sandbox', roadmapCode);
+    const { getTherapyRoadmapSessionsForPatient, renderRoadmapBoard } = f(sandbox);
+
+    // 3. Probar sesiones demostrativas iniciales: deben venir con focusSummary vacío (sin texto automático)
+    const demoSessions = getTherapyRoadmapSessionsForPatient('patient_test_01');
+    if (demoSessions.length !== 6) {
+        throw new Error(`Se esperaban 6 sesiones demostrativas iniciales, se obtuvieron ${demoSessions.length}`);
+    }
+    demoSessions.forEach(s => {
+        if (s.focusSummary && s.focusSummary.trim().length > 0) {
+            throw new Error(`La sesión #${s.sessionNumber} contiene texto automático en focusSummary: "${s.focusSummary}"`);
+        }
+    });
+
+    // 4. Probar ordenamiento cronológico: Si alteramos fechas de sesiones, deben quedar ordenadas de más antigua a más reciente
+    const customSessions = [
+        { id: 's3', patientId: 'p2', sessionNumber: 3, title: 'Sesión C', date: '2026-10-15', status: 'pendiente' },
+        { id: 's1', patientId: 'p2', sessionNumber: 1, title: 'Sesión A', date: '2026-07-01', status: 'completada' },
+        { id: 's2', patientId: 'p2', sessionNumber: 2, title: 'Sesión B', date: '2026-08-20', status: 'pendiente' },
+        { id: 's4', patientId: 'p2', sessionNumber: 4, title: 'Sesión D', date: '2026-11-01', status: 'pendiente' }
+    ];
+    sandbox.AppState.therapyRoadmaps = [...customSessions];
+    const sorted = getTherapyRoadmapSessionsForPatient('p2');
+    if (sorted[0].id !== 's1' || sorted[1].id !== 's2' || sorted[2].id !== 's3' || sorted[3].id !== 's4') {
+        throw new Error('getTherapyRoadmapSessionsForPatient no ordenó cronológicamente de más antigua a más reciente');
+    }
+
+    // 5. Probar que renderRoadmapBoard coloca la fila más reciente en la primera fila (arriba)
+    // Para 4 sesiones: Chunk 0 = [s1, s2, s3], Chunk 1 = [s4]
+    // Reversed chunks: Fila 1 (arriba) = [s4], Fila 2 (abajo) = [s1, s2, s3]
+    const boardHtml = renderRoadmapBoard(sorted, 'p2');
+    const firstRowIndexS4 = boardHtml.indexOf('data-session-id="s4"');
+    const firstRowIndexS1 = boardHtml.indexOf('data-session-id="s1"');
+    if (firstRowIndexS4 === -1 || firstRowIndexS1 === -1) {
+        throw new Error('No se encontraron las tarjetas de s4 o s1 en el HTML del tablero');
+    }
+    if (firstRowIndexS4 > firstRowIndexS1) {
+        throw new Error('La sesión más reciente (s4) debe renderizarse antes (en la fila superior) que las sesiones más antiguas (s1, s2, s3)');
     }
 });
 
