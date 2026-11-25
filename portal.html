@@ -3,12 +3,14 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Mi Espacio - Psico Notes</title>
-    <meta name="theme-color" content="#6b9080">
+    <title>SERENA — Mi Espacio</title>
+    <meta name="theme-color" content="#123F36">
+    <link rel="icon" type="image/svg+xml" href="favicon.svg">
+    <link rel="alternate icon" href="favicon.ico">
     <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@400;500;600;700;800&family=Inter:wght@400;500;600;700&family=Playfair+Display:wght@500;600;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@400;500;600;700;800&family=Inter:wght@400;500;600;700&family=Montserrat:wght@400;500;600;700;800&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <link rel="stylesheet" href="portal.css">
+    <link rel="stylesheet" href="portal.css?v=7.1.0-serena">
 </head>
 <body>
 
@@ -19,8 +21,17 @@
 <div id="accessScreen" class="access-screen">
     <div class="access-card">
         <div class="access-logo">
-            <span class="logo-icon">🌱</span>
-            <span class="logo-text">Mi Espacio</span>
+            <span class="logo-icon">
+                <svg viewBox="0 0 100 100" width="36" height="36" fill="none" role="img" aria-label="SERENA">
+                    <path d="M 22.5 69.5 A 34 34 0 0 1 69.5 22.5" stroke="#123F36" stroke-width="7.5" stroke-linecap="round"/>
+                    <path d="M 77.5 30.5 A 34 34 0 0 1 30.5 77.5" stroke="#7FA38F" stroke-width="7.5" stroke-linecap="round"/>
+                    <circle cx="50" cy="50" r="7.5" fill="#123F36"/>
+                </svg>
+            </span>
+            <div style="display:flex;flex-direction:column;align-items:flex-start;">
+                <span class="logo-text">Mi Espacio</span>
+                <span style="font-size:10px;font-weight:700;letter-spacing:0.12em;color:var(--brand-sage);text-transform:uppercase;">SERENA</span>
+            </div>
         </div>
         <p class="access-subtitle">Tu espacio personal de acompañamiento terapéutico</p>
         
@@ -29,7 +40,7 @@
                 <label>Código de acceso</label>
                 <input type="text" id="accessCode" placeholder="Ingresa tu código personal" autocomplete="off" style="text-transform: uppercase; letter-spacing: 2px; font-weight: 600;">
                 <small style="color: var(--text-tertiary); font-size: 11px; display: block; margin-top: 6px;">
-                    💡 Tu terapeuta te proporcionó este código
+                    Tu terapeuta te proporcionó este código
                 </small>
             </div>
             <div id="accessError" class="error-message"></div>
@@ -40,7 +51,7 @@
         
         <div id="welcomeBack" style="display: none;">
             <div class="welcome-back-info">
-                <div class="patient-avatar-large" id="portalPatientAvatar">👤</div>
+                <div class="patient-avatar-large" id="portalPatientAvatar"><i class="fas fa-user"></i></div>
                 <h2 id="portalPatientName">Bienvenido/a</h2>
                 <p style="color: var(--text-secondary); font-size: 13px;">¿Continuamos donde lo dejamos?</p>
             </div>
@@ -60,7 +71,7 @@
     <!-- HEADER -->
     <header class="portal-header">
         <div class="portal-header-left">
-            <div class="portal-avatar" id="headerAvatar">👤</div>
+            <div class="portal-avatar" id="headerAvatar"><i class="fas fa-user"></i></div>
             <div>
                 <div class="portal-greeting" id="headerGreeting">Hola</div>
                 <div class="portal-patient-name" id="headerName">Paciente</div>
@@ -68,17 +79,23 @@
         </div>
         <div style="display: flex; align-items: center; gap: 8px;">
             <button id="btnKidSoundToggle" class="btn-kid-sound" style="display: none;" onclick="KidAudioEffects.toggleMute()" title="Efectos de sonido">
-                🔊
+                <i class="fas fa-volume-up"></i>
             </button>
             <div id="kidStarsBadge" class="kid-stars-counter" style="display: none;" title="Tus estrellas mágicas acumuladas">
                 ⭐ <span id="kidStarsCount">0</span>
             </div>
+            <div id="kidCoinsBadge" class="kid-coins-counter" style="display: none;" title="Tus monedas mágicas acumuladas">
+                <i class="fas fa-coins" style="color:#f59e0b;"></i> <span id="kidCoinsCount">50</span>
+            </div>
             <button id="btnKidModeToggle" class="btn-kid-toggle" style="display: none !important;" onclick="toggleKidMode()" title="Cambiar a Modo Kids / Espacio Lúdico">
-                <span class="kid-toggle-icon">🎈</span> <span class="kid-toggle-label">Modo Kids</span>
+                <span class="kid-toggle-icon"><i class="fas fa-shapes"></i></span> <span class="kid-toggle-label">Modo Kids</span>
             </button>
             <span id="offlineSyncBadge" class="offline-sync-badge" style="display: none;" title="Registros pendientes de sincronizar con el terapeuta. Clic para sincronizar ahora." onclick="PortalOfflineQueue.flush()">
                 <i class="fas fa-cloud-arrow-up"></i> <span id="offlineSyncCount">0</span>
             </span>
+            <button id="btnPortalThemeToggle" class="btn-icon" onclick="togglePortalTheme()" title="Cambiar a Modo Oscuro / Claro">
+                <i class="fas fa-moon"></i>
+            </button>
             <button class="btn-sos" onclick="triggerPortalEmergencyHelp()" title="Obtener ayuda inmediata en crisis">
                 <i class="fas fa-life-ring"></i> SOS
             </button>
@@ -91,7 +108,7 @@
     <!-- BANNER PWA INSTALABLE -->
     <div id="pwaInstallBanner" class="pwa-install-banner" style="display: none;">
         <div class="pwa-banner-content">
-            <span class="pwa-banner-icon">📲</span>
+            <span class="pwa-banner-icon"><i class="fas fa-mobile-alt"></i></span>
             <div>
                 <strong>Instala la App en tu Celular</strong>
                 <small>Acceso directo con un solo toque desde tu pantalla de inicio</small>
@@ -100,6 +117,25 @@
         <div class="pwa-banner-actions">
             <button class="btn-sm btn-pwa-install" onclick="promptPwaInstall()">Instalar</button>
             <button class="btn-sm btn-pwa-dismiss" onclick="dismissPwaBanner()">✕</button>
+        </div>
+    </div>
+
+    <!-- BANNER DE ALERTA: CONFIRMAR ASISTENCIA A LA CITA -->
+    <div id="appointmentConfirmationAlertBanner" class="appointment-confirm-alert-banner" style="display: none;">
+        <div class="confirm-alert-content">
+            <div class="confirm-alert-icon-pulse">
+                <i class="fas fa-bell"></i>
+            </div>
+            <div class="confirm-alert-text">
+                <strong id="confirmAlertTitle">¡Tienes una sesión pendiente de confirmar!</strong>
+                <span id="confirmAlertDetails">Por favor confirma tu asistencia para asegurar tu horario con tu terapeuta.</span>
+            </div>
+        </div>
+        <div class="confirm-alert-actions">
+            <button class="btn-confirm-alert-action" id="btnConfirmAlertAction" onclick="confirmAppointmentFromAlertBanner()">
+                <i class="fas fa-check-circle"></i> Confirmar Asistencia
+            </button>
+            <button class="btn-confirm-alert-dismiss" onclick="dismissAppointmentConfirmBanner()" title="Recordarme más tarde">✕</button>
         </div>
     </div>
 
@@ -137,12 +173,39 @@
                     <i class="fas fa-check-circle"></i>
                     <span>¡Gracias por compartir! Tu estado ha sido registrado.</span>
                 </div>
+
+                <!-- PALABRA DEL DÍA (PSIRIS INSP) -->
+                <div class="mood-word-box" id="moodWordBox" style="margin-top: 14px; padding-top: 12px; border-top: 1px dashed var(--border-primary, rgba(0,0,0,0.08));">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+                        <label for="inputDailyWord" style="font-size: 13px; font-weight: 700; color: var(--text-primary); display: flex; align-items: center; gap: 6px;">
+                            <span><i class="fas fa-tag"></i></span> Una palabra con la que te sientas identificado hoy
+                        </label>
+                        <span id="dailyWordSavedTag" class="badge-word-saved" style="display: none;">Registrada ✓</span>
+                    </div>
+                    <div style="display: flex; gap: 8px;">
+                        <input type="text" id="inputDailyWord" class="portal-input" placeholder="Ej: Esperanza, Tranquilidad, Agotamiento..." maxlength="30" style="flex: 1; padding: 10px 14px; font-size: 13px; border-radius: 10px; border: 1px solid var(--border-primary);">
+                        <button type="button" class="btn-primary" onclick="submitDailyWord()" style="padding: 10px 16px; font-size: 13px; white-space: nowrap; border-radius: 10px;">
+                            <i class="fas fa-check"></i> Guardar
+                        </button>
+                    </div>
+                    <!-- Quick emotion chips -->
+                    <div class="mood-chips-container" style="display: flex; flex-wrap: wrap; gap: 6px; margin-top: 10px;">
+                        <button type="button" class="mood-word-chip" onclick="selectDailyWordChip('Esperanza')">Esperanza</button>
+                        <button type="button" class="mood-word-chip" onclick="selectDailyWordChip('Tranquilidad')">Tranquilidad</button>
+                        <button type="button" class="mood-word-chip" onclick="selectDailyWordChip('Ansiedad')">Ansiedad</button>
+                        <button type="button" class="mood-word-chip" onclick="selectDailyWordChip('Gratitud')">Gratitud</button>
+                        <button type="button" class="mood-word-chip" onclick="selectDailyWordChip('Cansancio')">Cansancio</button>
+                        <button type="button" class="mood-word-chip" onclick="selectDailyWordChip('Motivación')">Motivación</button>
+                        <button type="button" class="mood-word-chip" onclick="selectDailyWordChip('Paz')">Paz</button>
+                        <button type="button" class="mood-word-chip" onclick="selectDailyWordChip('Abrumado')">Abrumado</button>
+                    </div>
+                </div>
             </div>
 
             <!-- TARJETA DE CONSENTIMIENTO INFORMADO -->
             <div id="consentCardPortal" class="portal-consent-card" style="display: none;">
                 <div class="consent-card-left">
-                    <span class="consent-badge-icon">📜</span>
+                    <span class="consent-badge-icon"><i class="fas fa-file-signature"></i></span>
                     <div>
                         <strong id="consentCardTitle">Acuerdo Terapéutico y Confidencialidad</strong>
                         <p id="consentCardDesc" style="margin:2px 0 0 0;font-size:12px;color:var(--text-secondary);">Revisa y firma digitalmente el marco de confidencialidad.</p>
@@ -154,18 +217,70 @@
             </div>
 
             <div class="quick-stats">
-                <div class="quick-stat">
-                    <div class="stat-icon">📋</div>
+                <div class="quick-stat" onclick="switchView('tasks')" style="cursor: pointer;" title="Ver mis tareas intersesión">
+                    <div class="stat-icon"><i class="fas fa-tasks"></i></div>
                     <div class="stat-info">
                         <div class="stat-value" id="pendingTasksCount">0</div>
                         <div class="stat-label">Tareas pendientes</div>
                     </div>
                 </div>
-                <div class="quick-stat">
-                    <div class="stat-icon">📅</div>
+                <div class="quick-stat" onclick="switchView('sessions')" style="cursor: pointer;" title="Ver y gestionar mis sesiones">
+                    <div class="stat-icon"><i class="fas fa-calendar-alt"></i></div>
                     <div class="stat-info">
                         <div class="stat-value" id="nextSessionText">—</div>
                         <div class="stat-label">Próxima sesión</div>
+                    </div>
+                </div>
+                <div class="quick-stat" onclick="switchView('tests')" style="cursor: pointer;" title="Realizar chequeo o evaluaciones">
+                    <div class="stat-icon"><i class="fas fa-heart"></i></div>
+                    <div class="stat-info">
+                        <div class="stat-value">Bienestar</div>
+                        <div class="stat-label">Evaluaciones</div>
+                    </div>
+                </div>
+                <div class="quick-stat" onclick="switchView('progress')" style="cursor: pointer;" title="Ver mi evolución clínica">
+                    <div class="stat-icon"><i class="fas fa-chart-line"></i></div>
+                    <div class="stat-info">
+                        <div class="stat-value">Evolución</div>
+                        <div class="stat-label">Mi Progreso</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- TARJETA DESTACADA DE PRÓXIMA SESIÓN EN HOME -->
+            <div id="homeNextSessionCard" class="portal-next-session-card"></div>
+
+            <!-- ESPACIO INFORMATIVO: MI PSICÓLOGO TRATANTE -->
+            <div id="therapistInfoCard" class="portal-therapist-card section-card">
+                <div class="therapist-card-header">
+                    <div class="therapist-card-avatar" id="therapistCardAvatar"><i class="fas fa-user-md"></i></div>
+                    <div class="therapist-card-main">
+                        <span class="therapist-card-badge">MI PSICÓLOGO TRATANTE</span>
+                        <h3 class="therapist-card-name" id="therapistCardName">Licenciado(a) en Psicología</h3>
+                        <p class="therapist-card-specialty" id="therapistCardSpecialty">Psicología Clínica y de la Salud</p>
+                    </div>
+                </div>
+                <div class="therapist-card-details">
+                    <div class="therapist-detail-item">
+                        <i class="fas fa-id-card"></i>
+                        <div>
+                            <small>Federación / Colegiado</small>
+                            <span id="therapistCardFpv">FPV Nº 54567</span>
+                        </div>
+                    </div>
+                    <div class="therapist-detail-item">
+                        <i class="fas fa-envelope"></i>
+                        <div>
+                            <small>Correo electrónico</small>
+                            <span id="therapistCardEmail">contacto@serenaclinical.com</span>
+                        </div>
+                    </div>
+                    <div class="therapist-detail-item">
+                        <i class="fas fa-map-marker-alt"></i>
+                        <div>
+                            <small>Ubicación / Consultorio</small>
+                            <span id="therapistCardLocation">Consultorio Clínico / Consulta Online y Presencial</span>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -174,14 +289,14 @@
             <div class="calm-kit-card">
                 <div class="calm-kit-header">
                     <div>
-                        <span class="calm-kit-badge">✨ BOTIQUÍN EMOCIONAL</span>
+                        <span class="calm-kit-badge">BOTIQUÍN EMOCIONAL</span>
                         <h3 class="calm-kit-title">Herramientas de Calma Inmediata</h3>
                         <p class="calm-kit-subtitle">Técnicas clínicas para regular la ansiedad y desacelerar tu mente</p>
                     </div>
                 </div>
                 <div class="calm-kit-grid">
                     <div class="calm-tool-btn" onclick="openBreathingExercise()">
-                        <div class="calm-tool-icon">🫁</div>
+                        <div class="calm-tool-icon"><i class="fas fa-lungs"></i></div>
                         <div class="calm-tool-info">
                             <strong>Respiración 4-7-8</strong>
                             <small>Reduce taquicardia y estrés en 2 min</small>
@@ -190,7 +305,7 @@
                     </div>
 
                     <div class="calm-tool-btn" onclick="openGroundingExercise()">
-                        <div class="calm-tool-icon">⚓</div>
+                        <div class="calm-tool-icon"><i class="fas fa-anchor"></i></div>
                         <div class="calm-tool-info">
                             <strong>Anclaje 5-4-3-2-1</strong>
                             <small>Frena pensamientos intrusivos y pánico</small>
@@ -203,6 +318,57 @@
             <div class="section-card">
                 <h3><i class="fas fa-lightbulb"></i> Reflexión del día</h3>
                 <p class="reflection-text" id="dailyReflection">Cargando...</p>
+            </div>
+        </div>
+
+        <!-- VISTA SESIONES Y CITAS -->
+        <div class="portal-view" id="viewSessions">
+            <div class="view-header">
+                <h2>Mis Sesiones</h2>
+                <p class="view-subtitle">Consulta tu próxima sesión, enlaces de videollamada y agenda tus citas</p>
+            </div>
+
+            <!-- Próxima Sesión Destacada -->
+            <div id="sessionsUpcomingContainer"></div>
+
+            <!-- HORARIOS DE CITAS DISPONIBLES (SELECCIÓN DIRECTA) -->
+            <div class="section-card available-slots-card" id="availableSlotsSection">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+                    <h3 style="margin: 0; font-size: 15px; font-weight: 700; color: var(--text-primary); display: flex; align-items: center; gap: 8px;">
+                        <i class="fas fa-clock" style="color: var(--accent-primary);"></i> Horarios Disponibles para Agendar
+                    </h3>
+                    <span style="font-size: 11px; background: rgba(5,150,105,0.1); color: #059669; font-weight: 700; padding: 2px 8px; border-radius: 12px;">En tiempo real</span>
+                </div>
+                <p style="font-size: 12px; color: var(--text-secondary); margin-bottom: 12px;">
+                    Selecciona una fecha y toca cualquier horario libre para apartar tu cita inmediatamente:
+                </p>
+                <div style="display: flex; gap: 8px; align-items: center; margin-bottom: 12px;">
+                    <input type="date" id="portalAvailabilityPicker" class="portal-input" onchange="loadPortalAvailability(this.value)" style="flex: 1; padding: 8px 12px; font-size: 13px; border-radius: 8px; border: 1px solid var(--border-primary);">
+                    <button type="button" class="btn-sm btn-secondary" onclick="loadPortalAvailability(document.getElementById('portalAvailabilityPicker').value)" title="Actualizar disponibilidad">
+                        <i class="fas fa-sync-alt"></i>
+                    </button>
+                </div>
+                <div id="availableSlotsChipsContainer" class="portal-slots-grid">
+                    <!-- Dynamic rendering of available slots -->
+                </div>
+            </div>
+
+            <!-- Botón para Solicitar / Agendar Nueva Sesión -->
+            <div style="margin: 18px 0 16px 0;">
+                <button class="btn-primary" onclick="openScheduleSessionModal()" style="width: 100%; justify-content: center; padding: 13px 18px; font-size: 14px; font-weight: 700; border-radius: var(--radius-md); box-shadow: var(--shadow-sm);">
+                    <i class="fas fa-calendar-plus" style="margin-right: 8px;"></i> Agendar Nueva Sesión
+                </button>
+            </div>
+
+            <!-- Historial de Sesiones -->
+            <div class="section-card">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px;">
+                    <h3 style="margin: 0; font-size: 15px; font-weight: 700; color: var(--text-primary); display: flex; align-items: center; gap: 8px;">
+                        <i class="fas fa-history" style="color: var(--accent-primary);"></i> Historial de Sesiones
+                    </h3>
+                    <span id="sessionsHistoryCount" style="font-size: 12px; color: var(--text-tertiary); font-weight: 600;">0 sesiones</span>
+                </div>
+                <div id="sessionsHistoryList" class="portal-sessions-history-list"></div>
             </div>
         </div>
 
@@ -227,7 +393,7 @@
             
             <div id="tasksList" class="tasks-list">
                 <div class="empty-state">
-                    <div class="empty-icon">✨</div>
+                    <div class="empty-icon"><i class="fas fa-check-circle"></i></div>
                     <p>No tienes tareas pendientes</p>
                     <small>Tu terapeuta te asignará actividades entre sesiones</small>
                 </div>
@@ -243,7 +409,7 @@
 
             <div class="tests-grid">
                 <div class="test-card" onclick="openTest('phq9')">
-                    <div class="test-icon">🌧️</div>
+                    <div class="test-icon"><i class="fas fa-cloud-rain"></i></div>
                     <div class="test-info">
                         <h3>Evaluación del Estado de Ánimo (PHQ-9)</h3>
                         <p>9 preguntas · 2 minutos</p>
@@ -253,7 +419,7 @@
                 </div>
 
                 <div class="test-card" onclick="openTest('gad7')">
-                    <div class="test-icon">🌊</div>
+                    <div class="test-icon"><i class="fas fa-water"></i></div>
                     <div class="test-info">
                         <h3>Evaluación de Ansiedad (GAD-7)</h3>
                         <p>7 preguntas · 2 minutos</p>
@@ -263,7 +429,7 @@
                 </div>
 
                 <div class="test-card" onclick="openTest('mood')">
-                    <div class="test-icon">💭</div>
+                    <div class="test-icon"><i class="fas fa-comment-dots"></i></div>
                     <div class="test-info">
                         <h3>Registro de Ánimo Diario</h3>
                         <p>3 preguntas · 1 minuto</p>
@@ -273,7 +439,7 @@
                 </div>
 
                 <div class="test-card" onclick="openTest('cbt_thought')">
-                    <div class="test-icon">🧠</div>
+                    <div class="test-icon"><i class="fas fa-brain"></i></div>
                     <div class="test-info">
                         <h3>Registro de Pensamientos (ABC)</h3>
                         <p>Identifica pensamientos, distorsiones y emociones · 3 min</p>
@@ -300,14 +466,14 @@
 
             <div class="progress-summary">
                 <div class="progress-card">
-                    <div class="progress-icon">📅</div>
+                    <div class="progress-icon"><i class="fas fa-calendar-alt"></i></div>
                     <div class="progress-info">
                         <div class="progress-value" id="totalSessions">0</div>
                         <div class="progress-label">Evaluaciones realizadas</div>
                     </div>
                 </div>
                 <div class="progress-card">
-                    <div class="progress-icon">✅</div>
+                    <div class="progress-icon"><i class="fas fa-check"></i></div>
                     <div class="progress-info">
                         <div class="progress-value" id="completedTasks">0</div>
                         <div class="progress-label">Tareas realizadas</div>
@@ -319,7 +485,7 @@
                 <h3><i class="fas fa-star"></i> Logros recientes</h3>
                 <div id="achievementsList" class="achievements-list">
                     <div class="achievement">
-                        <div class="achievement-icon">🌱</div>
+                        <div class="achievement-icon"><i class="fas fa-seedling"></i></div>
                         <div class="achievement-info">
                             <div class="achievement-title">Primer paso</div>
                             <div class="achievement-desc">Comenzaste tu proceso terapéutico</div>
@@ -336,13 +502,262 @@
             </div>
         </div>
 
+        <!-- VISTA MIS DOCUMENTOS (COMPARTIR WORD, PDF, IMÁGENES) -->
+        <div class="portal-view" id="viewDocuments">
+            <div class="view-header">
+                <h2>Mis Documentos</h2>
+                <p class="view-subtitle">Comparte archivos en Word, PDF o imágenes con tu terapeuta y consulta tus guías clínicas</p>
+            </div>
+
+            <!-- SUBIR NUEVO DOCUMENTO -->
+            <div class="section-card upload-document-card">
+                <h3 style="margin-top: 0; font-size: 15px; font-weight: 700; color: var(--text-primary); display: flex; align-items: center; gap: 8px;">
+                    <i class="fas fa-cloud-upload-alt" style="color: var(--accent-primary);"></i> Compartir Documento
+                </h3>
+                <p style="font-size: 13px; color: var(--text-secondary); margin-bottom: 14px;">
+                    Puedes subir informes médicos previos, tareas intersesión escritas, hojas de autorregistro o estudios en formatos <strong>PDF, Word (.doc, .docx) o imágenes</strong> (hasta 10MB).
+                </p>
+                <form id="formUploadDocument" onsubmit="handleDocumentUpload(event)">
+                    <div style="margin-bottom: 12px;">
+                        <label for="docTitleInput" style="display: block; font-size: 12px; font-weight: 600; margin-bottom: 5px;">Título o Descripción</label>
+                        <input type="text" id="docTitleInput" class="portal-input" placeholder="Ej: Registro semanal de pensamientos / Informe previo" required style="width: 100%; padding: 10px 12px; border-radius: 8px; border: 1px solid var(--border-primary);">
+                    </div>
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 12px;">
+                        <div>
+                            <label for="docCategorySelect" style="display: block; font-size: 12px; font-weight: 600; margin-bottom: 5px;">Categoría</label>
+                            <select id="docCategorySelect" class="portal-input" style="width: 100%; padding: 10px 12px; border-radius: 8px; border: 1px solid var(--border-primary);">
+                                <option value="tarea">Tarea intersesión</option>
+                                <option value="informe">Informe médico / psicológico</option>
+                                <option value="estudio">Estudio o Evaluación</option>
+                                <option value="comprobante">Comprobante o Trámite</option>
+                                <option value="general">General / Otro</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label for="docFileInput" style="display: block; font-size: 12px; font-weight: 600; margin-bottom: 5px;">Archivo (.pdf, .doc, .docx, img)</label>
+                            <input type="file" id="docFileInput" accept=".pdf,.doc,.docx,.png,.jpg,.jpeg,.webp" required style="width: 100%; font-size: 12px; padding: 7px; border-radius: 8px; border: 1px dashed var(--border-primary); background: rgba(0,0,0,0.02);">
+                        </div>
+                    </div>
+                    <button type="submit" id="btnUploadDoc" class="btn-primary" style="width: 100%; justify-content: center; padding: 11px 16px; font-weight: 700; border-radius: 8px;">
+                        <i class="fas fa-upload" style="margin-right: 6px;"></i> Subir y Compartir con mi Terapeuta
+                    </button>
+                </form>
+            </div>
+
+            <!-- DOCUMENTOS COMPARTIDOS POR EL TERAPEUTA -->
+            <div class="section-card">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px;">
+                    <h3 style="margin: 0; font-size: 15px; font-weight: 700; color: var(--text-primary); display: flex; align-items: center; gap: 8px;">
+                        <i class="fas fa-folder-open" style="color: #0284c7;"></i> Documentos de mi Terapeuta
+                    </h3>
+                    <span id="therapistDocsCount" style="font-size: 12px; color: var(--text-tertiary); font-weight: 600;">0 archivos</span>
+                </div>
+                <div id="therapistDocsList" class="portal-documents-list">
+                    <!-- Dynamic rendering -->
+                </div>
+            </div>
+
+            <!-- MIS DOCUMENTOS SUBIDOS -->
+            <div class="section-card">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px;">
+                    <h3 style="margin: 0; font-size: 15px; font-weight: 700; color: var(--text-primary); display: flex; align-items: center; gap: 8px;">
+                        <i class="fas fa-file-alt" style="color: var(--accent-primary);"></i> Mis Documentos Compartidos
+                    </h3>
+                    <span id="patientDocsCount" style="font-size: 12px; color: var(--text-tertiary); font-weight: 600;">0 archivos</span>
+                </div>
+                <div id="patientDocsList" class="portal-documents-list">
+                    <!-- Dynamic rendering -->
+                </div>
+            </div>
+        </div>
+
+        <!-- VISTA PAGOS Y MÉTODOS DE PAGO -->
+        <div class="portal-view" id="viewPayments">
+            <div class="view-header">
+                <h2>Pagos y Facturación</h2>
+                <p class="view-subtitle">Consulta los métodos de pago de tu terapeuta y reporta tus comprobantes de sesión</p>
+            </div>
+
+            <!-- MÉTODOS DE PAGO DEL TERAPEUTA -->
+            <div class="section-card">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px;">
+                    <h3 style="margin: 0; font-size: 15px; font-weight: 700; color: var(--text-primary); display: flex; align-items: center; gap: 8px;">
+                        <i class="fas fa-credit-card" style="color: var(--accent-primary);"></i> Métodos de Pago Disponibles
+                    </h3>
+                    <span style="font-size: 11px; background: rgba(5,150,105,0.1); color: #059669; font-weight: 700; padding: 3px 8px; border-radius: 12px;">Activos</span>
+                </div>
+                <p style="font-size: 12px; color: var(--text-secondary); margin-bottom: 14px;">
+                    Toca el botón copiar en cualquiera de los métodos para transferir rápidamente los datos a tu banca móvil:
+                </p>
+                <div id="paymentMethodsGrid" class="portal-payment-methods-grid">
+                    <!-- Dynamic rendering -->
+                </div>
+            </div>
+
+            <!-- REPORTAR PAGO REALIZADO -->
+            <div class="section-card">
+                <h3 style="margin-top: 0; font-size: 15px; font-weight: 700; color: var(--text-primary); display: flex; align-items: center; gap: 8px;">
+                    <i class="fas fa-receipt" style="color: #059669;"></i> Reportar Pago Realizado
+                </h3>
+                <p style="font-size: 12px; color: var(--text-secondary); margin-bottom: 14px;">
+                    Ingresa los datos de tu transferencia o pago móvil para que tu terapeuta lo valide y acredite en tu historial:
+                </p>
+                <form id="formReportPayment" onsubmit="handleReportPayment(event)">
+                    <div style="display: grid; grid-template-columns: 2fr 1fr; gap: 10px; margin-bottom: 12px;">
+                        <div>
+                            <label for="payAmountInput" style="display: block; font-size: 12px; font-weight: 600; margin-bottom: 5px;">Monto Pagado</label>
+                            <input type="number" step="0.01" min="0.01" id="payAmountInput" class="portal-input" placeholder="Ej: 35.00" required style="width: 100%; padding: 10px 12px; border-radius: 8px; border: 1px solid var(--border-primary);">
+                        </div>
+                        <div>
+                            <label for="payCurrencySelect" style="display: block; font-size: 12px; font-weight: 600; margin-bottom: 5px;">Moneda</label>
+                            <select id="payCurrencySelect" class="portal-input" style="width: 100%; padding: 10px 12px; border-radius: 8px; border: 1px solid var(--border-primary);">
+                                <option value="USD">USD ($)</option>
+                                <option value="VES">VES (Bs.)</option>
+                                <option value="EUR">EUR (€)</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 12px;">
+                        <div>
+                            <label for="payMethodSelect" style="display: block; font-size: 12px; font-weight: 600; margin-bottom: 5px;">Método Utilizado</label>
+                            <select id="payMethodSelect" class="portal-input" style="width: 100%; padding: 10px 12px; border-radius: 8px; border: 1px solid var(--border-primary);">
+                                <option value="pago_movil">Pago Móvil</option>
+                                <option value="zelle">Zelle</option>
+                                <option value="transferencia">Transferencia Bancaria</option>
+                                <option value="binance">Binance Pay</option>
+                                <option value="efectivo">Efectivo en Consulta</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label for="payReferenceInput" style="display: block; font-size: 12px; font-weight: 600; margin-bottom: 5px;">Nº Referencia / Lote</label>
+                            <input type="text" id="payReferenceInput" class="portal-input" placeholder="Últimos 6 u 8 dígitos" required style="width: 100%; padding: 10px 12px; border-radius: 8px; border: 1px solid var(--border-primary);">
+                        </div>
+                    </div>
+
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 12px;">
+                        <div>
+                            <label for="payDateInput" style="display: block; font-size: 12px; font-weight: 600; margin-bottom: 5px;">Fecha del Pago</label>
+                            <input type="date" id="payDateInput" class="portal-input" required style="width: 100%; padding: 9px 12px; border-radius: 8px; border: 1px solid var(--border-primary);">
+                        </div>
+                        <div>
+                            <label for="payConceptInput" style="display: block; font-size: 12px; font-weight: 600; margin-bottom: 5px;">Concepto / Detalle</label>
+                            <input type="text" id="payConceptInput" class="portal-input" placeholder="Ej: Sesión individual de terapia" style="width: 100%; padding: 10px 12px; border-radius: 8px; border: 1px solid var(--border-primary);">
+                        </div>
+                    </div>
+
+                    <div style="margin-bottom: 14px;">
+                        <label for="payReceiptFile" style="display: block; font-size: 12px; font-weight: 600; margin-bottom: 5px;">Comprobante de Captura (opcional, imagen o PDF)</label>
+                        <input type="file" id="payReceiptFile" accept="image/*,.pdf" style="width: 100%; font-size: 12px; padding: 7px; border-radius: 8px; border: 1px dashed var(--border-primary); background: rgba(0,0,0,0.02);">
+                    </div>
+
+                    <button type="submit" id="btnSubmitPaymentReport" class="btn-primary" style="width: 100%; justify-content: center; padding: 12px 16px; font-weight: 700; border-radius: 8px; background: #059669;">
+                        <i class="fas fa-paper-plane" style="margin-right: 6px;"></i> Enviar Reporte de Pago
+                    </button>
+                </form>
+            </div>
+
+            <!-- HISTORIAL DE PAGOS REPORTADOS -->
+            <div class="section-card">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px;">
+                    <h3 style="margin: 0; font-size: 15px; font-weight: 700; color: var(--text-primary); display: flex; align-items: center; gap: 8px;">
+                        <i class="fas fa-history" style="color: var(--accent-primary);"></i> Historial de Pagos y Recibos
+                    </h3>
+                    <span id="paymentReportsCount" style="font-size: 12px; color: var(--text-tertiary); font-weight: 600;">0 registros</span>
+                </div>
+                <div id="paymentReportsList" class="portal-payment-reports-list">
+                    <!-- Dynamic rendering -->
+                </div>
+            </div>
+        </div>
+
+        <!-- VISTA MI PERFIL (DATOS LLENADOS POR EL PACIENTE) -->
+        <div class="portal-view" id="viewProfile">
+            <div class="view-header">
+                <h2>Mi Perfil</h2>
+                <p class="view-subtitle">Consulta y actualiza tus datos de contacto, emergencia y expectativas terapéuticas</p>
+            </div>
+
+            <div class="section-card">
+                <div style="display: flex; align-items: center; gap: 14px; margin-bottom: 20px; padding-bottom: 16px; border-bottom: 1px solid var(--border-primary);">
+                    <div class="profile-avatar-large" id="profileLargeAvatar" style="width: 56px; height: 56px; border-radius: 50%; background: var(--accent-gradient, linear-gradient(135deg, #4f46e5, #7c3aed)); color: white; display: flex; align-items: center; justify-content: center; font-size: 20px; font-weight: 700; box-shadow: 0 4px 12px rgba(79,70,229,0.25);">
+                        <i class="fas fa-user"></i>
+                    </div>
+                    <div>
+                        <h3 id="profileDisplayName" style="margin: 0; font-size: 18px; font-weight: 700; color: var(--text-primary);">Paciente</h3>
+                        <p id="profileDisplaySubtitle" style="margin: 2px 0 0 0; font-size: 12px; color: var(--text-secondary);">Expediente Activo • Portal Seguro</p>
+                    </div>
+                </div>
+
+                <form id="formPatientProfile" onsubmit="handleSavePatientProfile(event)">
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 14px;">
+                        <div>
+                            <label for="profNameInput" style="display: block; font-size: 12px; font-weight: 600; margin-bottom: 5px;">Nombre Completo</label>
+                            <input type="text" id="profNameInput" class="portal-input" required style="width: 100%; padding: 10px 12px; border-radius: 8px; border: 1px solid var(--border-primary);">
+                        </div>
+                        <div>
+                            <label for="profBirthdateInput" style="display: block; font-size: 12px; font-weight: 600; margin-bottom: 5px;">Fecha de Nacimiento</label>
+                            <input type="date" id="profBirthdateInput" class="portal-input" style="width: 100%; padding: 9px 12px; border-radius: 8px; border: 1px solid var(--border-primary);">
+                        </div>
+                    </div>
+
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 14px;">
+                        <div>
+                            <label for="profPhoneInput" style="display: block; font-size: 12px; font-weight: 600; margin-bottom: 5px;">Teléfono / WhatsApp</label>
+                            <input type="tel" id="profPhoneInput" class="portal-input" placeholder="+58 414-1234567" style="width: 100%; padding: 10px 12px; border-radius: 8px; border: 1px solid var(--border-primary);">
+                        </div>
+                        <div>
+                            <label for="profEmailInput" style="display: block; font-size: 12px; font-weight: 600; margin-bottom: 5px;">Correo Electrónico</label>
+                            <input type="email" id="profEmailInput" class="portal-input" placeholder="correo@ejemplo.com" style="width: 100%; padding: 10px 12px; border-radius: 8px; border: 1px solid var(--border-primary);">
+                        </div>
+                    </div>
+
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 14px;">
+                        <div>
+                            <label for="profOccupationInput" style="display: block; font-size: 12px; font-weight: 600; margin-bottom: 5px;">Ocupación / Profesión</label>
+                            <input type="text" id="profOccupationInput" class="portal-input" placeholder="Ej: Ingeniero, Docente, Estudiante..." style="width: 100%; padding: 10px 12px; border-radius: 8px; border: 1px solid var(--border-primary);">
+                        </div>
+                        <div>
+                            <label for="profAddressInput" style="display: block; font-size: 12px; font-weight: 600; margin-bottom: 5px;">Ciudad / Domicilio</label>
+                            <input type="text" id="profAddressInput" class="portal-input" placeholder="Ej: Caracas, Venezuela" style="width: 100%; padding: 10px 12px; border-radius: 8px; border: 1px solid var(--border-primary);">
+                        </div>
+                    </div>
+
+                    <div style="padding: 12px; background: rgba(0,0,0,0.02); border-radius: 10px; margin-bottom: 16px; border: 1px solid var(--border-primary);">
+                        <h4 style="margin: 0 0 10px 0; font-size: 13px; font-weight: 700; color: var(--text-primary); display: flex; align-items: center; gap: 6px;">
+                            <i class="fas fa-phone-alt" style="color: #dc2626;"></i> Contacto de Emergencia
+                        </h4>
+                        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
+                            <div>
+                                <label for="profEmergencyContactInput" style="display: block; font-size: 11px; font-weight: 600; margin-bottom: 4px;">Nombre y Parentesco</label>
+                                <input type="text" id="profEmergencyContactInput" class="portal-input" placeholder="Ej: Carmen Gómez (Madre)" style="width: 100%; padding: 8px 10px; font-size: 13px; border-radius: 6px; border: 1px solid var(--border-primary);">
+                            </div>
+                            <div>
+                                <label for="profEmergencyPhoneInput" style="display: block; font-size: 11px; font-weight: 600; margin-bottom: 4px;">Teléfono de Contacto</label>
+                                <input type="tel" id="profEmergencyPhoneInput" class="portal-input" placeholder="+58 412-9876543" style="width: 100%; padding: 8px 10px; font-size: 13px; border-radius: 6px; border: 1px solid var(--border-primary);">
+                            </div>
+                        </div>
+                    </div>
+
+                    <div style="margin-bottom: 16px;">
+                        <label for="profExpectationsInput" style="display: block; font-size: 12px; font-weight: 600; margin-bottom: 5px;">¿Qué esperas lograr en este proceso terapéutico?</label>
+                        <textarea id="profExpectationsInput" class="portal-input" rows="3" placeholder="Describe brevemente tus metas personales o lo que deseas trabajar en consulta..." style="width: 100%; padding: 10px 12px; border-radius: 8px; border: 1px solid var(--border-primary); font-family: inherit; font-size: 13px; resize: vertical;"></textarea>
+                    </div>
+
+                    <button type="submit" id="btnSaveProfile" class="btn-primary" style="width: 100%; justify-content: center; padding: 12px 16px; font-weight: 700; border-radius: 8px;">
+                        <i class="fas fa-save" style="margin-right: 6px;"></i> Guardar Mis Datos
+                    </button>
+                </form>
+            </div>
+        </div>
+
         <!-- ========================================== -->
         <!-- VISTAS DEL PORTAL PACIENTES KID            -->
         <!-- ========================================== -->
 
         <!-- VISTA 1: MI ESPACIO MÁGICO (HOME NIÑOS) -->
         <div id="viewKidHome" class="portal-view kid-view" style="display: none;">
-            <!-- HERO BANNER CON NUBES Y AVATAR VIVO -->
+            <!-- HERO BANNER CON NUBES, AVATAR VIVO Y MENSAJE CONTEXTUAL -->
             <div class="kid-hero-island">
                 <div class="kid-floating-cloud cloud-1">☁️</div>
                 <div class="kid-floating-cloud cloud-2">⛅</div>
@@ -358,23 +773,100 @@
                     <div class="kid-hero-speech">
                         <div class="kid-greeting-tag">🌟 ¡Bienvenido a tu Mundo Mágico!</div>
                         <h2 class="kid-main-title">¡Hola, <span id="kidGreetingName" class="kid-gradient-name">Explorador</span>! 🎈</h2>
-                        <p class="kid-main-desc">Hoy es un gran día para descubrir tus superpoderes emocionales. ¿Cómo late tu corazón?</p>
+                        <p class="kid-main-desc">Hoy podemos descubrir algo nuevo sobre tus emociones. ¿Cómo late tu corazón?</p>
+                        <div id="kidTodayWeatherChip" class="kid-weather-chip-summary" style="display: none;">
+                            <span class="chip-dot">●</span> <span id="kidTodayWeatherChipText">Clima registrado</span>
+                        </div>
                     </div>
                 </div>
             </div>
 
-            <!-- EL CLIMA DE MI CORAZÓN (ISLAS VIBRANTES ANIMADAS) -->
-            <div class="kid-card kid-card-rainbow">
+            <!-- SECCIÓN BENTO DE ACTIVIDADES PRINCIPALES -->
+            <div class="kid-bento-section">
+                <div class="kid-bento-header">
+                    <h3 class="kid-bento-title">🎮 Tus Rincones de Aventura y Expresión</h3>
+                    <p class="kid-bento-subtitle">Toca cualquier tarjeta para jugar, dibujar o relajarte cuando quieras:</p>
+                </div>
+
+                <div class="kid-bento-grid">
+                    <!-- BENTO 1: MI AVATAR -->
+                    <div class="kid-bento-card bento-card-avatar" onclick="switchKidView('kid-avatar')" role="button" tabindex="0">
+                        <div class="bento-card-glow"></div>
+                        <div class="bento-badge">Tu Compañero</div>
+                        <div class="bento-icon-wrapper">
+                            <span class="bento-icon-emoji" id="bentoAvatarPreview">🦊</span>
+                        </div>
+                        <div class="bento-text-group">
+                            <h4 class="bento-heading">Mi Avatar</h4>
+                            <p class="bento-desc">Personaliza tu personaje, su aura brillante y accesorios especiales.</p>
+                        </div>
+                        <div class="bento-footer">
+                            <span class="bento-action-pill">¡Cambiar Traje! ✨</span>
+                        </div>
+                    </div>
+
+                    <!-- BENTO 2: BURBUJAS -->
+                    <div class="kid-bento-card bento-card-bubbles" onclick="switchKidView('kid-bubbles')" role="button" tabindex="0">
+                        <div class="bento-card-glow"></div>
+                        <div class="bento-badge" id="bentoBubblesBadge">0 liberadas</div>
+                        <div class="bento-icon-wrapper">
+                            <span class="bento-icon-emoji">🫧</span>
+                        </div>
+                        <div class="bento-text-group">
+                            <h4 class="bento-heading">Burbujas</h4>
+                            <p class="bento-desc">Atrapa preocupaciones o miedos y hazlos explotar suavemente.</p>
+                        </div>
+                        <div class="bento-footer">
+                            <span class="bento-action-pill">¡Cazar Burbujas! 🎯</span>
+                        </div>
+                    </div>
+
+                    <!-- BENTO 3: DIBUJAR -->
+                    <div class="kid-bento-card bento-card-drawing" onclick="switchKidView('kid-drawing')" role="button" tabindex="0">
+                        <div class="bento-card-glow"></div>
+                        <div class="bento-badge">Lienzo Mágico</div>
+                        <div class="bento-icon-wrapper">
+                            <span class="bento-icon-emoji">🎨</span>
+                        </div>
+                        <div class="bento-text-group">
+                            <h4 class="bento-heading">Dibujar</h4>
+                            <p class="bento-desc">Pinta con crayones, Pincel Arcoíris y sellos que van al consultorio.</p>
+                        </div>
+                        <div class="bento-footer">
+                            <span class="bento-action-pill">¡Pintar Ahora! 🖌️</span>
+                        </div>
+                    </div>
+
+                    <!-- BENTO 4: CALMA -->
+                    <div class="kid-bento-card bento-card-calm" onclick="switchKidView('kid-calm')" role="button" tabindex="0">
+                        <div class="bento-card-glow"></div>
+                        <div class="bento-badge" id="bentoCalmBadge">3 Técnicas</div>
+                        <div class="bento-icon-wrapper">
+                            <span class="bento-icon-emoji">🎈</span>
+                        </div>
+                        <div class="bento-text-group">
+                            <h4 class="bento-heading">Calma</h4>
+                            <p class="bento-desc">Respira despacito con el Globo, la Flor Mágica y la Tortuga Serena.</p>
+                        </div>
+                        <div class="bento-footer">
+                            <span class="bento-action-pill">¡Respirar Paz! 🌬️</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- SECCIÓN EMOCIONES: EL CLIMA DE MI CORAZÓN (ISLAS VIBRANTES ANIMADAS) -->
+            <div class="kid-card kid-card-rainbow" id="kidWeatherSection">
                 <div class="kid-card-topbar">
                     <span class="kid-card-badge-icon">🌤️</span>
                     <div>
                         <h3 class="kid-card-heading">¿Cómo está el Clima de tu Corazón hoy?</h3>
-                        <p class="kid-card-subheading">Toca el clima que mejor muestre lo que sientes por dentro:</p>
+                        <p class="kid-card-subheading">Toca el clima que mejor muestre lo que sientes por dentro (todas tus emociones son bienvenidas):</p>
                     </div>
                 </div>
 
                 <div class="kid-weather-cards-grid">
-                    <button type="button" class="kid-weather-card-v2" data-weather="sunny" onclick="selectKidWeather('sunny')">
+                    <button type="button" class="kid-weather-card-v2" data-weather="sunny" onclick="selectKidWeather('sunny')" aria-label="Soleado, Super Feliz">
                         <div class="weather-icon-bubble sunny-bubble">
                             <span class="weather-emoji-animated sun-spin">☀️</span>
                         </div>
@@ -383,7 +875,7 @@
                         <small class="weather-desc-v2">Lleno de energía y risas</small>
                     </button>
 
-                    <button type="button" class="kid-weather-card-v2" data-weather="partly_cloudy" onclick="selectKidWeather('partly_cloudy')">
+                    <button type="button" class="kid-weather-card-v2" data-weather="partly_cloudy" onclick="selectKidWeather('partly_cloudy')" aria-label="Sol con Nubes, En Calma">
                         <div class="weather-icon-bubble cloudy-bubble">
                             <span class="weather-emoji-animated cloud-float">🌤️</span>
                         </div>
@@ -392,7 +884,7 @@
                         <small class="weather-desc-v2">Tranquilo y relajado</small>
                     </button>
 
-                    <button type="button" class="kid-weather-card-v2" data-weather="rainbow" onclick="selectKidWeather('rainbow')">
+                    <button type="button" class="kid-weather-card-v2" data-weather="rainbow" onclick="selectKidWeather('rainbow')" aria-label="Arcoíris, Creativo">
                         <div class="weather-icon-bubble rainbow-bubble">
                             <span class="weather-emoji-animated rainbow-glow">🌈</span>
                         </div>
@@ -401,7 +893,7 @@
                         <small class="weather-desc-v2">Lleno de ideas geniales</small>
                     </button>
 
-                    <button type="button" class="kid-weather-card-v2" data-weather="rainy" onclick="selectKidWeather('rainy')">
+                    <button type="button" class="kid-weather-card-v2" data-weather="rainy" onclick="selectKidWeather('rainy')" aria-label="Lluvia, Apagado">
                         <div class="weather-icon-bubble rainy-bubble">
                             <span class="weather-emoji-animated rain-drip">🌧️</span>
                         </div>
@@ -410,7 +902,7 @@
                         <small class="weather-desc-v2">Un poco triste o cansado</small>
                     </button>
 
-                    <button type="button" class="kid-weather-card-v2" data-weather="storm" onclick="selectKidWeather('storm')">
+                    <button type="button" class="kid-weather-card-v2" data-weather="storm" onclick="selectKidWeather('storm')" aria-label="Tormenta, Enojado">
                         <div class="weather-icon-bubble storm-bubble">
                             <span class="weather-emoji-animated bolt-flash">⚡</span>
                         </div>
@@ -419,7 +911,7 @@
                         <small class="weather-desc-v2">Molesto o con frustración</small>
                     </button>
 
-                    <button type="button" class="kid-weather-card-v2" data-weather="tornado" onclick="selectKidWeather('tornado')">
+                    <button type="button" class="kid-weather-card-v2" data-weather="tornado" onclick="selectKidWeather('tornado')" aria-label="Remolino, Confuso">
                         <div class="weather-icon-bubble tornado-bubble">
                             <span class="weather-emoji-animated tornado-twirl">🌪️</span>
                         </div>
@@ -427,6 +919,26 @@
                         <span class="weather-badge-tag tag-confused">Confuso</span>
                         <small class="weather-desc-v2">Con miedo o muchos líos</small>
                     </button>
+                </div>
+
+                <!-- PREGUNTA / REFLEXIÓN OPCIONAL DEL NIÑO -->
+                <div class="kid-optional-reflection-box" id="kidWeatherThoughtBox" style="display: none;">
+                    <div class="reflection-header">
+                        <span class="reflection-icon">💭</span>
+                        <div>
+                            <strong>¿Quieres contar algo sobre lo que sientes hoy?</strong>
+                            <small>Es totalmente opcional. Puedes elegir una idea rápida o continuar sin escribir.</small>
+                        </div>
+                    </div>
+                    <div class="kid-thought-chips-row">
+                        <button type="button" class="thought-chip-btn" onclick="selectKidThoughtChip('🌟 Pasó algo muy divertido hoy')">🌟 Algo divertido</button>
+                        <button type="button" class="thought-chip-btn" onclick="selectKidThoughtChip('🏫 En la escuela pasaron cosas')">🏫 En la escuela</button>
+                        <button type="button" class="thought-chip-btn" onclick="selectKidThoughtChip('💢 Me enojé con alguien')">💢 Tuve un enojo</button>
+                        <button type="button" class="thought-chip-btn" onclick="selectKidThoughtChip('🥱 Me siento cansado o con sueño')">🥱 Tengo sueño</button>
+                        <button type="button" class="thought-chip-btn" onclick="selectKidThoughtChip('🌧️ Algo me puso triste')">🌧️ Algo triste</button>
+                        <button type="button" class="thought-chip-btn" onclick="selectKidThoughtChip('🤐 Prefiero guardarlo para la sesión')">🤐 Para la sesión</button>
+                    </div>
+                    <textarea id="kidWeatherOptionalNote" class="kid-reflection-textarea" rows="2" placeholder="Escribe aquí con tus palabras si quieres... (opcional)"></textarea>
                 </div>
 
                 <!-- SILUETA SOMÁTICA CORPORAL INTERACTIVA -->
@@ -459,136 +971,123 @@
                                 <circle cx="110" cy="48" r="4" fill="#475569" />
                                 <path d="M92 60 Q100 68 108 60" fill="none" stroke="#475569" stroke-width="3" stroke-linecap="round" />
 
-                                <!-- PUNTOS INTERACTIVOS (HOTSPOTS PULSANTES) -->
+                                <!-- PUNTOS INTERACTIVOS (PUNTOS SERENOS SIN MOVIMIENTO CAÓTICO) -->
                                 <!-- 1. CABEZA -->
-                                <g class="somatic-hotspot-group" data-zone="head" onclick="selectKidBodyZone('head')">
-                                    <circle class="hotspot-pulse pulse-head" cx="100" cy="35" r="16" />
-                                    <circle class="hotspot-core" cx="100" cy="35" r="9" fill="#9333EA" />
-                                    <text x="100" y="38" text-anchor="middle" font-size="11" fill="#FFF">🧠</text>
+                                <g class="somatic-hotspot-group" data-zone="head" onclick="selectKidBodyZone('head')" role="button" aria-label="Cabeza">
+                                    <circle class="hotspot-core" cx="100" cy="35" r="11" fill="#9333EA" />
+                                    <text x="100" y="39" text-anchor="middle" font-size="11" fill="#FFF">🧠</text>
                                 </g>
 
                                 <!-- 2. GARGANTA -->
-                                <g class="somatic-hotspot-group" data-zone="throat" onclick="selectKidBodyZone('throat')">
-                                    <circle class="hotspot-pulse pulse-throat" cx="100" cy="85" r="14" />
-                                    <circle class="hotspot-core" cx="100" cy="85" r="8" fill="#0284C7" />
-                                    <text x="100" y="88" text-anchor="middle" font-size="10" fill="#FFF">🗣️</text>
+                                <g class="somatic-hotspot-group" data-zone="throat" onclick="selectKidBodyZone('throat')" role="button" aria-label="Garganta">
+                                    <circle class="hotspot-core" cx="100" cy="85" r="10" fill="#0284C7" />
+                                    <text x="100" y="89" text-anchor="middle" font-size="10" fill="#FFF">🗣️</text>
                                 </g>
 
                                 <!-- 3. PECHO -->
-                                <g class="somatic-hotspot-group" data-zone="chest" onclick="selectKidBodyZone('chest')">
-                                    <circle class="hotspot-pulse pulse-chest" cx="100" cy="125" r="16" />
-                                    <circle class="hotspot-core" cx="100" cy="125" r="10" fill="#E11D48" />
-                                    <text x="100" y="129" text-anchor="middle" font-size="11" fill="#FFF">💖</text>
+                                <g class="somatic-hotspot-group" data-zone="chest" onclick="selectKidBodyZone('chest')" role="button" aria-label="Pecho">
+                                    <circle class="hotspot-core" cx="100" cy="125" r="12" fill="#E11D48" />
+                                    <text x="100" y="130" text-anchor="middle" font-size="11" fill="#FFF">💖</text>
                                 </g>
 
                                 <!-- 4. PANCITA -->
-                                <g class="somatic-hotspot-group" data-zone="belly" onclick="selectKidBodyZone('belly')">
-                                    <circle class="hotspot-pulse pulse-belly" cx="100" cy="165" r="16" />
-                                    <circle class="hotspot-core" cx="100" cy="165" r="10" fill="#D97706" />
-                                    <text x="100" y="169" text-anchor="middle" font-size="11" fill="#FFF">🌀</text>
+                                <g class="somatic-hotspot-group" data-zone="belly" onclick="selectKidBodyZone('belly')" role="button" aria-label="Pancita">
+                                    <circle class="hotspot-core" cx="100" cy="165" r="12" fill="#D97706" />
+                                    <text x="100" y="170" text-anchor="middle" font-size="11" fill="#FFF">🌀</text>
                                 </g>
 
                                 <!-- 5. MANITAS -->
-                                <g class="somatic-hotspot-group" data-zone="hands" onclick="selectKidBodyZone('hands')">
-                                    <circle class="hotspot-pulse pulse-hands" cx="44" cy="168" r="14" />
-                                    <circle class="hotspot-core" cx="44" cy="168" r="8" fill="#16A34A" />
-                                    <circle class="hotspot-pulse pulse-hands" cx="156" cy="168" r="14" />
-                                    <circle class="hotspot-core" cx="156" cy="168" r="8" fill="#16A34A" />
-                                    <text x="44" y="171" text-anchor="middle" font-size="10" fill="#FFF">✊</text>
-                                    <text x="156" y="171" text-anchor="middle" font-size="10" fill="#FFF">✊</text>
+                                <g class="somatic-hotspot-group" data-zone="hands" onclick="selectKidBodyZone('hands')" role="button" aria-label="Manitas">
+                                    <circle class="hotspot-core" cx="44" cy="168" r="10" fill="#16A34A" />
+                                    <circle class="hotspot-core" cx="156" cy="168" r="10" fill="#16A34A" />
+                                    <text x="44" y="172" text-anchor="middle" font-size="10" fill="#FFF">✊</text>
+                                    <text x="156" y="172" text-anchor="middle" font-size="10" fill="#FFF">✊</text>
+                                </g>
+
+                                <!-- 6. PIES -->
+                                <g class="somatic-hotspot-group" data-zone="feet" onclick="selectKidBodyZone('feet')" role="button" aria-label="Pies">
+                                    <circle class="hotspot-core" cx="88" cy="275" r="9" fill="#059669" />
+                                    <circle class="hotspot-core" cx="112" cy="275" r="9" fill="#059669" />
+                                    <text x="100" y="278" text-anchor="middle" font-size="9" fill="#FFF">🦶</text>
                                 </g>
                             </svg>
                         </div>
 
-                        <!-- BOTONES COMPLEMENTARIOS CON TEXTO -->
+                        <!-- BOTONES COMPLEMENTARIOS CON TEXTO Y SELECTOR DE SENSACIONES -->
                         <div class="kid-zones-buttons-panel">
-                            <button type="button" class="kid-zone-pill pill-head" data-zone="head" onclick="selectKidBodyZone('head')">
-                                <span class="pill-icon">🧠</span>
-                                <div>
-                                    <strong>En la cabecita</strong>
-                                    <small>Ideas rápidas o vueltas</small>
-                                </div>
-                            </button>
+                            <div class="zone-pills-list">
+                                <button type="button" class="kid-zone-pill pill-head" data-zone="head" onclick="selectKidBodyZone('head')">
+                                    <span class="pill-icon">🧠</span>
+                                    <div>
+                                        <strong>En la cabecita</strong>
+                                        <small>Ideas rápidas o vueltas</small>
+                                    </div>
+                                </button>
 
-                            <button type="button" class="kid-zone-pill pill-throat" data-zone="throat" onclick="selectKidBodyZone('throat')">
-                                <span class="pill-icon">🗣️</span>
-                                <div>
-                                    <strong>En la garganta</strong>
-                                    <small>Un nudo o palabras atoradas</small>
-                                </div>
-                            </button>
+                                <button type="button" class="kid-zone-pill pill-throat" data-zone="throat" onclick="selectKidBodyZone('throat')">
+                                    <span class="pill-icon">🗣️</span>
+                                    <div>
+                                        <strong>En la garganta</strong>
+                                        <small>Un nudo o palabras atoradas</small>
+                                    </div>
+                                </button>
 
-                            <button type="button" class="kid-zone-pill pill-chest" data-zone="chest" onclick="selectKidBodyZone('chest')">
-                                <span class="pill-icon">💖</span>
-                                <div>
-                                    <strong>En el pecho</strong>
-                                    <small>Latidos fuertes o calor</small>
-                                </div>
-                            </button>
+                                <button type="button" class="kid-zone-pill pill-chest" data-zone="chest" onclick="selectKidBodyZone('chest')">
+                                    <span class="pill-icon">💖</span>
+                                    <div>
+                                        <strong>En el pecho</strong>
+                                        <small>Latidos fuertes o calor</small>
+                                    </div>
+                                </button>
 
-                            <button type="button" class="kid-zone-pill pill-belly" data-zone="belly" onclick="selectKidBodyZone('belly')">
-                                <span class="pill-icon">🌀</span>
-                                <div>
-                                    <strong>En la pancita</strong>
-                                    <small>Mariposas, cosquillas o nudos</small>
-                                </div>
-                            </button>
+                                <button type="button" class="kid-zone-pill pill-belly" data-zone="belly" onclick="selectKidBodyZone('belly')">
+                                    <span class="pill-icon">🌀</span>
+                                    <div>
+                                        <strong>En la pancita</strong>
+                                        <small>Mariposas, cosquillas o nudos</small>
+                                    </div>
+                                </button>
 
-                            <button type="button" class="kid-zone-pill pill-hands" data-zone="hands" onclick="selectKidBodyZone('hands')">
-                                <span class="pill-icon">✊</span>
-                                <div>
-                                    <strong>En manitas o pies</strong>
-                                    <small>Ganas de apretar o moverme</small>
+                                <button type="button" class="kid-zone-pill pill-hands" data-zone="hands" onclick="selectKidBodyZone('hands')">
+                                    <span class="pill-icon">✊</span>
+                                    <div>
+                                        <strong>En manitas o brazos</strong>
+                                        <small>Ganas de apretar o moverme</small>
+                                    </div>
+                                </button>
+
+                                <button type="button" class="kid-zone-pill pill-feet" data-zone="feet" onclick="selectKidBodyZone('feet')">
+                                    <span class="pill-icon">🦶</span>
+                                    <div>
+                                        <strong>En las piernas o pies</strong>
+                                        <small>Inquietud o ganas de saltar</small>
+                                    </div>
+                                </button>
+                            </div>
+
+                            <!-- SELECTOR DE SENSACIÓN ESPECÍFICA -->
+                            <div class="kid-sensation-type-wrapper">
+                                <span class="sensation-label">¿Cómo se siente esa zona?</span>
+                                <div class="kid-sensation-pills-row">
+                                    <button type="button" class="sensation-pill-btn active" data-sensation="butterflies" onclick="selectKidSensation('butterflies', '🦋 Mariposas o cosquilleo')">🦋 Cosquilleo</button>
+                                    <button type="button" class="sensation-pill-btn" data-sensation="warmth" onclick="selectKidSensation('warmth', '🔥 Calor o fueguito')">🔥 Calor</button>
+                                    <button type="button" class="sensation-pill-btn" data-sensation="cold" onclick="selectKidSensation('cold', '❄️ Frío o temblorcito')">❄️ Frío</button>
+                                    <button type="button" class="sensation-pill-btn" data-sensation="knot" onclick="selectKidSensation('knot', '🪢 Nudo o apretón')">🪢 Nudo</button>
+                                    <button type="button" class="sensation-pill-btn" data-sensation="drum" onclick="selectKidSensation('drum', '🥁 Tambor o latidos rápidos')">🥁 Tambor</button>
+                                    <button type="button" class="sensation-pill-btn" data-sensation="light" onclick="selectKidSensation('light', '🪶 Liviano y en paz')">🪶 Paz</button>
                                 </div>
-                            </button>
+                            </div>
                         </div>
                     </div>
 
-                    <!-- BOTÓN GIGANTE DE ENVÍO CON RECOMPENSA -->
+                    <!-- BOTÓN DE ENVÍO CON RECOMPENSA CLÍNICA -->
                     <div class="kid-action-center">
                         <button type="button" class="btn-kid-puffy btn-kid-send-weather" onclick="submitKidWeatherAndBody()">
                             <span class="btn-puffy-icon">🚀</span>
-                            <span class="btn-puffy-text">¡Enviar a mi Terapeuta!</span>
-                            <span class="btn-puffy-star-tag">+1 ⭐</span>
+                            <span class="btn-puffy-text">¡Guardar y Enviar a mi Terapeuta!</span>
+                            <span class="btn-puffy-star-tag">+1 ⭐ +5 🪙</span>
                         </button>
                     </div>
-                </div>
-            </div>
-
-            <!-- MINI-JUEGOS INTERACTIVOS (ISLAS DE DIVERSIÓN) -->
-            <div class="kid-section-divider">
-                <span>🎮 ¡Tus Islas de Juegos y Calma!</span>
-            </div>
-
-            <div class="kid-game-islands-grid">
-                <div class="kid-game-island island-bubbles" onclick="switchKidView('kid-bubbles')">
-                    <div class="island-floating-badge">¡Divertidísimo!</div>
-                    <div class="island-icon-animated">🫧</div>
-                    <div class="island-info">
-                        <h4>Cazador de Preocupaciones</h4>
-                        <p>¡Explota burbujas con sonidos mágicos y siéntete liviano!</p>
-                    </div>
-                    <span class="island-play-btn">¡Jugar Ahora! 🎯</span>
-                </div>
-
-                <div class="kid-game-island island-drawing" onclick="switchKidView('kid-drawing')">
-                    <div class="island-floating-badge">¡Creativo!</div>
-                    <div class="island-icon-animated">🎨</div>
-                    <div class="island-info">
-                        <h4>El Lienzo Mágico</h4>
-                        <p>Pinta con el Pincel Arcoíris y sellos mágicos que viajan al consultorio.</p>
-                    </div>
-                    <span class="island-play-btn">¡Dibujar! ✨</span>
-                </div>
-
-                <div class="kid-game-island island-calm" onclick="switchKidView('kid-calm')">
-                    <div class="island-floating-badge">¡Superpoder!</div>
-                    <div class="island-icon-animated">🎈</div>
-                    <div class="island-info">
-                        <h4>El Globo de la Calma</h4>
-                        <p>Respira junto a tu globo amigo para llenar tu cuerpo de paz.</p>
-                    </div>
-                    <span class="island-play-btn">¡Respirar! 🌬️</span>
                 </div>
             </div>
         </div>
@@ -600,11 +1099,11 @@
                     <span class="kid-card-badge-icon">🦊</span>
                     <div>
                         <h3 class="kid-card-heading">Tu Compañero Avatar Mágico</h3>
-                        <p class="kid-card-subheading">Personalízalo como quieras. ¡Él te acompañará en cada aventura!</p>
+                        <p class="kid-card-subheading">Personalízalo como quieras. ¡Él te acompañará en cada aventura de tu espacio!</p>
                     </div>
                 </div>
 
-                <!-- ESCENARIO PEDESTAL CÓSMICO -->
+                <!-- ESCENARIO PEDESTAL CÓSMICO 3D -->
                 <div class="kid-avatar-stage-3d">
                     <div class="kid-pedestal-stars-bg">
                         <span>✨</span><span>⭐</span><span>💫</span><span>✨</span>
@@ -618,7 +1117,9 @@
                     </div>
 
                     <div class="kid-avatar-title-box">
-                        <h3 class="kid-avatar-hero-name" id="kidAvatarDisplayName">Zorrito Valiente</h3>
+                        <div class="avatar-name-input-wrapper">
+                            <input type="text" id="kidAvatarDisplayNameInput" class="kid-avatar-name-input" value="Zorrito Valiente" placeholder="Nombre de tu compañero" maxlength="32">
+                        </div>
                         <button type="button" class="btn-kid-random-name" onclick="generateRandomKidAvatarName()" title="Generar un nombre superheroico al azar">
                             🎲 ¡Inventar Nombre Mágico!
                         </button>
@@ -653,9 +1154,17 @@
                             <span class="puffy-emoji">🦄</span>
                             <span class="puffy-text">Unicornio</span>
                         </button>
-                        <button type="button" class="avatar-puffy-btn" data-char="dino" onclick="pickAvatarChar('dino', '🦖', 'Dino Valiente')">
+                        <button type="button" class="avatar-puffy-btn" data-char="dino" onclick="pickAvatarChar('dino', '🦖', 'Dino Fuerte')">
                             <span class="puffy-emoji">🦖</span>
                             <span class="puffy-text">Dinosaurio</span>
+                        </button>
+                        <button type="button" class="avatar-puffy-btn" data-char="cat" onclick="pickAvatarChar('cat', '🐱', 'Gatito Cósmico')">
+                            <span class="puffy-emoji">🐱</span>
+                            <span class="puffy-text">Gatito</span>
+                        </button>
+                        <button type="button" class="avatar-puffy-btn" data-char="dog" onclick="pickAvatarChar('dog', '🐶', 'Perrito Fiel')">
+                            <span class="puffy-emoji">🐶</span>
+                            <span class="puffy-text">Perrito</span>
                         </button>
                     </div>
                 </div>
@@ -678,6 +1187,9 @@
                         </button>
                         <button type="button" class="aura-sparkle-btn aura-mint-btn" onclick="pickAvatarAura('aura-mint')" title="Menta Mágica">
                             <span>🌿</span>
+                        </button>
+                        <button type="button" class="aura-sparkle-btn aura-rainbow-btn" onclick="pickAvatarAura('aura-rainbow')" title="Arcoíris Neón">
+                            <span>🌈</span>
                         </button>
                     </div>
                 </div>
@@ -706,6 +1218,14 @@
                             <span class="acc-puffy-emoji">🛡️</span>
                             <span>Escudo Protector</span>
                         </button>
+                        <button type="button" class="acc-puffy-btn" data-acc="headphones" onclick="pickAvatarAccessory('headphones', '🎧')">
+                            <span class="acc-puffy-emoji">🎧</span>
+                            <span>Auriculares Zen</span>
+                        </button>
+                        <button type="button" class="acc-puffy-btn" data-acc="wand" onclick="pickAvatarAccessory('wand', '🪄')">
+                            <span class="acc-puffy-emoji">🪄</span>
+                            <span>Varita de Deseos</span>
+                        </button>
                     </div>
                 </div>
 
@@ -713,20 +1233,20 @@
                     <button type="button" class="btn-kid-puffy btn-kid-save-avatar" onclick="saveKidAvatar()">
                         <span class="btn-puffy-icon">⭐</span>
                         <span class="btn-puffy-text">¡Guardar mi Avatar Mágico!</span>
-                        <span class="btn-puffy-star-tag">+1 ⭐</span>
+                        <span class="btn-puffy-star-tag">+1 ⭐ +5 🪙</span>
                     </button>
                 </div>
             </div>
         </div>
 
-        <!-- VISTA 3: CAZADOR DE PREOCUPACIONES (BURBUJAS 3D Y CONFETTI) -->
+        <!-- VISTA 3: CAZADOR DE PREOCUPACIONES (BURBUJAS FLOTANTES Y POPPING) -->
         <div id="viewKidBubbles" class="portal-view kid-view" style="display: none;">
             <div class="kid-card kid-card-ocean">
                 <div class="kid-card-topbar">
                     <span class="kid-card-badge-icon">🫧</span>
                     <div>
                         <h3 class="kid-card-heading">Cazador de Preocupaciones</h3>
-                        <p class="kid-card-subheading">Toca las burbujas para explotarlas con un ¡POP! y siente cómo esa preocupación se va flotando suavemente hacia el espacio.</p>
+                        <p class="kid-card-subheading">Toca las burbujas para explotarlas con un ¡POP! y siente cómo esa preocupación o tensión se va flotando suavemente hacia el espacio.</p>
                     </div>
                 </div>
 
@@ -738,14 +1258,19 @@
                             <strong class="chest-count" id="kidBubblesPoppedCount">0</strong>
                         </div>
                     </div>
-                    <button type="button" class="btn-kid-puffy-sm btn-kid-add-bubble" onclick="promptCustomBubble()">
-                        ➕ Soplar una nueva burbuja
-                    </button>
+                    <div style="display: flex; gap: 8px; flex-wrap: wrap;">
+                        <button type="button" class="btn-kid-puffy-sm btn-kid-add-bubble" onclick="openCustomBubbleModal()">
+                            ➕ Soplar nueva burbuja
+                        </button>
+                        <button type="button" class="btn-kid-puffy-sm btn-kid-skip-bubble" onclick="skipCurrentBubble()" title="Ver otras burbujas">
+                            ⏭️ Omitir / Siguiente
+                        </button>
+                    </div>
                 </div>
 
-                <!-- CAMPO DE JUEGO CELESTIAL DE BURBUJAS -->
+                <!-- CAMPO DE JUEGO CELESTIAL DE BURBUJAS FLOTANTES -->
                 <div id="kidBubblesPlayfield" class="kid-bubbles-playfield-v2">
-                    <!-- Burbujas renderizadas dinámicamente -->
+                    <!-- Burbujas renderizadas dinámicamente con flotación suave -->
                 </div>
 
                 <div class="kid-bubbles-encouragement">
@@ -755,14 +1280,14 @@
             </div>
         </div>
 
-        <!-- VISTA 4: EL LIENZO MÁGICO (HTML5 CANVAS CON PINCEL ARCOÍRIS) -->
+        <!-- VISTA 4: EL LIENZO MÁGICO (HTML5 CANVAS CON PINCEL ARCOÍRIS Y DESHACER) -->
         <div id="viewKidDrawing" class="portal-view kid-view" style="display: none;">
             <div class="kid-card kid-card-art">
                 <div class="kid-card-topbar">
                     <span class="kid-card-badge-icon">🎨</span>
                     <div>
                         <h3 class="kid-card-heading">El Lienzo Mágico de Colores</h3>
-                        <p class="kid-card-subheading">¡Dibuja lo que sientes hoy! Tus trazos y sellos viajarán como una carta secreta a tu terapeuta.</p>
+                        <p class="kid-card-subheading">¡Dibuja lo que sientes o imaginas hoy! Tus trazos y sellos viajarán como una carta secreta a tu terapeuta.</p>
                     </div>
                 </div>
 
@@ -772,11 +1297,12 @@
                     <div class="paintbox-group">
                         <label class="paintbox-label">Crayones:</label>
                         <div class="paintbox-colors-row">
-                            <button type="button" class="crayon-btn active" style="background:#202923;" onclick="setCanvasColor('#202923')" title="Negro noche"></button>
+                            <button type="button" class="crayon-btn active" style="background:#25243A;" onclick="setCanvasColor('#25243A')" title="Noche profunda"></button>
                             <button type="button" class="crayon-btn" style="background:#3a86ff;" onclick="setCanvasColor('#3a86ff')" title="Azul cielo"></button>
                             <button type="button" class="crayon-btn" style="background:#06d6a0;" onclick="setCanvasColor('#06d6a0')" title="Menta mágica"></button>
                             <button type="button" class="crayon-btn" style="background:#ffd166;" onclick="setCanvasColor('#ffd166')" title="Amarillo sol"></button>
                             <button type="button" class="crayon-btn" style="background:#ff7b00;" onclick="setCanvasColor('#ff7b00')" title="Naranja vitamina"></button>
+                            <button type="button" class="crayon-btn" style="background:#FF8E8E;" onclick="setCanvasColor('#FF8E8E')" title="Coral corazón"></button>
                             <button type="button" class="crayon-btn" style="background:#ff006e;" onclick="setCanvasColor('#ff006e')" title="Fresa brillante"></button>
                             <button type="button" class="crayon-btn" style="background:#8338ec;" onclick="setCanvasColor('#8338ec')" title="Lavanda cósmica"></button>
                             <button type="button" class="crayon-btn crayon-rainbow" onclick="setRainbowBrush()" title="¡Pincel Arcoíris Mágico!">🌈</button>
@@ -796,7 +1322,7 @@
 
                     <!-- SELLOS MÁGICOS -->
                     <div class="paintbox-group">
-                        <label class="paintbox-label">Sellos Mágicos:</label>
+                        <label class="paintbox-label">Sellos:</label>
                         <div class="paintbox-stamps-row">
                             <button type="button" class="stamp-pill-btn" onclick="setCanvasStamp('⭐')">⭐</button>
                             <button type="button" class="stamp-pill-btn" onclick="setCanvasStamp('💖')">💖</button>
@@ -806,48 +1332,77 @@
                             <button type="button" class="stamp-pill-btn" onclick="setCanvasStamp('🦄')">🦄</button>
                             <button type="button" class="stamp-pill-btn" onclick="setCanvasStamp('🌻')">🌻</button>
                             <button type="button" class="stamp-pill-btn" onclick="setCanvasStamp('🍦')">🍦</button>
+                            <button type="button" class="stamp-pill-btn" onclick="setCanvasStamp('🎈')">🎈</button>
+                            <button type="button" class="stamp-pill-btn" onclick="setCanvasStamp('🐱')">🐱</button>
                         </div>
                     </div>
 
+                    <!-- ACCIONES: DESHACER Y LIMPIAR -->
                     <div class="paintbox-group paintbox-actions-group">
+                        <button type="button" class="btn-kid-paint-action" onclick="undoKidCanvas()" title="Deshacer el último trazo">
+                            ↩️ Deshacer
+                        </button>
                         <button type="button" class="btn-kid-clear-canvas" onclick="clearKidCanvas()">
                             🗑️ Limpiar Todo
                         </button>
                     </div>
                 </div>
 
-                <!-- CABALLETE DE DIBUJO -->
+                <!-- CABALLETE DE DIBUJO CON SOPORTE TÁCTIL ESTRICTO -->
                 <div class="kid-easel-frame">
-                    <canvas id="kidDrawingCanvas" width="640" height="420"></canvas>
+                    <canvas id="kidDrawingCanvas" width="680" height="420" style="touch-action: none;"></canvas>
                 </div>
 
-                <div class="kid-action-center" style="margin-top: 20px;">
+                <!-- EXPLICACIÓN OPCIONAL DEL DIBUJO POR EL NIÑO -->
+                <div class="kid-drawing-explanation-box">
+                    <label for="kidDrawingStory"><strong>¿Quieres contar de qué se trata tu dibujo?</strong> (Opcional)</label>
+                    <input type="text" id="kidDrawingStory" class="kid-drawing-story-input" placeholder="Ej: Mi mascota volando en un cohete de arcoíris..." maxlength="140">
+                </div>
+
+                <div class="kid-action-center" style="margin-top: 18px;">
                     <button type="button" class="btn-kid-puffy btn-kid-send-drawing" onclick="submitKidDrawing()">
                         <span class="btn-puffy-icon">🎨</span>
                         <span class="btn-puffy-text">¡Enviar dibujo al consultorio!</span>
-                        <span class="btn-puffy-star-tag">+2 ⭐</span>
+                        <span class="btn-puffy-star-tag">+2 ⭐ +10 🪙</span>
                     </button>
                 </div>
             </div>
         </div>
 
-        <!-- VISTA 5: EL GLOBO DE LA CALMA (RESPIRACIÓN ANIMADA) -->
+        <!-- VISTA 5: EL JARDÍN DE LA CALMA (RESPIRACIÓN: GLOBO, FLOR, TORTUGA) -->
         <div id="viewKidCalm" class="portal-view kid-view" style="display: none;">
             <div class="kid-card kid-card-zen">
                 <div class="kid-card-topbar">
                     <span class="kid-card-badge-icon">🎈</span>
                     <div>
-                        <h3 class="kid-card-heading">El Globo de la Calma</h3>
-                        <p class="kid-card-subheading">Respira despacito al ritmo del globo. Cuando el globo crezca, inhala por la nariz. Cuando se encoja, suelta el aire suavemente por la boca.</p>
+                        <h3 class="kid-card-heading">El Jardín de la Calma</h3>
+                        <p class="kid-card-subheading">Elige tu técnica de respiración favorita y encuentra tu paz interior a tu propio ritmo.</p>
                     </div>
                 </div>
 
-                <!-- ESCENARIO DEL GLOBO FLOTANTE -->
-                <div class="kid-balloon-sky-stage">
+                <!-- SELECTOR DE TÉCNICA DE CALMA -->
+                <div class="kid-calm-techniques-row">
+                    <button type="button" class="calm-tech-tab active" data-tech="balloon" onclick="selectCalmTechnique('balloon')">
+                        <span class="tech-icon">🎈</span>
+                        <span>El Globo</span>
+                    </button>
+                    <button type="button" class="calm-tech-tab" data-tech="flower" onclick="selectCalmTechnique('flower')">
+                        <span class="tech-icon">🌸</span>
+                        <span>La Flor Mágica</span>
+                    </button>
+                    <button type="button" class="calm-tech-tab" data-tech="turtle" onclick="selectCalmTechnique('turtle')">
+                        <span class="tech-icon">🐢</span>
+                        <span>La Tortuga</span>
+                    </button>
+                </div>
+
+                <!-- ESCENARIO VISUAL ANIMADO DE RESPIRACIÓN -->
+                <div class="kid-balloon-sky-stage" id="kidCalmVisualStage">
                     <div class="sky-cloud cloud-left">☁️</div>
                     <div class="sky-cloud cloud-right">☁️</div>
                     
-                    <div id="kidBalloon" class="kid-balloon-character">
+                    <!-- 1. PERSONAJE GLOBO -->
+                    <div id="kidBalloon" class="kid-calm-character kid-balloon-character">
                         <div class="balloon-shine"></div>
                         <div class="balloon-eyes" id="kidBalloonEyes">
                             <span class="eye left">●</span>
@@ -858,24 +1413,48 @@
                         <div class="balloon-string"></div>
                     </div>
 
+                    <!-- 2. PERSONAJE FLOR MÁGICA -->
+                    <div id="kidFlower" class="kid-calm-character kid-flower-character" style="display: none;">
+                        <div class="flower-petals-ring">
+                            <span class="petal petal-1">🌸</span>
+                            <span class="petal petal-2">🌸</span>
+                            <span class="petal petal-3">🌸</span>
+                            <span class="petal petal-4">🌸</span>
+                        </div>
+                        <div class="flower-center-core">
+                            <span class="flower-face">😊</span>
+                        </div>
+                    </div>
+
+                    <!-- 3. PERSONAJE TORTUGA SERENA -->
+                    <div id="kidTurtle" class="kid-calm-character kid-turtle-character" style="display: none;">
+                        <div class="turtle-shell">
+                            <span class="turtle-head">🐢</span>
+                        </div>
+                    </div>
+
                     <div class="kid-breathing-guide-box">
                         <div id="kidBreathingInstruction" class="kid-breathing-phrase">
-                            ¡Toca el botón para inflar la calma juntos!
+                            ¡Toca el botón para comenzar a respirar juntos!
                         </div>
                         <div class="kid-breathing-countdown" id="kidBreathingTimer">0s</div>
                     </div>
                 </div>
 
-                <div class="kid-action-center" style="margin-top: 18px;">
+                <!-- CONTROLES COMPLETOS: INICIAR, PAUSAR, CONTINUAR, FINALIZAR -->
+                <div class="kid-calm-controls-panel">
                     <button type="button" id="btnToggleBalloon" class="btn-kid-puffy btn-kid-balloon-action" onclick="toggleBalloonBreathing()">
-                        <span class="btn-puffy-icon">🎈</span>
+                        <span class="btn-puffy-icon">▶️</span>
                         <span class="btn-puffy-text">¡Comenzar a Respirar!</span>
+                    </button>
+                    <button type="button" id="btnStopBreathing" class="btn-kid-puffy-sm btn-kid-stop-action" style="display: none;" onclick="stopBalloonBreathing(true)">
+                        ⏹️ Finalizar
                     </button>
                 </div>
 
                 <div class="kid-calm-trophy-counter">
                     <span>🏆 Ciclos de Calma Completados: <strong id="kidCalmCycles">0</strong></span>
-                    <small>¡Cada 3 respiraciones completas ganas una nueva estrella mágica!</small>
+                    <small>¡Cada 3 respiraciones completas ganas +1 Estrella ⭐ y +5 Monedas 🪙!</small>
                 </div>
             </div>
         </div>
@@ -888,15 +1467,32 @@
             <i class="fas fa-home"></i>
             <span>Inicio</span>
         </button>
-        <button class="nav-btn" data-view="tasks" onclick="switchView('tasks')">
+        <button class="nav-btn" data-view="sessions" onclick="switchView('sessions')" style="position: relative;">
+            <i class="fas fa-calendar-check"></i>
+            <span>Sesiones</span>
+            <span id="sessionsNavBadge" class="nav-badge-pill" style="display: none;">1</span>
+        </button>
+        <button class="nav-btn" data-view="documents" onclick="switchView('documents')">
+            <i class="fas fa-folder-open"></i>
+            <span>Documentos</span>
+        </button>
+        <button class="nav-btn" data-view="payments" onclick="switchView('payments')">
+            <i class="fas fa-wallet"></i>
+            <span>Pagos</span>
+        </button>
+        <button class="nav-btn" data-view="profile" onclick="switchView('profile')">
+            <i class="fas fa-user-circle"></i>
+            <span>Mi Perfil</span>
+        </button>
+        <button class="nav-btn" data-view="tasks" onclick="switchView('tasks')" style="display: none;">
             <i class="fas fa-tasks"></i>
             <span>Tareas</span>
         </button>
-        <button class="nav-btn" data-view="tests" onclick="switchView('tests')">
+        <button class="nav-btn" data-view="tests" onclick="switchView('tests')" style="display: none;">
             <i class="fas fa-heart"></i>
             <span>Bienestar</span>
         </button>
-        <button class="nav-btn" data-view="progress" onclick="switchView('progress')">
+        <button class="nav-btn" data-view="progress" onclick="switchView('progress')" style="display: none;">
             <i class="fas fa-chart-line"></i>
             <span>Progreso</span>
         </button>
@@ -1107,9 +1703,191 @@
     </div>
 </div>
 
+<!-- MODAL SOS ADAPTADO PARA NIÑOS (PORTAL KIDS) -->
+<div id="kidCrisisModal" class="modal" style="display: none;">
+    <div class="modal-overlay" onclick="closeKidCrisisModal()"></div>
+    <div class="modal-content kid-modal-content" style="border-top: 8px solid #FF8E8E; max-width: 480px; border-radius: 28px;">
+        <div class="modal-header" style="border-bottom: none; padding-bottom: 0;">
+            <div style="display: flex; align-items: center; gap: 10px;">
+                <span style="font-size: 32px;">🌟</span>
+                <div>
+                    <h2 style="color: #25243A; font-family: 'Fredoka', sans-serif; font-size: 20px; font-weight: 800; margin: 0;">¡Aquí estamos contigo!</h2>
+                    <small style="color: #6C7085; font-size: 13px;">Todo va a estar bien. Respira despacio.</small>
+                </div>
+            </div>
+            <button class="btn-icon" onclick="closeKidCrisisModal()" aria-label="Cerrar">✕</button>
+        </div>
+        <div class="modal-body" style="padding: 18px 20px;">
+            <div class="kid-sos-intro-bubble">
+                <p>A veces las emociones se sienten muy grandes, pesadas o difíciles. <strong>¡No estás solo/a!</strong> Puedes elegir lo que te ayude a sentirte mejor ahora:</p>
+            </div>
+
+            <div class="kid-sos-choices-grid">
+                <div class="kid-sos-card" onclick="alertKidAdultTalk()">
+                    <span class="sos-card-icon">🫂</span>
+                    <div>
+                        <strong>1. Busca a un adulto de confianza</strong>
+                        <p>Dile a mamá, papá o la persona que te cuida: <em>"Necesito un abrazo o hablar contigo"</em>.</p>
+                    </div>
+                </div>
+
+                <div class="kid-sos-card" onclick="goToKidCalmFromSos()">
+                    <span class="sos-card-icon">🎈</span>
+                    <div>
+                        <strong>2. Respira en el Jardín de la Calma</strong>
+                        <p>Hagamos juntos una respiración suave con el globo amigo para aliviar tu cuerpo.</p>
+                    </div>
+                </div>
+
+                <div class="kid-sos-card sos-card-alert" onclick="sendKidSosToTherapist()">
+                    <span class="sos-card-icon">💌</span>
+                    <div>
+                        <strong>3. Avisar a mi terapeuta</strong>
+                        <p id="kidSosStatusText">Toca aquí para enviarle una señal secreta a tu psicólogo/a de que necesitas apoyo.</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- DIRECTORIO DE APOYO PARA FAMILIARES / TUTORES -->
+            <details class="kid-sos-caregiver-accordion" style="margin-top: 14px; font-size: 12px; color: #6C7085;">
+                <summary style="cursor: pointer; font-weight: 700; color: #475569; padding: 6px 0;">
+                    ℹ️ Información de apoyo para mamá, papá o tutores
+                </summary>
+                <div style="background: #F5F7FC; padding: 10px 14px; border-radius: 14px; margin-top: 6px; line-height: 1.4;">
+                    <p style="margin: 0 0 6px 0;">Si estás acompañando al menor y se presenta una emergencia médica o de contención 24/7:</p>
+                    <div>🇻🇪 Línea FPVP: <a href="tel:02122419288" style="font-weight:700; color:#3a86ff;">0212-241-92-88</a></div>
+                    <div>🇻🇪 UCV Crisis: <a href="tel:02126052800" style="font-weight:700; color:#3a86ff;">0212-605-28-00</a></div>
+                    <div>🌎 Emergencias: <a href="tel:911" style="font-weight:700; color:#e11d48;">911</a></div>
+                </div>
+            </details>
+
+            <button type="button" class="btn-kid-puffy full-width" style="margin-top: 18px; justify-content: center; background: #DDF5EE; color: #166534; box-shadow: 0 4px 0 #86efac;" onclick="closeKidCrisisModal()">
+                💚 Ya me siento más tranquilo/a
+            </button>
+        </div>
+    </div>
+</div>
+
+<!-- MODAL PARA SOPLAR NUEVA BURBUJA PERSONALIZADA -->
+<div id="kidCustomBubbleModal" class="modal" style="display: none;">
+    <div class="modal-overlay" onclick="closeCustomBubbleModal()"></div>
+    <div class="modal-content kid-modal-content" style="max-width: 420px; border-radius: 26px;">
+        <div class="modal-header">
+            <div style="display: flex; align-items: center; gap: 8px;">
+                <span style="font-size: 26px;">🫧</span>
+                <h3 style="margin: 0; font-family: 'Fredoka', sans-serif; font-size: 18px; color: #25243A;">Soplar una Nueva Burbuja</h3>
+            </div>
+            <button class="btn-icon" onclick="closeCustomBubbleModal()">✕</button>
+        </div>
+        <div class="modal-body" style="padding: 16px 20px;">
+            <p style="font-size: 13px; color: #6C7085; margin: 0 0 12px 0;">¿Qué pensamiento, miedo o preocupación quieres atrapar en una burbuja para soltarla suavemente?</p>
+            <input type="text" id="kidCustomBubbleInput" class="kid-bubble-input-field" placeholder="Ej: Me da miedo la oscuridad..." maxlength="50" autocomplete="off">
+            <div style="display: flex; gap: 10px; margin-top: 16px; justify-content: flex-end;">
+                <button type="button" class="btn-sm btn-secondary" onclick="closeCustomBubbleModal()" style="border-radius: 20px;">Cancelar</button>
+                <button type="button" class="btn-kid-puffy-sm" onclick="confirmCustomBubble()" style="background: #34d399; color: white;">🫧 ¡Soplar Burbuja!</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- MODAL AGENDAR PRÓXIMA SESIÓN -->
+<div id="scheduleSessionModal" class="modal" style="display: none;">
+    <div class="modal-overlay" onclick="closeScheduleSessionModal()"></div>
+    <div class="modal-content" style="max-width: 480px; border-radius: var(--radius-lg); background: var(--bg-card); box-shadow: var(--shadow-lg);">
+        <div class="modal-header" style="display: flex; justify-content: space-between; align-items: center; padding: 18px 22px; border-bottom: 1px solid var(--border-primary);">
+            <div style="display: flex; align-items: center; gap: 12px;">
+                <div style="width: 40px; height: 40px; border-radius: 12px; background: var(--accent-light); color: var(--accent-primary); display: flex; align-items: center; justify-content: center; font-size: 18px;">
+                    <i class="fas fa-calendar-plus"></i>
+                </div>
+                <div>
+                    <h3 style="margin: 0; font-size: 16.5px; font-weight: 700; color: var(--text-primary);">Agendar Próxima Sesión</h3>
+                    <p style="margin: 2px 0 0 0; font-size: 12px; color: var(--text-secondary);">Selecciona tu fecha, horario y modalidad de preferencia</p>
+                </div>
+            </div>
+            <button class="btn-icon" onclick="closeScheduleSessionModal()" style="background: none; border: none; font-size: 18px; color: var(--text-tertiary); cursor: pointer;">✕</button>
+        </div>
+        <form id="scheduleSessionForm" onsubmit="handleScheduleSessionSubmit(event)" style="padding: 20px 22px;">
+            <div class="form-group" style="margin-bottom: 14px;">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
+                    <label style="font-size: 12.5px; font-weight: 600; color: var(--text-primary); margin: 0;">
+                        <i class="far fa-calendar-alt" style="color: var(--accent-primary); margin-right: 4px;"></i> Fecha de la Sesión *
+                    </label>
+                    <span id="scheduleDayBadge" style="font-size: 11px; font-weight: 600; color: var(--text-secondary);"></span>
+                </div>
+                <input type="date" id="scheduleDate" required onchange="handleScheduleDateChange(this.value)" style="width: 100%; padding: 10px 14px; border: 1px solid var(--border-secondary); border-radius: var(--radius-sm); font-family: inherit; font-size: 13.5px; background: var(--bg-secondary); color: var(--text-primary); outline: none;">
+            </div>
+
+            <div class="form-group" style="margin-bottom: 14px;">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
+                    <label style="font-size: 12.5px; font-weight: 600; color: var(--text-primary); margin: 0;">
+                        <i class="far fa-clock" style="color: var(--accent-primary); margin-right: 4px;"></i> Selección Inteligente de Horario *
+                    </label>
+                    <span id="slotAvailabilitySummary" class="slot-summary-badge"></span>
+                </div>
+                <!-- Select oculto sincronizado para compatibilidad de formulario y pruebas -->
+                <select id="scheduleTime" required style="display: none;">
+                    <option value="08:00">08:00 AM</option>
+                    <option value="09:00">09:00 AM</option>
+                    <option value="10:00" selected>10:00 AM</option>
+                    <option value="11:00">11:00 AM</option>
+                    <option value="12:00">12:00 PM</option>
+                    <option value="14:00">02:00 PM</option>
+                    <option value="15:00">03:00 PM</option>
+                    <option value="16:00">04:00 PM</option>
+                    <option value="17:00">05:00 PM</option>
+                    <option value="18:00">06:00 PM</option>
+                </select>
+                <!-- Contenedor dinámico de horarios inteligentes -->
+                <div id="smartSlotsContainer" class="smart-slots-container"></div>
+                <div id="slotSelectedFeedback" style="display: none; margin-top: 8px; font-size: 12px; color: #059669; background: rgba(16, 185, 129, 0.08); padding: 7px 12px; border-radius: 8px; border: 1px solid rgba(16, 185, 129, 0.2);">
+                    <i class="fas fa-check-circle" style="margin-right: 5px;"></i> Horario seleccionado: <strong id="selectedSlotText"></strong> (Disponible para ti)
+                </div>
+            </div>
+
+            <div class="form-group" style="margin-bottom: 14px;">
+                <label style="display: block; font-size: 12.5px; font-weight: 600; margin-bottom: 6px; color: var(--text-primary);">
+                    <i class="fas fa-video" style="color: var(--accent-primary); margin-right: 4px;"></i> Modalidad de Consulta *
+                </label>
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
+                    <div class="modality-option-label active" id="modalityOnlineLabel" onclick="selectPortalModality('Online')">
+                        <input type="radio" name="portalModality" value="Online" checked style="display: none;">
+                        <span style="font-size: 20px;">💻</span>
+                        <div style="text-align: left;">
+                            <strong style="display: block; font-size: 13px;">Online</strong>
+                            <small style="color: var(--text-secondary); font-size: 10.5px;">Videollamada</small>
+                        </div>
+                    </div>
+                    <div class="modality-option-label" id="modalityPresencialLabel" onclick="selectPortalModality('Presencial')">
+                        <input type="radio" name="portalModality" value="Presencial" style="display: none;">
+                        <span style="font-size: 20px;">🏢</span>
+                        <div style="text-align: left;">
+                            <strong style="display: block; font-size: 13px;">Presencial</strong>
+                            <small style="color: var(--text-secondary); font-size: 10.5px;">En consultorio</small>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="form-group" style="margin-bottom: 18px;">
+                <label style="display: block; font-size: 12.5px; font-weight: 600; margin-bottom: 6px; color: var(--text-primary);">
+                    <i class="far fa-comment-dots" style="color: var(--accent-primary); margin-right: 4px;"></i> Motivo o temas de consulta (Opcional)
+                </label>
+                <textarea id="scheduleNotes" rows="2" placeholder="¿Hay algún tema o avance que te gustaría profundizar en esta sesión?" style="width: 100%; padding: 10px 14px; border: 1px solid var(--border-secondary); border-radius: var(--radius-sm); font-family: inherit; font-size: 13px; background: var(--bg-secondary); color: var(--text-primary); outline: none; resize: vertical;"></textarea>
+            </div>
+
+            <div style="display: flex; justify-content: flex-end; gap: 10px; margin-top: 10px;">
+                <button type="button" class="btn-secondary" onclick="closeScheduleSessionModal()" style="padding: 10px 18px; border-radius: var(--radius-sm);">Cancelar</button>
+                <button type="submit" class="btn-primary" id="btnConfirmSchedule" style="padding: 10px 20px; border-radius: var(--radius-sm); font-weight: 700;">
+                    <i class="fas fa-check" style="margin-right: 6px;"></i> Agendar Sesión
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
 <!-- TOAST CONTAINER -->
 <div id="toastContainer" class="toast-container"></div>
 
-<script src="portal.js"></script>
+<script src="portal.js?v=7.1.0-serena"></script>
 </body>
 </html>

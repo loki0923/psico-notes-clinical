@@ -35,7 +35,7 @@ El presente documento define la matriz exhaustiva de pruebas unitarias, de integ
 | **TC-POR-01** | Portal Paciente | Autoregistro Cognitivo ABC de Beck | Guardado con situación, creencia y emoción (0-100%) |
 | **TC-POR-02** | Portal Paciente | Activación de Botón SOS / Protocolo de Crisis | Generación de alerta inmediata y líneas de emergencia 24/7 |
 | **TC-VITAL-01** | Ciclo Vital | Inferencia por Etapa Vital (Niñez, Adolescencia, Adultez) | Mapeo exacto <12a, 12-17a, 18+a |
-| **TC-VITAL-02** | Niñez | Integridad Pediátrica (Tutoría, Escuela, Neurodesarrollo) | Tutor legal, escuela y consentimiento parental requeridos |
+| **TC-VITAL-02** | Niñez | Integridad Pediátrica (Tutoría, Escuela, Neurodesarrollo) | Tutor legal, escuela y Consentimiento Informado requeridos |
 | **TC-VITAL-03** | Adolescencia | Marco Ético de Confidencialidad y Asentimiento | Registro de confidencialidad y perspectiva propia del menor |
 | **TC-VITAL-04** | Ciclo Vital | Filtrado Reactivo Multidimensional | Conteo exacto y filtrado sin pérdida de expedientes |
 | **TC-HIST-01** | Anamnesis Infantil | Integridad Perinatal, Parto e Hitos 0-3a | Ficha biparental, somatometría e hitos motores |
@@ -143,5 +143,65 @@ flowchart TD
 | **TC-FIN-04** | Cobros | Tarificación Dinámica y Cobro de Citas Clínicas | Ingesta de honorarios pactados, prevención de duplicación (idempotencia) |
 | **TC-FIN-05** | Global Scope | Disponibilidad y Exposición Global de Controladores | 100% de controladores expuestos en `window` sin `SyntaxError` en scripts clásicos |
 
-**Total de Pruebas Automatizadas Activas**: 76 de 76 superadas exitosamente (100% Pass Rate).
+---
 
+## 7. Casos de Prueba — Perfeccionamiento Estético y Funcional (v7.0)
+
+| ID | Módulo | Nombre de la Prueba | Criterio de Aprobación |
+|---|---|---|---|
+| **TC-EST-01** | Tokens CSS | Consistencia de Variables CSS en Terapeuta y Portal | 0 variables CSS huérfanas en ambos sistemas (`--border-color`, `--color-primary`, `--radius-full`, `--accent-gradient`) |
+| **TC-EST-02** | UI / UX | Modo Oscuro en Portal de Pacientes | Conmutador `togglePortalTheme()`, sincronización con `[data-theme="dark"]` y persistencia en `localStorage` |
+| **TC-EST-03** | Accesibilidad | Cierre de Overlays y Modales con Tecla Escape | Tecla `Escape` cierra drawers y modales invocando sus destructores/resets sin fugar bloqueos de scroll |
+| **TC-EST-04** | Adaptabilidad | Resiliencia Temática de Contenedores y Recibos | Contenedores adaptativos con `var(--bg-card)` y bordes coherentes en modo claro y oscuro |
+| **TC-EST-05** | UI / Contención | Ergonomía de Tarjetas KPI y Selector de Estatus | Cero desbordamiento (`overflow: hidden`, `width: 100%`), eliminación de chips redundantes y vinculación íntegra de IDs |
+| **TC-NOTIF-01** | UX / Anti-Spam | Deduplicación de Notificaciones y Control de Toasts | `isConfirmationAlreadyNotified`, prevención anti-duplicados y límite estricto de máximo 3 toasts simultáneos |
+
+---
+
+## 8. Casos de Prueba — Auditoría Exhaustiva de Controladores, Portal y Grabación (v7.1)
+
+| ID | Módulo | Nombre de la Prueba | Criterio de Aprobación |
+|---|---|---|---|
+| **TC-POR-16** | Portal Pacientes & Kid | Agendamiento, Notas Reflexivas y Personalización Infantil | `pickAvailableSlot` resuelve dualmente `scheduleDate`/`scheduleSessionDate`; notas infantiles y nombres de avatar se vinculan y persisten correctamente |
+| **TC-REC-02** | Grabación & Copiloto | Mapeo Defensivo SOAP en SessionRecorder | Transcripción ambient y síntesis aplican con éxito sobre `noteSubjetivo`, `noteObjetivo`, `noteAnalisis` y `notePlan` sin campos mudos |
+
+---
+
+## 9. Casos de Prueba — Mejoras Generales Solicitadas por Dirección Clínica (v7.5)
+
+| ID | Módulo | Nombre de la Prueba | Criterio de Aprobación |
+|---|---|---|---|
+| **TC-MEJ-01** | Consentimiento | Etiqueta "FIRMADO POR EL REPRESENTANTE" y Formato Configurable | Etiqueta oficial en verde con icono de validación y editor adaptable de cláusulas (`toggleConsentEditorMode`, `txtCustomConsentFormat`) |
+| **TC-MEJ-02** | HC Adulto | Historia Clínica Adulto Sobria (Cero Emojis en Títulos y Acordeones) | Verificación estricta de paridad y remoción total de emojis en toolbar y los bloques 1 a 9 del acordeón |
+| **TC-MEJ-03** | HC Infantil | Posición del Bebé (4 Opciones) e Inclusión Sistemática de "Dato no Obtenido" | Selector `fh_babyPosition` con `Cefálica`, `Transversal`, `Podálica` y `Dato no Obtenido`, e incorporación sistemática en parto, llanto, reanimación e incubadora |
+| **TC-MEJ-04** | Genograma | Genograma Familiar Interactivo y Accesible desde HC | Botón `[Genograma]` abre `GenogramModule` interactivo con opciones de wizard, agregar familiar, unión y relación de Bowen |
+| **TC-MEJ-05** | Examen Mental | Examen Mental en Formato Check-List Protocolizado | Modal de verificación rápida con 1 clic en "Todo Conservado", actualización dinámica y auto-inserción en historia clínica |
+| **TC-MEJ-06** | Psicométricos | Gestión Dinámica de Escalas y Tests Psicológicos | Modal de creación y edición de escalas con baremos, y eliminación de escalas personalizadas |
+| **TC-MEJ-07** | Genograma UI | Modales y Fichas de Genograma (Centrado, Dark Mode y Responsive) | 100% de los modales (`modalGenoMember`, `modalEditMember`, `modalAddUnion`, `modalEditUnion`, `modalAddRel`, `modalEditRel`, `modalGenoWizard`) usan `<div class="modal active">` con overlay centrado, cierre por backdrop, inputs adaptados a modo oscuro y cuadrículas auto-ajustables |
+
+---
+
+## 10. Casos de Prueba — Finanzas Multimoneda y Cotización Automatizada BCV (v8.0)
+
+| ID | Módulo | Nombre de la Prueba | Criterio de Aprobación |
+|---|---|---|---|
+| **TC-FIN-BCV-01** | Finanzas & BCV | Cotización y Tasas Automatizadas BCV (Dólar, Euro y Resiliencia Multimoneda) | Endpoint backend `/api/v1/finance/bcv-rates`, caché de 30 min, fallback resiliente, `convertCurrency` bidireccional exacto y fijación/persistencia de tasa manual personalizada. |
+| **TC-FIN-BCV-02** | Finanzas & Pagos | Registro y Conciliación de Pagos en Moneda Local (Bolívares / VES) y Divisas | Selector de moneda (VES, USD, EUR), métodos nacionales (Pago Móvil, Transferencia Bancaria), captura de referencia bancaria, normalización a USD, persistencia de `originalAmount` y cálculo de deudas y recordatorios WhatsApp con tasa del día. |
+| **TC-FIN-BCV-03** | Finanzas & Tarifas | Tarifas a la Tasa Utilizada y Paridad Exacta de Divisas (Cero Inflación EUR a USD) | Selección de moneda en tarifas (USD, EUR, VES), vinculación de tasa utilizada por el psicólogo (Bs. por divisa), paridad 1:1 en divisas para evitar que 10 € se conviertan a 12 $, y registro congruente entre tarifas de citas y cobros recibidos. |
+
+**Total de Pruebas Automatizadas Activas**: 149 de 149 superadas exitosamente (100% Pass Rate).
+
+
+
+
+
+---
+
+## 11. Casos de Prueba — Examen Mental Protocolizado v6.5 (Correcciones Semiológicas Oficiales)
+
+| ID | Módulo | Nombre de la Prueba | Criterio de Aprobación |
+|---|---|---|---|
+| **TC-MSE-03** | Examen Mental | Actitud, Conciencia, Atención y Orientación Protocolizadas | Verificación de opción `"Desorientación Autopsíquica"`, supresión del prefijo `"con"` en desorientación y separación por comas en síntesis. |
+| **TC-MSE-04** | Examen Mental | Generación Semiológica Limpia (Memoria, Pensamiento, Lenguaje y Sensopercepción) | Supresión de prefijos. Delimitación con comas dentro de secciones con múltiples ítems. Frase exacta `"Sin alteraciones observables en el Lenguaje."` y `"Sin alteraciones observables en la Sensopercepción."` al no marcar alteraciones o marcar NO. Título `"Inteligencia"`. |
+| **TC-MSE-05** | Examen Mental | Afectividad Estructurada (Eutimia, Polos e Hipertimia Compuesta) | Reemplazo de Eutímico por `"Eutimia"`. Polos `"Del Miedo"` y `"Del Pesimismo"` reflejados como `"Orientada al Polo del Pesimismo"`. Conector `"y"` para 2 o más sentimientos (ej. `"con Sentimientos de Ruina y Desamparo"` / `"con Sentimientos de Minusvalía, Ruina y Desamparo"`). |
+| **TC-MSE-06** | Examen Mental | Concurrencia de 18 Funciones y Síntesis de Referencia Oficial | Verificación de los 18 ejes en el orden estricto de la dirección psicológica, concordancia de género y validación con el párrafo de referencia de paciente femenina de 18 años con 100% de éxito. |

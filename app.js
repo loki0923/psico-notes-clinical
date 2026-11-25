@@ -16,6 +16,7 @@ const AppState = {
     appointments: [],
     notes: [],
     treatmentPlans: [],
+    therapyRoadmaps: [],
     currentDate: new Date(),
     selectedDate: new Date(),
     editingId: null,
@@ -74,7 +75,7 @@ const ClinicalSecurity = {
             document.body.classList.add('screen-locked');
         }
         if (auto) {
-            console.log('🔒 Sesión bloqueada automáticamente por inactividad clínica (HIPAA)');
+            console.log('Sesión bloqueada automáticamente por inactividad clínica (HIPAA)');
         }
     },
 
@@ -111,7 +112,7 @@ const ClinicalSecurity = {
         if (isValid) {
             this.forceUnlock();
             if (typeof showToast === 'function') {
-                showToast('Expedientes clínicos desbloqueados 🔓', 'success');
+                showToast('Expedientes clínicos desbloqueados', 'success');
             }
         } else {
             if (errEl) {
@@ -143,6 +144,7 @@ window.ClinicalSecurity = ClinicalSecurity;
 document.addEventListener('DOMContentLoaded', async () => {
     initAuthEventListeners();
     loadThemePreference();
+    initSerenaAssistant();
 
     // Eventos de conectividad para sincronización resiliente
     window.addEventListener('online', () => {
@@ -187,6 +189,7 @@ async function startAppForCurrentUser() {
     showApp();
     updateSidebarUser();
     await loadData();
+    await syncPortalAppointmentsToTherapist();
     initEventListeners();
     renderCalendar();
     updateDashboard();
@@ -201,6 +204,38 @@ async function startAppForCurrentUser() {
     updatePatientSelects();
     checkPortalCrisisAlerts();
     setInterval(checkPortalCrisisAlerts, 20000);
+    setInterval(syncPortalAppointmentsToTherapist, 10000);
+    if (typeof window !== 'undefined') {
+        window.addEventListener('storage', (e) => {
+            if (!e.key) return;
+            if (e.key === 'psico_portal_appointments_bridge' || e.key === 'psico_portal_appointments_last_update' || e.key === 'psico_portal_appointment_confirmed_event' || (e.key && e.key.startsWith('psico_portal_data_'))) {
+                syncPortalAppointmentsToTherapist();
+            }
+            if (e.key === 'psico_portal_payment_reported' || e.key === 'psico_therapist_payment_reports_bridge' || e.key === 'psico_portal_payment_last_update' || (e.key && e.key.startsWith('psico_portal_payments_')) || (e.key && e.key.startsWith('psico_portal_data_'))) {
+                if (typeof syncPortalPaymentsToTherapist === 'function') {
+                    syncPortalPaymentsToTherapist(e.key === 'psico_portal_payment_reported');
+                }
+            }
+        });
+
+        window.addEventListener('psico_portal_appointment_confirmed', () => {
+            if (typeof syncPortalAppointmentsToTherapist === 'function') {
+                syncPortalAppointmentsToTherapist();
+            }
+        });
+
+        window.addEventListener('psico_payment_reported', (e) => {
+            if (typeof syncPortalPaymentsToTherapist === 'function') {
+                syncPortalPaymentsToTherapist(true);
+            }
+        });
+
+        window.addEventListener('psico_payment_updated', (e) => {
+            if (typeof syncPortalPaymentsToTherapist === 'function') {
+                syncPortalPaymentsToTherapist(false);
+            }
+        });
+    }
     ClinicalSecurity.init();
 
     // Estado inicial del botón de sincronización
@@ -298,10 +333,24 @@ async function loadData() {
         const appointments = localStorage.getItem(userStorageKey('appointments'));
         const notes = localStorage.getItem(userStorageKey('notes'));
         const plans = localStorage.getItem(userStorageKey('plans'));
+        const roadmaps = localStorage.getItem(userStorageKey('therapyRoadmaps'));
         AppState.patients = await loadAndMigratePatients(patients);
         AppState.appointments = appointments ? await decryptData(appointments) : [];
+        try {
+            if (typeof markConfirmationAsNotified === 'function' && Array.isArray(AppState.appointments)) {
+                AppState.appointments.forEach(a => {
+                    if (a && (a.attendanceConfirmed || a.attendance_confirmed || a.status === 'confirmada')) {
+                        markConfirmationAsNotified(a.id, a.confirmedAt);
+                    }
+                });
+            }
+        } catch (seedErr) {}
         AppState.notes = notes ? await decryptData(notes) : [];
         AppState.treatmentPlans = plans ? await decryptData(plans) : [];
+        AppState.therapyRoadmaps = roadmaps ? await decryptData(roadmaps) : [];
+        if (typeof syncPortalAppointmentsToTherapist === 'function') {
+            await syncPortalAppointmentsToTherapist();
+        }
     } catch (e) {
         console.error('Error cargando:', e);
     }
@@ -550,7 +599,7 @@ const CloudSyncManager = {
                 this.lastSyncTime = Date.now();
                 this.updateStatusUI('synced');
                 if (showToastFeedback && typeof showToast === 'function') {
-                    showToast('☁️ Expediente sincronizado con la nube con éxito', 'success');
+                    showToast('Expediente sincronizado con la nube con éxito', 'success');
                 }
             } else {
                 const errData = await res.json().catch(() => ({}));
@@ -692,7 +741,7 @@ const CloudSyncManager = {
                 this.lastSyncTime = Date.now();
                 this.updateStatusUI('synced');
                 if (showToastFeedback && typeof showToast === 'function') {
-                    showToast('☁️ Datos descargados y sincronizados desde la nube', 'success');
+                    showToast('Datos descargados y sincronizados desde la nube', 'success');
                 }
                 return true;
             } else if (data.status === 'empty') {
@@ -742,7 +791,7 @@ const CloudSyncManager = {
         if (!token) {
             this.updateStatusUI('error', 'Sesión no autenticada en la nube');
             if (typeof showToast === 'function') {
-                showToast('🔑 Por favor cierra sesión y vuelve a iniciarla para activar el enlace seguro con la nube.', 'warning');
+                showToast('Por favor cierra sesión y vuelve a iniciarla para activar el enlace seguro con la nube.', 'warning');
             }
             return;
         }
@@ -760,6 +809,7 @@ async function saveDataLocallyOnly() {
         localStorage.setItem(userStorageKey('appointments'), await encryptData(AppState.appointments));
         localStorage.setItem(userStorageKey('notes'), await encryptData(AppState.notes));
         localStorage.setItem(userStorageKey('plans'), await encryptData(AppState.treatmentPlans));
+        localStorage.setItem(userStorageKey('therapyRoadmaps'), await encryptData(AppState.therapyRoadmaps || []));
         localStorage.setItem('psico_darkMode', AppState.darkMode);
         // Remediación de seguridad PHI: no persistir notas en texto plano en localStorage
         localStorage.removeItem('psico_portal_notes_backup');
@@ -821,6 +871,18 @@ function updateSidebarUser() {
     if (roleEl) roleEl.textContent = AppState.currentUser.specialty || 'Psicología Clínica';
     const regEl = document.getElementById('sidebarUserRegistry');
     if (regEl) regEl.textContent = AppState.currentUser.registryNumber || '';
+
+    // Actualizar foto de perfil del profesional si existe personalizada
+    const photo = AppState.currentUser.photo || localStorage.getItem('psico_therapist_photo');
+    const avatarEl = document.getElementById('sidebarUserAvatar');
+    if (avatarEl && photo) {
+        let img = avatarEl.querySelector('img');
+        if (!img) {
+            avatarEl.innerHTML = `<img src="${photo}" alt="Terapeuta" style="width:38px;height:38px;border-radius:50%;object-fit:cover;display:block;">`;
+        } else {
+            img.src = photo;
+        }
+    }
 }
 
 function initAuthEventListeners() {
@@ -903,7 +965,7 @@ async function handleRequestResetCode(e) {
             const data = await res.json();
 
             if (res.ok && data.status === 'ok') {
-                successEl.innerHTML = `<strong>✅ Solicitud procesada:</strong> Ingrese a continuación el código de verificación confidencial recibido para establecer su nueva contraseña.`;
+                successEl.innerHTML = `<strong>Solicitud procesada:</strong> Ingrese a continuación el código de verificación confidencial recibido para establecer su nueva contraseña.`;
                 successEl.style.display = 'block';
                 document.getElementById('forgotCode').value = '';
                 document.getElementById('forgotStep2').style.display = 'block';
@@ -911,7 +973,7 @@ async function handleRequestResetCode(e) {
                 return;
             } else {
                 errorEl.innerHTML = (data.error || 'No se pudo procesar la solicitud.') + 
-                    `<br><a href="javascript:void(0)" onclick="goToRegisterWithEmail('${email}')" style="color:#38bdf8;text-decoration:underline;display:inline-block;margin-top:8px;font-weight:600;">👉 Crear mi cuenta profesional con este correo</a>`;
+                    `<br><a href="javascript:void(0)" onclick="goToRegisterWithEmail('${email}')" style="color:#38bdf8;text-decoration:underline;display:inline-block;margin-top:8px;font-weight:600;">Crear mi cuenta profesional con este correo</a>`;
                 errorEl.classList.add('visible');
                 return;
             }
@@ -923,13 +985,13 @@ async function handleRequestResetCode(e) {
     // Fallback local si estamos en file:// o el servidor no responde
     const localUser = getUsers().find(u => u.email === email);
     if (localUser) {
-        successEl.innerHTML = `<strong>✅ Modo Respaldo Local:</strong> Solicitud generada. Ingrese el código de verificación para continuar.`;
+        successEl.innerHTML = `<strong>Modo Respaldo Local:</strong> Solicitud generada. Ingrese el código de verificación para continuar.`;
         successEl.style.display = 'block';
         document.getElementById('forgotCode').value = '';
         document.getElementById('forgotStep2').style.display = 'block';
         document.getElementById('btnRequestResetCode').style.display = 'none';
     } else {
-        errorEl.innerHTML = 'No se encontró ninguna cuenta registrada con este correo.<br><a href="javascript:void(0)" onclick="goToRegisterWithEmail(\'' + email + '\')" style="color:#38bdf8;text-decoration:underline;display:inline-block;margin-top:8px;font-weight:600;">👉 Crear mi cuenta profesional con este correo</a>';
+        errorEl.innerHTML = 'No se encontró ninguna cuenta registrada con este correo.<br><a href="javascript:void(0)" onclick="goToRegisterWithEmail(\'' + email + '\')" style="color:#38bdf8;text-decoration:underline;display:inline-block;margin-top:8px;font-weight:600;">Crear mi cuenta profesional con este correo</a>';
         errorEl.classList.add('visible');
     }
 }
@@ -995,7 +1057,7 @@ async function handleSubmitNewPassword(e) {
                     saveUsers(users);
                 }
 
-                showToast('✅ Contraseña restablecida exitosamente. Ya puedes iniciar sesión.', 'success');
+                showToast('Contraseña restablecida exitosamente. Ya puedes iniciar sesión.', 'success');
                 document.getElementById('forgotPasswordForm').style.display = 'none';
                 document.getElementById('loginForm').style.display = '';
                 document.getElementById('loginEmail').value = email;
@@ -1018,7 +1080,7 @@ async function handleSubmitNewPassword(e) {
         if (u) {
             u.passwordHash = newHash;
             saveUsers(users);
-            showToast('✅ Contraseña actualizada localmente.', 'success');
+            showToast('Contraseña actualizada localmente.', 'success');
             document.getElementById('forgotPasswordForm').style.display = 'none';
             document.getElementById('loginForm').style.display = '';
             document.getElementById('loginEmail').value = email;
@@ -1238,9 +1300,74 @@ function openTherapistProfileModal() {
     if (phoneInput) phoneInput.value = user.phone || localStorage.getItem('psico_therapist_phone') || '';
     if (instInput) instInput.value = user.institution || localStorage.getItem('psico_therapist_institution') || '';
 
+    // Cargar foto de perfil en preview si existe
+    const photo = user.photo || localStorage.getItem('psico_therapist_photo');
+    const photoPreview = document.getElementById('therapistProfilePhotoPreview');
+    if (photoPreview) {
+        photoPreview.src = photo || 'assets/avatar/serena-avatar.jpg?v=7.2.0';
+    }
+
     openModal('therapistProfileModal');
     setTimeout(() => initTherapistSignaturePad(), 80);
 }
+
+function handleTherapistPhotoSelected(event) {
+    const file = event.target.files && event.target.files[0];
+    if (!file) return;
+    if (!file.type.startsWith('image/')) {
+        showToast('Por favor seleccione un archivo de imagen válido', 'warning');
+        return;
+    }
+    if (file.size > 2 * 1024 * 1024) {
+        showToast('La imagen excede el límite de 2MB', 'warning');
+        return;
+    }
+    const reader = new FileReader();
+    reader.onload = function(e) {
+        const base64 = e.target.result;
+        const preview = document.getElementById('therapistProfilePhotoPreview');
+        if (preview) preview.src = base64;
+        localStorage.setItem('psico_therapist_photo', base64);
+        if (AppState.currentUser) {
+            AppState.currentUser.photo = base64;
+            const users = getUsers();
+            const idx = users.findIndex(u => u.id === AppState.currentUser.id);
+            if (idx !== -1) {
+                users[idx].photo = base64;
+                saveUsers(users);
+            }
+        }
+        updateSidebarUser();
+        showToast('Foto de perfil cargada con éxito', 'success');
+    };
+    reader.readAsDataURL(file);
+}
+window.handleTherapistPhotoSelected = handleTherapistPhotoSelected;
+
+function removeTherapistPhoto() {
+    localStorage.removeItem('psico_therapist_photo');
+    if (AppState.currentUser) {
+        delete AppState.currentUser.photo;
+        const users = getUsers();
+        const idx = users.findIndex(u => u.id === AppState.currentUser.id);
+        if (idx !== -1) {
+            delete users[idx].photo;
+            saveUsers(users);
+        }
+    }
+    const preview = document.getElementById('therapistProfilePhotoPreview');
+    if (preview) preview.src = 'assets/avatar/serena-avatar.jpg?v=7.2.0';
+    const input = document.getElementById('therapistProfilePhotoInput');
+    if (input) input.value = '';
+    const avatarEl = document.getElementById('sidebarUserAvatar');
+    if (avatarEl) {
+        let img = avatarEl.querySelector('img');
+        if (img) img.src = 'assets/avatar/serena-avatar.jpg?v=7.2.0';
+    }
+    updateSidebarUser();
+    showToast('Foto de perfil restablecida', 'info');
+}
+window.removeTherapistPhoto = removeTherapistPhoto;
 
 let therapistSignatureCtx = null;
 let isTherapistSignatureDrawing = false;
@@ -1360,6 +1487,8 @@ function handleSaveTherapistProfile(e) {
 
         const users = getUsers();
         const idx = users.findIndex(u => u.id === AppState.currentUser.id);
+        const savedPhoto = localStorage.getItem('psico_therapist_photo');
+        if (savedPhoto) AppState.currentUser.photo = savedPhoto;
         if (idx !== -1) {
             users[idx].name = name;
             users[idx].specialty = specialty;
@@ -1367,9 +1496,11 @@ function handleSaveTherapistProfile(e) {
             if (email) users[idx].email = email;
             users[idx].phone = phone;
             users[idx].institution = institution;
+            if (savedPhoto) users[idx].photo = savedPhoto;
             saveUsers(users);
         }
     } else {
+        const savedPhoto = localStorage.getItem('psico_therapist_photo');
         AppState.currentUser = {
             id: 'local_therapist',
             name,
@@ -1377,13 +1508,661 @@ function handleSaveTherapistProfile(e) {
             registryNumber: registry,
             email,
             phone,
-            institution
+            institution,
+            photo: savedPhoto || undefined
         };
     }
 
     updateSidebarUser();
     closeModal('therapistProfileModal');
     showToast('Perfil profesional, membrete y firma guardados con éxito', 'success');
+}
+
+// ============================================
+// CONFIGURACIÓN DE FORMAS DE PAGO DEL PORTAL DE PACIENTES
+// ============================================
+
+function getDefaultPortalPaymentMethods() {
+    return [
+        {
+            id: 'pago_movil',
+            name: 'Pago Móvil Interbancario',
+            icon: '📱',
+            enabled: true,
+            bank: 'Banesco (0134) / Mercantil (0105)',
+            idNumber: 'V-15890123',
+            phone: '0414-2345678',
+            instructions: 'Transferencias interbancarias inmediatas'
+        },
+        {
+            id: 'zelle',
+            name: 'Zelle (USD)',
+            icon: '💵',
+            enabled: true,
+            email: 'atalantillo@gmail.com',
+            holder: 'Lic. Jose Correa',
+            instructions: 'Indicar únicamente el nombre del paciente en la nota'
+        },
+        {
+            id: 'transferencia',
+            name: 'Transferencia Bancaria Nacional',
+            icon: '🏦',
+            enabled: true,
+            bank: 'Banesco Banco Universal',
+            accountNumber: '0134-0987-65-0123456789',
+            idNumber: 'V-15890123',
+            holder: 'Consulta Psicológica',
+            instructions: 'Transferencia bancaria nacional'
+        },
+        {
+            id: 'binance',
+            name: 'Binance Pay (USDT)',
+            icon: '🟡',
+            enabled: true,
+            payId: '892341052',
+            network: 'USDT (Red TRC20 / BEP20)',
+            instructions: 'Transferencias directas sin comisiones'
+        },
+        {
+            id: 'efectivo',
+            name: 'Efectivo en Consulta',
+            icon: '💶',
+            enabled: true,
+            instructions: 'Pago directo al inicio de tu sesión presencial'
+        }
+    ];
+}
+
+async function openPortalPaymentMethodsModal() {
+    let methods = null;
+
+    // 1. Intentar cargar desde el backend si hay sesión
+    if (typeof window !== 'undefined' && window.location && window.location.protocol !== 'file:') {
+        try {
+            const token = (typeof CloudSyncManager !== 'undefined') 
+                ? await CloudSyncManager.ensureSessionToken(false) 
+                : localStorage.getItem('psico_session_token');
+            if (token) {
+                const res = await fetch('/api/v1/therapist/payment-methods', {
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+                if (res.ok) {
+                    const data = await res.json();
+                    if (Array.isArray(data.paymentMethods) && data.paymentMethods.length > 0) {
+                        methods = data.paymentMethods;
+                    }
+                }
+            }
+        } catch (e) {
+            console.warn('[PaymentMethods] Fallo obteniendo métodos del servidor, recurriendo a localStorage:', e);
+        }
+    }
+
+    // 2. Si no hay métodos del backend, buscar en localStorage
+    if (!methods) {
+        try {
+            const local = JSON.parse(localStorage.getItem('psico_therapist_payment_methods') || 'null');
+            if (Array.isArray(local) && local.length > 0) {
+                methods = local;
+            }
+        } catch (e) {}
+    }
+
+    // 3. Fallback a los métodos predeterminados
+    if (!methods || methods.length === 0) {
+        methods = getDefaultPortalPaymentMethods();
+    }
+
+    AppState._editingPaymentMethods = JSON.parse(JSON.stringify(methods));
+    renderPaymentMethodsEditor(AppState._editingPaymentMethods);
+    openModal('portalPaymentMethodsModal');
+}
+
+function renderPaymentMethodsEditor(methods) {
+    const list = document.getElementById('portalPaymentMethodsList');
+    if (!list) return;
+
+    if (!Array.isArray(methods) || methods.length === 0) {
+        list.innerHTML = `
+            <div style="text-align: center; padding: 24px; color: var(--text-secondary); background: var(--bg-secondary); border-radius: 8px;">
+                <p>No hay métodos de pago configurados.</p>
+                <button type="button" class="btn-primary btn-sm" onclick="resetDefaultPaymentMethods()">Cargar Métodos Predeterminados</button>
+            </div>
+        `;
+        return;
+    }
+
+    list.innerHTML = methods.map((m, idx) => {
+        const isEnabled = m.enabled !== false && m.active !== false;
+        return `
+            <div class="payment-method-editor-card" data-index="${idx}" style="background: var(--bg-card); border: 1.5px solid ${isEnabled ? 'var(--border-color)' : 'rgba(239, 68, 68, 0.3)'}; border-radius: 12px; padding: 16px; opacity: ${isEnabled ? '1' : '0.8'}; transition: all 0.2s;">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; border-bottom: 1px solid var(--border-color); padding-bottom: 10px; flex-wrap: wrap; gap: 8px;">
+                    <div style="display: flex; align-items: center; gap: 10px; flex: 1; min-width: 220px;">
+                        <input type="text" value="${escapeHtml(m.icon || '💳')}" onchange="updatePaymentMethodDraftField(${idx}, 'icon', this.value)" style="width: 44px; text-align: center; font-size: 18px; padding: 6px; border-radius: 8px; border: 1px solid var(--border-color); background: var(--bg-primary); color: var(--text-primary);" title="Emoji o Ícono">
+                        <input type="text" value="${escapeHtml(m.name || '')}" placeholder="Nombre del método (ej. Pago Móvil)" onchange="updatePaymentMethodDraftField(${idx}, 'name', this.value)" style="flex: 1; font-weight: 700; font-size: 14px; padding: 6px 10px; border-radius: 8px; border: 1px solid var(--border-color); background: var(--bg-primary); color: var(--text-primary);">
+                    </div>
+                    <div style="display: flex; align-items: center; gap: 14px;">
+                        <label style="display: flex; align-items: center; gap: 6px; font-size: 13px; font-weight: 600; cursor: pointer; user-select: none; color: ${isEnabled ? 'var(--accent-success, #10b981)' : 'var(--text-tertiary)'};">
+                            <input type="checkbox" ${isEnabled ? 'checked' : ''} onchange="togglePaymentMethodEnabled(${idx}, this.checked)">
+                            <span>${isEnabled ? 'Visible en portal' : 'Desactivado'}</span>
+                        </label>
+                        <button type="button" class="btn-icon" onclick="removePaymentMethodRow(${idx})" title="Eliminar este método" style="color: #ef4444;">
+                            <i class="fas fa-trash-alt"></i>
+                        </button>
+                    </div>
+                </div>
+
+                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); gap: 10px; font-size: 12px;">
+                    <div>
+                        <label style="display: block; font-weight: 600; margin-bottom: 3px; color: var(--text-secondary);">Banco o Plataforma</label>
+                        <input type="text" value="${escapeHtml(m.bank || '')}" placeholder="Ej. Banesco / Mercantil" onchange="updatePaymentMethodDraftField(${idx}, 'bank', this.value)" style="width: 100%; padding: 6px 8px; border-radius: 6px; border: 1px solid var(--border-color); background: var(--bg-primary); color: var(--text-primary);">
+                    </div>
+                    <div>
+                        <label style="display: block; font-weight: 600; margin-bottom: 3px; color: var(--text-secondary);">C.I. / RIF / ID Fiscal</label>
+                        <input type="text" value="${escapeHtml(m.idNumber || '')}" placeholder="Ej. V-12345678 / J-123456789" onchange="updatePaymentMethodDraftField(${idx}, 'idNumber', this.value)" style="width: 100%; padding: 6px 8px; border-radius: 6px; border: 1px solid var(--border-color); background: var(--bg-primary); color: var(--text-primary);">
+                    </div>
+                    <div>
+                        <label style="display: block; font-weight: 600; margin-bottom: 3px; color: var(--text-secondary);">Teléfono / WhatsApp</label>
+                        <input type="text" value="${escapeHtml(m.phone || '')}" placeholder="Ej. 0414-1234567" onchange="updatePaymentMethodDraftField(${idx}, 'phone', this.value)" style="width: 100%; padding: 6px 8px; border-radius: 6px; border: 1px solid var(--border-color); background: var(--bg-primary); color: var(--text-primary);">
+                    </div>
+                    <div>
+                        <label style="display: block; font-weight: 600; margin-bottom: 3px; color: var(--text-secondary);">Correo Electrónico (Zelle/PayPal)</label>
+                        <input type="email" value="${escapeHtml(m.email || '')}" placeholder="Ej. correo@pago.com" onchange="updatePaymentMethodDraftField(${idx}, 'email', this.value)" style="width: 100%; padding: 6px 8px; border-radius: 6px; border: 1px solid var(--border-color); background: var(--bg-primary); color: var(--text-primary);">
+                    </div>
+                    <div>
+                        <label style="display: block; font-weight: 600; margin-bottom: 3px; color: var(--text-secondary);">Titular de la Cuenta</label>
+                        <input type="text" value="${escapeHtml(m.holder || '')}" placeholder="Ej. Lic. Nombre Terapeuta" onchange="updatePaymentMethodDraftField(${idx}, 'holder', this.value)" style="width: 100%; padding: 6px 8px; border-radius: 6px; border: 1px solid var(--border-color); background: var(--bg-primary); color: var(--text-primary);">
+                    </div>
+                    <div>
+                        <label style="display: block; font-weight: 600; margin-bottom: 3px; color: var(--text-secondary);">N.º de Cuenta Bancaria (20 dígitos)</label>
+                        <input type="text" value="${escapeHtml(m.accountNumber || '')}" placeholder="0134-..." onchange="updatePaymentMethodDraftField(${idx}, 'accountNumber', this.value)" style="width: 100%; padding: 6px 8px; border-radius: 6px; border: 1px solid var(--border-color); font-family: monospace; background: var(--bg-primary); color: var(--text-primary);">
+                    </div>
+                    <div>
+                        <label style="display: block; font-weight: 600; margin-bottom: 3px; color: var(--text-secondary);">Binance Pay ID / ID Cripto</label>
+                        <input type="text" value="${escapeHtml(m.payId || '')}" placeholder="Ej. 892341052" onchange="updatePaymentMethodDraftField(${idx}, 'payId', this.value)" style="width: 100%; padding: 6px 8px; border-radius: 6px; border: 1px solid var(--border-color); font-family: monospace; background: var(--bg-primary); color: var(--text-primary);">
+                    </div>
+                    <div>
+                        <label style="display: block; font-weight: 600; margin-bottom: 3px; color: var(--text-secondary);">Red / Moneda</label>
+                        <input type="text" value="${escapeHtml(m.network || '')}" placeholder="Ej. USDT (TRC20 / BEP20)" onchange="updatePaymentMethodDraftField(${idx}, 'network', this.value)" style="width: 100%; padding: 6px 8px; border-radius: 6px; border: 1px solid var(--border-color); background: var(--bg-primary); color: var(--text-primary);">
+                    </div>
+                    <div style="grid-column: 1 / -1;">
+                        <label style="display: block; font-weight: 600; margin-bottom: 3px; color: var(--text-secondary);">Instrucciones Adicionales para el Paciente</label>
+                        <input type="text" value="${escapeHtml(m.instructions || '')}" placeholder="Ej. Indicar únicamente el nombre del paciente en el concepto" onchange="updatePaymentMethodDraftField(${idx}, 'instructions', this.value)" style="width: 100%; padding: 6px 8px; border-radius: 6px; border: 1px solid var(--border-color); background: var(--bg-primary); color: var(--text-primary);">
+                    </div>
+                </div>
+            </div>
+        `;
+    }).join('');
+}
+
+function updatePaymentMethodDraftField(index, field, value) {
+    if (!AppState._editingPaymentMethods || !AppState._editingPaymentMethods[index]) return;
+    AppState._editingPaymentMethods[index][field] = String(value || '').trim();
+}
+
+function togglePaymentMethodEnabled(index, isChecked) {
+    if (!AppState._editingPaymentMethods || !AppState._editingPaymentMethods[index]) return;
+    AppState._editingPaymentMethods[index].enabled = Boolean(isChecked);
+    renderPaymentMethodsEditor(AppState._editingPaymentMethods);
+}
+
+function addNewPaymentMethodRow() {
+    if (!AppState._editingPaymentMethods) AppState._editingPaymentMethods = [];
+    AppState._editingPaymentMethods.push({
+        id: 'pm_' + Date.now().toString(36),
+        name: 'Nuevo Método de Pago',
+        icon: '💳',
+        enabled: true,
+        bank: '',
+        idNumber: '',
+        phone: '',
+        email: '',
+        holder: '',
+        accountNumber: '',
+        payId: '',
+        network: '',
+        instructions: ''
+    });
+    renderPaymentMethodsEditor(AppState._editingPaymentMethods);
+}
+
+function removePaymentMethodRow(index) {
+    if (!AppState._editingPaymentMethods || !AppState._editingPaymentMethods[index]) return;
+    AppState._editingPaymentMethods.splice(index, 1);
+    renderPaymentMethodsEditor(AppState._editingPaymentMethods);
+}
+
+function resetDefaultPaymentMethods() {
+    AppState._editingPaymentMethods = getDefaultPortalPaymentMethods();
+    renderPaymentMethodsEditor(AppState._editingPaymentMethods);
+    showToast('Métodos restablecidos a los valores predeterminados. Recuerda presionar Guardar para aplicar.', 'info');
+}
+
+async function handleSavePortalPaymentMethods(e) {
+    if (e && typeof e.preventDefault === 'function') e.preventDefault();
+
+    const methods = AppState._editingPaymentMethods || [];
+    if (!Array.isArray(methods) || methods.length === 0) {
+        showToast('Debes mantener al menos un método configurado', 'warning');
+        return;
+    }
+
+    // Persistir localmente en localStorage
+    try {
+        localStorage.setItem('psico_therapist_payment_methods', JSON.stringify(methods));
+        localStorage.setItem('psico_payment_methods_updated', Date.now().toString());
+
+        // Actualizar datos de portales de pacientes en caché local
+        for (let i = 0; i < localStorage.length; i++) {
+            const k = localStorage.key(i);
+            if (k && k.startsWith('psico_portal_data_')) {
+                try {
+                    const pData = JSON.parse(localStorage.getItem(k) || '{}');
+                    pData.paymentMethods = methods;
+                    localStorage.setItem(k, JSON.stringify(pData));
+                } catch (err) {}
+            }
+        }
+    } catch (err) {
+        console.error('Error guardando formas de pago en localStorage:', err);
+    }
+
+    // Persistir en el servidor si no es protocolo file:
+    let serverOk = false;
+    if (typeof window !== 'undefined' && window.location && window.location.protocol !== 'file:') {
+        try {
+            const token = (typeof CloudSyncManager !== 'undefined') 
+                ? await CloudSyncManager.ensureSessionToken(false) 
+                : localStorage.getItem('psico_session_token');
+            if (token) {
+                const res = await fetch('/api/v1/therapist/payment-methods', {
+                    method: 'PUT',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${token}`
+                    },
+                    body: JSON.stringify({ paymentMethods: methods })
+                });
+                if (res.ok) {
+                    serverOk = true;
+                }
+            }
+        } catch (netErr) {
+            console.warn('[PaymentMethods] Error sincronizando con backend:', netErr);
+        }
+    }
+
+    // Disparar evento para pestañas/ventanas abiertas
+    if (typeof window !== 'undefined') {
+        window.dispatchEvent(new CustomEvent('psico_payment_methods_updated', { detail: { methods } }));
+    }
+
+    closeModal('portalPaymentMethodsModal');
+    showToast(`Formas de pago del portal guardadas exitosamente ${serverOk ? '(sincronizado con servidor)' : ''}`, 'success');
+}
+
+// ============================================
+// GESTIÓN Y VALIDACIÓN DE COMPROBANTES DE PAGO DEL PORTAL
+// ============================================
+
+function syncPortalPaymentsToTherapist(notify = false) {
+    if (notify) {
+        try {
+            const raw = localStorage.getItem('psico_portal_payment_reported');
+            if (raw) {
+                const info = JSON.parse(raw);
+                if (info && info.report) {
+                    showToast(`Nuevo comprobante de pago reportado por ${info.patientName || 'un paciente'} (${info.report.currency || 'USD'} ${info.report.amount})`, 'info');
+                }
+            }
+        } catch (e) {}
+    }
+
+    // Si el tab del portal está visible para el paciente seleccionado, refrescarlo
+    if (AppState.selectedPatientId && typeof refreshPortalTabContent === 'function') {
+        const portalTab = document.getElementById('tab-portal');
+        if (portalTab && portalTab.classList.contains('active')) {
+            refreshPortalTabContent(AppState.selectedPatientId, false);
+        }
+    }
+
+    // Si la vista actual es Finanzas, actualizarla de inmediato
+    if (AppState.currentView === 'finance' && typeof renderFinanceView === 'function') {
+        renderFinanceView();
+    }
+}
+
+function viewPaymentReceiptModal(reportId, patientId) {
+    if (!reportId) return;
+
+    let report = null;
+    let patient = null;
+
+    if (patientId) {
+        patient = (AppState.patients || []).find(p => String(p.id) === String(patientId));
+        const res = getPortalResults(patientId);
+        if (res && Array.isArray(res.paymentReports)) {
+            report = res.paymentReports.find(r => String(r.id) === String(reportId));
+        }
+    }
+
+    if (!report) {
+        const all = (typeof getAllPatientPaymentReports === 'function') ? getAllPatientPaymentReports() : [];
+        report = all.find(r => String(r.id) === String(reportId));
+        if (report && !patient && (report.patient_id || report.patientId)) {
+            const pId = report.patient_id || report.patientId;
+            patient = (AppState.patients || []).find(p => String(p.id) === String(pId));
+        }
+    }
+
+    if (!report) {
+        showToast('Comprobante de pago no encontrado', 'warning');
+        return;
+    }
+
+    const pName = patient ? patient.name : (report.patientName || report.patient_name || 'Paciente');
+    const patId = patient ? patient.id : (report.patient_id || report.patientId || '');
+    const modalTitle = document.getElementById('receiptModalTitle');
+    const modalSubtitle = document.getElementById('receiptModalSubtitle');
+    const metaDetails = document.getElementById('receiptMetaDetails');
+    const imgContainer = document.getElementById('receiptImageContainer');
+    const downloadBtn = document.getElementById('receiptDownloadBtn');
+    const mainActions = document.getElementById('receiptModalMainActions');
+
+    if (modalTitle) modalTitle.textContent = `Comprobante de Pago — ${pName}`;
+    if (modalSubtitle) modalSubtitle.textContent = `Referencia: ${report.reference || 'S/N'} • ${report.currency || 'USD'} ${Number(report.amount || 0).toFixed(2)}`;
+
+    const status = (report.status || 'pendiente').toLowerCase();
+    const isPending = status === 'pendiente';
+    const isApproved = status === 'aprobado' || status === 'verificado';
+    const statusLabel = isApproved ? 'Aprobado' : (isPending ? 'Pendiente de Validación' : 'Rechazado');
+    const statusColor = isApproved ? '#059669' : (isPending ? '#d97706' : '#dc2626');
+
+    if (metaDetails) {
+        metaDetails.innerHTML = `
+            <div><strong>Paciente:</strong> <span style="color:var(--text-primary);">${escapeHtml(pName)}</span></div>
+            <div><strong>Monto:</strong> <span style="font-weight:700; color:var(--text-primary);">${report.currency || 'USD'} ${Number(report.amount || 0).toFixed(2)}</span></div>
+            <div><strong>Método:</strong> ${escapeHtml(report.payment_method || report.paymentMethod || 'Pago')}</div>
+            <div><strong>Referencia:</strong> <span style="font-family:monospace; font-weight:700;">${escapeHtml(report.reference || '—')}</span></div>
+            <div><strong>Fecha del Pago:</strong> ${formatDate(report.payment_date || report.paymentDate)}</div>
+            <div><strong>Estatus:</strong> <span style="font-weight:700; color:${statusColor};">${statusLabel}</span></div>
+            ${report.concept ? `<div style="grid-column: 1 / -1;"><strong>Concepto:</strong> ${escapeHtml(report.concept)}</div>` : ''}
+        `;
+    }
+
+    const rawData = report.receipt_data || report.receiptData || '';
+    if (imgContainer) {
+        if (!rawData) {
+            imgContainer.innerHTML = `
+                <div style="padding: 40px; text-align: center; color: var(--text-secondary);">
+                    <i class="fas fa-receipt" style="font-size: 40px; opacity: 0.4; margin-bottom: 12px; display: block;"></i>
+                    <p style="margin: 0; font-size: 13.5px;">El paciente registró este pago con número de referencia sin adjuntar imagen o archivo.</p>
+                </div>
+            `;
+            if (downloadBtn) downloadBtn.style.display = 'none';
+        } else if (rawData.startsWith('data:image/') || rawData.startsWith('http') || rawData.includes('.png') || rawData.includes('.jpg') || rawData.includes('.jpeg')) {
+            imgContainer.innerHTML = `
+                <div style="text-align: center; width: 100%;">
+                    <img src="${rawData}" alt="Comprobante de pago" style="max-width: 100%; max-height: 55vh; object-fit: contain; border-radius: 8px; display: inline-block; box-shadow: 0 4px 14px rgba(0,0,0,0.1);" />
+                </div>
+            `;
+            if (downloadBtn) {
+                downloadBtn.style.display = 'inline-flex';
+                downloadBtn.onclick = () => downloadReceiptData(rawData, `comprobante_${report.reference || report.id}.png`);
+            }
+        } else if (rawData.startsWith('data:application/pdf')) {
+            imgContainer.innerHTML = `
+                <div style="width: 100%; height: 55vh;">
+                    <iframe src="${rawData}" style="width: 100%; height: 100%; border: none; border-radius: 8px;"></iframe>
+                </div>
+            `;
+            if (downloadBtn) {
+                downloadBtn.style.display = 'inline-flex';
+                downloadBtn.onclick = () => downloadReceiptData(rawData, `comprobante_${report.reference || report.id}.pdf`);
+            }
+        } else {
+            imgContainer.innerHTML = `
+                <div style="padding: 30px; text-align: center;">
+                    <p>Archivo adjunto listo para descargar.</p>
+                </div>
+            `;
+            if (downloadBtn) {
+                downloadBtn.style.display = 'inline-flex';
+                downloadBtn.onclick = () => downloadReceiptData(rawData, `comprobante_${report.reference || report.id}`);
+            }
+        }
+    }
+
+    if (mainActions) {
+        mainActions.innerHTML = `
+            ${isPending ? `
+                <button type="button" class="btn-primary" style="background:#059669; border-color:#059669;" onclick="approvePatientPayment('${report.id}', '${patId}')">
+                    <i class="fas fa-check"></i> Aprobar y Registrar Pago
+                </button>
+                <button type="button" class="btn-secondary" style="color:#ef4444; border-color:rgba(239, 68, 68, 0.3);" onclick="rejectPatientPayment('${report.id}', '${patId}')">
+                    <i class="fas fa-times"></i> Rechazar
+                </button>
+            ` : ''}
+            <button type="button" class="btn-secondary" onclick="closeModal('paymentReceiptModal')">Cerrar</button>
+        `;
+    }
+
+    openModal('paymentReceiptModal');
+}
+
+function downloadReceiptData(dataUrl, filename) {
+    try {
+        const link = document.createElement('a');
+        link.href = dataUrl;
+        link.download = filename || 'comprobante_pago.png';
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        showToast('Descargando comprobante...', 'info');
+    } catch (e) {
+        window.open(dataUrl, '_blank');
+    }
+}
+
+async function approvePatientPayment(reportId, patientId) {
+    if (!reportId) return;
+
+    let targetReport = null;
+
+    // 1. Actualizar en localStorage del paciente
+    if (patientId) {
+        const keyData = `psico_portal_data_${patientId}`;
+        const keyPay = `psico_portal_payments_${patientId}`;
+        try {
+            const raw = localStorage.getItem(keyData);
+            if (raw) {
+                const pData = JSON.parse(raw);
+                if (Array.isArray(pData.paymentReports)) {
+                    const r = pData.paymentReports.find(x => String(x.id) === String(reportId));
+                    if (r) {
+                        r.status = 'aprobado';
+                        r.updated_at = new Date().toISOString();
+                        targetReport = r;
+                    }
+                }
+                localStorage.setItem(keyData, JSON.stringify(pData));
+            }
+            const rawPay = localStorage.getItem(keyPay);
+            if (rawPay) {
+                const list = JSON.parse(rawPay);
+                if (Array.isArray(list)) {
+                    const r = list.find(x => String(x.id) === String(reportId));
+                    if (r) {
+                        r.status = 'aprobado';
+                        r.updated_at = new Date().toISOString();
+                        if (!targetReport) targetReport = r;
+                    }
+                }
+                localStorage.setItem(keyPay, JSON.stringify(list));
+            }
+        } catch (e) {}
+    }
+
+    // 2. Actualizar en el puente global
+    try {
+        const bridge = JSON.parse(localStorage.getItem('psico_therapist_payment_reports_bridge') || '[]');
+        if (Array.isArray(bridge)) {
+            const br = bridge.find(x => String(x.id) === String(reportId));
+            if (br) {
+                br.status = 'aprobado';
+                br.updated_at = new Date().toISOString();
+                if (!targetReport) targetReport = br;
+                if (!patientId && (br.patient_id || br.patientId)) patientId = br.patient_id || br.patientId;
+            }
+            localStorage.setItem('psico_therapist_payment_reports_bridge', JSON.stringify(bridge));
+        }
+    } catch (e) {}
+
+    // 3. Notificar al backend si no es file://
+    if (typeof window !== 'undefined' && window.location && window.location.protocol !== 'file:') {
+        try {
+            const token = (typeof CloudSyncManager !== 'undefined') ? await CloudSyncManager.ensureSessionToken(false) : localStorage.getItem('psico_session_token');
+            if (token) {
+                fetch(`/api/v1/portal/payments/${encodeURIComponent(reportId)}/verify`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${token}`
+                    },
+                    body: JSON.stringify({ status: 'aprobado', notes: 'Validado por el terapeuta' })
+                }).catch(() => {});
+            }
+        } catch (netErr) {}
+    }
+
+    // 4. Registrar automáticamente como ingreso en Finanzas si existe el módulo
+    if (targetReport && typeof saveFinanceTransactions === 'function' && typeof getFinanceTransactions === 'function') {
+        try {
+            const txs = getFinanceTransactions() || [];
+            if (!txs.some(t => t.paymentReportId === reportId)) {
+                const patient = (AppState.patients || []).find(p => String(p.id) === String(patientId));
+                const rawAmount = Number(targetReport.amount) || 0;
+                const rawCur = (targetReport.currency || 'USD').toUpperCase();
+                const isVes = rawCur === 'VES' || rawCur === 'BS' || rawCur === 'BS.';
+                const payCurrency = isVes ? 'VES' : rawCur;
+                let bcvRateUsed = null;
+                if (isVes) {
+                    const bcvRate = (typeof FinanceModule !== 'undefined' && FinanceModule.getBcvExchangeRates)
+                        ? Number(FinanceModule.getBcvExchangeRates()?.usdRate || 0)
+                        : (Number(localStorage.getItem('psico_bcv_rate')) || 0);
+                    if (bcvRate > 0) bcvRateUsed = bcvRate;
+                }
+                txs.push({
+                    id: 'tx_pay_' + Date.now().toString(36),
+                    type: 'income',
+                    concept: `Abono Portal: ${targetReport.concept || 'Sesión'} (Ref: ${targetReport.reference || 'S/R'}) - ${patient ? patient.name : 'Paciente'}`,
+                    amount: rawAmount,
+                    originalAmount: rawAmount,
+                    currency: payCurrency,
+                    bcvRate: bcvRateUsed || undefined,
+                    category: 'Consulta Clínica',
+                    patientId: patientId,
+                    paymentReportId: reportId,
+                    date: targetReport.payment_date || targetReport.paymentDate || new Date().toISOString().split('T')[0],
+                    createdAt: new Date().toISOString()
+                });
+                saveFinanceTransactions(txs);
+            }
+        } catch (e) {}
+    }
+
+    // 5. Saldar deuda pendiente de sesiones si coincide
+    if (patientId && typeof settlePatientDebt === 'function') {
+        try {
+            settlePatientDebt(patientId);
+        } catch (e) {}
+    }
+
+    closeModal('paymentReceiptModal');
+    if (patientId && typeof refreshPortalTabContent === 'function') {
+        refreshPortalTabContent(patientId);
+    }
+    if (typeof renderFinanceView === 'function') {
+        renderFinanceView();
+    }
+
+    try {
+        localStorage.setItem('psico_portal_payment_last_update', Date.now().toString());
+        window.dispatchEvent(new CustomEvent('psico_payment_updated', { detail: { reportId, status: 'aprobado' } }));
+    } catch (e) {}
+
+    showToast('Comprobante de pago aprobado y registrado en Finanzas', 'success');
+}
+
+async function rejectPatientPayment(reportId, patientId) {
+    if (!reportId) return;
+
+    if (!confirm('¿Deseas marcar este comprobante de pago como rechazado?')) return;
+
+    if (patientId) {
+        const keyData = `psico_portal_data_${patientId}`;
+        const keyPay = `psico_portal_payments_${patientId}`;
+        try {
+            const raw = localStorage.getItem(keyData);
+            if (raw) {
+                const pData = JSON.parse(raw);
+                if (Array.isArray(pData.paymentReports)) {
+                    const r = pData.paymentReports.find(x => String(x.id) === String(reportId));
+                    if (r) r.status = 'rechazado';
+                }
+                localStorage.setItem(keyData, JSON.stringify(pData));
+            }
+            const rawPay = localStorage.getItem(keyPay);
+            if (rawPay) {
+                const list = JSON.parse(rawPay);
+                if (Array.isArray(list)) {
+                    const r = list.find(x => String(x.id) === String(reportId));
+                    if (r) r.status = 'rechazado';
+                }
+                localStorage.setItem(keyPay, JSON.stringify(list));
+            }
+        } catch (e) {}
+    }
+
+    try {
+        const bridge = JSON.parse(localStorage.getItem('psico_therapist_payment_reports_bridge') || '[]');
+        if (Array.isArray(bridge)) {
+            const br = bridge.find(x => String(x.id) === String(reportId));
+            if (br) br.status = 'rechazado';
+            localStorage.setItem('psico_therapist_payment_reports_bridge', JSON.stringify(bridge));
+        }
+    } catch (e) {}
+
+    if (typeof window !== 'undefined' && window.location && window.location.protocol !== 'file:') {
+        try {
+            const token = (typeof CloudSyncManager !== 'undefined') ? await CloudSyncManager.ensureSessionToken(false) : localStorage.getItem('psico_session_token');
+            if (token) {
+                fetch(`/api/v1/portal/payments/${encodeURIComponent(reportId)}/verify`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${token}`
+                    },
+                    body: JSON.stringify({ status: 'rechazado', notes: 'Rechazado por el terapeuta' })
+                }).catch(() => {});
+            }
+        } catch (netErr) {}
+    }
+
+    closeModal('paymentReceiptModal');
+    if (patientId && typeof refreshPortalTabContent === 'function') {
+        refreshPortalTabContent(patientId);
+    }
+    if (typeof renderFinanceView === 'function') {
+        renderFinanceView();
+    }
+
+    try {
+        localStorage.setItem('psico_portal_payment_last_update', Date.now().toString());
+        window.dispatchEvent(new CustomEvent('psico_payment_updated', { detail: { reportId, status: 'rechazado' } }));
+    } catch (e) {}
+
+    showToast('Comprobante marcado como rechazado', 'info');
 }
 
 // ============================================
@@ -1498,9 +2277,16 @@ function navigateTo(view) {
         } catch {}
     }
 
-    if (view === 'dashboard') updateDashboard();
+    if (view === 'dashboard') {
+        if (typeof syncPortalAppointmentsToTherapist === 'function') syncPortalAppointmentsToTherapist();
+        updateDashboard();
+    }
     if (view === 'patients') renderPatients();
-    if (view === 'appointments') { renderCalendar(); renderAppointments(); }
+    if (view === 'appointments') {
+        if (typeof syncPortalAppointmentsToTherapist === 'function') syncPortalAppointmentsToTherapist();
+        renderCalendar();
+        renderAppointments();
+    }
     if (view === 'notes') renderNotes();
     if (view === 'scales' && typeof renderScalesView === 'function') renderScalesView();
     if (view === 'finance') {
@@ -1591,7 +2377,7 @@ function renderWelcome(today) {
     const userName = AppState.currentUser?.name || 'Terapeuta';
     const firstName = userName.split(' ')[0];
     document.getElementById('welcomeTitle').textContent = firstName;
-    const todayApps = AppState.appointments.filter(a => isSameDay(new Date(a.date), today) && a.status !== 'cancelada');
+    const todayApps = AppState.appointments.filter(a => isSameDay(parseLocalDate(a.date), today) && a.status !== 'cancelada');
     const priorityCount = calculatePriorityPatients().length;
     let subtitle = 'Tu consulta te espera';
     if (todayApps.length > 0) {
@@ -1606,7 +2392,7 @@ function renderWelcome(today) {
 }
 
 function renderDaySummary(today) {
-    const todayApps = AppState.appointments.filter(a => isSameDay(new Date(a.date), today) && a.status !== 'cancelada');
+    const todayApps = AppState.appointments.filter(a => isSameDay(parseLocalDate(a.date), today) && a.status !== 'cancelada');
     document.getElementById('todaySessions').textContent = todayApps.length;
     document.getElementById('todaySessionsLabel').textContent = todayApps.length === 1 ? 'Programada' : 'Programadas';
     const priority = calculatePriorityPatients();
@@ -1624,8 +2410,8 @@ function renderDaySummary(today) {
     const currentMonth = today.getMonth();
     const currentYear = today.getFullYear();
     const monthCompletedApps = AppState.appointments.filter(a => {
-        const d = new Date(a.date);
-        return d.getMonth() === currentMonth && d.getFullYear() === currentYear && a.status === 'completada';
+        const d = parseLocalDate(a.date);
+        return d && d.getMonth() === currentMonth && d.getFullYear() === currentYear && a.status === 'completada';
     }).length;
 
     const weekGoalsEl = document.getElementById('weekGoals');
@@ -1687,7 +2473,7 @@ function handleMonthlyGoalsSubmit(e) {
     localStorage.setItem('psico_monthly_qualitative_goal', notes);
     closeModal('monthlyGoalsModal');
     updateDashboard();
-    showToast('🎯 Objetivos del mes actualizados con éxito', 'success');
+    showToast('Objetivos del mes actualizados con éxito', 'success');
 }
 window.handleMonthlyGoalsSubmit = handleMonthlyGoalsSubmit;
 
@@ -1714,7 +2500,7 @@ function renderClinicalAlerts() {
     const alerts = generateClinicalAlerts();
     const container = document.getElementById('clinicalAlerts');
     if (alerts.length === 0) {
-        container.innerHTML = `<div class="empty-state"><div class="empty-icon">✅</div><p>Sin alertas pendientes. ¡Buen trabajo!</p></div>`;
+        container.innerHTML = `<div class="empty-state"><div class="empty-icon"><i class="fas fa-check-circle"></i></div><p>Sin alertas pendientes. ¡Buen trabajo!</p></div>`;
         return;
     }
     container.innerHTML = alerts.map(a => `<div class="clinical-alert alert-${a.level}" onclick="viewPatient('${a.patientId}')"><div class="alert-indicator"></div><div class="alert-icon">${a.icon}</div><div class="alert-content"><div class="alert-title">${a.title}</div><div class="alert-description">${a.description}</div></div><div class="alert-patient">${a.patientName}</div></div>`).join('');
@@ -1845,7 +2631,7 @@ function renderAttendanceChart() {
         weekStart.setDate(weekStart.getDate() - (i * 7) - weekStart.getDay());
         const weekEnd = new Date(weekStart);
         weekEnd.setDate(weekEnd.getDate() + 6);
-        const weekApps = AppState.appointments.filter(a => { const d = new Date(a.date); return d >= weekStart && d <= weekEnd; });
+        const weekApps = AppState.appointments.filter(a => { const d = parseLocalDate(a.date); return d && d >= weekStart && d <= weekEnd; });
         const completed = weekApps.filter(a => a.status === 'completada').length;
         const total = weekApps.length;
         const rate = total > 0 ? Math.round((completed / total) * 100) : 0;
@@ -1864,7 +2650,7 @@ function renderSessionsChart() {
         weekStart.setDate(weekStart.getDate() - (i * 7) - weekStart.getDay());
         const weekEnd = new Date(weekStart);
         weekEnd.setDate(weekEnd.getDate() + 6);
-        const count = AppState.appointments.filter(a => { const d = new Date(a.date); return d >= weekStart && d <= weekEnd && a.status === 'completada'; }).length;
+        const count = AppState.appointments.filter(a => { const d = parseLocalDate(a.date); return d && d >= weekStart && d <= weekEnd && a.status === 'completada'; }).length;
         weeks.push({ value: count, date: `S${4 - i}` });
     }
     const max = Math.max(...weeks.map(w => w.value), 1);
@@ -1902,9 +2688,9 @@ function renderMiniChart(container, data, maxVal, color) {
 function renderContextualAgenda(today) {
     const container = document.getElementById('contextualAgenda');
     if (!container) return;
-    const todayApps = AppState.appointments.filter(a => isSameDay(new Date(a.date), today) && a.status !== 'cancelada').sort((a, b) => a.time.localeCompare(b.time));
+    const todayApps = AppState.appointments.filter(a => isSameDay(parseLocalDate(a.date), today) && a.status !== 'cancelada').sort((a, b) => a.time.localeCompare(b.time));
     if (todayApps.length === 0) {
-        container.innerHTML = `<div class="empty-state"><div class="empty-icon">📅</div><p>No hay sesiones hoy</p><button class="btn-primary" onclick="openModal('appointmentModal')">Agendar cita</button></div>`;
+        container.innerHTML = `<div class="empty-state"><div class="empty-icon"><i class="fas fa-calendar-check"></i></div><p>No hay sesiones hoy</p><button class="btn-primary" onclick="openModal('appointmentModal')">Agendar cita</button></div>`;
         return;
     }
     container.innerHTML = todayApps.map(app => {
@@ -1915,11 +2701,25 @@ function renderContextualAgenda(today) {
         const sessionCount = AppState.appointments.filter(a => a.patientId === app.patientId && a.status === 'completada').length;
         const latestScale = AppState.notes.filter(n => n.patientId === app.patientId && n.scaleResult?.scale === 'gad7').sort((a, b) => new Date(b.date) - new Date(a.date))[0];
         const latestGoal = AppState.treatmentPlans.filter(g => g.patientId === app.patientId && g.status === 'en-progreso').sort((a, b) => b.progress - a.progress)[0];
+        const isConfirmed = Boolean(app.attendanceConfirmed || app.attendance_confirmed || app.status === 'confirmada');
         return `<div class="contextual-appointment" onclick="editAppointment('${app.id}')">
             <div class="appointment-time"><div class="time-value">${formatTime(app.time)}</div><div class="time-duration">${app.duration} min</div></div>
             <div class="appointment-wellbeing">${renderWellbeingRing(wellbeing)}</div>
             <div class="appointment-patient-info">
-                <div class="patient-name-line"><div class="patient-avatar-small">${getInitials(patient.name)}</div><div><div class="patient-name">${patient.name}</div><div class="patient-diagnosis">${patient.diagnosis || 'Sin diagnóstico'}</div></div></div>
+                <div class="patient-name-line">
+                    <div class="patient-avatar-small">${getInitials(patient.name)}</div>
+                    <div>
+                        <div class="patient-name">
+                            ${patient.name}
+                            ${isConfirmed ? `
+                                <span class="badge-attendance-check" title="Asistencia confirmada por el paciente en el portal" style="margin-left:6px;">
+                                    <i class="fas fa-check-circle"></i> Confirmada
+                                </span>
+                            ` : ''}
+                        </div>
+                        <div class="patient-diagnosis">${patient.diagnosis || 'Sin diagnóstico'}</div>
+                    </div>
+                </div>
                 <div class="appointment-context">${moodStatus ? `<span class="context-tag mood-${moodStatus.level}">${moodStatus.emoji} ${moodStatus.label}</span>` : ''}${latestScale ? `<span class="context-tag">📊 GAD-7: ${latestScale.scaleResult.score}</span>` : ''}<span class="context-tag">Sesión ${sessionCount + 1}</span></div>
                 ${latestGoal ? `<div class="appointment-goal"><i class="fas fa-bullseye"></i><span>${latestGoal.title}</span><span class="goal-progress">${latestGoal.progress}%</span></div>` : ''}
             </div>
@@ -1927,7 +2727,7 @@ function renderContextualAgenda(today) {
                 <button type="button" class="btn-primary btn-sm" onclick="event.stopPropagation(); evolveAppointmentSession('${app.id}')" title="Crear Nota de Evolución oficial para esta sesión" style="padding:4px 8px;font-size:11px;display:flex;align-items:center;gap:4px;white-space:nowrap;">
                     <i class="fas fa-file-medical"></i> Evolucionar
                 </button>
-                <div class="appointment-status-indicator status-${app.status}"></div>
+                <div class="appointment-status-indicator status-${isConfirmed && app.status !== 'completada' ? 'confirmada' : app.status}"></div>
             </div>
         </div>`;
     }).join('');
@@ -1952,7 +2752,7 @@ function evolveAppointmentSession(appointmentId) {
         if (dateInput && app.date) dateInput.value = app.date.split('T')[0];
         const titleInput = document.getElementById('noteTitle');
         if (titleInput) titleInput.value = `Sesión #${nextSessionNum} - Seguimiento Psicoterapéutico`;
-        const sessionCountEl = document.getElementById('noteSessionNumber');
+        const sessionCountEl = document.getElementById('noteSessionNum');
         if (sessionCountEl) sessionCountEl.value = nextSessionNum;
         if (typeof checkNoteDraft === 'function') checkNoteDraft();
     }, 150);
@@ -2093,12 +2893,12 @@ function getPatientCategory(p) {
 function getCategoryBadge(category, age) {
     const ageStr = (typeof age === 'number' && !isNaN(age)) ? ` (${age}a)` : '';
     if (category === 'child') {
-        return `<span class="pop-badge badge-child"><i class="fas fa-child"></i> Niñez${ageStr}</span>`;
+        return `<span class="pop-badge badge-child"><i class="fas fa-child"></i> Infantil${ageStr}</span>`;
     }
     if (category === 'adolescent') {
-        return `<span class="pop-badge badge-adolescent"><i class="fas fa-user-graduate"></i> Adolescencia${ageStr}</span>`;
+        return `<span class="pop-badge badge-adolescent"><i class="fas fa-user-graduate"></i> Adolescente${ageStr}</span>`;
     }
-    return `<span class="pop-badge badge-adult"><i class="fas fa-user"></i> Adultez${ageStr}</span>`;
+    return `<span class="pop-badge badge-adult"><i class="fas fa-user"></i> Adulto${ageStr}</span>`;
 }
 
 function onPatientBirthdateChange() {
@@ -2206,6 +3006,10 @@ function updateModalCategorySections(category) {
     // Hipótesis Biopsicosociales y Factores Clínicos (Universal para Infantil, Adolescente y Adulto)
     if (getEl('clinicalHypothesisSection')) getEl('clinicalHypothesisSection').style.display = 'block';
 
+    // Antecedentes Médicos y Familiares (Ocultar en ficha rápida del Adolescente a solicitud del equipo clínico)
+    if (getEl('patientMedicalGroup')) getEl('patientMedicalGroup').style.display = isTeen ? 'none' : 'block';
+    if (getEl('patientFamilyHistoryGroup')) getEl('patientFamilyHistoryGroup').style.display = isTeen ? 'none' : 'block';
+
     // Encuadre y Acuerdos (Universal: Frecuencia, Modalidad, Turno)
     if (getEl('encuadreSection')) getEl('encuadreSection').style.display = 'block';
     if (getEl('patientShiftGroup')) getEl('patientShiftGroup').style.display = 'block';
@@ -2253,6 +3057,9 @@ function onPatientStatusChange() {
             dischargeGroup.classList.add('highlight-alta');
         }
     } else {
+        if (dischargeInput) {
+            dischargeInput.value = '';
+        }
         if (dischargeGroup) {
             dischargeGroup.classList.remove('highlight-alta');
         }
@@ -2272,8 +3079,9 @@ function quickUpdatePatientStatus(patientId, newStatus) {
         if (!p.dischargeDate) {
             p.dischargeDate = new Date().toISOString().split('T')[0];
         }
-        showToast('🎓 ¡Paciente dado de alta clínica!', 'success');
+        showToast('Paciente dado de alta clínica', 'success');
     } else {
+        p.dischargeDate = '';
         showToast(`Estatus actualizado a: ${newStatus}`, 'info');
     }
     p.updatedAt = new Date().toISOString();
@@ -2330,7 +3138,7 @@ function renderPatients(filter = '') {
         const badge = getCategoryBadge(cat, age);
         const isAlta = p.status === 'Alta';
         const admissionStr = p.admissionDate || (p.createdAt ? p.createdAt.split('T')[0] : '');
-        const dischargeStr = p.dischargeDate || (isAlta ? (p.updatedAt ? p.updatedAt.split('T')[0] : p.createdAt?.split('T')[0]) : '');
+        const dischargeStr = isAlta ? (p.dischargeDate || (p.updatedAt ? p.updatedAt.split('T')[0] : p.createdAt?.split('T')[0]) || '') : '';
 
         let metaDetail = '';
         if (cat === 'child') {
@@ -2355,7 +3163,7 @@ function renderPatients(filter = '') {
 
         const datesAndIntervention = `
             <span class="meta-item"><i class="fas fa-calendar-plus"></i> Ingreso: ${admissionStr ? formatDate(admissionStr) : '—'}</span>
-            ${(isAlta || dischargeStr) ? `<span class="meta-item badge-alta-chip"><i class="fas fa-graduation-cap"></i> Egreso/Alta: ${formatDate(dischargeStr || new Date())}</span>` : `<span class="meta-item"><i class="fas fa-hourglass-half"></i> En curso</span>`}
+            ${isAlta ? `<span class="meta-item badge-alta-chip"><i class="fas fa-graduation-cap"></i> Egreso/Alta: ${formatDate(dischargeStr || new Date())}</span>` : `<span class="meta-item"><i class="fas fa-hourglass-half"></i> En curso</span>`}
             ${(p.intervention || p.modality) ? `<span class="meta-item"><i class="fas fa-brain"></i> ${p.intervention || p.modality}</span>` : ''}
         `;
 
@@ -2390,38 +3198,50 @@ function handlePatientSubmit(e) {
 
     const referralChecked = Array.from(document.querySelectorAll('input[name="patientReferral"]:checked')).map(cb => cb.value);
 
+    const pId = document.getElementById('patientId').value;
+    const existing = pId ? (AppState.patients.find(x => x.id === pId) || {}) : {};
+
+    const catVal = document.getElementById('patientCategory').value;
+    const isAdult = catVal === 'adult';
+    const isTeen = catVal === 'adolescent';
+    const isChild = catVal === 'child';
+
     const patient = {
-        id: document.getElementById('patientId').value || generateId(),
+        ...existing,
+        id: pId || generateId(),
         status: document.getElementById('patientStatus')?.value || 'Por iniciar',
         name: document.getElementById('patientName').value.trim(),
-        category: document.getElementById('patientCategory').value,
+        category: catVal,
         birthdate: bd,
         age: finalAge,
         gender: document.getElementById('patientGender').value,
-        email: document.getElementById('patientEmail').value.trim(),
-        phone: document.getElementById('patientPhone')?.value.trim() || '',
+        email: isChild ? '' : document.getElementById('patientEmail').value.trim(),
+        phone: isAdult ? (document.getElementById('patientPhone')?.value.trim() || '') : '',
         schoolGrade: document.getElementById('patientSchoolGrade')?.value.trim() || '',
         livesWith: document.getElementById('patientLivesWith')?.value.trim() || '',
         referral: referralChecked,
-        occupation: document.getElementById('patientOccupation')?.value.trim() || '',
-        maritalStatus: document.getElementById('patientMaritalStatus')?.value.trim() || '',
-        socialDesirability: document.getElementById('patientSocialDesirability')?.value || 'NO',
-        selfMotivation: document.getElementById('patientSelfMotivation')?.value || 'SI',
+        ci: isAdult ? (document.getElementById('patientCI')?.value.trim() || existing.ci || '') : '',
+        birthPlace: isAdult ? (document.getElementById('patientBirthPlace')?.value.trim() || existing.birthPlace || '') : '',
+        religion: isAdult ? (document.getElementById('patientReligion')?.value.trim() || existing.religion || '') : '',
+        occupation: isAdult ? (document.getElementById('patientOccupation')?.value.trim() || '') : '',
+        maritalStatus: isAdult ? (document.getElementById('patientMaritalStatus')?.value.trim() || '') : '',
+        socialDesirability: isAdult ? (document.getElementById('patientSocialDesirability')?.value || 'NO') : 'NO',
+        selfMotivation: isAdult ? (document.getElementById('patientSelfMotivation')?.value || 'SI') : 'SI',
         address: document.getElementById('patientAddress')?.value.trim() || '',
         customFee: parseFloat(document.getElementById('patientCustomFee')?.value) || null,
-        guardianName: document.getElementById('patientGuardianName')?.value.trim() || '',
-        guardianRelation: document.getElementById('patientGuardianRelation')?.value || '',
-        guardianAge: document.getElementById('patientGuardianAge')?.value || '',
-        guardianSchooling: document.getElementById('patientGuardianSchooling')?.value.trim() || '',
-        guardianOccupation: document.getElementById('patientGuardianOccupation')?.value.trim() || '',
-        guardianMaritalStatus: document.getElementById('patientGuardianMaritalStatus')?.value || '',
-        guardianPhone: document.getElementById('patientGuardianPhone')?.value.trim() || '',
-        guardianEmail: document.getElementById('patientGuardianEmail')?.value.trim() || '',
-        guardianConsent: document.getElementById('patientGuardianConsent')?.value || 'no-aplica',
-        schoolName: document.getElementById('patientSchoolName')?.value.trim() || '',
+        guardianName: (isChild || isTeen) ? (document.getElementById('patientGuardianName')?.value.trim() || '') : '',
+        guardianRelation: (isChild || isTeen) ? (document.getElementById('patientGuardianRelation')?.value || '') : '',
+        guardianAge: (isChild || isTeen) ? (document.getElementById('patientGuardianAge')?.value || '') : '',
+        guardianSchooling: (isChild || isTeen) ? (document.getElementById('patientGuardianSchooling')?.value.trim() || '') : '',
+        guardianOccupation: (isChild || isTeen) ? (document.getElementById('patientGuardianOccupation')?.value.trim() || '') : '',
+        guardianMaritalStatus: (isChild || isTeen) ? (document.getElementById('patientGuardianMaritalStatus')?.value || '') : '',
+        guardianPhone: (isChild || isTeen) ? (document.getElementById('patientGuardianPhone')?.value.trim() || '') : '',
+        guardianEmail: (isChild || isTeen) ? (document.getElementById('patientGuardianEmail')?.value.trim() || '') : '',
+        guardianConsent: (isChild || isTeen) ? (document.getElementById('patientGuardianConsent')?.value || 'no-aplica') : 'no-aplica',
+        schoolName: '',
         developmentalMilestones: document.getElementById('patientDevelopmentalMilestones')?.value.trim() || '',
-        adolescentAssent: document.getElementById('patientGuardianConsent')?.value || 'no-aplica',
-        adolescentPerspective: document.getElementById('patientGoals')?.value.trim() || '',
+        adolescentAssent: isTeen ? (document.getElementById('patientGuardianConsent')?.value || 'no-aplica') : 'no-aplica',
+        adolescentPerspective: isTeen ? (document.getElementById('patientGoals')?.value.trim() || '') : '',
         previousPsych: document.getElementById('patientPreviousPsych')?.value || 'No',
         applicantName: document.getElementById('patientApplicantName')?.value.trim() || '',
         initiative: document.getElementById('patientInitiative')?.value || '',
@@ -2430,23 +3250,25 @@ function handlePatientSubmit(e) {
         emergencyRelation: document.getElementById('patientEmergencyRelation')?.value.trim() || '',
         reason: document.getElementById('patientReason')?.value.trim() || '',
         goals: document.getElementById('patientGoals')?.value.trim() || '',
+        mediumTermGoals: document.getElementById('patientMediumTermGoals')?.value.trim() || existing.mediumTermGoals || '',
+        longTermGoals: document.getElementById('patientLongTermGoals')?.value.trim() || existing.longTermGoals || '',
         bioHypothesis: document.getElementById('patientBioHypothesis')?.value.trim() || '',
         socialHypothesis: document.getElementById('patientSocialHypothesis')?.value.trim() || '',
         psychHypothesis: document.getElementById('patientPsychHypothesis')?.value.trim() || '',
         vulnerabilityFactors: document.getElementById('patientVulnerabilityFactors')?.value.trim() || '',
-        diagnosis: document.getElementById('patientDiagnosis')?.value.trim() || 'En proceso de formulación clínica',
+        diagnosis: document.getElementById('patientDiagnosis')?.value.trim() || 'En proceso de evaluación',
         diagnosis2: document.getElementById('patientDiagnosis2')?.value.trim() || '',
         medication: document.getElementById('patientMedication')?.value.trim() || '',
         medical: document.getElementById('patientMedical')?.value.trim() || '',
         familyHistory: document.getElementById('patientFamilyHistory')?.value.trim() || '',
         riskFactors: document.getElementById('patientRiskFactors')?.value.trim() || '',
         protectiveFactors: document.getElementById('patientProtectiveFactors')?.value.trim() || '',
-        notes: document.getElementById('patientNotes')?.value.trim() || '',
+        notes: '',
         frequency: document.getElementById('patientFrequency')?.value || '',
         modality: document.getElementById('patientModality')?.value || '',
         shift: document.getElementById('patientShift')?.value || '',
         admissionDate: document.getElementById('patientAdmissionDate')?.value || (document.getElementById('patientId')?.value && AppState.patients.find(x=>x.id===document.getElementById('patientId').value)?.admissionDate) || new Date().toISOString().split('T')[0],
-        dischargeDate: document.getElementById('patientDischargeDate')?.value || (document.getElementById('patientStatus')?.value === 'Alta' ? new Date().toISOString().split('T')[0] : ''),
+        dischargeDate: (document.getElementById('patientStatus')?.value === 'Alta') ? (document.getElementById('patientDischargeDate')?.value || new Date().toISOString().split('T')[0]) : '',
         intervention: document.getElementById('patientIntervention')?.value.trim() || '',
         createdAt: new Date().toISOString()
     };
@@ -2482,8 +3304,8 @@ function editPatient(id) {
     document.getElementById('patientBirthdate').value = p.birthdate || '';
     if (document.getElementById('patientAge')) document.getElementById('patientAge').value = p.age || (p.birthdate ? calculateAge(p.birthdate) : '');
     document.getElementById('patientGender').value = p.gender || '';
-    document.getElementById('patientEmail').value = p.email || '';
-    if (document.getElementById('patientPhone')) document.getElementById('patientPhone').value = p.phone || '';
+    document.getElementById('patientEmail').value = cat === 'child' ? '' : (p.email || '');
+    if (document.getElementById('patientPhone')) document.getElementById('patientPhone').value = cat === 'adult' ? (p.phone || '') : '';
     if (document.getElementById('patientSchoolGrade')) document.getElementById('patientSchoolGrade').value = p.schoolGrade || '';
     if (document.getElementById('patientLivesWith')) document.getElementById('patientLivesWith').value = p.livesWith || '';
 
@@ -2494,10 +3316,13 @@ function editPatient(id) {
         cb.closest('.referral-chip')?.classList.toggle('active', cb.checked);
     });
 
-    if (document.getElementById('patientOccupation')) document.getElementById('patientOccupation').value = p.occupation || '';
-    if (document.getElementById('patientMaritalStatus')) document.getElementById('patientMaritalStatus').value = p.maritalStatus || '';
-    if (document.getElementById('patientSocialDesirability')) document.getElementById('patientSocialDesirability').value = p.socialDesirability || 'NO';
-    if (document.getElementById('patientSelfMotivation')) document.getElementById('patientSelfMotivation').value = p.selfMotivation || 'SI';
+    if (document.getElementById('patientCI')) document.getElementById('patientCI').value = cat === 'adult' ? (p.ci || '') : '';
+    if (document.getElementById('patientBirthPlace')) document.getElementById('patientBirthPlace').value = cat === 'adult' ? (p.birthPlace || '') : '';
+    if (document.getElementById('patientReligion')) document.getElementById('patientReligion').value = cat === 'adult' ? (p.religion || '') : '';
+    if (document.getElementById('patientOccupation')) document.getElementById('patientOccupation').value = cat === 'adult' ? (p.occupation || '') : '';
+    if (document.getElementById('patientMaritalStatus')) document.getElementById('patientMaritalStatus').value = cat === 'adult' ? (p.maritalStatus || '') : '';
+    if (document.getElementById('patientSocialDesirability')) document.getElementById('patientSocialDesirability').value = cat === 'adult' ? (p.socialDesirability || 'NO') : 'NO';
+    if (document.getElementById('patientSelfMotivation')) document.getElementById('patientSelfMotivation').value = cat === 'adult' ? (p.selfMotivation || 'SI') : 'SI';
     if (document.getElementById('patientAddress')) document.getElementById('patientAddress').value = p.address || '';
     if (document.getElementById('patientCustomFee')) document.getElementById('patientCustomFee').value = (p.customFee !== null && p.customFee !== undefined) ? p.customFee : '';
     if (document.getElementById('patientGuardianName')) document.getElementById('patientGuardianName').value = p.guardianName || '';
@@ -2524,6 +3349,8 @@ function editPatient(id) {
     if (document.getElementById('patientEmergencyRelation')) document.getElementById('patientEmergencyRelation').value = p.emergencyRelation || '';
     document.getElementById('patientReason').value = p.reason || '';
     document.getElementById('patientGoals').value = p.goals || '';
+    if (document.getElementById('patientMediumTermGoals')) document.getElementById('patientMediumTermGoals').value = p.mediumTermGoals || '';
+    if (document.getElementById('patientLongTermGoals')) document.getElementById('patientLongTermGoals').value = p.longTermGoals || '';
 
     if (document.getElementById('patientBioHypothesis')) document.getElementById('patientBioHypothesis').value = p.bioHypothesis || '';
     if (document.getElementById('patientSocialHypothesis')) document.getElementById('patientSocialHypothesis').value = p.socialHypothesis || '';
@@ -2570,10 +3397,276 @@ function deletePatient(id) {
     );
 }
 
+// ==========================================================================
+// GESTOR DE PESTAÑAS REORGANIZABLES DEL EXPEDIENTE CLÍNICO
+// ==========================================================================
+const DEFAULT_PATIENT_TABS_ORDER = [
+    'resumen',
+    'notas',
+    'sesiones',
+    'historia',
+    'examen-mental',
+    'timeline',
+    'objetivos',
+    'escalas',
+    'genograma',
+    'apoyo',
+    'portal'
+];
+
+const PATIENT_TAB_RENDERERS = {
+    'resumen': (active) => `<button class="patient-tab ${active ? 'active' : ''}" data-tab-id="resumen" draggable="true" title="Arrastra para reorganizar esta pestaña" ondragstart="handlePatientTabDragStart(event)" ondragover="handlePatientTabDragOver(event)" ondragleave="handlePatientTabDragLeave(event)" ondrop="handlePatientTabDrop(event)" ondragend="handlePatientTabDragEnd(event)" onclick="switchPatientTab('resumen', this)"><i class="fas fa-grip-vertical tab-drag-handle" title="Arrastrar"></i><i class="fas fa-folder-open"></i> Expediente Clínico</button>`,
+    'notas': (active, data) => `<button class="patient-tab ${active ? 'active' : ''}" data-tab-id="notas" draggable="true" title="Arrastra para reorganizar esta pestaña" ondragstart="handlePatientTabDragStart(event)" ondragover="handlePatientTabDragOver(event)" ondragleave="handlePatientTabDragLeave(event)" ondrop="handlePatientTabDrop(event)" ondragend="handlePatientTabDragEnd(event)" onclick="switchPatientTab('notas', this)"><i class="fas fa-grip-vertical tab-drag-handle" title="Arrastrar"></i><i class="fas fa-file-invoice"></i> Notas de sesión (${data.patientNotesCount})</button>`,
+    'sesiones': (active, data) => `<button class="patient-tab ${active ? 'active' : ''}" data-tab-id="sesiones" draggable="true" title="Arrastra para reorganizar esta pestaña" ondragstart="handlePatientTabDragStart(event)" ondragover="handlePatientTabDragOver(event)" ondragleave="handlePatientTabDragLeave(event)" ondrop="handlePatientTabDrop(event)" ondragend="handlePatientTabDragEnd(event)" onclick="switchPatientTab('sesiones', this)"><i class="fas fa-grip-vertical tab-drag-handle" title="Arrastrar"></i><i class="fas fa-calendar-check"></i> Planificación de Sesiones (${data.patientAppsCount})</button>`,
+    'historia': (active) => `<button class="patient-tab ${active ? 'active' : ''}" data-tab-id="historia" draggable="true" title="Arrastra para reorganizar esta pestaña" ondragstart="handlePatientTabDragStart(event)" ondragover="handlePatientTabDragOver(event)" ondragleave="handlePatientTabDragLeave(event)" ondrop="handlePatientTabDrop(event)" ondragend="handlePatientTabDragEnd(event)" onclick="switchPatientTab('historia', this)"><i class="fas fa-grip-vertical tab-drag-handle" title="Arrastrar"></i><i class="fas fa-book-medical"></i> Historia Clínica</button>`,
+    'examen-mental': (active) => `<button class="patient-tab ${active ? 'active' : ''}" data-tab-id="examen-mental" draggable="true" title="Arrastra para reorganizar esta pestaña" ondragstart="handlePatientTabDragStart(event)" ondragover="handlePatientTabDragOver(event)" ondragleave="handlePatientTabDragLeave(event)" ondrop="handlePatientTabDrop(event)" ondragend="handlePatientTabDragEnd(event)" onclick="switchPatientTab('examen-mental', this)"><i class="fas fa-grip-vertical tab-drag-handle" title="Arrastrar"></i><i class="fas fa-brain"></i> Examen Mental</button>`,
+    'timeline': (active) => `<button class="patient-tab ${active ? 'active' : ''}" data-tab-id="timeline" draggable="true" title="Arrastra para reorganizar esta pestaña" ondragstart="handlePatientTabDragStart(event)" ondragover="handlePatientTabDragOver(event)" ondragleave="handlePatientTabDragLeave(event)" ondrop="handlePatientTabDrop(event)" ondragend="handlePatientTabDragEnd(event)" onclick="switchPatientTab('timeline', this)"><i class="fas fa-grip-vertical tab-drag-handle" title="Arrastrar"></i><i class="fas fa-stream"></i> Línea de Tiempo</button>`,
+    'objetivos': (active) => `<button class="patient-tab ${active ? 'active' : ''}" data-tab-id="objetivos" draggable="true" title="Arrastra para reorganizar esta pestaña" ondragstart="handlePatientTabDragStart(event)" ondragover="handlePatientTabDragOver(event)" ondragleave="handlePatientTabDragLeave(event)" ondrop="handlePatientTabDrop(event)" ondragend="handlePatientTabDragEnd(event)" onclick="switchPatientTab('objetivos', this)"><i class="fas fa-grip-vertical tab-drag-handle" title="Arrastrar"></i><i class="fas fa-bullseye"></i> Objetivos</button>`,
+    'escalas': (active) => `<button class="patient-tab ${active ? 'active' : ''}" data-tab-id="escalas" draggable="true" title="Arrastra para reorganizar esta pestaña" ondragstart="handlePatientTabDragStart(event)" ondragover="handlePatientTabDragOver(event)" ondragleave="handlePatientTabDragLeave(event)" ondrop="handlePatientTabDrop(event)" ondragend="handlePatientTabDragEnd(event)" onclick="switchPatientTab('escalas', this)"><i class="fas fa-grip-vertical tab-drag-handle" title="Arrastrar"></i><i class="fas fa-chart-line"></i> Evaluaciones</button>`,
+    'genograma': (active) => `<button class="patient-tab ${active ? 'active' : ''}" data-tab-id="genograma" draggable="true" title="Arrastra para reorganizar esta pestaña" ondragstart="handlePatientTabDragStart(event)" ondragover="handlePatientTabDragOver(event)" ondragleave="handlePatientTabDragLeave(event)" ondrop="handlePatientTabDrop(event)" ondragend="handlePatientTabDragEnd(event)" onclick="switchPatientTab('genograma', this)"><i class="fas fa-grip-vertical tab-drag-handle" title="Arrastrar"></i><i class="fas fa-sitemap"></i> Genograma</button>`,
+    'apoyo': (active) => `<button class="patient-tab ${active ? 'active' : ''}" data-tab-id="apoyo" draggable="true" title="Arrastra para reorganizar esta pestaña" ondragstart="handlePatientTabDragStart(event)" ondragover="handlePatientTabDragOver(event)" ondragleave="handlePatientTabDragLeave(event)" ondrop="handlePatientTabDrop(event)" ondragend="handlePatientTabDragEnd(event)" onclick="switchPatientTab('apoyo', this)"><i class="fas fa-grip-vertical tab-drag-handle" title="Arrastrar"></i><i class="fas fa-hands-helping"></i> Red de Apoyo</button>`,
+    'portal': (active, data) => `<button class="patient-tab ${active ? 'active' : ''}" data-tab-id="portal" draggable="true" title="Arrastra para reorganizar esta pestaña" ondragstart="handlePatientTabDragStart(event)" ondragover="handlePatientTabDragOver(event)" ondragleave="handlePatientTabDragLeave(event)" ondrop="handlePatientTabDrop(event)" ondragend="handlePatientTabDragEnd(event)" onclick="switchPatientTab('portal', this)"><i class="fas fa-grip-vertical tab-drag-handle" title="Arrastrar"></i><i class="fas fa-mobile-alt"></i> Portal Paciente<span id="portalTabBadgeCount" style="background: var(--accent-success); color: white; padding: 2px 6px; border-radius: 10px; font-size: 10px; margin-left: 4px; ${data.portalCount > 0 ? '' : 'display: none;'}">${data.portalCount}</span></button>`
+};
+
+function getPatientTabsOrder() {
+    try {
+        if (typeof localStorage !== 'undefined') {
+            const saved = localStorage.getItem('psiconotes_patient_tabs_order');
+            if (saved) {
+                const parsed = JSON.parse(saved);
+                if (Array.isArray(parsed) && parsed.length > 0) {
+                    const valid = parsed.filter(id => DEFAULT_PATIENT_TABS_ORDER.includes(id));
+                    const missing = DEFAULT_PATIENT_TABS_ORDER.filter(id => !valid.includes(id));
+                    return [...valid, ...missing];
+                }
+            }
+        }
+    } catch (e) {
+        console.warn('Error leyendo orden de pestañas:', e);
+    }
+    return [...DEFAULT_PATIENT_TABS_ORDER];
+}
+
+function savePatientTabsOrder(newOrder) {
+    if (!Array.isArray(newOrder)) return [...DEFAULT_PATIENT_TABS_ORDER];
+    const clean = newOrder.filter(id => DEFAULT_PATIENT_TABS_ORDER.includes(id));
+    const missing = DEFAULT_PATIENT_TABS_ORDER.filter(id => !clean.includes(id));
+    const fullOrder = [...clean, ...missing];
+    try {
+        if (typeof localStorage !== 'undefined') {
+            localStorage.setItem('psiconotes_patient_tabs_order', JSON.stringify(fullOrder));
+        }
+    } catch (e) {
+        console.warn('Error guardando orden de pestañas:', e);
+    }
+    return fullOrder;
+}
+
+function renderPatientTabsBar(patientNotesCount = 0, patientAppsCount = 0, portalCount = 0, activeTabId = 'resumen') {
+    const order = getPatientTabsOrder();
+    const data = { patientNotesCount, patientAppsCount, portalCount };
+    const tabsHtml = order.map(tabId => {
+        const renderer = PATIENT_TAB_RENDERERS[tabId];
+        return renderer ? renderer(tabId === activeTabId, data) : '';
+    }).join('\n            ');
+
+    return `
+            ${tabsHtml}
+            <button type="button" class="patient-tabs-config-btn" onclick="openPatientTabsReorderModal()" title="Reorganizar pestañas según preferencia del psicólogo">
+                <i class="fas fa-sliders-h"></i> <span>Organizar</span>
+            </button>
+    `;
+}
+
+let isPatientTabDragging = false;
+let draggedPatientTabId = null;
+
+function handlePatientTabDragStart(e) {
+    const tabBtn = e.target.closest('.patient-tab');
+    if (!tabBtn) return;
+    isPatientTabDragging = true;
+    draggedPatientTabId = tabBtn.getAttribute('data-tab-id');
+    if (e.dataTransfer) {
+        e.dataTransfer.effectAllowed = 'move';
+        try {
+            e.dataTransfer.setData('text/plain', draggedPatientTabId);
+        } catch (err) {}
+    }
+    tabBtn.classList.add('dragging');
+}
+
+function handlePatientTabDragOver(e) {
+    e.preventDefault();
+    if (!isPatientTabDragging || !draggedPatientTabId) return;
+    if (e.dataTransfer) {
+        try {
+            e.dataTransfer.dropEffect = 'move';
+        } catch (err) {}
+    }
+    
+    const container = document.getElementById('patientTabsContainer') || (e.currentTarget && e.currentTarget.closest('.patient-tabs'));
+    if (!container) return;
+    const targetTab = e.target.closest('.patient-tab');
+    if (!targetTab || targetTab.getAttribute('data-tab-id') === draggedPatientTabId) return;
+    
+    const rect = targetTab.getBoundingClientRect();
+    const isAfter = e.clientX > (rect.left + rect.width / 2);
+    
+    const draggingEl = container.querySelector(`.patient-tab[data-tab-id="${draggedPatientTabId}"]`);
+    if (!draggingEl) return;
+    
+    if (isAfter) {
+        if (targetTab.nextSibling !== draggingEl) {
+            container.insertBefore(draggingEl, targetTab.nextSibling);
+        }
+    } else {
+        if (targetTab !== draggingEl) {
+            container.insertBefore(draggingEl, targetTab);
+        }
+    }
+}
+
+function handlePatientTabDragLeave(e) {
+    // No-op
+}
+
+function handlePatientTabDrop(e) {
+    e.preventDefault();
+    if (!isPatientTabDragging) return;
+    
+    const container = document.getElementById('patientTabsContainer') || (e.currentTarget && e.currentTarget.closest('.patient-tabs'));
+    if (container) {
+        const newOrder = Array.from(container.querySelectorAll('.patient-tab'))
+            .map(el => el.getAttribute('data-tab-id'))
+            .filter(Boolean);
+        if (newOrder.length > 0) {
+            savePatientTabsOrder(newOrder);
+            if (typeof showToast === 'function') {
+                showToast('✨ Orden de pestañas actualizado', 'success');
+            }
+        }
+    }
+}
+
+function handlePatientTabDragEnd(e) {
+    const container = document.getElementById('patientTabsContainer') || document.querySelector('.patient-tabs');
+    if (container) {
+        container.querySelectorAll('.patient-tab').forEach(t => t.classList.remove('dragging'));
+    }
+    setTimeout(() => {
+        isPatientTabDragging = false;
+        draggedPatientTabId = null;
+    }, 120);
+}
+
+function openPatientTabsReorderModal() {
+    renderPatientTabsReorderList();
+    openModal('patientTabsReorderModal');
+}
+
+function renderPatientTabsReorderList() {
+    const listEl = document.getElementById('patientTabsReorderList');
+    if (!listEl) return;
+    const currentOrder = getPatientTabsOrder();
+    
+    const TAB_INFO_MAP = {
+        'resumen': { label: 'Expediente Clínico', icon: 'fas fa-folder-open' },
+        'notas': { label: 'Notas de sesión', icon: 'fas fa-file-invoice' },
+        'sesiones': { label: 'Planificación de Sesiones', icon: 'fas fa-calendar-check' },
+        'historia': { label: 'Historia Clínica', icon: 'fas fa-book-medical' },
+        'examen-mental': { label: 'Examen Mental', icon: 'fas fa-brain' },
+        'timeline': { label: 'Línea de Tiempo', icon: 'fas fa-stream' },
+        'objetivos': { label: 'Objetivos', icon: 'fas fa-bullseye' },
+        'escalas': { label: 'Evaluaciones', icon: 'fas fa-chart-line' },
+        'genograma': { label: 'Genograma', icon: 'fas fa-sitemap' },
+        'apoyo': { label: 'Red de Apoyo', icon: 'fas fa-hands-helping' },
+        'portal': { label: 'Portal Paciente', icon: 'fas fa-mobile-alt' }
+    };
+    
+    listEl.innerHTML = currentOrder.map((tabId, idx) => {
+        const info = TAB_INFO_MAP[tabId] || { label: tabId, icon: 'fas fa-folder' };
+        const isFirst = idx === 0;
+        const isLast = idx === currentOrder.length - 1;
+        return `
+            <div class="tab-reorder-item" data-tab-id="${tabId}">
+                <div class="tab-reorder-info">
+                    <span class="tab-reorder-index">#${idx + 1}</span>
+                    <i class="${info.icon}" style="color:var(--brand-deep);width:20px;text-align:center;"></i>
+                    <span>${info.label}</span>
+                </div>
+                <div class="tab-reorder-actions">
+                    <button type="button" class="btn-tab-order" onclick="movePatientTabInModal('${tabId}', -1)" ${isFirst ? 'disabled' : ''} title="Mover hacia arriba">
+                        <i class="fas fa-arrow-up"></i>
+                    </button>
+                    <button type="button" class="btn-tab-order" onclick="movePatientTabInModal('${tabId}', 1)" ${isLast ? 'disabled' : ''} title="Mover hacia abajo">
+                        <i class="fas fa-arrow-down"></i>
+                    </button>
+                </div>
+            </div>
+        `;
+    }).join('');
+}
+
+function movePatientTabInModal(tabId, delta) {
+    const currentOrder = getPatientTabsOrder();
+    const idx = currentOrder.indexOf(tabId);
+    if (idx === -1) return;
+    const targetIdx = idx + delta;
+    if (targetIdx < 0 || targetIdx >= currentOrder.length) return;
+    
+    const temp = currentOrder[idx];
+    currentOrder[idx] = currentOrder[targetIdx];
+    currentOrder[targetIdx] = temp;
+    
+    savePatientTabsOrder(currentOrder);
+    renderPatientTabsReorderList();
+    refreshPatientTabsBar();
+    if (typeof showToast === 'function') {
+        showToast('✨ Orden de pestañas actualizado', 'info');
+    }
+}
+
+function resetPatientTabsOrder() {
+    savePatientTabsOrder([...DEFAULT_PATIENT_TABS_ORDER]);
+    renderPatientTabsReorderList();
+    refreshPatientTabsBar();
+    if (typeof showToast === 'function') {
+        showToast('Orden predeterminado de pestañas restablecido', 'success');
+    }
+}
+
+function refreshPatientTabsBar() {
+    const container = document.getElementById('patientTabsContainer');
+    if (!container || !AppState.selectedPatientId) return;
+    const patient = AppState.patients.find(p => String(p.id) === String(AppState.selectedPatientId));
+    if (!patient) return;
+    
+    const activeTabEl = container.querySelector('.patient-tab.active');
+    const activeTabId = activeTabEl ? activeTabEl.getAttribute('data-tab-id') : 'resumen';
+    
+    const patientNotes = AppState.notes.filter(n => String(n.patientId) === String(patient.id));
+    const patientApps = AppState.appointments.filter(a => String(a.patientId) === String(patient.id));
+    const isKid = isKidPatient(patient);
+    const { results: portalResults, moods: portalMoods, cbt: portalCbt, kidActivities: portalKidActivities } = getPortalResults(patient.id);
+    const portalCount = isKid ? (portalKidActivities ? portalKidActivities.length : 0) : (portalResults.length + portalMoods.length + (portalCbt ? portalCbt.length : 0));
+    
+    container.innerHTML = renderPatientTabsBar(patientNotes.length, patientApps.length, portalCount, activeTabId);
+}
+
 function viewPatient(id) {
+    const activeTab = arguments[1] || null;
     AppState.selectedPatientId = id;
     const patient = AppState.patients.find(p => p.id === id);
     if (!patient) return;
+
+    // Preservar la pestaña activa actual si ya está visualizándose en el modal
+    const previousActiveTab = activeTab || (
+        document.getElementById('patientDetailModal')?.classList.contains('active') 
+            ? document.querySelector('#patientTabsContainer .patient-tab.active')?.getAttribute('data-tab-id') 
+            : null
+    ) || 'resumen';
+    const targetTab = DEFAULT_PATIENT_TABS_ORDER.includes(previousActiveTab) ? previousActiveTab : 'resumen';
+
     const cat = getPatientCategory(patient);
     const age = patient.birthdate ? calculateAge(patient.birthdate) : null;
     const badge = getCategoryBadge(cat, age);
@@ -2589,9 +3682,12 @@ function viewPatient(id) {
     const portalCount = isKid ? (portalKidActivities ? portalKidActivities.length : 0) : (portalResults.length + portalMoods.length + (portalCbt ? portalCbt.length : 0));
     const detail = document.getElementById('patientDetail');
 
-    const admissionStr = patient.admissionDate || (patient.createdAt ? patient.createdAt.split('T')[0] : '');
-    const dischargeStr = patient.dischargeDate || (patient.status === 'Alta' ? (patient.updatedAt ? patient.updatedAt.split('T')[0] : patient.createdAt?.split('T')[0]) : '');
     const isAlta = patient.status === 'Alta';
+    if (!isAlta && patient.dischargeDate) {
+        patient.dischargeDate = '';
+    }
+    const admissionStr = patient.admissionDate || (patient.createdAt ? patient.createdAt.split('T')[0] : '');
+    const dischargeStr = isAlta ? (patient.dischargeDate || (patient.updatedAt ? patient.updatedAt.split('T')[0] : patient.createdAt?.split('T')[0]) || '') : '';
 
     const cleanName = formatDisplayName(patient.name);
     detail.innerHTML = `
@@ -2606,18 +3702,13 @@ function viewPatient(id) {
                         <div class="patient-hero-badges-wrap">
                             ${badge}
                             ${patient.status ? `<span class="patient-status-chip ${getPatientStatusClass(patient.status)}"><i class="fas ${isAlta ? 'fa-graduation-cap' : 'fa-flag'}"></i> ${patient.status}</span>` : ''}
-                            ${cat === 'adolescent' ? '' : `<span class="dossier-badge-diag"><i class="fas fa-stethoscope"></i> ${patient.diagnosis || 'Pendiente de evaluación'}</span>`}
                         </div>
                     </div>
                     <div class="patient-hero-chips-grid">
-                        ${patient.age ? `<div class="hero-chip"><i class="fas fa-user-clock"></i> <span><strong>${patient.age}</strong> años</span></div>` : (patient.birthdate ? `<div class="hero-chip"><i class="fas fa-birthday-cake"></i> <span><strong>${age}</strong> años (${formatDate(patient.birthdate)})</span></div>` : '')}
+                        ${(patient.age || age) ? `<div class="hero-chip"><i class="fas fa-user-clock"></i> <span><strong>${patient.age || age}</strong> años</span></div>` : ''}
                         ${patient.gender ? `<div class="hero-chip"><i class="fas fa-venus-mars"></i> <span>${patient.gender}</span></div>` : ''}
                         <div class="hero-chip"><i class="fas fa-calendar-plus"></i> <span><strong>Ingreso:</strong> ${admissionStr ? formatDate(admissionStr) : '—'}</span></div>
-                        ${(isAlta || dischargeStr) ? `<div class="hero-chip badge-alta-chip"><i class="fas fa-graduation-cap"></i> <span><strong>Egreso/Alta:</strong> ${formatDate(dischargeStr || new Date())}</span></div>` : ''}
-                        ${(patient.intervention || patient.modality) ? `<div class="hero-chip"><i class="fas fa-brain"></i> <span>${patient.intervention || patient.modality}</span></div>` : ''}
-                        ${patient.guardianName ? `<div class="hero-chip"><i class="fas fa-user-shield"></i> <span>Tutor: ${patient.guardianName} (${patient.guardianRelation || 'Tutor'})</span></div>` : ''}
-                        ${patient.phone || patient.guardianPhone ? `<div class="hero-chip"><i class="fas fa-phone-alt"></i> <span>${patient.phone || patient.guardianPhone}</span></div>` : ''}
-                        ${patient.guardianConsent === 'firmado' ? `<div class="hero-chip hero-chip-success"><i class="fas fa-file-signature"></i> <span>Consentimiento Firmado</span></div>` : ''}
+                        ${patient.guardianName ? `<div class="hero-chip"><i class="fas fa-user-shield"></i> <span>Tutor: ${patient.guardianName}${patient.guardianRelation ? ` (${patient.guardianRelation})` : ''}</span></div>` : ''}
                     </div>
                 </div>
             </div>
@@ -2658,28 +3749,21 @@ function viewPatient(id) {
         </div>
 
         <!-- BARRA SUPERIOR DE PESTAÑAS CLÍNICAS (ACCESO INMEDIATO EN LA PARTE SUPERIOR) -->
-        <div class="patient-tabs">
-            <button class="patient-tab active" onclick="switchPatientTab('resumen', this)"><i class="fas fa-folder-open"></i> Expediente Clínico</button>
-            <button class="patient-tab" onclick="switchPatientTab('notas', this)"><i class="fas fa-file-invoice"></i> Notas de sesión (${patientNotes.length})</button>
-            <button class="patient-tab" onclick="switchPatientTab('historia', this)"><i class="fas fa-book-medical"></i> Historia</button>
-            <button class="patient-tab" onclick="switchPatientTab('timeline', this)"><i class="fas fa-stream"></i> Línea de Tiempo</button>
-            <button class="patient-tab" onclick="switchPatientTab('objetivos', this)"><i class="fas fa-bullseye"></i> Objetivos</button>
-            <button class="patient-tab" onclick="switchPatientTab('escalas', this)"><i class="fas fa-chart-line"></i> Evaluaciones</button>
-            <button class="patient-tab" onclick="switchPatientTab('apoyo', this)"><i class="fas fa-hands-helping"></i> Red de Apoyo</button>
-            <button class="patient-tab" onclick="switchPatientTab('portal', this)">
-                <i class="fas fa-mobile-alt"></i> Portal Paciente
-                <span id="portalTabBadgeCount" style="background: var(--accent-success); color: white; padding: 2px 6px; border-radius: 10px; font-size: 10px; margin-left: 4px; ${portalCount > 0 ? '' : 'display: none;'}">${portalCount}</span>
-            </button>
+        <div class="patient-tabs" id="patientTabsContainer" ondragover="handlePatientTabDragOver(event)">
+            ${renderPatientTabsBar(patientNotes.length, patientApps.length, portalCount, targetTab)}
         </div>
 
-        <div id="tab-resumen" class="patient-tab-content active">${renderTabResumen(id, wellbeing, sessionPrep, emotionalProfile, clinicalInsights)}</div>
-        <div id="tab-notas" class="patient-tab-content">${renderTabNotasSesion(id)}</div>
-        <div id="tab-historia" class="patient-tab-content">${renderTabHistoria(patient)}</div>
-        <div id="tab-timeline" class="patient-tab-content">${renderTabTimeline(id)}</div>
-        <div id="tab-objetivos" class="patient-tab-content">${renderTabObjetivos(id)}</div>
-        <div id="tab-escalas" class="patient-tab-content">${renderTabEscalas(id)}</div>
-        <div id="tab-apoyo" class="patient-tab-content">${renderTabApoyo(patient)}</div>
-        <div id="tab-portal" class="patient-tab-content">${renderPortalTab(id)}</div>
+        <div id="tab-resumen" class="patient-tab-content ${targetTab === 'resumen' ? 'active' : ''}">${renderTabResumen(id, wellbeing, sessionPrep, emotionalProfile, clinicalInsights)}</div>
+        <div id="tab-notas" class="patient-tab-content ${targetTab === 'notas' ? 'active' : ''}">${renderTabNotasSesion(id)}</div>
+        <div id="tab-sesiones" class="patient-tab-content ${targetTab === 'sesiones' ? 'active' : ''}">${renderTabHistorialSesiones(id)}</div>
+        <div id="tab-historia" class="patient-tab-content ${targetTab === 'historia' ? 'active' : ''}">${renderTabHistoria(patient)}</div>
+        <div id="tab-examen-mental" class="patient-tab-content ${targetTab === 'examen-mental' ? 'active' : ''}">${typeof MentalExamModule !== 'undefined' ? MentalExamModule.renderTab(patient) : '<div class="empty-state"><p>Módulo de examen mental cargando...</p></div>'}</div>
+        <div id="tab-timeline" class="patient-tab-content ${targetTab === 'timeline' ? 'active' : ''}">${renderTabTimeline(id)}</div>
+        <div id="tab-objetivos" class="patient-tab-content ${targetTab === 'objetivos' ? 'active' : ''}">${renderTabObjetivos(id)}</div>
+        <div id="tab-escalas" class="patient-tab-content ${targetTab === 'escalas' ? 'active' : ''}">${renderTabEscalas(id)}</div>
+        <div id="tab-genograma" class="patient-tab-content ${targetTab === 'genograma' ? 'active' : ''}">${typeof GenogramModule !== 'undefined' ? GenogramModule.renderTabGenograma(patient) : '<div class="empty-state"><p>Módulo de genograma cargando...</p></div>'}</div>
+        <div id="tab-apoyo" class="patient-tab-content ${targetTab === 'apoyo' ? 'active' : ''}">${renderTabApoyo(patient)}</div>
+        <div id="tab-portal" class="patient-tab-content ${targetTab === 'portal' ? 'active' : ''}">${renderPortalTab(id)}</div>
     `;
     openModal('patientDetailModal');
     // Sincronizar de forma reactiva en segundo plano desde PostgreSQL
@@ -2689,14 +3773,44 @@ function viewPatient(id) {
 }
 
 function switchPatientTab(tabName, btn) {
+    if (isPatientTabDragging) return;
     document.querySelectorAll('.patient-tab').forEach(t => t.classList.remove('active'));
     document.querySelectorAll('.patient-tab-content').forEach(c => c.classList.remove('active'));
-    btn.classList.add('active');
+    
+    let targetBtn = btn;
+    if (!targetBtn || targetBtn.getAttribute('data-tab-id') !== tabName) {
+        targetBtn = document.querySelector(`.patient-tab[data-tab-id="${tabName}"]`) ||
+                    Array.from(document.querySelectorAll('.patient-tab')).find(b => b.getAttribute('onclick')?.includes(`'${tabName}'`));
+    }
+    if (targetBtn) {
+        targetBtn.classList.add('active');
+    }
     const target = document.getElementById('tab-' + tabName);
     if (target) target.classList.add('active');
 
     if (tabName === 'portal' && AppState.selectedPatientId && typeof refreshPortalTabContent === 'function') {
         refreshPortalTabContent(AppState.selectedPatientId);
+    }
+    if (tabName === 'sesiones' && AppState.selectedPatientId && typeof renderTabHistorialSesiones === 'function') {
+        const cont = document.getElementById('tab-sesiones');
+        if (cont) cont.innerHTML = renderTabHistorialSesiones(AppState.selectedPatientId);
+    }
+    if (tabName === 'genograma' && AppState.selectedPatientId && typeof GenogramModule !== 'undefined') {
+        const patient = AppState.patients.find(p => String(p.id) === String(AppState.selectedPatientId));
+        if (patient) {
+            const cont = document.getElementById('tab-genograma');
+            if (cont) cont.innerHTML = GenogramModule.renderTabGenograma(patient);
+            GenogramModule.initPatientGenogram(AppState.selectedPatientId);
+        }
+    }
+    if (tabName === 'examen-mental' && AppState.selectedPatientId && typeof MentalExamModule !== 'undefined') {
+        const patient = AppState.patients.find(p => String(p.id) === String(AppState.selectedPatientId));
+        if (patient) {
+            const cont = document.getElementById('tab-examen-mental');
+            if (cont && (!cont.querySelector('.mental-exam-container') || cont.innerHTML.includes('cargando'))) {
+                cont.innerHTML = MentalExamModule.renderTab(patient);
+            }
+        }
     }
 }
 
@@ -2719,6 +3833,9 @@ function renderTabResumen(patientId, wellbeing, sessionPrep, emotionalProfile, c
     const alerts = generatePatientAlerts(patientId);
     const goals = AppState.treatmentPlans.filter(g => String(g.patientId) === String(patientId));
     const latestNote = notes.sort((a,b) => new Date(b.date) - new Date(a.date))[0];
+    const sessionStats = (typeof calculatePatientSessionStats === 'function') 
+        ? calculatePatientSessionStats(patientId) 
+        : { attendanceRate: 100, completedCount: patientApps.filter(a=>a.status==='completada').length, evaluableCount: patientApps.length, totalCount: patientApps.length, adherenceColor: '#059669', adherenceBadgeText: 'Sin datos' };
 
     // Respaldo de widgets si se llama de forma aislada
     if (!wellbeing && typeof calculatePatientWellbeing === 'function') wellbeing = calculatePatientWellbeing(patientId);
@@ -2729,8 +3846,11 @@ function renderTabResumen(patientId, wellbeing, sessionPrep, emotionalProfile, c
     const cat = getPatientCategory(patient);
     const age = patient.age || (patient.birthdate ? calculateAge(patient.birthdate) : '—');
     const isAlta = patient.status === 'Alta';
+    if (!isAlta && patient.dischargeDate) {
+        patient.dischargeDate = '';
+    }
     const admissionDate = patient.admissionDate || (patient.createdAt ? patient.createdAt.split('T')[0] : '');
-    const dischargeDate = patient.dischargeDate || (isAlta ? (patient.updatedAt ? patient.updatedAt.split('T')[0] : patient.createdAt?.split('T')[0]) : '');
+    const dischargeDate = isAlta ? (patient.dischargeDate || (patient.updatedAt ? patient.updatedAt.split('T')[0] : patient.createdAt?.split('T')[0]) || '') : '';
     const durationText = calculateTreatmentDuration(admissionDate || patient.createdAt);
     const referralList = Array.isArray(patient.referral) ? patient.referral.join(', ') : (patient.referral || patient.referredBy || 'No especificado');
 
@@ -2739,13 +3859,13 @@ function renderTabResumen(patientId, wellbeing, sessionPrep, emotionalProfile, c
 
     // Banner de Alta Clínica si egresó
     let altaBannerHtml = '';
-    if (isAlta || dischargeDate) {
+    if (isAlta) {
         altaBannerHtml = `
             <div class="expediente-alta-banner">
                 <div class="alta-banner-icon"><i class="fas fa-graduation-cap"></i></div>
                 <div class="alta-banner-content">
                     <div class="alta-banner-title">
-                        <span>🌟 EXPEDIENTE EN CONDICIÓN DE ALTA CLÍNICA</span>
+                        <span>EXPEDIENTE EN CONDICIÓN DE ALTA CLÍNICA</span>
                         <span class="badge-alta-chip"><i class="fas fa-award"></i> Caso Cerrado con Éxito</span>
                     </div>
                     <div class="alta-banner-desc">
@@ -2784,7 +3904,7 @@ function renderTabResumen(patientId, wellbeing, sessionPrep, emotionalProfile, c
                         ${isAlta ? (dischargeDate ? formatDate(dischargeDate) : 'Fecha de alta') : 'En curso (Sin egreso)'}
                     </div>
                     <div class="expediente-kpi-subtext">
-                        ${isAlta ? '✅ Proceso concluido' : '⚡ Tratamiento activo'}
+                        ${isAlta ? 'Proceso concluido' : 'Tratamiento activo'}
                     </div>
                 </div>
             </div>
@@ -2793,18 +3913,19 @@ function renderTabResumen(patientId, wellbeing, sessionPrep, emotionalProfile, c
                 <div class="expediente-kpi-icon kpi-icon-status"><i class="fas fa-tags"></i></div>
                 <div class="expediente-kpi-info">
                     <div class="expediente-kpi-label">Estatus del Paciente</div>
-                    <div style="display:flex;align-items:center;gap:8px;margin-top:2px;">
-                        <span class="patient-status-chip ${statusClass}">${patient.status || 'Por iniciar'}</span>
-                    </div>
-                    <div class="expediente-kpi-subtext" style="margin-top:4px;">
-                        <select class="quick-status-selector" onchange="quickUpdatePatientStatus('${patient.id}', this.value)" title="Cambiar estatus rápidamente">
-                            <option value="Por iniciar" ${patient.status === 'Por iniciar' ? 'selected' : ''}>🟡 Por iniciar</option>
-                            <option value="En Evaluación" ${patient.status === 'En Evaluación' ? 'selected' : ''}>🔍 En Evaluación</option>
-                            <option value="Plan de Intervención" ${patient.status === 'Plan de Intervención' ? 'selected' : ''}>🎯 Plan de Intervención</option>
-                            <option value="Seguimiento" ${patient.status === 'Seguimiento' ? 'selected' : ''}>🔄 Seguimiento</option>
-                            <option value="Alta" ${patient.status === 'Alta' ? 'selected' : ''}>✅ Alta Clínica</option>
+                    <div style="margin-top:2px;">
+                        <select class="quick-status-selector" onchange="quickUpdatePatientStatus('${patient.id}', this.value)" title="Clic para cambiar estatus clínico">
+                            <option value="Por iniciar" ${patient.status === 'Por iniciar' ? 'selected' : ''}>Por iniciar</option>
+                            <option value="En Evaluación" ${patient.status === 'En Evaluación' ? 'selected' : ''}>En Evaluación</option>
+                            <option value="Plan de Intervención" ${patient.status === 'Plan de Intervención' ? 'selected' : ''}>Plan de Intervención</option>
+                            <option value="Seguimiento" ${patient.status === 'Seguimiento' ? 'selected' : ''}>Seguimiento</option>
+                            <option value="Alta" ${patient.status === 'Alta' ? 'selected' : ''}>Alta Clínica</option>
                             <option value="Inactivo" ${patient.status === 'Inactivo' ? 'selected' : ''}>⏸️ Inactivo</option>
                         </select>
+                    </div>
+                    <div class="expediente-kpi-subtext" style="display:flex;align-items:center;gap:4px;margin-top:3px;">
+                        <i class="fas fa-pen" style="font-size:10px;color:var(--accent-secondary);"></i>
+                        <span>Clic para cambiar</span>
                     </div>
                 </div>
             </div>
@@ -2821,6 +3942,21 @@ function renderTabResumen(patientId, wellbeing, sessionPrep, emotionalProfile, c
                     </div>
                 </div>
             </div>
+
+            <div class="expediente-kpi-card" style="cursor:pointer;" onclick="switchPatientTab('sesiones')" title="Ver Planificación de Sesiones, Asistencias y Estadísticas">
+                <div class="expediente-kpi-icon" style="background: rgba(16, 185, 129, 0.15); color: #059669;">
+                    <i class="fas fa-calendar-check"></i>
+                </div>
+                <div class="expediente-kpi-info">
+                    <div class="expediente-kpi-label">Asistencia & Adherencia</div>
+                    <div class="expediente-kpi-value" style="color:${sessionStats.adherenceColor};">
+                        ${sessionStats.attendanceRate}% <span style="font-size:12px;font-weight:600;color:var(--text-secondary);">(${sessionStats.completedCount}/${sessionStats.evaluableCount || sessionStats.totalCount})</span>
+                    </div>
+                    <div class="expediente-kpi-subtext" style="color:${sessionStats.adherenceColor};font-weight:600;">
+                        ${sessionStats.adherenceBadgeText} <i class="fas fa-arrow-right" style="font-size:10px;margin-left:4px;"></i>
+                    </div>
+                </div>
+            </div>
         </div>
     `;
 
@@ -2829,31 +3965,31 @@ function renderTabResumen(patientId, wellbeing, sessionPrep, emotionalProfile, c
     if (cat === 'child') {
         patientDetailsRows = `
             <div class="expediente-data-row"><span class="expediente-data-label">Nombre Completo:</span><span class="expediente-data-val"><strong>${patient.name}</strong></span></div>
-            <div class="expediente-data-row"><span class="expediente-data-label">Etapa Vital:</span><span class="expediente-data-val">🧒 Niñez / Infancia (&lt; 12 años)</span></div>
+            <div class="expediente-data-row"><span class="expediente-data-label">Etapa Vital:</span><span class="expediente-data-val">Infantil (&lt; 12 años)</span></div>
             <div class="expediente-data-row"><span class="expediente-data-label">Edad / Sexo:</span><span class="expediente-data-val">${age} años · ${patient.gender || 'No registrado'}</span></div>
             <div class="expediente-data-row"><span class="expediente-data-label">Escolaridad:</span><span class="expediente-data-val">${patient.schoolGrade || 'No especificada'}</span></div>
             <div class="expediente-data-row"><span class="expediente-data-label">Vive con:</span><span class="expediente-data-val">${patient.livesWith || 'No especificado'}</span></div>
             <div class="expediente-data-row"><span class="expediente-data-label">Referido por:</span><span class="expediente-data-val">${referralList}</span></div>
             <div class="expediente-data-row"><span class="expediente-data-label">Representante / Tutor:</span><span class="expediente-data-val"><strong>${patient.guardianName || 'Sin tutor'}</strong> (${patient.guardianRelation || 'Tutor'})</span></div>
             <div class="expediente-data-row"><span class="expediente-data-label">Contacto Tutor:</span><span class="expediente-data-val">${patient.guardianPhone || 'Sin teléfono'} · ${patient.guardianEmail || 'Sin correo'}</span></div>
-            <div class="expediente-data-row"><span class="expediente-data-label">Consentimiento:</span><span class="expediente-data-val">${patient.guardianConsent === 'firmado' ? '<span class="badge-alta-chip">✅ Firmado</span>' : '⏳ Pendiente'}</span></div>
+            <div class="expediente-data-row"><span class="expediente-data-label">Consentimiento Informado:</span><span class="expediente-data-val">${patient.guardianConsent === 'firmado' ? '<span class="badge-alta-chip">Firmado</span>' : 'Pendiente'}</span></div>
         `;
     } else if (cat === 'adolescent') {
         patientDetailsRows = `
             <div class="expediente-data-row"><span class="expediente-data-label">Nombre Completo:</span><span class="expediente-data-val"><strong>${patient.name}</strong></span></div>
-            <div class="expediente-data-row"><span class="expediente-data-label">Etapa Vital:</span><span class="expediente-data-val">🧑 Adolescencia (12 a 17 años)</span></div>
+            <div class="expediente-data-row"><span class="expediente-data-label">Etapa Vital:</span><span class="expediente-data-val">Adolescente (12 a 17 años)</span></div>
             <div class="expediente-data-row"><span class="expediente-data-label">Edad / Sexo:</span><span class="expediente-data-val">${age} años · ${patient.gender || 'No registrado'}</span></div>
             <div class="expediente-data-row"><span class="expediente-data-label">Escolaridad:</span><span class="expediente-data-val">${patient.schoolGrade || 'No especificada'}</span></div>
             <div class="expediente-data-row"><span class="expediente-data-label">Vive con:</span><span class="expediente-data-val">${patient.livesWith || 'No especificado'}</span></div>
             <div class="expediente-data-row"><span class="expediente-data-label">Correo Paciente:</span><span class="expediente-data-val">${patient.email || 'Sin correo'}</span></div>
             <div class="expediente-data-row"><span class="expediente-data-label">Referido por:</span><span class="expediente-data-val">${referralList}</span></div>
             <div class="expediente-data-row"><span class="expediente-data-label">Tutor Legal:</span><span class="expediente-data-val"><strong>${patient.guardianName || 'Sin tutor'}</strong> (${patient.guardianRelation || 'Tutor'}) · Tel: ${patient.guardianPhone || 'Sin teléfono'}</span></div>
-            <div class="expediente-data-row"><span class="expediente-data-label">Consentimiento:</span><span class="expediente-data-val">${patient.guardianConsent === 'firmado' ? '<span class="badge-alta-chip">✅ Firmado</span>' : '⏳ Pendiente'}</span></div>
+            <div class="expediente-data-row"><span class="expediente-data-label">Consentimiento Informado:</span><span class="expediente-data-val">${patient.guardianConsent === 'firmado' ? '<span class="badge-alta-chip">Firmado</span>' : 'Pendiente'}</span></div>
         `;
     } else {
         patientDetailsRows = `
             <div class="expediente-data-row"><span class="expediente-data-label">Nombre Completo:</span><span class="expediente-data-val"><strong>${patient.name}</strong></span></div>
-            <div class="expediente-data-row"><span class="expediente-data-label">Etapa Vital:</span><span class="expediente-data-val">👤 Adultez (18+ años)</span></div>
+            <div class="expediente-data-row"><span class="expediente-data-label">Etapa Vital:</span><span class="expediente-data-val">Adulto (18+ años)</span></div>
             <div class="expediente-data-row"><span class="expediente-data-label">Edad / Sexo:</span><span class="expediente-data-val">${age} años · ${patient.gender || 'No registrado'}</span></div>
             <div class="expediente-data-row"><span class="expediente-data-label">Escolaridad / Ocupación:</span><span class="expediente-data-val">${patient.schoolGrade || '—'} · ${patient.occupation || 'No registrada'}</span></div>
             <div class="expediente-data-row"><span class="expediente-data-label">Estado Civil / Convivencia:</span><span class="expediente-data-val">${patient.maritalStatus || 'No registrado'} · Vive con: ${patient.livesWith || 'Solo/a'}</span></div>
@@ -2867,13 +4003,17 @@ function renderTabResumen(patientId, wellbeing, sessionPrep, emotionalProfile, c
     // 3. Ficha de Intervención y Tratamiento
     const treatmentDetailsHtml = `
         <div class="expediente-data-row"><span class="expediente-data-label">Enfoque Principal:</span><span class="expediente-data-val"><strong>${patient.intervention || 'Terapia Cognitivo-Conductual (TCC)'}</strong></span></div>
-        <div class="expediente-data-row"><span class="expediente-data-label">Encuadre Acordado:</span><span class="expediente-data-val">${patient.frequency || 'Semanal'} · Modalidad ${patient.modality || 'Presencial'} · Turno ${patient.shift || 'Mañana/Tarde'}</span></div>
+        <div class="expediente-data-row"><span class="expediente-data-label">Frecuencia Acordada:</span><span class="expediente-data-val">${patient.frequency || 'Semanal'}</span></div>
+        <div class="expediente-data-row"><span class="expediente-data-label">Modalidad:</span><span class="expediente-data-val">${patient.modality || 'Presencial'}</span></div>
+        <div class="expediente-data-row"><span class="expediente-data-label">Turno:</span><span class="expediente-data-val">${patient.shift || 'Mañana / Tarde'}</span></div>
         <div class="expediente-data-row"><span class="expediente-data-label">Consulta Previa:</span><span class="expediente-data-val">¿Asistió antes?: ${patient.previousPsych || 'No'} · Iniciativa: ${patient.initiative || 'Propia'}</span></div>
 
         <div class="treatment-block-highlight">
             <div class="treatment-block-title"><i class="fas fa-bullseye"></i> Motivo de Consulta y Objetivos</div>
             <div class="treatment-block-text"><strong>Motivo:</strong> ${patient.reason || 'Sin motivo inicial detallado'}</div>
             <div class="treatment-block-text" style="margin-top:4px;"><strong>${cat === 'child' ? 'Expectativas' : 'Objetivos'}:</strong> ${patient.goals || 'En proceso de delimitación'}</div>
+            ${patient.mediumTermGoals ? `<div class="treatment-block-text" style="margin-top:4px;"><strong>Metas a Mediano Plazo:</strong> ${patient.mediumTermGoals}</div>` : ''}
+            ${patient.longTermGoals ? `<div class="treatment-block-text" style="margin-top:4px;"><strong>Metas a Largo Plazo:</strong> ${patient.longTermGoals}</div>` : ''}
         </div>
 
         ${(patient.bioHypothesis || patient.socialHypothesis || patient.psychHypothesis) ? `
@@ -2915,7 +4055,7 @@ function renderTabResumen(patientId, wellbeing, sessionPrep, emotionalProfile, c
                 <div class="expediente-box">
                     <div class="expediente-box-header">
                         <div class="expediente-box-title"><i class="fas fa-hand-holding-medical"></i> Intervención y Tratamiento</div>
-                        <button class="btn-secondary btn-sm" onclick="switchPatientTab('notas', document.querySelector('.patient-tab:nth-child(2)'))" title="Ver Notas de Sesión">
+                        <button class="btn-secondary btn-sm" onclick="switchPatientTab('notas')" title="Ver Notas de Sesión">
                             <i class="fas fa-file-invoice"></i> Notas (${notes.length})
                         </button>
                     </div>
@@ -2936,9 +4076,9 @@ function renderTabResumen(patientId, wellbeing, sessionPrep, emotionalProfile, c
                         <div class="wellbeing-status ${wellbeing.statusClass}">${wellbeing.statusLabel}</div>
                     </div>
                     <div class="summary-grid" style="margin:0;">
-                        <div class="summary-mini-card"><div class="summary-mini-icon">📅</div><div class="summary-mini-info"><div class="summary-mini-label">Sesiones</div><div class="summary-mini-value">${patientApps.filter(a=>a.status==='completada').length}</div></div></div>
-                        <div class="summary-mini-card"><div class="summary-mini-icon">📝</div><div class="summary-mini-info"><div class="summary-mini-label">Notas</div><div class="summary-mini-value">${notes.length}</div></div></div>
-                        <div class="summary-mini-card"><div class="summary-mini-icon">🎯</div><div class="summary-mini-info"><div class="summary-mini-label">Objetivos</div><div class="summary-mini-value">${goals.filter(g=>g.status==='logrado').length}/${goals.length}</div></div></div>
+                        <div class="summary-mini-card"><div class="summary-mini-icon"><i class="fas fa-calendar-alt"></i></div><div class="summary-mini-info"><div class="summary-mini-label">Sesiones</div><div class="summary-mini-value">${patientApps.filter(a=>a.status==='completada').length}</div></div></div>
+                        <div class="summary-mini-card"><div class="summary-mini-icon"><i class="fas fa-file-medical"></i></div><div class="summary-mini-info"><div class="summary-mini-label">Notas</div><div class="summary-mini-value">${notes.length}</div></div></div>
+                        <div class="summary-mini-card"><div class="summary-mini-icon"><i class="fas fa-bullseye"></i></div><div class="summary-mini-info"><div class="summary-mini-label">Objetivos</div><div class="summary-mini-value">${goals.filter(g=>g.status==='logrado').length}/${goals.length}</div></div></div>
                         <div class="summary-mini-card"><div class="summary-mini-icon">⏱️</div><div class="summary-mini-info"><div class="summary-mini-label">En tratamiento</div><div class="summary-mini-value">${durationText}</div></div></div>
                     </div>
                 </div>
@@ -2951,7 +4091,7 @@ function renderTabResumen(patientId, wellbeing, sessionPrep, emotionalProfile, c
             ${clinicalInsights ? renderClinicalInsights(clinicalInsights) : ''}
 
             <!-- Alertas y Evolución Reciente -->
-            ${alerts.length > 0 ? `<div class="alerts-list">${alerts.map(a => `<div class="alert-item ${a.level}"><div class="alert-item-icon">${a.icon}</div><div class="alert-item-text"><strong>${a.title}</strong><small>${a.description}</small></div></div>`).join('')}</div>` : `<div class="alert-item success"><div class="alert-item-icon">✅</div><div class="alert-item-text"><strong>Sin alertas críticas activas</strong><small>Evolución clínica estable conforme a los objetivos terapéuticos</small></div></div>`}
+            ${alerts.length > 0 ? `<div class="alerts-list">${alerts.map(a => `<div class="alert-item ${a.level}"><div class="alert-item-icon">${a.icon}</div><div class="alert-item-text"><strong>${a.title}</strong><small>${a.description}</small></div></div>`).join('')}</div>` : `<div class="alert-item success"><div class="alert-item-icon"><i class="fas fa-check-circle"></i></div><div class="alert-item-text"><strong>Sin alertas críticas activas</strong><small>Evolución clínica estable conforme a los objetivos terapéuticos</small></div></div>`}
 
             ${latestNote ? `
                 <div style="margin-top:10px;">
@@ -2971,11 +4111,614 @@ function renderTabResumen(patientId, wellbeing, sessionPrep, emotionalProfile, c
             ${goals.length > 0 ? `
                 <div style="margin-top:10px;">
                     <h4 style="font-size:13px;color:var(--text-tertiary);text-transform:uppercase;margin-bottom:8px;"><i class="fas fa-bullseye"></i> Objetivos del Plan Terapéutico</h4>
-                    <div class="goals-progress">${goals.slice(0, 3).map(g => `<div class="goal-progress-item"><div class="goal-progress-header"><div class="goal-progress-title">${g.title}</div><div class="goal-progress-percent">${g.progress}%</div></div><div class="goal-progress-bar"><div class="goal-progress-fill" style="width:${g.progress}%"></div></div>${g.deadline ? `<div class="goal-progress-deadline">📅 ${formatDate(g.deadline)}</div>` : ''}</div>`).join('')}</div>
+                    <div class="goals-progress">${goals.slice(0, 3).map(g => `<div class="goal-progress-item"><div class="goal-progress-header"><div class="goal-progress-title">${g.title}</div><div class="goal-progress-percent">${g.progress}%</div></div><div class="goal-progress-bar"><div class="goal-progress-fill" style="width:${g.progress}%"></div></div>${g.deadline ? `<div class="goal-progress-deadline"><i class="fas fa-calendar-alt"></i> ${formatDate(g.deadline)}</div>` : ''}</div>`).join('')}</div>
                 </div>
             ` : ''}
         </div>
     `;
+}
+
+// ============================================
+// MAPA DE RUTA Y ORGANIZADOR DE SESIONES DE TERAPIA
+// ============================================
+
+function formatRoadmapDate(dateStr) {
+    if (!dateStr) return 'Sin fecha';
+    try {
+        const clean = dateStr.includes('T') ? dateStr.split('T')[0] : dateStr;
+        const [y, m, d] = clean.split('-').map(Number);
+        if (y && m && d) {
+            const dateObj = new Date(y, m - 1, d);
+            return dateObj.toLocaleDateString('es-ES', { day: 'numeric', month: 'short', year: 'numeric' });
+        }
+        return dateStr;
+    } catch {
+        return dateStr;
+    }
+}
+
+function getTherapyRoadmapSessionsForPatient(patientId) {
+    if (!patientId) return [];
+    const storedRoadmap = (AppState.therapyRoadmaps || []).filter(s => String(s.patientId) === String(patientId));
+    const notes = (AppState.notes || []).filter(n => String(n.patientId) === String(patientId));
+
+    let sessions = [...storedRoadmap];
+
+    // Auto-incorporar notas clínicas como sesiones completadas si no están en el roadmap
+    notes.forEach((note, idx) => {
+        const alreadyLinked = sessions.find(s => s.clinicalNoteId === note.id || s.id === `note_session_${note.id}`);
+        if (!alreadyLinked) {
+            const num = note.sessionNum || note.sessionNumber || (idx + 1);
+            sessions.push({
+                id: `note_session_${note.id}`,
+                patientId: String(patientId),
+                sessionNumber: Number(num),
+                title: note.title || `Sesión #${num}`,
+                date: note.date || (note.createdAt ? note.createdAt.split('T')[0] : new Date().toISOString().split('T')[0]),
+                focusSummary: note.subjetivo?.substring(0, 150) || note.sessionDescription?.substring(0, 150) || note.plan?.substring(0, 150) || 'Sesión terapéutica registrada',
+                status: 'completada',
+                clinicalNoteId: note.id,
+                displayOrder: Number(num)
+            });
+        }
+    });
+
+    // Limpiar respuestas automáticas demo previas si existieran
+    const DEMO_SUMMARIES = [
+        'Evaluación inicial revela ansiedad y estrés laboral crecientes tras cambios de puesto...',
+        'Se introdujo psicoeducación sobre la respuesta al estrés y el triángulo cognitivo...',
+        'Se aplicó reestructuración cognitiva para desafiar pensamiento todo o nada...',
+        'Enfoque en confianza en liderazgo y establecimiento de límites saludables...',
+        'Revisión integral de progreso mostrando ansiedad reducida de moderada a leve...',
+        'Consolidación de logros, plan de acción ante eventos estresores y cierre...'
+    ];
+    sessions.forEach(s => {
+        if (s.focusSummary && DEMO_SUMMARIES.some(demo => s.focusSummary.includes(demo.slice(0, 30)))) {
+            s.focusSummary = '';
+        }
+    });
+
+    // Si el paciente aún no tiene sesiones ni notas, generar un recorrido inicial demostrativo limpio sin textos automáticos
+    if (sessions.length === 0) {
+        sessions = [
+            {
+                id: `demo_${patientId}_1`,
+                patientId: String(patientId),
+                sessionNumber: 1,
+                title: 'Evaluación Inicial',
+                date: '2026-07-31',
+                focusSummary: '',
+                status: 'pendiente',
+                displayOrder: 1
+            },
+            {
+                id: `demo_${patientId}_2`,
+                patientId: String(patientId),
+                sessionNumber: 2,
+                title: 'Sesión 2 - Psicoeducación',
+                date: '2026-08-14',
+                focusSummary: '',
+                status: 'pendiente',
+                displayOrder: 2
+            },
+            {
+                id: `demo_${patientId}_3`,
+                patientId: String(patientId),
+                sessionNumber: 3,
+                title: 'Sesión 5 - Reestructuración Cognitiva',
+                date: '2026-09-11',
+                focusSummary: '',
+                status: 'pendiente',
+                displayOrder: 3
+            },
+            {
+                id: `demo_${patientId}_4`,
+                patientId: String(patientId),
+                sessionNumber: 4,
+                title: 'Sesión 8 - Fortaleciendo la Autoeficacia',
+                date: '2026-10-09',
+                focusSummary: '',
+                status: 'pendiente',
+                displayOrder: 4
+            },
+            {
+                id: `demo_${patientId}_5`,
+                patientId: String(patientId),
+                sessionNumber: 5,
+                title: 'Sesión 9 - Revisión de Progreso',
+                date: '2026-10-16',
+                focusSummary: '',
+                status: 'pendiente',
+                displayOrder: 5
+            },
+            {
+                id: `demo_${patientId}_6`,
+                patientId: String(patientId),
+                sessionNumber: 6,
+                title: 'Sesión 10 - Prevención de Recaídas',
+                date: '2026-10-30',
+                focusSummary: '',
+                status: 'pendiente',
+                displayOrder: 6
+            }
+        ];
+        if (!AppState.therapyRoadmaps) AppState.therapyRoadmaps = [];
+        AppState.therapyRoadmaps.push(...sessions);
+        saveDataLocallyOnly();
+    }
+
+    // Ordenar cronológicamente de la más antigua a la más reciente
+    return sessions.sort((a, b) => {
+        const da = a.date ? new Date(a.date).getTime() : 0;
+        const db = b.date ? new Date(b.date).getTime() : 0;
+        if (da !== db) return da - db;
+        return (Number(a.sessionNumber) || 0) - (Number(b.sessionNumber) || 0);
+    });
+}
+
+function renderRoadmapCardHtml(s, patientId) {
+    if (!s) return '<div class="therapy-session-card-placeholder" style="visibility:hidden;"></div>';
+    const isCompleted = s.status === 'completada';
+    const statusLabel = isCompleted ? 'Completada' : (s.status === 'agendada' ? 'En curso' : 'Pendiente');
+    const statusIcon = isCompleted ? 'fa-check-circle' : (s.status === 'agendada' ? 'fa-calendar-check' : 'fa-clock');
+    const statusClass = isCompleted ? 'pill-completada' : (s.status === 'agendada' ? 'pill-agendada' : 'pill-pendiente');
+    const hasFocus = Boolean(s.focusSummary && s.focusSummary.trim().length > 0);
+    const safeTitle = (s.title || `Sesión #${s.sessionNumber}`).replace(/"/g, '&quot;');
+
+    return `
+        <div class="therapy-session-card ${isCompleted ? 'card-completada' : ''}" data-session-id="${s.id}">
+            <div class="session-card-header">
+                <div class="session-card-number">${s.sessionNumber}</div>
+                <div class="session-card-title" title="${safeTitle}">${safeTitle}</div>
+                <button type="button" class="session-card-chevron" onclick="handleRoadmapSessionClick('${s.id}', '${patientId}')" title="Ver detalles / evolucionar reporte">
+                    <i class="fas fa-chevron-right"></i>
+                </button>
+            </div>
+
+            <div class="session-card-date">
+                <i class="far fa-calendar-alt"></i>
+                <span>${formatRoadmapDate(s.date)}</span>
+            </div>
+
+            ${hasFocus ? `
+                <div class="session-card-focus-box">
+                    <div class="session-card-focus-content">
+                        <i class="fas fa-wand-magic-sparkles focus-icon"></i>
+                        <span class="focus-text">${s.focusSummary}</span>
+                    </div>
+                    <button type="button" class="focus-toggle-btn" onclick="toggleRoadmapSnippet(this)" title="Desplegar resumen completo">
+                        <i class="fas fa-chevron-down"></i>
+                    </button>
+                </div>
+            ` : ''}
+
+            <div class="session-card-footer">
+                <button type="button" class="session-status-pill ${statusClass}" onclick="quickToggleRoadmapStatus('${patientId}', '${s.id}', '${s.status}')" title="Clic para alternar entre Pendiente y Completada">
+                    <i class="far ${statusIcon}"></i>
+                    <span>${statusLabel}</span>
+                </button>
+                <button type="button" class="session-card-edit-btn" onclick="openEditRoadmapSessionModal('${patientId}', '${s.id}')" title="Editar datos de sesión">
+                    <i class="fas fa-pencil-alt"></i>
+                </button>
+            </div>
+        </div>
+    `;
+}
+
+function renderRoadmapTrackHtml(dotsCount = 3) {
+    return `
+        <div class="therapy-roadmap-track">
+            <div class="therapy-roadmap-track-line"></div>
+            <div class="therapy-roadmap-track-nodes">
+                ${Array.from({ length: dotsCount }).map(() => `
+                    <div class="therapy-roadmap-node-wrap">
+                        <div class="therapy-roadmap-node"></div>
+                    </div>
+                `).join('')}
+            </div>
+        </div>
+    `;
+}
+
+function renderRoadmapBoard(sessions, patientId) {
+    if (!sessions || sessions.length === 0) {
+        return `
+            <div class="therapy-roadmap-empty">
+                <div style="font-size:28px;margin-bottom:8px;"><i class="fas fa-route"></i></div>
+                <p style="margin:0 0 12px;color:var(--text-secondary);font-size:14px;">No hay sesiones planificadas en la ruta de este paciente.</p>
+                <button class="btn-primary btn-sm" onclick="openAddRoadmapSessionModal('${patientId}')">
+                    <i class="fas fa-plus"></i> Iniciar Ruta de Sesiones
+                </button>
+            </div>
+        `;
+    }
+
+    if (sessions.length <= 3) {
+        return `
+            <div class="therapy-roadmap-row">
+                ${sessions.map(s => renderRoadmapCardHtml(s, patientId)).join('')}
+            </div>
+            ${renderRoadmapTrackHtml(sessions.length)}
+        `;
+    }
+
+    // Dividir en filas de 3 sesiones cada una
+    // sessions ya viene ordenado cronológicamente de la más antigua a la más reciente (ej: [1, 2, 3, 4, 5, 6])
+    // Se agrupan en chunks de 3: Chunk 0 = [1, 2, 3] (más antiguas), Chunk 1 = [4, 5, 6] (más recientes)
+    const chunks = [];
+    for (let i = 0; i < sessions.length; i += 3) {
+        chunks.push(sessions.slice(i, i + 3));
+    }
+
+    // Para dejar las sesiones más recientes en la primera fila (arriba),
+    // invertimos el orden de las filas (chunks): la última fila cronológica va primero arriba
+    // Y dentro de cada fila, las sesiones se leen de izquierda a derecha de la más antigua a la más reciente
+    const reversedChunks = [...chunks].reverse();
+
+    let html = '';
+    reversedChunks.forEach((chunk, index) => {
+        // Rellenar visualmente con null si la fila tiene menos de 3
+        const rowSlots = [chunk[0] || null, chunk[1] || null, chunk[2] || null];
+        const isLastRenderedRow = index === reversedChunks.length - 1;
+
+        html += `
+            <div class="therapy-roadmap-row">
+                ${rowSlots.map(s => renderRoadmapCardHtml(s, patientId)).join('')}
+            </div>
+        `;
+
+        if (!isLastRenderedRow) {
+            // Conector vertical alternado entre filas continuas
+            const connectorClass = (index % 2 === 0) ? 'connector-left' : 'connector-right';
+            html += `
+                <div style="position:relative;">
+                    ${renderRoadmapTrackHtml(3)}
+                    <div class="therapy-roadmap-vertical-connector ${connectorClass}" style="height:36px;top:-18px;"></div>
+                </div>
+            `;
+        } else {
+            // Pista final sin conector inferior
+            html += renderRoadmapTrackHtml(chunk.length);
+        }
+    });
+
+    return html;
+}
+
+function renderTherapySessionsRoadmap(patientId) {
+    const sessions = getTherapyRoadmapSessionsForPatient(patientId);
+    return `
+        <div class="therapy-roadmap-container" id="therapyRoadmapContainer">
+            <div class="therapy-roadmap-header">
+                <div class="therapy-roadmap-title-wrap">
+                    <h3 class="therapy-roadmap-title">Sesiones de Terapia</h3>
+                </div>
+                <button type="button" class="btn-primary btn-add-session-roadmap" onclick="openAddRoadmapSessionModal('${patientId}')" title="Planificar o agregar una nueva sesión a la ruta terapéutica">
+                    <i class="fas fa-plus"></i> Agregar Sesión
+                </button>
+            </div>
+
+            <div class="therapy-roadmap-board">
+                ${renderRoadmapBoard(sessions, patientId)}
+            </div>
+        </div>
+    `;
+}
+
+function toggleRoadmapSnippet(btn) {
+    if (!btn) return;
+    const focusBox = btn.closest('.session-card-focus-box');
+    if (!focusBox) return;
+    const textEl = focusBox.querySelector('.focus-text');
+    if (!textEl) return;
+    const isExpanded = textEl.classList.toggle('expanded');
+    btn.classList.toggle('expanded', isExpanded);
+}
+
+async function quickToggleRoadmapStatus(patientId, sessionId, currentStatus) {
+    const nextStatus = currentStatus === 'completada' ? 'pendiente' : 'completada';
+    if (!AppState.therapyRoadmaps) AppState.therapyRoadmaps = [];
+    const item = AppState.therapyRoadmaps.find(s => s.id === sessionId);
+    if (item) {
+        item.status = nextStatus;
+        item.updatedAt = new Date().toISOString();
+        await saveDataLocallyOnly();
+    }
+
+    try {
+        const token = localStorage.getItem('psico_session_token');
+        if (token) {
+            fetch(`/api/v1/patients/${patientId}/therapy-sessions/${sessionId}`, {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+                body: JSON.stringify({ status: nextStatus })
+            }).catch(() => {});
+        }
+    } catch {}
+
+    viewPatient(patientId, 'sesiones');
+}
+
+function handleRoadmapSessionClick(sessionId, patientId) {
+    const session = (AppState.therapyRoadmaps || []).find(s => s.id === sessionId);
+    if (session && session.clinicalNoteId) {
+        const note = (AppState.notes || []).find(n => n.id === session.clinicalNoteId);
+        if (note && typeof viewNote === 'function') {
+            closeModal('patientDetailModal');
+            viewNote(note.id);
+            return;
+        }
+    }
+
+    if (session && session.status === 'pendiente') {
+        openReporteAtencionFromRoadmapSession(sessionId, patientId);
+    } else {
+        openEditRoadmapSessionModal(patientId, sessionId);
+    }
+}
+
+function openReporteAtencionFromRoadmapSession(sessionId, patientId) {
+    const session = (AppState.therapyRoadmaps || []).find(s => s.id === sessionId);
+    const patient = (AppState.patients || []).find(p => String(p.id) === String(patientId));
+    if (!patient) return;
+
+    closeModal('patientDetailModal');
+    openReporteAtencionForPatient(patientId);
+
+    if (session) {
+        if (document.getElementById('noteTitle')) {
+            document.getElementById('noteTitle').value = session.title || `Sesión #${session.sessionNumber} - ${patient.name}`;
+        }
+        if (document.getElementById('noteSessionNum')) {
+            document.getElementById('noteSessionNum').value = session.sessionNumber;
+        }
+        if (session.date && document.getElementById('noteDate')) {
+            document.getElementById('noteDate').value = session.date;
+        }
+        if (session.focusSummary) {
+            if (document.getElementById('noteSessionGoals')) {
+                document.getElementById('noteSessionGoals').value = session.focusSummary;
+            }
+            if (document.getElementById('notePlan')) {
+                document.getElementById('notePlan').value = session.focusSummary;
+            }
+        }
+    }
+}
+
+function openAddRoadmapSessionModal(patientId) {
+    const patient = (AppState.patients || []).find(p => String(p.id) === String(patientId));
+    if (!patient) return;
+
+    const existingSessions = (AppState.therapyRoadmaps || []).filter(s => String(s.patientId) === String(patientId));
+    const nextNum = existingSessions.length > 0 
+        ? Math.max(...existingSessions.map(s => Number(s.sessionNumber) || 0)) + 1 
+        : (AppState.notes.filter(n => String(n.patientId) === String(patientId)).length + 1);
+
+    document.getElementById('roadmapSessionId').value = '';
+    document.getElementById('roadmapPatientId').value = patientId;
+    document.getElementById('roadmapSessionModalTitle').textContent = 'Planificar Sesión de Terapia';
+    document.getElementById('roadmapSessionNumber').value = nextNum;
+    document.getElementById('roadmapSessionTitle').value = `Sesión ${nextNum} - `;
+    document.getElementById('roadmapSessionDate').value = new Date().toISOString().split('T')[0];
+    document.getElementById('roadmapSessionStatus').value = 'pendiente';
+    document.getElementById('roadmapSessionFocus').value = '';
+
+    const delBtn = document.getElementById('btnDeleteRoadmapSession');
+    if (delBtn) delBtn.style.display = 'none';
+
+    if (typeof switchRoadmapModalTab === 'function') {
+        switchRoadmapModalTab('encuadre');
+    }
+
+    openModal('roadmapSessionModal');
+}
+
+function openEditRoadmapSessionModal(patientId, sessionId) {
+    const session = (AppState.therapyRoadmaps || []).find(s => s.id === sessionId);
+    if (!session) return;
+
+    document.getElementById('roadmapSessionId').value = session.id;
+    document.getElementById('roadmapPatientId').value = patientId;
+    document.getElementById('roadmapSessionModalTitle').textContent = `Editar Sesión #${session.sessionNumber}`;
+    document.getElementById('roadmapSessionNumber').value = session.sessionNumber;
+    document.getElementById('roadmapSessionTitle').value = session.title;
+    document.getElementById('roadmapSessionDate').value = session.date ? session.date.split('T')[0] : '';
+    document.getElementById('roadmapSessionStatus').value = session.status || 'pendiente';
+    document.getElementById('roadmapSessionFocus').value = session.focusSummary || '';
+
+    const delBtn = document.getElementById('btnDeleteRoadmapSession');
+    if (delBtn) delBtn.style.display = 'inline-block';
+
+    if (typeof switchRoadmapModalTab === 'function') {
+        switchRoadmapModalTab('encuadre');
+    }
+
+    openModal('roadmapSessionModal');
+}
+
+async function handleSaveRoadmapSession(event) {
+    if (event) event.preventDefault();
+    const sessionId = document.getElementById('roadmapSessionId').value;
+    const patientId = document.getElementById('roadmapPatientId').value;
+    const sessionNumber = Number(document.getElementById('roadmapSessionNumber').value) || 1;
+    const title = document.getElementById('roadmapSessionTitle').value.trim();
+    const date = document.getElementById('roadmapSessionDate').value;
+    const status = document.getElementById('roadmapSessionStatus').value;
+    const focusSummary = document.getElementById('roadmapSessionFocus').value.trim();
+
+    if (!title || !date) {
+        alert('Por favor completa el título y la fecha de la sesión');
+        return;
+    }
+
+    if (!AppState.therapyRoadmaps) AppState.therapyRoadmaps = [];
+
+    let sessionRecord = null;
+    if (sessionId) {
+        const idx = AppState.therapyRoadmaps.findIndex(s => s.id === sessionId);
+        if (idx >= 0) {
+            AppState.therapyRoadmaps[idx] = {
+                ...AppState.therapyRoadmaps[idx],
+                sessionNumber,
+                title,
+                date,
+                status,
+                focusSummary,
+                updatedAt: new Date().toISOString()
+            };
+            sessionRecord = AppState.therapyRoadmaps[idx];
+        }
+    } else {
+        sessionRecord = {
+            id: `trs_${Date.now()}_${Math.random().toString(36).substr(2, 6)}`,
+            patientId,
+            sessionNumber,
+            title,
+            date,
+            status,
+            focusSummary,
+            displayOrder: sessionNumber,
+            createdAt: new Date().toISOString(),
+            updatedAt: new Date().toISOString()
+        };
+        AppState.therapyRoadmaps.push(sessionRecord);
+    }
+
+    await saveDataLocallyOnly();
+    closeModal('roadmapSessionModal');
+
+    try {
+        const token = localStorage.getItem('psico_session_token');
+        if (token && sessionRecord) {
+            if (sessionId) {
+                fetch(`/api/v1/patients/${patientId}/therapy-sessions/${sessionId}`, {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+                    body: JSON.stringify(sessionRecord)
+                }).catch(() => {});
+            } else {
+                fetch(`/api/v1/patients/${patientId}/therapy-sessions`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+                    body: JSON.stringify(sessionRecord)
+                }).catch(() => {});
+            }
+        }
+    } catch {}
+
+    if (typeof showToast === 'function') {
+        showToast('Sesión guardada en el mapa de ruta', 'success');
+    }
+
+    viewPatient(patientId, 'sesiones');
+}
+
+async function handleDeleteRoadmapSession() {
+    const sessionId = document.getElementById('roadmapSessionId').value;
+    const patientId = document.getElementById('roadmapPatientId').value;
+    if (!sessionId || !patientId) return;
+
+    if (!confirm('¿Está seguro de eliminar esta sesión del mapa de ruta?')) return;
+
+    AppState.therapyRoadmaps = (AppState.therapyRoadmaps || []).filter(s => s.id !== sessionId);
+    await saveDataLocallyOnly();
+    closeModal('roadmapSessionModal');
+
+    try {
+        const token = localStorage.getItem('psico_session_token');
+        if (token) {
+            fetch(`/api/v1/patients/${patientId}/therapy-sessions/${sessionId}`, {
+                method: 'DELETE',
+                headers: { 'Authorization': `Bearer ${token}` }
+            }).catch(() => {});
+        }
+    } catch {}
+
+    if (typeof showToast === 'function') {
+        showToast('Sesión eliminada del mapa de ruta', 'info');
+    }
+
+    viewPatient(patientId, 'sesiones');
+}
+
+function switchRoadmapModalTab(tabName, btn) {
+    const modal = document.getElementById('roadmapSessionModal');
+    if (!modal) return;
+
+    // Actualizar botones de pestaña
+    const buttons = modal.querySelectorAll('.modal-subtab-btn');
+    buttons.forEach(b => b.classList.remove('active'));
+    if (btn) {
+        btn.classList.add('active');
+    } else {
+        const targetBtn = modal.querySelector(`.modal-subtab-btn[onclick*="${tabName}"]`);
+        if (targetBtn) targetBtn.classList.add('active');
+    }
+
+    // Actualizar paneles de contenido
+    const contents = modal.querySelectorAll('.roadmap-modal-tab-content');
+    contents.forEach(c => c.classList.remove('active'));
+    const targetContent = document.getElementById(`roadmapModalTab-${tabName}`);
+    if (targetContent) targetContent.classList.add('active');
+}
+
+function applyRoadmapTitleSuggestion(title) {
+    const titleInput = document.getElementById('roadmapSessionTitle');
+    const numInput = document.getElementById('roadmapSessionNumber');
+    if (!titleInput) return;
+    const num = numInput ? numInput.value : '';
+    if (num && !title.toLowerCase().startsWith('sesión') && !title.toLowerCase().startsWith('sesion')) {
+        titleInput.value = `Sesión ${num} - ${title}`;
+    } else {
+        titleInput.value = title;
+    }
+    titleInput.focus();
+}
+
+function appendRoadmapFocusTemplate(templateText) {
+    const focusArea = document.getElementById('roadmapSessionFocus');
+    if (!focusArea) return;
+    if (!focusArea.value || focusArea.value.trim().length === 0) {
+        focusArea.value = templateText;
+    } else {
+        focusArea.value = focusArea.value.trim() + '\n\n' + templateText;
+    }
+    focusArea.focus();
+}
+
+function jumpToReporteAtencionFromModal() {
+    const patientId = document.getElementById('roadmapPatientId')?.value;
+    const sessionNum = document.getElementById('roadmapSessionNumber')?.value;
+    const sessionTitle = document.getElementById('roadmapSessionTitle')?.value;
+    const sessionDate = document.getElementById('roadmapSessionDate')?.value;
+    const sessionFocus = document.getElementById('roadmapSessionFocus')?.value;
+
+    closeModal('roadmapSessionModal');
+    closeModal('patientDetailModal');
+
+    if (patientId) {
+        openReporteAtencionForPatient(patientId);
+        setTimeout(() => {
+            if (document.getElementById('noteTitle') && sessionTitle) {
+                document.getElementById('noteTitle').value = sessionTitle;
+            }
+            if (document.getElementById('noteSessionNum') && sessionNum) {
+                document.getElementById('noteSessionNum').value = sessionNum;
+            }
+            if (document.getElementById('noteDate') && sessionDate) {
+                document.getElementById('noteDate').value = sessionDate;
+            }
+            if (sessionFocus) {
+                if (document.getElementById('noteSessionGoals')) {
+                    document.getElementById('noteSessionGoals').value = sessionFocus;
+                }
+                if (document.getElementById('notePlan')) {
+                    document.getElementById('notePlan').value = sessionFocus;
+                }
+            }
+        }, 80);
+    }
 }
 
 function renderTabNotasSesion(patientId) {
@@ -2990,7 +4733,7 @@ function renderTabNotasSesion(patientId) {
                 </button>
             </div>
             <div class="empty-state" style="padding:32px 16px;">
-                <div class="empty-icon">📝</div>
+                <div class="empty-icon"><i class="fas fa-file-alt"></i></div>
                 <p>No hay reportes de atención ni notas de sesión registradas aún para este paciente.</p>
                 <button class="btn-primary" onclick="openReporteAtencionForPatient('${patientId}'); closeModal('patientDetailModal');" style="margin-top:12px;">
                     <i class="fas fa-file-signature"></i> Llenar Primer Reporte de Atención
@@ -3058,8 +4801,8 @@ function renderTabNotasSesion(patientId) {
 
                         ${n.techniquesUsed || n.sessionGoals ? `
                             <div style="font-size:12px;color:var(--text-secondary);margin-bottom:12px;display:flex;gap:16px;flex-wrap:wrap;">
-                                ${n.sessionGoals ? `<div><strong>🎯 Objetivos trabajados:</strong> ${n.sessionGoals}</div>` : ''}
-                                ${n.techniquesUsed ? `<div><strong>🛠️ Técnicas aplicadas:</strong> ${n.techniquesUsed}</div>` : ''}
+                                ${n.sessionGoals ? `<div><strong>Objetivos trabajados:</strong> ${n.sessionGoals}</div>` : ''}
+                                ${n.techniquesUsed ? `<div><strong>Técnicas aplicadas:</strong> ${n.techniquesUsed}</div>` : ''}
                             </div>
                         ` : ''}
 
@@ -3102,6 +4845,518 @@ function generatePatientAlerts(patientId) {
     return alerts;
 }
 
+// ============================================
+// HISTORIAL DE SESIONES Y ASISTENCIA DEL PACIENTE
+// ============================================
+function calculatePatientSessionStats(patientId, stateObj = (typeof AppState !== 'undefined' ? AppState : {})) {
+    const apps = (stateObj?.appointments || []).filter(a => String(a.patientId) === String(patientId));
+    const totalCount = apps.length;
+
+    const completedApps = apps.filter(a => a.status === 'completada' || a.status === 'asistida');
+    const completedCount = completedApps.length;
+
+    const rescheduledApps = apps.filter(a => a.status === 'reprogramada');
+    const rescheduledCount = rescheduledApps.length;
+
+    const cancelledByTherapistApps = apps.filter(a => a.status === 'cancelada' && (a.canceledBy === 'therapist' || (a.notes && a.notes.includes('Cancelada por Terapeuta'))));
+    const cancelledByTherapistCount = cancelledByTherapistApps.length;
+
+    const cancelledByPatientApps = apps.filter(a => a.status === 'cancelada' && !cancelledByTherapistApps.includes(a));
+    const cancelledByPatientCount = cancelledByPatientApps.length;
+
+    const cancelledApps = apps.filter(a => a.status === 'cancelada');
+    const cancelledCount = cancelledApps.length;
+
+    const noShowApps = apps.filter(a => a.status === 'no_asistio' || a.status === 'ausente');
+    const noShowCount = noShowApps.length;
+
+    const scheduledApps = apps.filter(a => a.status === 'agendada' || (!a.status && (parseLocalDate(a.date) || new Date(0)) >= new Date()));
+    const scheduledCount = scheduledApps.length;
+
+    // Evaluables para el paciente: las cancelaciones motivadas por el terapeuta no penalizan al paciente
+    const evaluableCount = completedCount + rescheduledCount + cancelledByPatientCount + noShowCount;
+    const baseForRate = evaluableCount > 0 ? evaluableCount : (totalCount > 0 ? totalCount : 0);
+
+    const attendanceRate = baseForRate > 0 ? Math.round((completedCount / baseForRate) * 100) : (totalCount > 0 ? 0 : 100);
+    const rescheduleRate = baseForRate > 0 ? Math.round((rescheduledCount / baseForRate) * 100) : 0;
+    const cancellationRate = baseForRate > 0 ? Math.round((cancelledByPatientCount / baseForRate) * 100) : 0;
+    const noShowRate = baseForRate > 0 ? Math.round((noShowCount / baseForRate) * 100) : 0;
+
+    let adherenceBadge = 'neutral';
+    let adherenceBadgeText = 'Sin sesiones previas';
+    let adherenceColor = 'var(--text-secondary)';
+    let adherenceDesc = 'Aún no se registran sesiones concluidas o pasadas para evaluar la constancia terapéutica.';
+
+    if (baseForRate > 0) {
+        if (attendanceRate >= 85) {
+            adherenceBadge = 'success';
+            adherenceBadgeText = 'Alta Adherencia (Óptima)';
+            adherenceColor = '#059669';
+            adherenceDesc = 'Excelente compromiso y constancia con el encuadre psicoterapéutico. El paciente mantiene regularidad y minimiza interrupciones en el proceso clínico.';
+        } else if (attendanceRate >= 70) {
+            adherenceBadge = 'warning';
+            adherenceBadgeText = 'Adherencia Regular (Atención)';
+            adherenceColor = '#d97706';
+            adherenceDesc = 'Asistencia moderada con reprogramaciones o cancelaciones esporádicas. Se aconseja explorar posibles barreras logísticas, laborales o de resistencia.';
+        } else {
+            adherenceBadge = 'danger';
+            adherenceBadgeText = 'Baja Adherencia (Riesgo)';
+            adherenceColor = '#dc2626';
+            adherenceDesc = 'Alerta de riesgo de deserción o abandono terapéutico. La alta tasa de cancelaciones o ausencias compromete la eficacia de la intervención. Se sugiere reevaluar encuadre y alianza.';
+        }
+    }
+
+    return {
+        totalCount,
+        evaluableCount,
+        completedCount,
+        rescheduledCount,
+        cancelledCount,
+        cancelledByPatientCount,
+        cancelledByTherapistCount,
+        noShowCount,
+        scheduledCount,
+        attendanceRate,
+        rescheduleRate,
+        cancellationRate,
+        noShowRate,
+        adherenceBadge,
+        adherenceBadgeText,
+        adherenceColor,
+        adherenceDesc,
+        apps
+    };
+}
+
+function openAppointmentModalForPatient(patientId) {
+    openModal('appointmentModal');
+    document.getElementById('appointmentId').value = '';
+    const patSelect = document.getElementById('appointmentPatient');
+    if (patSelect) patSelect.value = patientId;
+    document.getElementById('appointmentModalTitle').textContent = 'Agendar / Registrar Sesión';
+    if (typeof populateAppointmentRates === 'function') populateAppointmentRates();
+}
+
+function renderTabHistorialSesiones(patientId, activeFilter = 'all') {
+    const stats = calculatePatientSessionStats(patientId);
+    let apps = [...stats.apps].sort((a, b) => new Date(b.date + 'T' + (b.time || '00:00')) - new Date(a.date + 'T' + (a.time || '00:00')));
+
+    if (activeFilter === 'completada') {
+        apps = apps.filter(a => a.status === 'completada' || a.status === 'asistida');
+    } else if (activeFilter === 'reprogramada') {
+        apps = apps.filter(a => a.status === 'reprogramada');
+    } else if (activeFilter === 'cancelada') {
+        apps = apps.filter(a => a.status === 'cancelada');
+    } else if (activeFilter === 'no_asistio') {
+        apps = apps.filter(a => a.status === 'no_asistio' || a.status === 'ausente');
+    } else if (activeFilter === 'agendada') {
+        apps = apps.filter(a => a.status === 'agendada' || (!a.status && new Date(a.date) >= new Date()));
+    }
+
+    const totalBar = stats.totalCount > 0 ? stats.totalCount : 1;
+    const completedPct = stats.totalCount > 0 ? Math.round((stats.completedCount / totalBar) * 100) : 0;
+    const rescheduledPct = stats.totalCount > 0 ? Math.round((stats.rescheduledCount / totalBar) * 100) : 0;
+    const cancelledPct = stats.totalCount > 0 ? Math.round((stats.cancelledCount / totalBar) * 100) : 0;
+    const noShowPct = stats.totalCount > 0 ? Math.round((stats.noShowCount / totalBar) * 100) : 0;
+    const scheduledPct = stats.totalCount > 0 ? Math.max(0, 100 - completedPct - rescheduledPct - cancelledPct - noShowPct) : 0;
+
+    const patient = (AppState.patients || []).find(p => String(p.id) === String(patientId));
+    const pName = patient ? patient.name : 'Paciente';
+
+    return `
+        <div class="session-history-container">
+            <!-- MAPA DE RUTA Y ORGANIZADOR DE SESIONES DE TERAPIA -->
+            ${renderTherapySessionsRoadmap(patientId)}
+
+            <!-- Header con título y botón de acción -->
+            <div class="session-history-header">
+                <div>
+                    <h3 class="session-history-header-title">
+                        <i class="fas fa-calendar-check" style="color:var(--accent-primary);"></i>
+                        Historial y Asistencia de Sesiones
+                    </h3>
+                    <p class="session-history-header-sub">
+                        Monitoreo clínico de asistencias, reprogramaciones, cancelaciones y adherencia al tratamiento de ${formatDisplayName(pName)}.
+                    </p>
+                </div>
+                <button class="btn-primary btn-sm" onclick="openAppointmentModalForPatient('${patientId}')" title="Agendar o registrar una nueva sesión para este paciente">
+                    <i class="fas fa-calendar-plus"></i> + Registrar / Agendar Sesión
+                </button>
+            </div>
+
+            <!-- Panel de Estadísticas y KPIs de Sesiones -->
+            <div class="session-stats-grid">
+                <div class="session-stat-card">
+                    <div class="session-stat-icon stat-attendance">
+                        <i class="fas fa-chart-pie"></i>
+                    </div>
+                    <div class="session-stat-info">
+                        <div class="session-stat-label">Tasa de Asistencia</div>
+                        <div class="session-stat-value" style="color:${stats.adherenceColor};">
+                            ${stats.attendanceRate}%
+                        </div>
+                        <div class="session-stat-sub">
+                            <span>${stats.completedCount} de ${stats.evaluableCount || stats.totalCount} evaluables</span>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="session-stat-card">
+                    <div class="session-stat-icon stat-completed">
+                        <i class="fas fa-check-circle"></i>
+                    </div>
+                    <div class="session-stat-info">
+                        <div class="session-stat-label">Asistidas / Concluidas</div>
+                        <div class="session-stat-value">
+                            ${stats.completedCount}
+                        </div>
+                        <div class="session-stat-sub">
+                            <span>${stats.attendanceRate}% efectividad</span>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="session-stat-card">
+                    <div class="session-stat-icon stat-rescheduled">
+                        <i class="fas fa-sync-alt"></i>
+                    </div>
+                    <div class="session-stat-info">
+                        <div class="session-stat-label">Reprogramadas</div>
+                        <div class="session-stat-value">
+                            ${stats.rescheduledCount}
+                        </div>
+                        <div class="session-stat-sub">
+                            <span>${stats.rescheduleRate}% tasa</span>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="session-stat-card">
+                    <div class="session-stat-icon stat-cancelled">
+                        <i class="fas fa-times-circle"></i>
+                    </div>
+                    <div class="session-stat-info">
+                        <div class="session-stat-label">Canceladas</div>
+                        <div class="session-stat-value">
+                            ${stats.cancelledCount}
+                        </div>
+                        <div class="session-stat-sub">
+                            <span>${stats.cancellationRate}% tasa</span>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="session-stat-card">
+                    <div class="session-stat-icon stat-noshow">
+                        <i class="fas fa-user-slash"></i>
+                    </div>
+                    <div class="session-stat-info">
+                        <div class="session-stat-label">Inasistencias (No Asistió)</div>
+                        <div class="session-stat-value">
+                            ${stats.noShowCount}
+                        </div>
+                        <div class="session-stat-sub">
+                            <span>${stats.noShowRate}% ausencias</span>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="session-stat-card">
+                    <div class="session-stat-icon stat-scheduled">
+                        <i class="fas fa-calendar-alt"></i>
+                    </div>
+                    <div class="session-stat-info">
+                        <div class="session-stat-label">Agendadas / Próximas</div>
+                        <div class="session-stat-value">
+                            ${stats.scheduledCount}
+                        </div>
+                        <div class="session-stat-sub">
+                            <span>En calendario</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Tarjeta de Distribución y Adherencia Terapéutica -->
+            <div class="session-adherence-card">
+                <div class="session-adherence-header">
+                    <div class="session-adherence-title">
+                        <i class="fas fa-tachometer-alt" style="color:var(--accent-primary);"></i>
+                        <span>Índice de Adherencia y Desglose Visual del Historial</span>
+                    </div>
+                    <span class="session-adherence-badge badge-${stats.adherenceBadge}">
+                        ${stats.adherenceBadgeText}
+                    </span>
+                </div>
+
+                <!-- Barra de Progreso Multi-Color -->
+                <div class="session-progress-bar-wrap" title="Completadas: ${completedPct}% | Reprogramadas: ${rescheduledPct}% | Canceladas: ${cancelledPct}% | Inasistencias: ${noShowPct}% | Agendadas: ${scheduledPct}%">
+                    ${completedPct > 0 ? `<div class="session-progress-segment segment-completed" style="width:${completedPct}%;"></div>` : ''}
+                    ${rescheduledPct > 0 ? `<div class="session-progress-segment segment-rescheduled" style="width:${rescheduledPct}%;"></div>` : ''}
+                    ${cancelledPct > 0 ? `<div class="session-progress-segment segment-cancelled" style="width:${cancelledPct}%;"></div>` : ''}
+                    ${noShowPct > 0 ? `<div class="session-progress-segment segment-noshow" style="width:${noShowPct}%;"></div>` : ''}
+                    ${scheduledPct > 0 ? `<div class="session-progress-segment segment-scheduled" style="width:${scheduledPct}%;"></div>` : ''}
+                </div>
+
+                <!-- Leyenda de la barra -->
+                <div class="session-progress-legend">
+                    <div class="session-legend-item">
+                        <span class="session-legend-dot" style="background:#10b981;"></span>
+                        <span>Asistidas (${stats.completedCount} · ${completedPct}%)</span>
+                    </div>
+                    <div class="session-legend-item">
+                        <span class="session-legend-dot" style="background:#f59e0b;"></span>
+                        <span>Reprogramadas (${stats.rescheduledCount} · ${rescheduledPct}%)</span>
+                    </div>
+                    <div class="session-legend-item">
+                        <span class="session-legend-dot" style="background:#ef4444;"></span>
+                        <span>Canceladas (${stats.cancelledCount} · ${cancelledPct}%)</span>
+                    </div>
+                    <div class="session-legend-item">
+                        <span class="session-legend-dot" style="background:#8b5cf6;"></span>
+                        <span>No Asistió (${stats.noShowCount} · ${noShowPct}%)</span>
+                    </div>
+                    <div class="session-legend-item">
+                        <span class="session-legend-dot" style="background:#3b82f6;"></span>
+                        <span>Agendadas (${stats.scheduledCount} · ${scheduledPct}%)</span>
+                    </div>
+                </div>
+
+                <div class="session-adherence-insight">
+                    <strong>Observación Clínica:</strong> ${stats.adherenceDesc}
+                </div>
+            </div>
+
+            <!-- Filtros de Estado del Historial -->
+            <div class="session-history-controls">
+                <div class="session-filter-pills">
+                    <button class="session-filter-pill ${activeFilter === 'all' ? 'active' : ''}" onclick="filterPatientSessionHistory('all', '${patientId}')">
+                        <i class="fas fa-list-ul"></i> Todas (${stats.totalCount})
+                    </button>
+                    <button class="session-filter-pill ${activeFilter === 'completada' ? 'active' : ''}" onclick="filterPatientSessionHistory('completada', '${patientId}')">
+                        <i class="fas fa-check-circle" style="color:#10b981;"></i> Asistidas (${stats.completedCount})
+                    </button>
+                    <button class="session-filter-pill ${activeFilter === 'reprogramada' ? 'active' : ''}" onclick="filterPatientSessionHistory('reprogramada', '${patientId}')">
+                        <i class="fas fa-sync-alt" style="color:#f59e0b;"></i> Reprogramadas (${stats.rescheduledCount})
+                    </button>
+                    <button class="session-filter-pill ${activeFilter === 'cancelada' ? 'active' : ''}" onclick="filterPatientSessionHistory('cancelada', '${patientId}')">
+                        <i class="fas fa-times-circle" style="color:#ef4444;"></i> Canceladas (${stats.cancelledCount})
+                    </button>
+                    <button class="session-filter-pill ${activeFilter === 'no_asistio' ? 'active' : ''}" onclick="filterPatientSessionHistory('no_asistio', '${patientId}')">
+                        <i class="fas fa-user-slash" style="color:#8b5cf6;"></i> Inasistencias (${stats.noShowCount})
+                    </button>
+                    <button class="session-filter-pill ${activeFilter === 'agendada' ? 'active' : ''}" onclick="filterPatientSessionHistory('agendada', '${patientId}')">
+                        <i class="fas fa-calendar-alt" style="color:#3b82f6;"></i> Agendadas (${stats.scheduledCount})
+                    </button>
+                </div>
+            </div>
+
+            <!-- Listado Cronológico de Sesiones -->
+            <div class="session-history-list">
+                ${apps.length === 0 ? `
+                    <div class="empty-state" style="padding:32px 16px;">
+                        <div class="empty-icon"><i class="fas fa-calendar-check"></i></div>
+                        <p>No se encontraron registros de sesiones con el filtro seleccionado.</p>
+                        <button class="btn-secondary btn-sm" onclick="filterPatientSessionHistory('all', '${patientId}')" style="margin-top:8px;">
+                            Ver todas las sesiones
+                        </button>
+                    </div>
+                ` : apps.map(a => {
+                    const status = a.status || 'agendada';
+                    const dateObj = new Date(a.date + 'T12:00:00');
+                    const dayNum = isNaN(dateObj.getDate()) ? '—' : dateObj.getDate();
+                    const monthStr = isNaN(dateObj.getDate()) ? '' : dateObj.toLocaleDateString('es-ES', { month: 'short' });
+                    const yearNum = isNaN(dateObj.getFullYear()) ? '' : dateObj.getFullYear();
+
+                    const statusLabels = {
+                        completada: 'Asistió / Completada',
+                        confirmada: 'Asistencia Confirmada',
+                        reprogramada: 'Reprogramada',
+                        cancelada: 'Cancelada',
+                        no_asistio: 'No Asistió',
+                        agendada: 'Agendada'
+                    };
+                    const statusIcons = {
+                        completada: 'fa-check-circle',
+                        confirmada: 'fa-check-double',
+                        reprogramada: 'fa-sync-alt',
+                        cancelada: 'fa-times-circle',
+                        no_asistio: 'fa-user-slash',
+                        agendada: 'fa-calendar-alt'
+                    };
+
+                    const isCancelledByTherapist = status === 'cancelada' && (a.canceledBy === 'therapist' || (a.notes && a.notes.includes('Cancelada por Terapeuta')));
+                    const isCancelledByPatient = status === 'cancelada' && !isCancelledByTherapist;
+
+                    const statusBadgeHtml = isCancelledByTherapist 
+                        ? `<span class="session-status-badge badge-status-cancelada-therapist" style="background:rgba(99,102,241,0.12);color:#4f46e5;border:1px solid rgba(99,102,241,0.3);font-weight:600;"><i class="fas fa-user-md"></i> Cancelada (Terapeuta)</span>`
+                        : (isCancelledByPatient 
+                            ? `<span class="session-status-badge badge-status-cancelada"><i class="fas fa-user-times"></i> Cancelada (Paciente)</span>`
+                            : `<span class="session-status-badge badge-status-${status}"><i class="fas ${statusIcons[status] || 'fa-circle'}"></i> ${statusLabels[status] || status}</span>`);
+
+                    const isConfirmed = Boolean(a.attendanceConfirmed || a.attendance_confirmed || status === 'confirmada');
+                    const relatedNote = (AppState.notes || []).find(n => 
+                        String(n.patientId) === String(patientId) && 
+                        (n.appointmentId === a.id || n.date === a.date)
+                    );
+
+                    return `
+                        <div class="session-history-card">
+                            <div class="session-history-main">
+                                <div class="session-history-date-box">
+                                    <span class="session-history-date-day">${dayNum}</span>
+                                    <span class="session-history-date-month">${monthStr}</span>
+                                    <span class="session-history-date-year">${yearNum}</span>
+                                </div>
+                                <div class="session-history-details">
+                                    <div class="session-history-title-row">
+                                        <span class="session-history-time"><i class="far fa-clock"></i> ${a.time || 'Horario no esp.'} (${a.duration || 50} min)</span>
+                                        <span class="session-type-chip">${a.type || 'Presencial'}</span>
+                                        ${statusBadgeHtml}
+                                        ${isConfirmed ? `
+                                            <span class="badge-attendance-check" title="Asistencia confirmada por el paciente en el portal">
+                                                <i class="fas fa-check-circle"></i> Confirmada por paciente
+                                            </span>
+                                        ` : ''}
+                                    </div>
+                                    <div class="session-history-notes">
+                                        ${a.cancelReason ? `<div style="margin-bottom:3px;font-size:12px;color:var(--text-secondary);"><i class="fas fa-info-circle" style="color:var(--accent-warning);margin-right:4px;"></i><strong>Motivo de cancelación:</strong> ${a.cancelReason}</div>` : ''}
+                                        ${a.notes ? `<span><i class="fas fa-comment-dots" style="color:var(--text-tertiary);margin-right:4px;"></i>${a.notes}</span>` : '<span style="color:var(--text-tertiary);font-style:italic;">Sin notas u observaciones específicas</span>'}
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="session-history-actions-row">
+                                <!-- Selector Rápido de Estado de Asistencia -->
+                                <select class="session-quick-status-select" onchange="quickChangeSessionAttendance('${a.id}', this.value, '${patientId}')" title="Cambiar asistencia de esta sesión">
+                                    <option value="agendada" ${status === 'agendada' ? 'selected' : ''}>Agendada</option>
+                                    <option value="confirmada" ${status === 'confirmada' ? 'selected' : ''}>Confirmada (Paciente)</option>
+                                    <option value="completada" ${status === 'completada' ? 'selected' : ''}>Asistió / Completada</option>
+                                    <option value="reprogramada" ${status === 'reprogramada' ? 'selected' : ''}>Reprogramada</option>
+                                    <option value="cancelada" ${status === 'cancelada' ? 'selected' : ''}>Cancelada</option>
+                                    <option value="no_asistio" ${status === 'no_asistio' ? 'selected' : ''}>No Asistió</option>
+                                </select>
+
+                                <!-- Enlace a Nota Clínica -->
+                                ${relatedNote ? `
+                                    <button class="btn-secondary btn-sm" onclick="editNote('${relatedNote.id}'); closeModal('patientDetailModal');" title="Ver / Editar Nota Clínica asociada">
+                                        <i class="fas fa-file-invoice"></i> Nota
+                                    </button>
+                                ` : (status === 'completada' ? `
+                                    <button class="btn-secondary btn-sm" onclick="openReporteAtencionForPatient('${patientId}'); closeModal('patientDetailModal');" title="Llenar Reporte de Atención para esta sesión completada">
+                                        <i class="fas fa-plus"></i> Nota
+                                    </button>
+                                ` : '')}
+
+                                <!-- Botón Motivo -->
+                                <button class="btn-icon" onclick="promptAddSessionReason('${a.id}', '${patientId}', '${status}')" title="Añadir o editar motivo/justificación de la sesión">
+                                    <i class="fas fa-comment-medical"></i>
+                                </button>
+
+                                <!-- Botón Editar Cita -->
+                                <button class="btn-icon" onclick="editAppointment('${a.id}'); closeModal('patientDetailModal');" title="Editar cita en calendario">
+                                    <i class="fas fa-edit"></i>
+                                </button>
+
+                                <!-- Botón Eliminar Cita -->
+                                <button class="btn-icon" onclick="deleteAppointment('${a.id}')" title="Eliminar cita">
+                                    <i class="fas fa-trash-alt" style="color:var(--accent-danger);"></i>
+                                </button>
+                            </div>
+                        </div>
+                    `;
+                }).join('')}
+            </div>
+        </div>
+    `;
+}
+
+function quickChangeSessionAttendance(appId, newStatus, patientId) {
+    const app = (AppState.appointments || []).find(a => String(a.id) === String(appId));
+    if (!app) return;
+
+    if (newStatus === 'reprogramada' || newStatus === 'cancelada') {
+        openAppointmentActionModal(appId);
+        return;
+    }
+
+    const oldStatus = app.status;
+    app.status = newStatus;
+    if (newStatus === 'confirmada') {
+        app.attendanceConfirmed = true;
+        app.attendance_confirmed = true;
+        app.confirmedAt = new Date().toISOString();
+    }
+    app.updatedAt = new Date().toISOString();
+
+    if (newStatus === 'completada' && oldStatus !== 'completada' && typeof registerIncomeFromAppointment === 'function') {
+        registerIncomeFromAppointment(app);
+    }
+
+    saveData();
+    if (typeof syncAppointmentStatusToPortalAndBackend === 'function') {
+        syncAppointmentStatusToPortalAndBackend(appId, newStatus, { patientId, notes: app.notes, date: app.date, time: app.time });
+    }
+
+    if (typeof renderCalendar === 'function') renderCalendar();
+    if (typeof renderAppointments === 'function') renderAppointments();
+    if (typeof updateDashboard === 'function') updateDashboard();
+    if (typeof updateCounts === 'function') updateCounts();
+
+    const tabSesiones = document.getElementById('tab-sesiones');
+    if (tabSesiones && typeof renderTabHistorialSesiones === 'function') {
+        tabSesiones.innerHTML = renderTabHistorialSesiones(patientId);
+    }
+
+    const tabResumen = document.getElementById('tab-resumen');
+    if (tabResumen && typeof renderTabResumen === 'function') {
+        tabResumen.innerHTML = renderTabResumen(patientId);
+    }
+
+    const labels = {
+        confirmada: 'Sesión confirmada (asistencia validada por el paciente)',
+        completada: 'Sesión marcada como Asistida / Completada',
+        reprogramada: 'Sesión marcada como Reprogramada',
+        cancelada: 'Sesión marcada como Cancelada',
+        no_asistio: 'Sesión marcada como No Asistió (Inasistencia)',
+        agendada: 'Sesión marcada como Agendada'
+    };
+    showToast(labels[newStatus] || `Estado actualizado a ${newStatus}`, 'success');
+
+    if ((newStatus === 'reprogramada' || newStatus === 'cancelada' || newStatus === 'no_asistio') && !app.notes) {
+        setTimeout(() => {
+            promptAddSessionReason(appId, patientId, newStatus);
+        }, 250);
+    }
+}
+
+function promptAddSessionReason(appId, patientId, status) {
+    const app = (AppState.appointments || []).find(a => String(a.id) === String(appId));
+    if (!app) return;
+    const currentReason = app.notes || '';
+    const label = status === 'reprogramada' ? 'reprogramación' : (status === 'cancelada' ? 'cancelación' : (status === 'no_asistio' ? 'inasistencia' : 'sesión'));
+    const reason = prompt(`(Opcional) Ingrese el motivo clínico o justificación de la ${label}:`, currentReason);
+    if (reason !== null && reason.trim() !== '') {
+        app.notes = reason.trim();
+        saveData();
+        if (typeof syncAppointmentStatusToPortalAndBackend === 'function') {
+            syncAppointmentStatusToPortalAndBackend(appId, status, { patientId, notes: app.notes });
+        }
+        const tabSesiones = document.getElementById('tab-sesiones');
+        if (tabSesiones && typeof renderTabHistorialSesiones === 'function') {
+            tabSesiones.innerHTML = renderTabHistorialSesiones(patientId);
+        }
+        showToast('Motivo guardado en la sesión', 'info');
+    }
+}
+
+function filterPatientSessionHistory(filter, patientId) {
+    const tabSesiones = document.getElementById('tab-sesiones');
+    if (tabSesiones && typeof renderTabHistorialSesiones === 'function') {
+        tabSesiones.innerHTML = renderTabHistorialSesiones(patientId, filter);
+    }
+}
+
 function renderTabHistoria(patient) {
     if (typeof ClinicalHistorySystem !== 'undefined' && ClinicalHistorySystem.renderTabHistoriaIntegral) {
         return ClinicalHistorySystem.renderTabHistoriaIntegral(patient);
@@ -3112,7 +5367,7 @@ function renderTabHistoria(patient) {
         const referralList = Array.isArray(patient.referral) ? patient.referral.join(', ') : (patient.referral || patient.referredBy || 'No especificado');
         const sections = [
             {
-                title: '📋 1. Ficha del Paciente (Adolescente)',
+                title: '1. Ficha del Paciente (Adolescente)',
                 content: `<strong>Nombre Completo:</strong> ${patient.name || 'Sin registrar'}<br>
                           <strong>Edad:</strong> ${patient.age || (patient.birthdate ? calculateAge(patient.birthdate) + ' años' : 'No registrada')}<br>
                           <strong>Sexo:</strong> ${patient.gender || 'No registrado'}<br>
@@ -3122,7 +5377,7 @@ function renderTabHistoria(patient) {
                           <strong>Correo Electrónico:</strong> ${patient.email || 'Sin registrar'}`
             },
             {
-                title: '🛡️ 2. Ficha del Representante / Tutor Legal',
+                title: '2. Ficha del Representante / Tutor Legal',
                 content: `<strong>Nombre Completo:</strong> ${patient.guardianName || 'No registrado'}<br>
                           <strong>Parentesco:</strong> ${patient.guardianRelation || 'No registrado'}<br>
                           <strong>Edad:</strong> ${patient.guardianAge ? patient.guardianAge + ' años' : 'No registrada'}<br>
@@ -3131,10 +5386,10 @@ function renderTabHistoria(patient) {
                           <strong>Estado Civil:</strong> ${patient.guardianMaritalStatus || 'No registrado'}<br>
                           <strong>Teléfono:</strong> ${patient.guardianPhone || 'Sin registrar'}<br>
                           <strong>Correo Electrónico:</strong> ${patient.guardianEmail || 'Sin registrar'}<br>
-                          <strong>Consentimiento Informado:</strong> ${patient.guardianConsent === 'firmado' ? '✅ Firmado' : '⏳ Pendiente'}`
+                          <strong>Consentimiento Informado:</strong> ${patient.guardianConsent === 'firmado' ? 'Firmado' : 'Pendiente'}`
             },
             {
-                title: '🧠 3. Información Referente a la Consulta Psicológica',
+                title: '3. Información Referente a la Consulta Psicológica',
                 content: `<strong>¿Ha asistido antes a Consulta Psicológica?:</strong> ${patient.previousPsych || 'No'}<br>
                           <strong>Nombre de la Persona que solicita la Consulta:</strong> ${patient.applicantName || 'No especificada'}<br>
                           <strong>¿Quién tomó la iniciativa?:</strong> ${patient.initiative || 'No registrada'} ${patient.initiative === 'Otro' && patient.initiativeOther ? '(' + patient.initiativeOther + ')' : ''}<br>
@@ -3150,7 +5405,7 @@ function renderTabHistoria(patient) {
                           <strong>Factores de Protección:</strong> ${patient.protectiveFactors || 'Sin información'}`
             },
             {
-                title: '🤝 4. Encuadre y Acuerdos de Consulta',
+                title: '4. Encuadre y Acuerdos de Consulta',
                 content: `<strong>Frecuencia Acordada:</strong> ${patient.frequency || 'Por acordar'}<br>
                           <strong>Modalidad:</strong> ${patient.modality || 'No definida'}<br>
                           <strong>Turno:</strong> ${patient.shift || 'No definido'}`
@@ -3164,21 +5419,30 @@ function renderTabHistoria(patient) {
     // Secciones específicas por etapa del ciclo vital
     if (cat === 'child') {
         sections.push({
-            title: '👨‍👧 Representante Legal y Tutoría Pediátrica',
-            content: patient.guardianName ? `<strong>Tutor/a:</strong> ${patient.guardianName} (${patient.guardianRelation || 'Tutor'})<br><strong>Teléfono de contacto:</strong> ${patient.guardianPhone || 'Sin registrar'}<br><strong>Consentimiento Parental:</strong> ${patient.guardianConsent === 'firmado' ? '✅ Firmado y en custodia' : '⏳ Pendiente de firma'}` : null
+            title: 'Representante Legal y Tutoría Pediátrica',
+            content: patient.guardianName ? `<strong>Tutor/a:</strong> ${patient.guardianName} (${patient.guardianRelation || 'Tutor'})<br><strong>Teléfono de contacto:</strong> ${patient.guardianPhone || 'Sin registrar'}<br><strong>Consentimiento Informado:</strong> ${patient.guardianConsent === 'firmado' ? 'Firmado y en custodia' : 'Pendiente de firma'}` : null
         });
         sections.push({
-            title: '🏫 Contexto Escolar e Institucional',
-            content: (patient.schoolName || patient.schoolGrade) ? `<strong>Institución Educativa:</strong> ${patient.schoolName || 'No esp.'}<br><strong>Grado / Curso:</strong> ${patient.schoolGrade || 'No esp.'}` : null
+            title: 'Contexto Escolar',
+            content: patient.schoolGrade ? `<strong>Nivel de Escolaridad:</strong> ${patient.schoolGrade}` : null
         });
         sections.push({
-            title: '🌱 Hitos del Neurodesarrollo y Antecedentes Perinatales',
+            title: 'Hitos del Neurodesarrollo',
             content: patient.developmentalMilestones
+        });
+    } else if (cat === 'adolescent') {
+        sections.push({
+            title: 'Representante Legal & Tutoría',
+            content: patient.guardianName ? `<strong>Tutor/a:</strong> ${patient.guardianName} (${patient.guardianRelation || 'Tutor'})<br><strong>Teléfono tutor:</strong> ${patient.guardianPhone || 'Sin registrar'}<br><strong>Consentimiento Informado:</strong> ${patient.guardianConsent === 'firmado' ? 'Firmado y en custodia' : 'Pendiente de firma'}` : null
+        });
+        sections.push({
+            title: 'Escolaridad',
+            content: patient.schoolGrade ? `<strong>Nivel de Escolaridad:</strong> ${patient.schoolGrade}` : null
         });
     } else {
         if (patient.maritalStatus) {
             sections.push({
-                title: '💍 Estado Civil / Situación Convivencial',
+                title: 'Estado Civil / Situación Convivencial',
                 content: patient.maritalStatus
             });
         }
@@ -3188,13 +5452,13 @@ function renderTabHistoria(patient) {
     sections.push(
         { title: 'Motivo de Consulta', content: patient.reason },
         { title: 'Objetivos del Paciente', content: patient.goals },
-        { title: 'Antecedentes Personales', content: patient.medical },
+        { title: 'Antecedentes Médicos / Orgánicos', content: patient.medical },
         { title: 'Historia Familiar', content: patient.familyHistory },
         { title: 'Factores de Riesgo', content: patient.riskFactors },
         { title: 'Factores Protectores', content: patient.protectiveFactors },
-        { title: 'Medicación Actual', content: patient.medication },
-        { title: 'Diagnóstico Secundario', content: patient.diagnosis2 },
-        { title: 'Encuadre', content: patient.notes }
+        { title: 'Frecuencia Acordada', content: patient.frequency },
+        { title: 'Modalidad', content: patient.modality },
+        { title: 'Turno', content: patient.shift }
     );
 
     return sections.map(s => `<div class="clinical-history-section"><h4>${s.title}</h4><div class="clinical-history-content ${!s.content ? 'empty' : ''}">${s.content || 'Sin información registrada'}</div></div>`).join('');
@@ -3217,17 +5481,17 @@ function renderTabTimeline(patientId) {
     });
     goals.forEach(g => {
         if (g.status === 'logrado') {
-            events.push({ date: new Date(g.createdAt || Date.now()), type: 'goal', title: `🎯 Objetivo logrado: ${g.title}`, description: g.description || '', tags: ['✅ Completado'] });
+            events.push({ date: new Date(g.createdAt || Date.now()), type: 'goal', title: `Objetivo logrado: ${g.title}`, description: g.description || '', tags: ['Completado'] });
         }
     });
     events.sort((a, b) => b.date - a.date);
-    if (events.length === 0) return '<div class="empty-state"><div class="empty-icon">📭</div><p>Sin eventos registrados</p></div>';
+    if (events.length === 0) return '<div class="empty-state"><div class="empty-icon"><i class="fas fa-inbox"></i></div><p>Sin eventos registrados</p></div>';
     return `<div class="timeline">${events.map(e => `<div class="timeline-item ${e.type}"><div class="timeline-date">${e.date.toLocaleDateString('es-ES', { day: 'numeric', month: 'long', year: 'numeric' })}</div><div class="timeline-title" style="display:flex;justify-content:space-between;align-items:center;"><span>${e.title}</span>${e.type === 'session' && e.id ? `<button class="btn-icon" onclick="event.stopPropagation(); ClinicalHistorySystem.exportReporteAtencionPDF('${e.id}')" title="Imprimir Reporte de Atención Oficial (PDF)"><i class="fas fa-file-invoice" style="color:var(--accent-primary);"></i></button>` : ''}</div><div class="timeline-description">${e.description}</div>${e.tags.length > 0 ? `<div class="timeline-tags">${e.tags.map(t => `<span class="timeline-tag">${t}</span>`).join('')}</div>` : ''}</div>`).join('')}</div>`;
 }
 
 function renderTabObjetivos(patientId) {
     const goals = AppState.treatmentPlans.filter(g => g.patientId === patientId);
-    return `<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;"><h4 style="margin:0;">Plan de Tratamiento</h4><button class="btn-primary" onclick="addTreatmentGoal('${patientId}'); viewPatient('${patientId}');"><i class="fas fa-plus"></i> Nuevo objetivo</button></div>${goals.length === 0 ? '<div class="empty-state"><div class="empty-icon">🎯</div><p>Sin objetivos definidos</p></div>' : `<div class="goals-progress">${goals.map(g => `<div class="goal-progress-item"><div class="goal-progress-header"><div class="goal-progress-title">${g.title}</div><div style="display:flex;gap:4px;align-items:center;"><span class="tag tag-${g.status}">${g.status}</span><div class="goal-progress-percent">${g.progress}%</div></div></div>${g.description ? `<div style="font-size:13px;color:var(--text-secondary);margin-bottom:8px;">${g.description}</div>` : ''}<div class="goal-progress-bar"><div class="goal-progress-fill" style="width:${g.progress}%"></div></div><div style="display:flex;justify-content:space-between;align-items:center;margin-top:8px;"><div class="goal-progress-deadline">📅 ${g.deadline ? formatDate(g.deadline) : 'Sin fecha'}</div><div style="display:flex;gap:4px;"><button class="btn-icon" onclick="updateGoalProgress('${g.id}'); viewPatient('${patientId}');"><i class="fas fa-chart-line"></i></button><button class="btn-icon" onclick="deleteGoal('${g.id}','${patientId}'); viewPatient('${patientId}');"><i class="fas fa-trash"></i></button></div></div></div>`).join('')}</div>`}`;
+    return `<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;"><h4 style="margin:0;">Plan de Tratamiento</h4><button class="btn-primary" onclick="addTreatmentGoal('${patientId}'); viewPatient('${patientId}');"><i class="fas fa-plus"></i> Nuevo objetivo</button></div>${goals.length === 0 ? '<div class="empty-state"><div class="empty-icon"><i class="fas fa-bullseye"></i></div><p>Sin objetivos definidos</p></div>' : `<div class="goals-progress">${goals.map(g => `<div class="goal-progress-item"><div class="goal-progress-header"><div class="goal-progress-title">${g.title}</div><div style="display:flex;gap:4px;align-items:center;"><span class="tag tag-${g.status}">${g.status}</span><div class="goal-progress-percent">${g.progress}%</div></div></div>${g.description ? `<div style="font-size:13px;color:var(--text-secondary);margin-bottom:8px;">${g.description}</div>` : ''}<div class="goal-progress-bar"><div class="goal-progress-fill" style="width:${g.progress}%"></div></div><div style="display:flex;justify-content:space-between;align-items:center;margin-top:8px;"><div class="goal-progress-deadline"><i class="fas fa-calendar-alt"></i> ${g.deadline ? formatDate(g.deadline) : 'Sin fecha'}</div><div style="display:flex;gap:4px;"><button class="btn-icon" onclick="updateGoalProgress('${g.id}'); viewPatient('${patientId}');"><i class="fas fa-chart-line"></i></button><button class="btn-icon" onclick="deleteGoal('${g.id}','${patientId}'); viewPatient('${patientId}');"><i class="fas fa-trash"></i></button></div></div></div>`).join('')}</div>`}`;
 }
 
 function renderTabEscalasEnhanced(patientId) {
@@ -3407,7 +5671,7 @@ function renderTabEscalasEnhanced(patientId) {
             <!-- BENTO DE 3 TARJETAS CLÍNICAS -->
             <div class="summary-grid" style="margin-bottom: 20px;">
                 <div class="summary-mini-card">
-                    <div class="summary-mini-icon">🌧️</div>
+                    <div class="summary-mini-icon"><i class="fas fa-cloud-rain"></i></div>
                     <div class="summary-mini-info">
                         <div class="summary-mini-label">Depresión (PHQ-9)</div>
                         <div class="summary-mini-value">${latestPhq ? `${latestPhq.score}/27` : '—'}</div>
@@ -3418,7 +5682,7 @@ function renderTabEscalasEnhanced(patientId) {
                 </div>
 
                 <div class="summary-mini-card">
-                    <div class="summary-mini-icon">🌊</div>
+                    <div class="summary-mini-icon"><i class="fas fa-water"></i></div>
                     <div class="summary-mini-info">
                         <div class="summary-mini-label">Ansiedad (GAD-7)</div>
                         <div class="summary-mini-value">${latestGad ? `${latestGad.score}/21` : '—'}</div>
@@ -3429,7 +5693,7 @@ function renderTabEscalasEnhanced(patientId) {
                 </div>
 
                 <div class="summary-mini-card">
-                    <div class="summary-mini-icon">🎯</div>
+                    <div class="summary-mini-icon"><i class="fas fa-bullseye"></i></div>
                     <div class="summary-mini-info">
                         <div class="summary-mini-label">Evolución Clínica</div>
                         <div class="summary-mini-value" style="font-size: 15px;">
@@ -3450,7 +5714,7 @@ function renderTabEscalasEnhanced(patientId) {
                 <h4><i class="fas fa-list-ol"></i> Registro Histórico de Evaluaciones Psicométricas (${allEvals.length})</h4>
                 ${allEvals.length === 0 ? `
                     <div class="empty-state" style="padding: 24px;">
-                        <div class="empty-icon">📊</div>
+                        <div class="empty-icon"><i class="fas fa-chart-line"></i></div>
                         <p>No hay evaluaciones psicométricas registradas aún</p>
                         <small>Aplica el PHQ-9 o GAD-7 en consulta o solicita al paciente completarlo desde su portal móvil.</small>
                     </div>
@@ -3492,6 +5756,39 @@ function renderTabEscalas(patientId) {
 // ASISTENTE CLÍNICO IA: DICTADO Y SÍNTESIS SOAP
 // ============================================
 let soapAiGeneratedResult = null;
+let currentAiSelectedFormat = 'SOAP';
+
+function selectAiNoteFormat(format) {
+    currentAiSelectedFormat = (format || 'SOAP').toUpperCase();
+    document.querySelectorAll('.ai-format-pill').forEach(btn => {
+        btn.classList.toggle('active', btn.dataset.format === currentAiSelectedFormat);
+    });
+    const label = document.getElementById('selectedFormatLabel');
+    if (label) label.textContent = currentAiSelectedFormat;
+}
+window.selectAiNoteFormat = selectAiNoteFormat;
+
+function startAmbientSessionRecording() {
+    const patientId = document.getElementById('notePatient')?.value;
+    const patient = AppState.patients.find(p => p.id === patientId);
+    const patientName = patient ? patient.name : 'Paciente en consulta';
+    const activeFormat = currentAiSelectedFormat || 'SOAP';
+
+    if (typeof SessionRecorder !== 'undefined') {
+        SessionRecorder.start(patientId, patientName, activeFormat);
+    } else {
+        showToast('Módulo SessionRecorder no cargado en este entorno', 'error');
+    }
+}
+window.startAmbientSessionRecording = startAmbientSessionRecording;
+
+function openSessionSynthesizedDraftModal(format, content, patientId) {
+    openSoapAiModal();
+    selectAiNoteFormat(format);
+    soapAiGeneratedResult = content;
+    renderAiDraftPreview(format, content);
+}
+window.openSessionSynthesizedDraftModal = openSessionSynthesizedDraftModal;
 
 function openSoapAiModal() {
     let modal = document.getElementById('soapAiModal');
@@ -3504,55 +5801,59 @@ function openSoapAiModal() {
             <div class="modal-content modal-large">
                 <div class="modal-header">
                     <div>
-                        <h2><i class="fas fa-wand-magic-sparkles" style="color:var(--accent-primary);"></i> Copiloto Clínico IA: Generador SOAP</h2>
-                        <small style="color:var(--text-secondary);">Convierte dictado por voz o notas rápidas en estructura SOAP DSM-5</small>
+                        <h2><i class="fas fa-wand-magic-sparkles" style="color:var(--accent-primary);"></i> Copiloto Clínico IA Multiformato (v7.0)</h2>
+                        <small style="color:var(--text-secondary);">Benchmark HeyFreud: Ambient Listening, Síntesis Multiformato y Estilo Adaptativo</small>
                     </div>
                     <button class="btn-icon" onclick="closeSoapAiModal()"><i class="fas fa-times"></i></button>
                 </div>
                 <div class="modal-body" style="padding:16px 20px;">
+                    <!-- Selector de Formato Clínico -->
+                    <div style="margin-bottom:14px;">
+                        <label style="font-weight:700; font-size:12.5px; display:block; margin-bottom:6px;">Selecciona el Formato de la Nota:</label>
+                        <div class="format-selector-pills">
+                            <button type="button" class="format-pill-btn ai-format-pill active" data-format="SOAP" onclick="selectAiNoteFormat('SOAP')">SOAP</button>
+                            <button type="button" class="format-pill-btn ai-format-pill" data-format="DAP" onclick="selectAiNoteFormat('DAP')">DAP</button>
+                            <button type="button" class="format-pill-btn ai-format-pill" data-format="BIRP" onclick="selectAiNoteFormat('BIRP')">BIRP</button>
+                            <button type="button" class="format-pill-btn ai-format-pill" data-format="GIRP" onclick="selectAiNoteFormat('GIRP')">GIRP</button>
+                            <button type="button" class="format-pill-btn ai-format-pill" data-format="NARRATIVE" onclick="selectAiNoteFormat('NARRATIVE')">Narrativa</button>
+                            <button type="button" class="format-pill-btn ai-format-pill" data-format="TREATMENT_PLAN" onclick="selectAiNoteFormat('TREATMENT_PLAN')">Plan Tratamiento</button>
+                        </div>
+                    </div>
+
                     <div style="background:var(--bg-secondary); border-radius:8px; padding:12px; margin-bottom:14px; font-size:13px; border-left:3px solid var(--accent-primary);">
-                        <strong>💡 Instrucción:</strong> Dicta por voz o escribe apuntes libres de la sesión. Nuestro modelo desidentifica los datos sensibles del paciente (PHI) y genera los 4 apartados clínicos (S, O, A, P).
+                        <strong>Dos vías de captura:</strong> Graba la sesión ambiental completa en segundo plano (Zero-Retention) o dicta/escribe tus apuntes para estructurar automáticamente en formato <span id="selectedFormatLabel" style="font-weight:700; color:var(--accent-primary);">SOAP</span>.
                     </div>
 
                     <div class="form-group">
-                        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;">
-                            <label style="font-weight:700;">Apuntes o Dictado de la Sesión:</label>
-                            <button type="button" class="btn-sm btn-secondary" id="btnSoapVoiceDictate" onclick="toggleSoapVoiceDictation()">
-                                <i class="fas fa-microphone"></i> Dictar por Voz
-                            </button>
+                        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px; flex-wrap:wrap; gap:8px;">
+                            <label style="font-weight:700;">Apuntes o Transcripción:</label>
+                            <div style="display:flex; gap:6px;">
+                                <button type="button" class="btn-sm btn-secondary" onclick="startAmbientSessionRecording()" style="color:#ef4444;">
+                                    <i class="fas fa-record-vinyl"></i> Grabar Sesión
+                                </button>
+                                <button type="button" class="btn-sm btn-secondary" id="btnSoapVoiceDictate" onclick="toggleSoapVoiceDictation()">
+                                    <i class="fas fa-microphone"></i> Dictar por Voz
+                                </button>
+                            </div>
                         </div>
                         <textarea id="soapAiInput" rows="4" style="width:100%; border-radius:8px; padding:10px; font-size:13px;" placeholder="Ejemplo: Paciente refiere que la ansiedad laboral ha disminuido de 8 a 4. Logró realizar la técnica de respiración 4-7-8 antes de su reunión. Exploramos distorsión de lectura de mente..."></textarea>
                     </div>
 
                     <div style="margin-bottom:16px;">
                         <button type="button" class="btn-primary full-width" id="btnGenerateSoapAi" onclick="generateSoapFromAiModal()">
-                            <i class="fas fa-sparkles"></i> ✨ Sintetizar Nota SOAP con IA
+                            <i class="fas fa-sparkles"></i> Sintetizar con Gemini AI
                         </button>
                     </div>
 
-                    <!-- PREVIEW GENERADO -->
+                    <!-- PREVIEW GENERADO MULTIFORMATO -->
                     <div id="soapAiPreviewWrap" style="display:none; background:var(--bg-primary); border:1px solid var(--border-color); border-radius:10px; padding:14px; margin-bottom:14px;">
-                        <h4 style="margin:0 0 10px 0; font-size:14px; color:var(--text-primary);">Vista Previa Estructurada:</h4>
-                        <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(240px, 1fr)); gap:10px; margin-bottom:12px;">
-                            <div style="background:var(--bg-card); padding:8px 10px; border-radius:6px; font-size:12px; border:1px solid var(--border-color);">
-                                <strong style="color:var(--accent-primary);">[S] Subjetivo:</strong>
-                                <div id="previewSoapS" style="margin-top:4px; color:var(--text-secondary);"></div>
-                            </div>
-                            <div style="background:var(--bg-card); padding:8px 10px; border-radius:6px; font-size:12px; border:1px solid var(--border-color);">
-                                <strong style="color:var(--accent-primary);">[O] Objetivo:</strong>
-                                <div id="previewSoapO" style="margin-top:4px; color:var(--text-secondary);"></div>
-                            </div>
-                            <div style="background:var(--bg-card); padding:8px 10px; border-radius:6px; font-size:12px; border:1px solid var(--border-color);">
-                                <strong style="color:var(--accent-primary);">[A] Análisis:</strong>
-                                <div id="previewSoapA" style="margin-top:4px; color:var(--text-secondary);"></div>
-                            </div>
-                            <div style="background:var(--bg-card); padding:8px 10px; border-radius:6px; font-size:12px; border:1px solid var(--border-color);">
-                                <strong style="color:var(--accent-primary);">[P] Plan:</strong>
-                                <div id="previewSoapP" style="margin-top:4px; color:var(--text-secondary);"></div>
-                            </div>
-                        </div>
+                        <h4 style="margin:0 0 10px 0; font-size:14px; color:var(--text-primary); display:flex; justify-content:space-between; align-items:center;">
+                            <span>Vista Previa Estructurada:</span>
+                            <span id="previewFormatTag" style="font-size:11px; font-weight:700; background:#e7f0eb; color:#285c50; padding:2px 8px; border-radius:6px;">SOAP</span>
+                        </h4>
+                        <div id="dynamicMultiformatGrid" style="display:grid; grid-template-columns:repeat(auto-fit, minmax(240px, 1fr)); gap:10px; margin-bottom:12px;"></div>
                         <button type="button" class="btn-primary full-width" onclick="applyGeneratedSoapToForm()">
-                            <i class="fas fa-check"></i> 📥 Aplicar al Formulario de la Sesión
+                            <i class="fas fa-check"></i> Aplicar al Formulario de la Sesión
                         </button>
                     </div>
                 </div>
@@ -3571,6 +5872,35 @@ function closeSoapAiModal() {
     }
 }
 
+function renderAiDraftPreview(format, content) {
+    const wrap = document.getElementById('soapAiPreviewWrap');
+    const grid = document.getElementById('dynamicMultiformatGrid');
+    const tag = document.getElementById('previewFormatTag');
+    if (!wrap || !grid) return;
+
+    tag.textContent = format;
+    grid.innerHTML = '';
+
+    const labelsMap = {
+        subjetivo: 'Subjetivo [S]', objetivo: 'Objetivo [O]', analisis: 'Análisis [A]', plan: 'Plan [P]',
+        data: 'Data [D]', assessment: 'Assessment [A]',
+        behavior: 'Conducta [B]', intervention: 'Intervención [I]', response: 'Respuesta [R]',
+        goals: 'Metas [G]',
+        resumenSesion: 'Resumen de Sesión', temasAbordados: 'Temas Abordados', intervenciones: 'Intervenciones', acuerdos: 'Acuerdos',
+        problemasIdentificados: 'Problemas', objetivosCortoPlazo: 'Objetivos Corto Plazo', objetivosLargoPlazo: 'Objetivos Largo Plazo', modalidadTerapeutica: 'Modalidad', criteriosAlta: 'Criterios de Alta'
+    };
+
+    Object.entries(content).forEach(([key, val]) => {
+        const title = labelsMap[key] || key.toUpperCase();
+        const card = document.createElement('div');
+        card.style.cssText = 'background:var(--bg-card); padding:8px 10px; border-radius:6px; font-size:12px; border:1px solid var(--border-color);';
+        card.innerHTML = `<strong style="color:var(--accent-primary); display:block; margin-bottom:4px;">${title}:</strong><div style="color:var(--text-secondary); line-height:1.4;">${typeof val === 'string' ? val : JSON.stringify(val)}</div>`;
+        grid.appendChild(card);
+    });
+
+    wrap.style.display = 'block';
+}
+
 async function generateSoapFromAiModal() {
     const text = document.getElementById('soapAiInput')?.value.trim();
     if (!text) {
@@ -3587,69 +5917,100 @@ async function generateSoapFromAiModal() {
     try {
         const patientId = document.getElementById('notePatient')?.value;
         const patient = AppState.patients.find(p => p.id === patientId) || {};
-        
-        let soap = null;
-        if (typeof ClinicalAI !== 'undefined') {
-            soap = await ClinicalAI.synthesizeSoapNote(text, patient);
+        const format = currentAiSelectedFormat || 'SOAP';
+
+        let res = null;
+        if (typeof ClinicalAI !== 'undefined' && typeof ClinicalAI.synthesizeSessionNote === 'function') {
+            res = await ClinicalAI.synthesizeSessionNote(text, { format, patientInfo: patient });
         } else {
-            soap = {
-                subjetivo: `El paciente refiere: ${text}`,
-                objetivo: 'Paciente orientado en las tres esferas, lenguaje fluido, afecto congruente.',
-                analisis: 'Evolución psicoterapéutica favorable con asimilación de estrategias cognitivas.',
-                plan: 'Continuar con el encuadre psicoterapéutico y monitoreo de tareas intersesión.'
+            res = {
+                format,
+                content: {
+                    subjetivo: `El paciente refiere: ${text}`,
+                    objetivo: 'Paciente orientado en las tres esferas, lenguaje fluido, afecto congruente.',
+                    analisis: 'Evolución psicoterapéutica favorable con asimilación de estrategias cognitivas.',
+                    plan: 'Continuar con el encuadre psicoterapéutico y monitoreo de tareas intersesión.'
+                }
             };
         }
 
-        soapAiGeneratedResult = soap;
-        document.getElementById('previewSoapS').textContent = soap.subjetivo || '';
-        document.getElementById('previewSoapO').textContent = soap.objetivo || '';
-        document.getElementById('previewSoapA').textContent = soap.analisis || '';
-        document.getElementById('previewSoapP').textContent = soap.plan || '';
-        document.getElementById('soapAiPreviewWrap').style.display = 'block';
+        soapAiGeneratedResult = res.content || res;
+        renderAiDraftPreview(format, soapAiGeneratedResult);
 
-        showToast('¡Nota SOAP estructurada con éxito!', 'success');
+        showToast(`¡Nota estructurada en formato ${format} con éxito!`, 'success');
     } catch (e) {
-        console.error('Error generando SOAP:', e);
+        console.error('Error generando síntesis con IA:', e);
         showToast('Error procesando nota con IA: ' + e.message, 'error');
     } finally {
         if (btn) {
             btn.disabled = false;
-            btn.innerHTML = '<i class="fas fa-sparkles"></i> ✨ Sintetizar Nota SOAP con IA';
+            btn.innerHTML = '<i class="fas fa-sparkles"></i> Sintetizar con Gemini AI';
         }
     }
 }
 
 function applyGeneratedSoapToForm() {
     if (!soapAiGeneratedResult) return;
-    
-    // Si estamos en formato SOAP, poblar los textareas
+
+    const res = soapAiGeneratedResult;
     const sub = document.getElementById('noteSubjetivo');
     const obj = document.getElementById('noteObjetivo');
     const ana = document.getElementById('noteAnalisis');
     const pla = document.getElementById('notePlan');
 
-    if (sub) sub.value = soapAiGeneratedResult.subjetivo || '';
-    if (obj) obj.value = soapAiGeneratedResult.objetivo || '';
-    if (ana) ana.value = soapAiGeneratedResult.analisis || '';
-    if (pla) pla.value = soapAiGeneratedResult.plan || '';
+    if (res.subjetivo && sub) sub.value = res.subjetivo;
+    if (res.objetivo && obj) obj.value = res.objetivo;
+    if (res.analisis && ana) ana.value = res.analisis;
+    if (res.plan && pla) pla.value = res.plan;
 
-    // Si estamos en reporte oficial, también enriquecer la descripción y observaciones
+    // Adaptación para DAP
+    if (res.data) {
+        if (sub) sub.value = res.data;
+        if (obj) obj.value = 'Observaciones clínicas integradas en Data.';
+        if (ana && res.assessment) ana.value = res.assessment;
+        if (pla && res.plan) pla.value = res.plan;
+    }
+
+    // Adaptación para BIRP
+    if (res.behavior) {
+        if (sub) sub.value = `[Conducta]: ${res.behavior}`;
+        if (obj) obj.value = `[Intervención]: ${res.intervention}`;
+        if (ana && res.response) ana.value = `[Respuesta]: ${res.response}`;
+        if (pla && res.plan) pla.value = res.plan;
+    }
+
+    // Adaptación para GIRP
+    if (res.goals) {
+        if (sub) sub.value = `[Metas]: ${res.goals}`;
+        if (obj) obj.value = `[Intervención]: ${res.intervention}`;
+        if (ana && res.response) ana.value = `[Progreso]: ${res.response}`;
+        if (pla && res.plan) pla.value = res.plan;
+    }
+
+    // Adaptación para Narrativo
+    if (res.resumenSesion) {
+        if (sub) sub.value = `${res.resumenSesion}\n\nTemas: ${res.temasAbordados || ''}`;
+        if (obj) obj.value = res.intervenciones || '';
+        if (ana) ana.value = 'Proceso fenomenológico y reflexión clínica activa.';
+        if (pla) pla.value = res.acuerdos || '';
+    }
+
+    // Reporte Oficial FPV
     const desc = document.getElementById('noteSessionDescription');
-    const obs = document.getElementById('noteObservations');
+    const findings = document.getElementById('noteClinicalFindings');
     if (desc && !desc.value) {
-        desc.value = `${soapAiGeneratedResult.subjetivo}\n\n${soapAiGeneratedResult.analisis}`;
+        desc.value = Object.entries(res).map(([k, v]) => `• ${k.toUpperCase()}: ${v}`).join('\n\n');
     }
-    if (obs && !obs.value) {
-        obs.value = soapAiGeneratedResult.objetivo;
+    if (findings && !findings.value) {
+        findings.value = res.objetivo || res.analisis || res.assessment || res.response || 'Observación clínica realizada.';
     }
 
-    // Cambiar a formato SOAP visual si está disponible
     if (typeof switchNoteFormat === 'function') {
         switchNoteFormat('soap');
     }
 
     closeSoapAiModal();
-    showToast('Nota SOAP aplicada al formulario de sesión', 'success');
+    showToast('Borrador clínico aplicado al formulario de sesión', 'success');
 }
 
 function toggleSoapVoiceDictation() {
@@ -3735,9 +6096,87 @@ function syncPatientToPortalStorage(patient) {
             if (!token) return; // Evitar disparar peticiones no autorizadas sin token
 
             const patientTasks = (AppState.notes || [])
-                .flatMap(n => n.intersessionTasks || [])
-                .filter(t => t.patientId === patient.id || t.patient_id === patient.id);
-            
+                .filter(n => String(n.patientId) === String(patient.id))
+                .flatMap(n => (n.intersessionTasks || []).map(t => ({
+                    id: t.id || `task_${Math.random().toString(36).substr(2, 6)}`,
+                    patient_id: patient.id,
+                    patientId: patient.id,
+                    title: t.title || t.text,
+                    description: t.description || '',
+                    dueDate: t.dueDate || t.deadline || null,
+                    deadline: t.dueDate || t.deadline || null,
+                    completed: Boolean(t.completed),
+                    completedAt: t.completedAt || null
+                })));
+
+            // Incluir tareas del puente local si existieran
+            try {
+                const bridge = JSON.parse(localStorage.getItem('psico_portal_tasks_bridge') || '{}');
+                Object.values(bridge).forEach(bt => {
+                    if (String(bt.patientId || bt.patient_id) === String(patient.id) && !patientTasks.some(pt => pt.id === bt.id)) {
+                        patientTasks.push({
+                            id: bt.id || `task_${Math.random().toString(36).substr(2, 6)}`,
+                            patient_id: patient.id,
+                            patientId: patient.id,
+                            title: bt.title || bt.text,
+                            description: bt.description || '',
+                            dueDate: bt.dueDate || bt.deadline || null,
+                            deadline: bt.dueDate || bt.deadline || null,
+                            completed: Boolean(bt.completed),
+                            completedAt: bt.completedAt || null
+                        });
+                    }
+                });
+            } catch (e) {}
+
+            // Persistir tareas, citas y disponibilidad directamente al almacén local del portal del paciente
+            try {
+                const rawPortal = localStorage.getItem(`psico_portal_data_${patient.id}`);
+                const pData = rawPortal ? JSON.parse(rawPortal) : {};
+                pData.tasks = patientTasks;
+                pData.appointments = (AppState.appointments || []).filter(a => String(a.patientId) === String(patient.id));
+                // Ocupación inteligente de horarios del terapeuta para evitar solapamientos en el portal
+                const occupied = (AppState.appointments || [])
+                    .filter(a => a.status !== 'cancelada')
+                    .map(a => ({ date: a.date, time: String(a.time || '').substring(0, 5) }));
+                pData.therapistOccupiedSlots = occupied;
+                localStorage.setItem(`psico_portal_data_${patient.id}`, JSON.stringify(pData));
+                localStorage.setItem('psico_therapist_occupied_slots', JSON.stringify(occupied));
+            } catch (e) {}
+
+            // Absorber citas solicitadas desde el puente del portal hacia AppState.appointments
+            try {
+                const aptBridge = JSON.parse(localStorage.getItem('psico_portal_appointments_bridge') || '{}');
+                const deletedIds = JSON.parse(localStorage.getItem('psico_deleted_appointments') || '[]');
+                let newAptAdded = false;
+                Object.values(aptBridge).forEach(ba => {
+                    if (ba.deleted || deletedIds.includes(String(ba.id))) return;
+                    if (String(ba.patientId || ba.patient_id) === String(patient.id)) {
+                        const exists = (AppState.appointments || []).some(a => String(a.id) === String(ba.id));
+                        if (!exists) {
+                            if (!AppState.appointments) AppState.appointments = [];
+                            AppState.appointments.push({
+                                id: ba.id,
+                                patientId: patient.id,
+                                date: ba.date,
+                                time: ba.time || '10:00',
+                                duration: Number(ba.duration) || 50,
+                                type: ba.type || 'Online',
+                                status: ba.status || 'agendada',
+                                notes: ba.notes || 'Sesión agendada desde el Portal del Paciente',
+                                createdAt: ba.createdAt || new Date().toISOString()
+                            });
+                            newAptAdded = true;
+                        }
+                    }
+                });
+                if (newAptAdded) {
+                    saveData();
+                    if (typeof renderCalendar === 'function') renderCalendar();
+                    if (typeof renderAppointments === 'function') renderAppointments();
+                }
+            } catch (e) {}
+
             const syncHeaders = { 
                 'Content-Type': 'application/json',
                 'Authorization': `Bearer ${token}`
@@ -3765,6 +6204,8 @@ function syncPatientToPortalStorage(patient) {
                         patient_id: patient.id,
                         title: t.title || t.text,
                         description: t.description || '',
+                        deadline: t.deadline || t.dueDate || null,
+                        dueDate: t.dueDate || t.deadline || null,
                         completed: Boolean(t.completed)
                     }))
                 })
@@ -3772,6 +6213,411 @@ function syncPatientToPortalStorage(patient) {
         } catch (e) {}
     })();
 }
+
+// ============================================
+// REGISTRO Y DEDUPLICACIÓN DE NOTIFICACIONES DE CONFIRMACIÓN
+// ============================================
+const NOTIFIED_CONFIRMATIONS_KEY = 'psico_notified_confirmed_appointments';
+
+function isConfirmationAlreadyNotified(appId, confirmedAt) {
+    if (!appId) return false;
+    try {
+        const raw = localStorage.getItem(NOTIFIED_CONFIRMATIONS_KEY);
+        const set = new Set(raw ? JSON.parse(raw) : []);
+        if (set.has(String(appId))) return true;
+        if (confirmedAt && set.has(`${appId}_${confirmedAt}`)) return true;
+    } catch (e) {}
+    return false;
+}
+
+function markConfirmationAsNotified(appId, confirmedAt) {
+    if (!appId) return;
+    try {
+        const raw = localStorage.getItem(NOTIFIED_CONFIRMATIONS_KEY);
+        const list = raw ? JSON.parse(raw) : [];
+        const set = new Set(list);
+        set.add(String(appId));
+        if (confirmedAt) set.add(`${appId}_${confirmedAt}`);
+        const trimmed = Array.from(set).slice(-300);
+        localStorage.setItem(NOTIFIED_CONFIRMATIONS_KEY, JSON.stringify(trimmed));
+    } catch (e) {}
+}
+
+// Sincronización proactiva de citas solicitadas y confirmadas en el portal hacia la agenda del terapeuta
+async function syncPortalAppointmentsToTherapist() {
+    let hasNew = false;
+    let newlyConfirmedAppointments = [];
+    let newlyAddedCount = 0;
+    if (!Array.isArray(AppState.appointments)) AppState.appointments = [];
+
+    // 1. Escanear el puente local de citas agendadas y confirmadas desde el portal
+    try {
+        const bridge = JSON.parse(localStorage.getItem('psico_portal_appointments_bridge') || '{}');
+        const deletedIds = JSON.parse(localStorage.getItem('psico_deleted_appointments') || '[]');
+
+        // Limpiar de AppState cualquier cita que haya sido eliminada definitivamente
+        if (deletedIds.length > 0 && Array.isArray(AppState.appointments)) {
+            const beforeLen = AppState.appointments.length;
+            AppState.appointments = AppState.appointments.filter(a => !deletedIds.includes(String(a.id)));
+            if (AppState.appointments.length !== beforeLen) {
+                hasNew = true;
+            }
+        }
+
+        Object.values(bridge).forEach(ba => {
+            if (!ba || !ba.id || !ba.date) return;
+            if (ba.deleted || deletedIds.includes(String(ba.id))) return;
+            const isConfirmedInBridge = Boolean(ba.attendanceConfirmed || ba.attendance_confirmed || ba.status === 'confirmada');
+            const exists = AppState.appointments.find(a => String(a.id) === String(ba.id));
+            if (!exists) {
+                const matchedPatient = (AppState.patients || []).find(p => String(p.id) === String(ba.patientId || ba.patient_id));
+                const targetPatientId = matchedPatient ? matchedPatient.id : (AppState.patients?.[0]?.id || ba.patientId || 'patient_portal');
+                const newApp = {
+                    id: ba.id,
+                    patientId: targetPatientId,
+                    date: ba.date,
+                    time: ba.time || '10:00',
+                    duration: Number(ba.duration) || 50,
+                    type: ba.type || 'Online',
+                    status: ba.status || (isConfirmedInBridge ? 'confirmada' : 'agendada'),
+                    attendanceConfirmed: isConfirmedInBridge,
+                    attendance_confirmed: isConfirmedInBridge,
+                    confirmedAt: ba.confirmedAt || (isConfirmedInBridge ? new Date().toISOString() : null),
+                    notes: ba.notes || 'Sesión agendada desde el Portal del Paciente',
+                    createdAt: ba.createdAt || new Date().toISOString()
+                };
+                AppState.appointments.push(newApp);
+                hasNew = true;
+                newlyAddedCount++;
+                if (isConfirmedInBridge && !isConfirmationAlreadyNotified(newApp.id, ba.confirmedAt)) {
+                    newlyConfirmedAppointments.push(newApp);
+                }
+            } else {
+                // Actualizar confirmación o estado de cita preexistente
+                let changed = false;
+                if (isConfirmedInBridge && (!exists.attendanceConfirmed || exists.status !== 'confirmada')) {
+                    exists.attendanceConfirmed = true;
+                    exists.attendance_confirmed = true;
+                    if (exists.status !== 'completada') {
+                        exists.status = 'confirmada';
+                    }
+                    if (ba.confirmedAt) exists.confirmedAt = ba.confirmedAt;
+                    changed = true;
+                    if (!newlyConfirmedAppointments.some(x => String(x.id) === String(exists.id)) && !isConfirmationAlreadyNotified(exists.id, ba.confirmedAt)) {
+                        newlyConfirmedAppointments.push(exists);
+                    }
+                }
+                if (ba.status && ba.status !== exists.status && ba.status !== 'agendada' && exists.status !== 'completada') {
+                    exists.status = ba.status;
+                    changed = true;
+                }
+                if (changed) {
+                    hasNew = true;
+                }
+            }
+        });
+    } catch (e) {}
+
+    // 2. Escanear datos del portal en localStorage (psico_portal_data_*)
+    try {
+        if (typeof localStorage !== 'undefined') {
+            for (let i = 0; i < localStorage.length; i++) {
+                const key = localStorage.key(i);
+                if (key && key.startsWith('psico_portal_data_')) {
+                    const raw = localStorage.getItem(key);
+                    if (raw) {
+                        const pData = JSON.parse(raw);
+                        const portalApps = Array.isArray(pData.appointments) ? pData.appointments : [];
+                        portalApps.forEach(pa => {
+                            if (!pa || !pa.id || !pa.date) return;
+                            const isConfirmedInPortal = Boolean(pa.attendanceConfirmed || pa.attendance_confirmed || pa.status === 'confirmada');
+                            const exists = AppState.appointments.find(a => String(a.id) === String(pa.id));
+                            if (!exists) {
+                                const pId = key.replace('psico_portal_data_', '');
+                                const matchedPatient = (AppState.patients || []).find(p => String(p.id) === String(pId));
+                                const targetPatientId = matchedPatient ? matchedPatient.id : (AppState.patients?.[0]?.id || pId);
+                                const newApp = {
+                                    id: pa.id,
+                                    patientId: targetPatientId,
+                                    date: pa.date,
+                                    time: pa.time || '10:00',
+                                    duration: Number(pa.duration) || 50,
+                                    type: pa.type || 'Online',
+                                    status: pa.status || (isConfirmedInPortal ? 'confirmada' : 'agendada'),
+                                    attendanceConfirmed: isConfirmedInPortal,
+                                    attendance_confirmed: isConfirmedInPortal,
+                                    confirmedAt: pa.confirmedAt || (isConfirmedInPortal ? new Date().toISOString() : null),
+                                    notes: pa.notes || 'Sesión agendada desde el Portal del Paciente',
+                                    createdAt: pa.createdAt || new Date().toISOString()
+                                };
+                                AppState.appointments.push(newApp);
+                                hasNew = true;
+                                newlyAddedCount++;
+                                if (isConfirmedInPortal && !isConfirmationAlreadyNotified(newApp.id, pa.confirmedAt)) {
+                                    newlyConfirmedAppointments.push(newApp);
+                                }
+                            } else {
+                                let changed = false;
+                                if (isConfirmedInPortal && (!exists.attendanceConfirmed || exists.status !== 'confirmada')) {
+                                    exists.attendanceConfirmed = true;
+                                    exists.attendance_confirmed = true;
+                                    if (exists.status !== 'completada') {
+                                        exists.status = 'confirmada';
+                                    }
+                                    if (pa.confirmedAt) exists.confirmedAt = pa.confirmedAt;
+                                    changed = true;
+                                    if (!newlyConfirmedAppointments.some(x => String(x.id) === String(exists.id)) && !isConfirmationAlreadyNotified(exists.id, pa.confirmedAt)) {
+                                        newlyConfirmedAppointments.push(exists);
+                                    }
+                                }
+                                if (pa.status && pa.status !== exists.status && pa.status !== 'agendada' && exists.status !== 'completada') {
+                                    exists.status = pa.status;
+                                    changed = true;
+                                }
+                                if (changed) {
+                                    hasNew = true;
+                                }
+                            }
+                        });
+                    }
+                }
+            }
+        }
+    } catch (e) {}
+
+    // 3. Consultar al backend server si hay sesión activa
+    if (typeof window !== 'undefined' && window.location && window.location.protocol !== 'file:') {
+        try {
+            const token = localStorage.getItem('psico_session_token');
+            if (token) {
+                const res = await fetch('/api/v1/appointments', {
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+                if (res.ok) {
+                    const data = await res.json();
+                    if (Array.isArray(data.appointments)) {
+                        data.appointments.forEach(sa => {
+                            if (!sa || !sa.id || !sa.date) return;
+                            const isConfirmedInBackend = Boolean(sa.attendanceConfirmed || sa.attendance_confirmed || sa.status === 'confirmada');
+                            const exists = AppState.appointments.find(a => String(a.id) === String(sa.id));
+                            if (!exists) {
+                                AppState.appointments.push({
+                                    ...sa,
+                                    attendanceConfirmed: isConfirmedInBackend,
+                                    attendance_confirmed: isConfirmedInBackend
+                                });
+                                hasNew = true;
+                                newlyAddedCount++;
+                                if (isConfirmedInBackend && !isConfirmationAlreadyNotified(sa.id, sa.confirmedAt)) {
+                                    newlyConfirmedAppointments.push(sa);
+                                }
+                            } else {
+                                let changed = false;
+                                if (isConfirmedInBackend && (!exists.attendanceConfirmed || exists.status !== 'confirmada')) {
+                                    exists.attendanceConfirmed = true;
+                                    exists.attendance_confirmed = true;
+                                    if (exists.status !== 'completada') {
+                                        exists.status = 'confirmada';
+                                    }
+                                    changed = true;
+                                    if (!newlyConfirmedAppointments.some(x => String(x.id) === String(exists.id)) && !isConfirmationAlreadyNotified(exists.id, sa.confirmedAt)) {
+                                        newlyConfirmedAppointments.push(exists);
+                                    }
+                                }
+                                if (sa.status && sa.status !== exists.status && exists.status !== 'completada') {
+                                    // Anti-degradación: no revertir una cita localmente confirmada a 'agendada' o 'programada'
+                                    if ((exists.attendanceConfirmed || exists.attendance_confirmed) && (sa.status === 'agendada' || sa.status === 'programada')) {
+                                        // Preservar estado confirmado local
+                                    } else {
+                                        exists.status = sa.status;
+                                        changed = true;
+                                    }
+                                }
+                                if (changed) {
+                                    hasNew = true;
+                                }
+                            }
+                        });
+                    }
+                }
+            }
+        } catch (e) {}
+    }
+
+    if (hasNew) {
+        saveData();
+        if (typeof renderCalendar === 'function') renderCalendar();
+        if (typeof renderAppointments === 'function') renderAppointments();
+        if (typeof updateCounts === 'function') updateCounts();
+        if (typeof updateDashboard === 'function') updateDashboard();
+
+        // Notificaciones específicas de confirmación de asistencia por parte de pacientes (Anti-flood)
+        if (newlyConfirmedAppointments.length > 0) {
+            newlyConfirmedAppointments.forEach(cApp => {
+                markConfirmationAsNotified(cApp.id, cApp.confirmedAt);
+                const patient = (AppState.patients || []).find(p => String(p.id) === String(cApp.patientId));
+                const pName = patient ? patient.name : 'Un paciente';
+                const timeStr = cApp.time ? ` a las ${formatTime(cApp.time)}` : '';
+                const dateStr = formatDate(cApp.date);
+                if (typeof showToast === 'function') {
+                    showToast(`¡Asistencia Confirmada! ${pName} confirmó su cita para el ${dateStr}${timeStr}.`, 'success');
+                }
+            });
+            if (typeof updateSessionRemindersUI === 'function') {
+                updateSessionRemindersUI();
+            }
+        } else if (newlyAddedCount > 0) {
+            if (typeof showToast === 'function') {
+                showToast('Se sincronizó una nueva cita agendada desde el portal', 'info');
+            }
+        }
+    }
+}
+window.syncPortalAppointmentsToTherapist = syncPortalAppointmentsToTherapist;
+
+// Sincronización inmediata de cambios de estado de citas hacia el portal del paciente y backend
+async function syncAppointmentStatusToPortalAndBackend(appId, newStatus, meta = {}) {
+    try {
+        const app = (AppState.appointments || []).find(a => String(a.id) === String(appId));
+        const patientId = meta.patientId || app?.patientId;
+        const notes = meta.notes !== undefined ? meta.notes : (app?.notes || '');
+        const date = meta.date || app?.date;
+        const time = meta.time || app?.time;
+        const duration = meta.duration || app?.duration || 50;
+        const type = meta.type || app?.type || app?.appointment_type || 'Presencial';
+        const isConfirmed = newStatus === 'confirmada';
+        const canceledBy = meta.canceledBy || app?.canceledBy || null;
+        const cancelReason = meta.cancelReason || app?.cancelReason || null;
+        const previousDate = meta.previousDate || app?.previousDate || null;
+        const previousTime = meta.previousTime || app?.previousTime || null;
+
+        // 1. Actualizar el puente local de citas (psico_portal_appointments_bridge)
+        try {
+            const bridge = JSON.parse(localStorage.getItem('psico_portal_appointments_bridge') || '{}');
+            if (meta.deleted) {
+                delete bridge[appId];
+                const deletedIds = JSON.parse(localStorage.getItem('psico_deleted_appointments') || '[]');
+                if (!deletedIds.includes(String(appId))) {
+                    deletedIds.push(String(appId));
+                    localStorage.setItem('psico_deleted_appointments', JSON.stringify(deletedIds));
+                }
+            } else {
+                if (!bridge[appId]) {
+                    bridge[appId] = {
+                        id: appId,
+                        patientId: patientId,
+                        date: date,
+                        time: time,
+                        duration: duration,
+                        type: type,
+                        notes: notes,
+                        status: newStatus,
+                        attendanceConfirmed: isConfirmed,
+                        attendance_confirmed: isConfirmed,
+                        canceledBy: canceledBy,
+                        cancelReason: cancelReason,
+                        previousDate: previousDate,
+                        previousTime: previousTime,
+                        updatedAt: new Date().toISOString()
+                    };
+                } else {
+                    bridge[appId].status = newStatus;
+                    if (isConfirmed) {
+                        bridge[appId].attendanceConfirmed = true;
+                        bridge[appId].attendance_confirmed = true;
+                        bridge[appId].confirmedAt = new Date().toISOString();
+                    }
+                    if (type) bridge[appId].type = type;
+                    if (notes !== undefined) bridge[appId].notes = notes;
+                    if (date) bridge[appId].date = date;
+                    if (time) bridge[appId].time = time;
+                    if (canceledBy) bridge[appId].canceledBy = canceledBy;
+                    if (cancelReason) bridge[appId].cancelReason = cancelReason;
+                    if (previousDate) bridge[appId].previousDate = previousDate;
+                    if (previousTime) bridge[appId].previousTime = previousTime;
+                    bridge[appId].updatedAt = new Date().toISOString();
+                }
+            }
+            localStorage.setItem('psico_portal_appointments_bridge', JSON.stringify(bridge));
+            localStorage.setItem('psico_portal_appointments_last_update', Date.now().toString());
+        } catch (e) {}
+
+        // 2. Actualizar caché local de portal del paciente si existe
+        if (patientId) {
+            try {
+                const key = `psico_portal_data_${patientId}`;
+                const raw = localStorage.getItem(key);
+                if (raw) {
+                    const pData = JSON.parse(raw);
+                    if (Array.isArray(pData.appointments)) {
+                        if (meta.deleted) {
+                            pData.appointments = pData.appointments.filter(a => String(a.id) !== String(appId));
+                        } else {
+                            const targetIdx = pData.appointments.findIndex(a => String(a.id) === String(appId));
+                            if (targetIdx >= 0) {
+                                pData.appointments[targetIdx].status = newStatus;
+                                if (isConfirmed) {
+                                    pData.appointments[targetIdx].attendanceConfirmed = true;
+                                    pData.appointments[targetIdx].attendance_confirmed = true;
+                                    pData.appointments[targetIdx].confirmedAt = new Date().toISOString();
+                                }
+                                if (type) pData.appointments[targetIdx].type = type;
+                                if (notes !== undefined) pData.appointments[targetIdx].notes = notes;
+                                if (date) pData.appointments[targetIdx].date = date;
+                                if (time) pData.appointments[targetIdx].time = time;
+                                if (canceledBy) pData.appointments[targetIdx].canceledBy = canceledBy;
+                                if (cancelReason) pData.appointments[targetIdx].cancelReason = cancelReason;
+                                if (previousDate) pData.appointments[targetIdx].previousDate = previousDate;
+                                if (previousTime) pData.appointments[targetIdx].previousTime = previousTime;
+                            }
+                        }
+                    }
+                    localStorage.setItem(key, JSON.stringify(pData));
+                }
+            } catch (e) {}
+        }
+
+        // 3. Notificar al backend server si hay sesión activa
+        if (typeof window !== 'undefined' && window.location && window.location.protocol !== 'file:') {
+            const token = localStorage.getItem('psico_session_token');
+            if (token) {
+                if (meta.deleted) {
+                    fetch(`/api/v1/appointments/${encodeURIComponent(appId)}`, {
+                        method: 'DELETE',
+                        headers: {
+                            'Authorization': `Bearer ${token}`
+                        }
+                    }).catch(() => {});
+                } else {
+                    fetch(`/api/v1/appointments/${encodeURIComponent(appId)}/status`, {
+                        method: 'PATCH',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'Authorization': `Bearer ${token}`
+                        },
+                        body: JSON.stringify({
+                            status: newStatus,
+                            notes: notes,
+                            date: date,
+                            time: time,
+                            duration: duration
+                        })
+                    }).catch(() => {});
+                }
+            }
+        }
+
+        // 4. Disparar evento para que otras pestañas o listeners locales se sincronicen de inmediato
+        try {
+            window.dispatchEvent(new CustomEvent('psico_appointment_updated', {
+                detail: { appointmentId: appId, status: newStatus, patientId }
+            }));
+        } catch (e) {}
+    } catch (err) {
+        console.warn('Error sincronizando estado de cita con portal:', err);
+    }
+}
+window.syncAppointmentStatusToPortalAndBackend = syncAppointmentStatusToPortalAndBackend;
 
 function ensurePatientPortalToken(patient) {
     if (!patient.portalToken) {
@@ -3829,7 +6675,7 @@ async function openPortalAccessModal(patientId) {
         ? new Date(patient.portalCreatedAt).toLocaleDateString('es-ES', { day: '2-digit', month: 'short', year: 'numeric' })
         : 'Reciente';
 
-    const stageLabel = isKid ? 'Niñez (< 13 años)' : patient.lifeStage === 'adolescent' ? 'Adolescencia' : 'Adulto';
+    const stageLabel = isKid ? 'Infantil (< 13 años)' : patient.lifeStage === 'adolescent' ? 'Adolescente' : 'Adulto';
     const stageBadgeClass = isKid ? 'badge-child' : patient.lifeStage === 'adolescent' ? 'badge-adolescent' : 'badge-adult';
 
     modalBody.innerHTML = `
@@ -3854,7 +6700,7 @@ async function openPortalAccessModal(patientId) {
             <!-- ALERTA DE CRISIS SI ESTÁ ACTIVA -->
             ${hasCrisis ? `
                 <div class="portal-crisis-callout">
-                    <div class="crisis-icon">🚨</div>
+                    <div class="crisis-icon"><i class="fas fa-exclamation-triangle"></i></div>
                     <div class="crisis-info">
                         <strong>Alerta SOS Activa:</strong> El paciente ha solicitado asistencia inmediata o registrado indicadores de riesgo elevado desde su portal.
                     </div>
@@ -3919,9 +6765,14 @@ async function openPortalAccessModal(patientId) {
                     <span class="credential-tip">
                         <i class="fas fa-shield-halved"></i> Acceso seguro y encriptado. El paciente no requiere recordar contraseñas complejas.
                     </span>
-                    <button class="btn-link-subtle" onclick="regeneratePortalToken('${patient.id}')" title="Generar un código nuevo revocando el anterior">
-                        <i class="fas fa-arrows-rotate"></i> Regenerar Nuevo PIN
-                    </button>
+                    <div style="display: flex; gap: 12px; align-items: center; flex-wrap: wrap;">
+                        <button class="btn-link-subtle" onclick="openPortalPaymentMethodsModal()" title="Configurar métodos de pago, Zelle y cuentas bancarias del portal">
+                            <i class="fas fa-credit-card"></i> Formas de Pago
+                        </button>
+                        <button class="btn-link-subtle" onclick="regeneratePortalToken('${patient.id}')" title="Generar un código nuevo revocando el anterior">
+                            <i class="fas fa-arrows-rotate"></i> Regenerar Nuevo PIN
+                        </button>
+                    </div>
                 </div>
             </div>
 
@@ -3984,21 +6835,21 @@ async function openPortalAccessModal(patientId) {
                 <div class="capabilities-header">¿Qué puede realizar el paciente en su portal?</div>
                 <div class="capabilities-grid">
                     <div class="capability-item">
-                        <span class="cap-icon">🧘</span>
+                        <span class="cap-icon"><i class="fas fa-heart"></i></span>
                         <div class="cap-text">
                             <strong>Check-in Diario de Bienestar</strong>
                             <span>Monitoreo de estado de ánimo, horas de sueño y nivel de energía vital.</span>
                         </div>
                     </div>
                     <div class="capability-item">
-                        <span class="cap-icon">📝</span>
+                        <span class="cap-icon"><i class="fas fa-edit"></i></span>
                         <div class="cap-text">
                             <strong>Tareas TCC y Autoregistros</strong>
                             <span>Ejercicios intersesión guiados, reestructuración de pensamientos y activación conductual.</span>
                         </div>
                     </div>
                     <div class="capability-item">
-                        <span class="cap-icon">🚨</span>
+                        <span class="cap-icon"><i class="fas fa-bell"></i></span>
                         <div class="cap-text">
                             <strong>Protocolo SOS 24/7</strong>
                             <span>Líneas gratuitas de atención en crisis y alerta inmediata al terapeuta en caso de emergencia.</span>
@@ -4009,7 +6860,7 @@ async function openPortalAccessModal(patientId) {
 
             <!-- CONTROLES INFERIORES -->
             <div class="portal-modal-footer">
-                <button class="btn-secondary" onclick="viewPatient('${patient.id}'); switchPatientTab('portal', document.querySelectorAll('.patient-tab')[6]); closeModal('portalAccessModal');">
+                <button class="btn-secondary" onclick="viewPatient('${patient.id}'); switchPatientTab('portal'); closeModal('portalAccessModal');">
                     <i class="fas fa-chart-simple"></i> Ver Analítica Detallada en Expediente
                 </button>
                 <button class="btn-primary" onclick="closeModal('portalAccessModal')">
@@ -4057,7 +6908,7 @@ function launchPatientPortal(patientId) {
 
     const toastMsg = isKid 
         ? `🎈 Abriendo Portal KIDS de ${patient.name}...` 
-        : `🚀 Abriendo portal de ${patient.name}...`;
+        : `Abriendo portal de ${patient.name}...`;
     showToast(toastMsg, 'success');
 
     const cleanBase = window.location.origin + window.location.pathname.replace(/\/[^\/]*$/, '/');
@@ -4081,9 +6932,9 @@ function sharePortalViaWhatsApp(patientId) {
 
     let text = '';
     if (isKid) {
-        text = `Hola ${patient.guardianName || patient.name}, te saluda ${therapistName}. Te comparto el enlace al espacio lúdico interactivo 'Psico Kids Space' de ${patient.name} en Psico Notes:\n\n🎈 Enlace directo: ${portalUrl}\n🔑 Tu código PIN: ${token}\n\nAquí ${patient.name} podrá explorar su clima emocional, crear su avatar, dibujar en el lienzo mágico y jugar con el globo de la calma. ¡Nos vemos en nuestra próxima sesión!`;
+        text = `Hola ${patient.guardianName || patient.name}, te saluda ${therapistName}. Te comparto el enlace al espacio lúdico interactivo 'Kids Space' de ${patient.name} en SERENA:\n\n🎈 Enlace directo: ${portalUrl}\n🔑 Tu código PIN: ${token}\n\nAquí ${patient.name} podrá explorar su clima emocional, crear su avatar, dibujar en el lienzo mágico y jugar con el globo de la calma. ¡Nos vemos en nuestra próxima sesión!`;
     } else {
-        text = `Hola ${patient.name}, te saluda ${therapistName}. Te comparto el enlace a tu portal terapéutico digital "Mi Espacio" en Psico Notes:\n\n🔗 Enlace directo: ${portalUrl}\n🔑 Tu código de acceso: ${token}\n\nAquí podrás registrar tus reflexiones diarias, tareas intersesión y monitorear tu bienestar. ¡Nos vemos en nuestra próxima sesión!`;
+        text = `Hola ${patient.name}, te saluda ${therapistName}. Te comparto el enlace a tu portal terapéutico digital "Mi Espacio" en SERENA:\n\nEnlace directo: ${portalUrl}\nTu código de acceso: ${token}\n\nAquí podrás registrar tus reflexiones diarias, tareas intersesión y monitorear tu bienestar. ¡Nos vemos en nuestra próxima sesión!`;
     }
 
     const rawPhone = patient.phone || patient.guardianPhone || '';
@@ -4111,9 +6962,9 @@ function showPortalQrCode(patientId) {
                     <img src="${qrImageUrl}" alt="Código QR Portal ${patient.name}" onerror="this.onerror=null; this.parentElement.innerHTML='<div style=\\'padding:20px;font-weight:600;color:var(--text-secondary);\\'>Acceso directo:<br><code style=\\'font-size:16px;color:var(--color-primary);\\'>${portalUrl}</code></div>';">
                 </div>
                 <div class="qr-instructions-list">
-                    <div>📱 <strong>1.</strong> Pide al consultante ${isKid ? 'o a su tutor ' : ''}que abra la cámara de su teléfono inteligente.</div>
-                    <div>🎯 <strong>2.</strong> Apunta al código QR en la pantalla para abrir su portal ${isKid ? 'KIDS ' : ''}de inmediato.</div>
-                    <div>✨ <strong>3.</strong> Entrada segura con token automático, sin recordar contraseñas.</div>
+                    <div><strong>1.</strong> Pide al consultante ${isKid ? 'o a su tutor ' : ''}que abra la cámara de su teléfono inteligente.</div>
+                    <div><strong>2.</strong> Apunta al código QR en la pantalla para abrir su portal ${isKid ? 'KIDS ' : ''}de inmediato.</div>
+                    <div><strong>3.</strong> Entrada segura con token automático, sin recordar contraseñas.</div>
                 </div>
                 <div style="display:flex;gap:10px;justify-content:center;">
                     <button class="btn-secondary" onclick="copyPortalLink('${patient.id}');">
@@ -4134,7 +6985,7 @@ function copyPortalToken(patientId) {
     if (!patient || !patient.portalToken) return;
     if (navigator.clipboard && navigator.clipboard.writeText) {
         navigator.clipboard.writeText(patient.portalToken).then(() => {
-            showToast(`✅ Código ${patient.portalToken} copiado al portapapeles`, 'success');
+            showToast(`Código ${patient.portalToken} copiado al portapapeles`, 'success');
         }).catch(() => {
             showToast(`Código: ${patient.portalToken}`, 'info');
         });
@@ -4151,7 +7002,7 @@ function copyPortalLink(patientId) {
     const portalUrl = `${baseUrl}portal.html?token=${patient.portalToken}${isKid ? '&mode=kid' : ''}`;
     if (navigator.clipboard && navigator.clipboard.writeText) {
         navigator.clipboard.writeText(portalUrl).then(() => {
-            showToast(`✅ Enlace directo al portal ${isKid ? 'KIDS ' : ''}copiado al portapapeles`, 'success');
+            showToast(`Enlace directo al portal ${isKid ? 'KIDS ' : ''}copiado al portapapeles`, 'success');
         }).catch(() => {
             showToast(`Enlace: ${portalUrl}`, 'info');
         });
@@ -4170,7 +7021,7 @@ function regeneratePortalToken(patientId) {
     patient.portalCreatedAt = new Date().toISOString();
     saveData();
     syncPatientToPortalStorage(patient);
-    showToast(`✅ Nuevo código ${patient.portalToken} generado con éxito`, 'success');
+    showToast(`Nuevo código ${patient.portalToken} generado con éxito`, 'success');
     openPortalAccessModal(patientId);
 }
 
@@ -4237,8 +7088,46 @@ async function syncPortalDataForPatient(patientId) {
 
         // Normalizar tareas y datos locales
         const localData = JSON.parse(localStorage.getItem(`psico_portal_data_${patientId}`) || '{}');
-        localData.tasks = remote.tasks || [];
+        const remoteTasks = (remote.tasks || []).map(t => ({
+            ...t,
+            id: t.id,
+            patientId: t.patient_id || t.patientId || patientId,
+            patient_id: t.patient_id || t.patientId || patientId,
+            title: t.title || t.text,
+            description: t.description || '',
+            dueDate: t.dueDate || t.deadline || null,
+            deadline: t.deadline || t.dueDate || null,
+            completed: Boolean(t.completed),
+            completedAt: t.completed_at || t.completedAt || null
+        }));
+
+        if (remoteTasks.length > 0) {
+            localData.tasks = remoteTasks;
+        } else if (!localData.tasks) {
+            localData.tasks = [];
+        }
         localData.activeCrisisAlert = Boolean(remote.hasActiveCrisisAlert);
+
+        // Sincronizar el estado de tareas hacia AppState.notes
+        if (Array.isArray(localData.tasks) && Array.isArray(AppState.notes)) {
+            let noteChanged = false;
+            localData.tasks.forEach(rt => {
+                AppState.notes.forEach(note => {
+                    if (String(note.patientId) === String(patientId) && Array.isArray(note.intersessionTasks)) {
+                        note.intersessionTasks.forEach(nt => {
+                            if (nt.id === rt.id && nt.completed !== rt.completed) {
+                                nt.completed = rt.completed;
+                                nt.completedAt = rt.completedAt || rt.completed_at;
+                                noteChanged = true;
+                            }
+                        });
+                    }
+                });
+            });
+            if (noteChanged) {
+                saveDataLocallyOnly();
+            }
+        }
 
         // Actividades lúdicas infantiles (Portal KIDS)
         const remoteKidActivities = Array.isArray(remote.kidActivities) ? remote.kidActivities : [];
@@ -4253,6 +7142,11 @@ async function syncPortalDataForPatient(patientId) {
             }
             localStorage.setItem(`psico_portal_kid_${patientId}`, JSON.stringify(kidStorage));
         }
+
+        // Documentos y reportes de pago (Mejoras PSIRIS)
+        localData.documents = Array.isArray(remote.documents) ? remote.documents : [];
+        localData.paymentReports = Array.isArray(remote.paymentReports) ? remote.paymentReports : [];
+
         localStorage.setItem(`psico_portal_data_${patientId}`, JSON.stringify(localData));
 
         // Actualizar memoria AppState si está el paciente
@@ -4269,7 +7163,7 @@ async function syncPortalDataForPatient(patientId) {
             kidActivities: remoteKidActivities
         };
     } catch (e) {
-        console.warn('⚠️ No se pudo sincronizar datos del portal en este momento:', e);
+        console.warn('No se pudo sincronizar datos del portal en este momento:', e);
         return null;
     }
 }
@@ -4318,6 +7212,8 @@ function getPortalResults(patientId) {
     let kidActivities = [];
     let kidAvatar = null;
     let kidStars = 0;
+    let documents = [];
+    let paymentReports = [];
 
     try { results = JSON.parse(localStorage.getItem(key) || '[]'); } catch (e) {}
     try { moods = JSON.parse(localStorage.getItem(keyMood) || '[]'); } catch (e) {}
@@ -4327,6 +7223,8 @@ function getPortalResults(patientId) {
         if (raw) {
             const parsed = JSON.parse(raw);
             tasks = parsed.tasks || [];
+            documents = parsed.documents || [];
+            paymentReports = parsed.paymentReports || [];
             if (Array.isArray(parsed.kidActivities) && parsed.kidActivities.length > 0) {
                 kidActivities = parsed.kidActivities;
             }
@@ -4374,14 +7272,39 @@ function getPortalResults(patientId) {
         if (avatarAct && avatarAct.data) kidAvatar = avatarAct.data;
     }
 
-    return { results, moods, cbt, tasks, kidActivities, kidAvatar, kidStars };
+    // Cargar reportes de pagos actualizados desde clave directa o puente
+    try {
+        const keyPayments = `psico_portal_payments_${patientId}`;
+        const rawPayments = localStorage.getItem(keyPayments);
+        if (rawPayments) {
+            const parsedPayments = JSON.parse(rawPayments);
+            if (Array.isArray(parsedPayments) && parsedPayments.length > 0) {
+                paymentReports = parsedPayments;
+            }
+        }
+        const bridge = JSON.parse(localStorage.getItem('psico_therapist_payment_reports_bridge') || '[]');
+        if (Array.isArray(bridge) && bridge.length > 0) {
+            const matching = bridge.filter(b => String(b.patient_id || b.patientId) === String(patientId));
+            if (matching.length > 0) {
+                const existingIds = new Set(paymentReports.map(p => String(p.id)));
+                matching.forEach(m => {
+                    if (!existingIds.has(String(m.id))) {
+                        paymentReports.unshift(m);
+                        existingIds.add(String(m.id));
+                    }
+                });
+            }
+        }
+    } catch (e) {}
+
+    return { results, moods, cbt, tasks, kidActivities, kidAvatar, kidStars, documents, paymentReports };
 }
 
 function renderPortalTab(patientId) {
     const patient = (AppState.patients || []).find(p => String(p.id) === String(patientId));
     const isKid = isKidPatient(patient);
-    const { results, moods, cbt, tasks, kidActivities, kidAvatar, kidStars } = getPortalResults(patientId);
-    const totalCount = isKid ? (kidActivities ? kidActivities.length : 0) : (results.length + moods.length + (cbt ? cbt.length : 0));
+    const { results, moods, cbt, tasks, kidActivities, kidAvatar, kidStars, documents, paymentReports } = getPortalResults(patientId);
+    const totalCount = isKid ? (kidActivities ? kidActivities.length : 0) : (results.length + moods.length + (cbt ? cbt.length : 0) + (documents ? documents.length : 0) + (paymentReports ? paymentReports.length : 0));
 
     const formatDateSafe = (dateStr) => {
         if (!dateStr) return 'Fecha no disponible';
@@ -4857,6 +7780,13 @@ function renderPortalTab(patientId) {
                                     <span>😴 Sueño: <strong>${m.sleep}/5</strong></span>
                                     <span>⚡ Energía: <strong>${m.energy}/5</strong></span>
                                 </div>
+                                ${m.word ? `
+                                    <div style="margin-bottom: 6px;">
+                                        <span style="background: rgba(99, 102, 241, 0.1); color: #4f46e5; padding: 2px 8px; border-radius: 12px; font-size: 11.5px; font-weight: 700; display: inline-block;">
+                                            🏷️ Palabra: "${m.word}"
+                                        </span>
+                                    </div>
+                                ` : ''}
                                 ${m.note ? `<div style="font-size: 12px; color: var(--text-primary); font-style: italic; background: var(--bg-secondary); padding: 6px 8px; border-radius: 6px;">"${m.note}"</div>` : ''}
                             </div>
                         `).join('')}
@@ -4894,17 +7824,26 @@ function renderPortalTab(patientId) {
             ` : ''}
 
             <!-- 4. TAREAS INTERSESIÓN DEL PACIENTE -->
-            ${tasks && tasks.length > 0 ? `
-                <div class="clinical-history-section">
-                    <h4 style="margin-bottom: 14px;"><i class="fas fa-list-check" style="color: #10b981;"></i> Seguimiento de Tareas Intersesión</h4>
+            <div class="clinical-history-section" style="margin-bottom: 24px;">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px; flex-wrap: wrap; gap: 8px;">
+                    <h4 style="margin: 0;"><i class="fas fa-list-check" style="color: #10b981;"></i> Seguimiento de Tareas Intersesión (${tasks ? tasks.length : 0})</h4>
+                    <button class="btn-sm btn-primary" onclick="openQuickAssignTaskModal('${patientId}')" style="background: #10b981; border-color: #10b981; font-size: 11.5px; padding: 4px 10px;">
+                        <i class="fas fa-plus"></i> Asignar Tarea
+                    </button>
+                </div>
+                ${tasks && tasks.length > 0 ? `
                     <div style="display: flex; flex-direction: column; gap: 8px;">
                         ${tasks.map(t => `
                             <div style="display: flex; align-items: center; justify-content: space-between; background: var(--bg-card); border: 1px solid var(--border-color); padding: 10px 14px; border-radius: 8px;">
                                 <div style="display: flex; align-items: center; gap: 10px;">
                                     <i class="fas ${t.completed ? 'fa-circle-check' : 'fa-circle'}" style="color: ${t.completed ? '#10b981' : '#9ca3af'}; font-size: 18px;"></i>
-                                    <span style="font-size: 13px; text-decoration: ${t.completed ? 'line-through' : 'none'}; color: ${t.completed ? 'var(--text-secondary)' : 'var(--text-primary)'};">
-                                        ${t.title || t.text || 'Tarea asignada'}
-                                    </span>
+                                    <div>
+                                        <div style="font-size: 13px; font-weight: 600; text-decoration: ${t.completed ? 'line-through' : 'none'}; color: ${t.completed ? 'var(--text-secondary)' : 'var(--text-primary)'};">
+                                            ${t.title || t.text || 'Tarea asignada'}
+                                        </div>
+                                        ${t.description ? `<div style="font-size: 11.5px; color: var(--text-secondary); margin-top: 2px;">${t.description}</div>` : ''}
+                                        ${(t.dueDate || t.deadline) ? `<div style="font-size: 11px; color: var(--text-secondary); margin-top: 2px;"><i class="far fa-calendar"></i> Para: ${t.dueDate || t.deadline}</div>` : ''}
+                                    </div>
                                 </div>
                                 <span style="font-size: 11px; padding: 2px 8px; border-radius: 12px; background: ${t.completed ? 'rgba(16, 185, 129, 0.12)' : 'rgba(245, 158, 11, 0.12)'}; color: ${t.completed ? '#10b981' : '#f59e0b'}; font-weight: 600;">
                                     ${t.completed ? 'Completada' : 'Pendiente'}
@@ -4912,11 +7851,210 @@ function renderPortalTab(patientId) {
                             </div>
                         `).join('')}
                     </div>
+                ` : `
+                    <div style="padding: 18px; background: var(--bg-card); border: 1px dashed var(--border-color); border-radius: 8px; text-align: center; color: var(--text-secondary); font-size: 13px;">
+                        No hay tareas asignadas para este paciente. Haz clic en "<strong>Asignar Tarea</strong>" para asignarle una actividad que verá de inmediato en su portal.
+                    </div>
+                `}
+            </div>
+
+            <!-- 5. DOCUMENTOS COMPARTIDOS (WORD, PDF, IMÁGENES) -->
+            <div class="clinical-history-section" style="margin-bottom: 24px;">
+                <h4 style="margin-bottom: 14px;"><i class="fas fa-folder-open" style="color: #0284c7;"></i> Documentos Compartidos (${documents ? documents.length : 0})</h4>
+                ${documents && documents.length > 0 ? `
+                    <div style="display: flex; flex-direction: column; gap: 8px;">
+                        ${documents.map(doc => {
+                            const ext = (doc.file_name || doc.fileName || '').split('.').pop().toLowerCase();
+                            const isPatient = (doc.uploaded_by || doc.uploadedBy) !== 'therapist';
+                            return `
+                                <div style="display: flex; align-items: center; justify-content: space-between; background: var(--bg-card); border: 1px solid var(--border-color); padding: 10px 14px; border-radius: 8px;">
+                                    <div style="display: flex; align-items: center; gap: 10px;">
+                                        <span style="font-size: 20px;">${ext === 'pdf' ? '📕' : ext.includes('doc') ? '📘' : '📁'}</span>
+                                        <div>
+                                            <strong style="font-size: 13px; color: var(--text-primary);">${doc.title || doc.file_name || doc.fileName}</strong>
+                                            <div style="font-size: 11.5px; color: var(--text-secondary);">
+                                                ${doc.file_name || doc.fileName} • ${isPatient ? '<span style="color: #059669; font-weight: 600;">Subido por paciente</span>' : '<span style="color: #0284c7; font-weight: 600;">Compartido por ti</span>'} • ${formatDateSafe(doc.created_at)}
+                                            </div>
+                                        </div>
+                                    </div>
+                                    ${doc.file_data ? `
+                                        <a href="${doc.file_data}" download="${doc.file_name || doc.fileName}" class="btn-sm btn-secondary" style="text-decoration: none;">
+                                            <i class="fas fa-download"></i> Descargar
+                                        </a>
+                                    ` : ''}
+                                </div>
+                            `;
+                        }).join('')}
+                    </div>
+                ` : `
+                    <div style="padding: 14px; background: var(--bg-card); border: 1px dashed var(--border-color); border-radius: 8px; text-align: center; color: var(--text-secondary); font-size: 12.5px;">
+                        No hay documentos intercambiados con el paciente aún.
+                    </div>
+                `}
+            </div>
+
+            <!-- 6. REPORTES DE PAGO DE SESIONES -->
+            <div class="clinical-history-section" style="margin-bottom: 24px;">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px; flex-wrap: wrap; gap: 8px;">
+                    <h4 style="margin: 0;"><i class="fas fa-wallet" style="color: #059669;"></i> Reportes de Pago del Paciente (${paymentReports ? paymentReports.length : 0})</h4>
+                    <button type="button" class="btn-sm btn-secondary" onclick="refreshPortalTabContent('${patientId}', true)">
+                        <i class="fas fa-arrows-rotate"></i> Actualizar Pagos
+                    </button>
                 </div>
-            ` : ''}
+                ${paymentReports && paymentReports.length > 0 ? `
+                    <div style="display: flex; flex-direction: column; gap: 10px;">
+                        ${paymentReports.map(pay => {
+                            const status = (pay.status || 'pendiente').toLowerCase();
+                            const isPending = status === 'pendiente';
+                            const isApproved = status === 'aprobado' || status === 'verificado';
+                            const badgeColor = isApproved ? 'background:#d1fae5; color:#065f46;' : (isPending ? 'background:#fef3c7; color:#92400e;' : 'background:#fee2e2; color:#991b1b;');
+                            const statusLabel = isApproved ? 'Aprobado ✓' : (isPending ? 'Pendiente ⏳' : 'Rechazado ✕');
+                            return `
+                                <div style="display: flex; align-items: center; justify-content: space-between; background: var(--bg-card); border: 1.5px solid ${isPending ? 'rgba(245, 158, 11, 0.4)' : 'var(--border-color)'}; padding: 12px 16px; border-radius: 10px; flex-wrap: wrap; gap: 10px; box-shadow: 0 2px 6px rgba(0,0,0,0.03);">
+                                    <div>
+                                        <div style="display: flex; align-items: center; gap: 10px;">
+                                            <strong style="font-size: 15px; color: var(--text-primary); font-weight:700;">${pay.currency || 'USD'} ${Number(pay.amount).toFixed(2)}</strong>
+                                            <span style="font-size: 11.5px; padding: 2px 10px; border-radius: 12px; font-weight: 700; ${badgeColor}">
+                                                ${statusLabel}
+                                            </span>
+                                        </div>
+                                        <div style="font-size: 12.5px; color: var(--text-secondary); margin-top: 3px;">
+                                            Ref: <strong>${pay.reference}</strong> • Método: ${pay.payment_method || pay.paymentMethod} • Fecha: ${formatDateSafe(pay.payment_date || pay.paymentDate)}
+                                        </div>
+                                        ${pay.concept ? `<div style="font-size: 12px; color: var(--text-tertiary); margin-top: 2px;">${pay.concept}</div>` : ''}
+                                    </div>
+                                    <div style="display: flex; gap: 8px; align-items: center; flex-wrap: wrap;">
+                                        ${(pay.receipt_data || pay.receiptData) ? `
+                                            <button type="button" class="btn-sm btn-secondary" onclick="viewPaymentReceiptModal('${pay.id}', '${patientId}')" style="font-weight:600;">
+                                                <i class="fas fa-file-invoice"></i> Ver Comprobante
+                                            </button>
+                                        ` : `
+                                            <span style="font-size:11px; color:var(--text-tertiary); font-style:italic;">(Sin comprobante adjunto)</span>
+                                        `}
+                                        ${isPending ? `
+                                            <button type="button" class="btn-sm btn-primary" onclick="approvePatientPayment('${pay.id}', '${patientId}')" style="background:#059669; border-color:#059669; color:white; font-weight:600;" title="Aprobar pago y registrarlo en finanzas">
+                                                <i class="fas fa-check"></i> Aprobar Pago
+                                            </button>
+                                            <button type="button" class="btn-sm btn-secondary" onclick="rejectPatientPayment('${pay.id}', '${patientId}')" style="color:#ef4444; border-color:rgba(239, 68, 68, 0.3);" title="Rechazar comprobante">
+                                                <i class="fas fa-times"></i> Rechazar
+                                            </button>
+                                        ` : ''}
+                                    </div>
+                                </div>
+                            `;
+                        }).join('')}
+                    </div>
+                ` : `
+                    <div style="padding: 16px; background: var(--bg-card); border: 1px dashed var(--border-color); border-radius: 8px; text-align: center; color: var(--text-secondary); font-size: 13px;">
+                        No hay reportes de pago registrados por el paciente.
+                    </div>
+                `}
+            </div>
         </div>
     `;
 }
+
+function openQuickAssignTaskModal(patientId) {
+    const p = (AppState.patients || []).find(pt => String(pt.id) === String(patientId));
+    if (!p) return;
+    const existingModal = document.getElementById('quickAssignTaskModal');
+    if (existingModal) existingModal.remove();
+
+    const modalHtml = `
+        <div id="quickAssignTaskModal" class="modal" style="display:flex;">
+            <div class="modal-overlay" onclick="closeModal('quickAssignTaskModal')"></div>
+            <div class="modal-content" style="max-width: 480px;">
+                <div class="modal-header">
+                    <h2><i class="fas fa-list-check" style="color: #10b981;"></i> Asignar Tarea Intersesión</h2>
+                    <button class="btn-icon" onclick="closeModal('quickAssignTaskModal')"><i class="fas fa-times"></i></button>
+                </div>
+                <form id="quickAssignTaskForm" onsubmit="handleQuickAssignTaskSubmit(event, '${patientId}')">
+                    <div class="form-group" style="margin-bottom: 12px;">
+                        <label style="font-size: 12px; font-weight: 600;">Paciente</label>
+                        <input type="text" value="${p.name}" disabled style="width: 100%; font-size: 13px; opacity: 0.85;">
+                    </div>
+                    <div class="form-group" style="margin-bottom: 12px;">
+                        <label style="font-size: 12px; font-weight: 600;">Título de la Tarea / Actividad *</label>
+                        <input type="text" id="quickTaskTitle" required placeholder="Ej: Autoregistro ABC, Ejercicio de Respiración..." style="width: 100%; font-size: 13px;">
+                    </div>
+                    <div class="form-group" style="margin-bottom: 12px;">
+                        <label style="font-size: 12px; font-weight: 600;">Instrucciones / Descripción</label>
+                        <textarea id="quickTaskDesc" rows="2" placeholder="Detalle qué debe realizar el paciente..." style="width: 100%; font-size: 12.5px;"></textarea>
+                    </div>
+                    <div class="form-group" style="margin-bottom: 16px;">
+                        <label style="font-size: 12px; font-weight: 600;">Fecha Límite (Opcional)</label>
+                        <input type="date" id="quickTaskDueDate" style="width: 100%; font-size: 13px;">
+                    </div>
+                    <div class="modal-actions">
+                        <button type="button" class="btn-secondary" onclick="closeModal('quickAssignTaskModal')">Cancelar</button>
+                        <button type="submit" class="btn-primary" style="background:#10b981;border-color:#10b981;">
+                            <i class="fas fa-paper-plane"></i> Asignar al Portal
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    `;
+    document.body.insertAdjacentHTML('beforeend', modalHtml);
+}
+window.openQuickAssignTaskModal = openQuickAssignTaskModal;
+
+async function handleQuickAssignTaskSubmit(e, patientId) {
+    e.preventDefault();
+    const title = document.getElementById('quickTaskTitle')?.value?.trim();
+    if (!title) return;
+    const description = document.getElementById('quickTaskDesc')?.value?.trim() || '';
+    const dueDate = document.getElementById('quickTaskDueDate')?.value || '';
+
+    const newTask = {
+        id: `task_${Date.now()}_${Math.random().toString(36).substr(2, 5)}`,
+        patientId: patientId,
+        patient_id: patientId,
+        title,
+        description,
+        dueDate,
+        deadline: dueDate,
+        completed: false,
+        created_at: new Date().toISOString()
+    };
+
+    // 1. Guardar en puente de portal
+    try {
+        const bridge = JSON.parse(localStorage.getItem('psico_portal_tasks_bridge') || '{}');
+        bridge[`${patientId}_${newTask.id}`] = newTask;
+        localStorage.setItem('psico_portal_tasks_bridge', JSON.stringify(bridge));
+    } catch (err) {}
+
+    // 2. Guardar en psico_portal_data_${patientId}
+    try {
+        const raw = localStorage.getItem(`psico_portal_data_${patientId}`);
+        const pData = raw ? JSON.parse(raw) : {};
+        if (!Array.isArray(pData.tasks)) pData.tasks = [];
+        pData.tasks.push(newTask);
+        localStorage.setItem(`psico_portal_data_${patientId}`, JSON.stringify(pData));
+    } catch (err) {}
+
+    // 3. Asociar a la nota más reciente del paciente si existe
+    const patientNotes = (AppState.notes || []).filter(n => String(n.patientId) === String(patientId));
+    if (patientNotes.length > 0) {
+        const latestNote = patientNotes[patientNotes.length - 1];
+        if (!Array.isArray(latestNote.intersessionTasks)) latestNote.intersessionTasks = [];
+        latestNote.intersessionTasks.push(newTask);
+    }
+
+    const patient = (AppState.patients || []).find(p => String(p.id) === String(patientId));
+    if (patient && typeof syncPatientToPortalStorage === 'function') {
+        syncPatientToPortalStorage(patient);
+    }
+    await saveData();
+
+    closeModal('quickAssignTaskModal');
+    if (typeof refreshPortalTabContent === 'function') {
+        refreshPortalTabContent(patientId, false);
+    }
+    showToast(`✅ Tarea "${title}" asignada y sincronizada al portal del paciente`, 'success');
+}
+window.handleQuickAssignTaskSubmit = handleQuickAssignTaskSubmit;
 
 window.previewKidDrawing = function(dataUrl, dateStr) {
     if (!dataUrl) {
@@ -5116,13 +8254,13 @@ function zoomIntoDay(dateStr) {
 }
 
 function openAppointmentModalWithSlot(dateStr, timeStr) {
+    openModal('appointmentModal');
     document.getElementById('appointmentId').value = '';
-    document.getElementById('appointmentForm').reset();
-    document.getElementById('appointmentDate').value = dateStr;
-    document.getElementById('appointmentTime').value = timeStr || '09:00';
+    if (dateStr) document.getElementById('appointmentDate').value = dateStr;
+    if (timeStr) document.getElementById('appointmentTime').value = timeStr;
     document.getElementById('appointmentModalTitle').textContent = `Agendar Cita — ${formatDate(dateStr)} ${timeStr || ''}`;
     updatePatientSelects();
-    openModal('appointmentModal');
+    if (typeof populateAppointmentRates === 'function') populateAppointmentRates();
 }
 
 function viewAppointmentDetail(appId) {
@@ -5160,8 +8298,8 @@ function renderCalendarMonth(container) {
     }
 
     const monthApps = AppState.appointments.filter(a => {
-        const d = new Date(a.date);
-        return d.getFullYear() === year && d.getMonth() === month && a.status !== 'cancelada';
+        const d = parseLocalDate(a.date);
+        return d && d.getFullYear() === year && d.getMonth() === month && a.status !== 'cancelada';
     });
 
     const metricsEl = document.getElementById('calendarQuickMetrics');
@@ -5201,7 +8339,7 @@ function renderCalendarMonth(container) {
         const dateStr = toDateInputValue(date);
         const isToday = isSameDay(date, today);
         const isSelected = isSameDay(date, AppState.selectedDate);
-        const dayApps = AppState.appointments.filter(a => isSameDay(new Date(a.date), date) && a.status !== 'cancelada').sort((a, b) => a.time.localeCompare(b.time));
+        const dayApps = AppState.appointments.filter(a => isSameDay(parseLocalDate(a.date), date) && a.status !== 'cancelada').sort((a, b) => a.time.localeCompare(b.time));
 
         let eventsHtml = '';
         const visibleApps = dayApps.slice(0, 3);
@@ -5209,12 +8347,13 @@ function renderCalendarMonth(container) {
             const p = AppState.patients.find(x => x.id === app.patientId);
             const pShortName = p ? p.name.split(' ')[0] : 'Paciente';
             const isTele = (app.type || '').toLowerCase().includes('tele') || (app.type || '').toLowerCase().includes('online');
+            const isConfirmed = Boolean(app.attendanceConfirmed || app.attendance_confirmed || app.status === 'confirmada');
             eventsHtml += `
-                <div class="cal-event-pill ${app.status || 'pendiente'} ${isTele ? 'teleconsulta' : ''}" 
+                <div class="cal-event-pill ${app.status || 'pendiente'} ${isConfirmed ? 'confirmed confirmada' : ''} ${isTele ? 'teleconsulta' : ''}" 
                      onclick="event.stopPropagation(); viewAppointmentDetail('${app.id}')"
-                     title="${formatTime(app.time)} · ${p ? p.name : 'Paciente'} (${app.type || 'Terapia'})">
+                     title="${formatTime(app.time)} · ${p ? p.name : 'Paciente'} (${app.type || 'Terapia'})${isConfirmed ? ' [Asistencia confirmada]' : ''}">
                     <span class="pill-time">${formatTime(app.time)}</span>
-                    <span class="pill-name">${pShortName}</span>
+                    <span class="pill-name">${pShortName} ${isConfirmed ? '✓' : ''}</span>
                 </div>
             `;
         });
@@ -5270,8 +8409,8 @@ function renderCalendarWeek(container) {
     }
 
     const weekApps = AppState.appointments.filter(a => {
-        const d = new Date(a.date);
-        return d >= new Date(monday.getFullYear(), monday.getMonth(), monday.getDate(), 0, 0, 0) &&
+        const d = parseLocalDate(a.date);
+        return d && d >= new Date(monday.getFullYear(), monday.getMonth(), monday.getDate(), 0, 0, 0) &&
                d <= new Date(sunday.getFullYear(), sunday.getMonth(), sunday.getDate(), 23, 59, 59) &&
                a.status !== 'cancelada';
     });
@@ -5292,7 +8431,7 @@ function renderCalendarWeek(container) {
         const dateStr = toDateInputValue(colDate);
         const isToday = isSameDay(colDate, today);
         const isSelected = isSameDay(colDate, AppState.selectedDate);
-        const dayApps = AppState.appointments.filter(a => isSameDay(new Date(a.date), colDate) && a.status !== 'cancelada').sort((a, b) => a.time.localeCompare(b.time));
+        const dayApps = AppState.appointments.filter(a => isSameDay(parseLocalDate(a.date), colDate) && a.status !== 'cancelada').sort((a, b) => a.time.localeCompare(b.time));
 
         html += `
             <div class="cal-week-col ${isToday ? 'today' : ''} ${isSelected ? 'selected' : ''}">
@@ -5316,14 +8455,15 @@ function renderCalendarWeek(container) {
             dayApps.forEach(app => {
                 const p = AppState.patients.find(x => x.id === app.patientId);
                 const isTele = (app.type || '').toLowerCase().includes('tele') || (app.type || '').toLowerCase().includes('online');
+                const isConfirmed = Boolean(app.attendanceConfirmed || app.attendance_confirmed || app.status === 'confirmada');
                 html += `
-                    <div class="cal-week-card ${app.status || 'pendiente'} ${isTele ? 'teleconsulta' : ''}" onclick="viewAppointmentDetail('${app.id}')">
+                    <div class="cal-week-card ${app.status || 'pendiente'} ${isConfirmed ? 'confirmed confirmada' : ''} ${isTele ? 'teleconsulta' : ''}" onclick="viewAppointmentDetail('${app.id}')">
                         <div class="cal-week-time">
                             <span><i class="far fa-clock"></i> ${formatTime(app.time)}</span>
                             <span>${app.duration || 50}m</span>
                         </div>
-                        <div class="cal-week-patient">${p ? p.name : 'Paciente'}</div>
-                        <div class="cal-week-meta">${app.type || 'Terapia'} ${app.status === 'completada' ? '· ✅' : ''}</div>
+                        <div class="cal-week-patient">${p ? p.name : 'Paciente'} ${isConfirmed ? '<i class="fas fa-check-circle" style="color:#059669;font-size:11px;" title="Asistencia confirmada"></i>' : ''}</div>
+                        <div class="cal-week-meta">${app.type || 'Terapia'} ${isConfirmed ? '· Asistencia confirmada' : (app.status === 'completada' ? '· ✅' : '')}</div>
                     </div>
                 `;
             });
@@ -5345,7 +8485,7 @@ function renderCalendarDay(container) {
         titleEl.textContent = selDate.toLocaleDateString('es-ES', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
     }
 
-    const dayApps = AppState.appointments.filter(a => isSameDay(new Date(a.date), selDate) && a.status !== 'cancelada').sort((a, b) => a.time.localeCompare(b.time));
+    const dayApps = AppState.appointments.filter(a => isSameDay(parseLocalDate(a.date), selDate) && a.status !== 'cancelada').sort((a, b) => a.time.localeCompare(b.time));
 
     const metricsEl = document.getElementById('calendarQuickMetrics');
     if (metricsEl) {
@@ -5391,16 +8531,22 @@ function renderCalendarDay(container) {
             appsInHour.forEach(app => {
                 const p = AppState.patients.find(x => x.id === app.patientId);
                 const cat = p ? (typeof getPatientCategory === 'function' ? getPatientCategory(p) : p.category) : 'adult';
-                const catBadge = cat === 'child' ? '🧒 Niñez' : (cat === 'adolescent' ? '🧑 Adolescencia' : '👤 Adulto');
+                const catBadge = cat === 'child' ? 'Infantil' : (cat === 'adolescent' ? 'Adolescente' : 'Adulto');
+                const isConfirmed = Boolean(app.attendanceConfirmed || app.attendance_confirmed || app.status === 'confirmada');
                 html += `
                     <div class="cal-slot-content has-app ${app.status || 'pendiente'}">
                         <div style="display:flex;align-items:center;gap:12px;">
-                            <div class="appointment-avatar" style="width:36px;height:36px;font-size:13px;">${p ? getInitials(p.name) : '?'}</div>
+                            <div class="appointment-avatar" style="width:36px;height:36px;font-size:13px;${isConfirmed ? 'box-shadow:0 0 0 2px var(--accent-success);' : ''}">${p ? getInitials(p.name) : '?'}</div>
                             <div>
                                 <div style="font-weight:700;font-size:13px;color:var(--text-primary);display:flex;align-items:center;gap:8px;">
                                     <span>${p ? p.name : 'Paciente'}</span>
                                     <span style="font-size:11px;font-weight:normal;color:var(--text-secondary);">(${catBadge})</span>
                                     <span class="status-badge status-${app.status || 'pendiente'}">${app.status || 'pendiente'}</span>
+                                    ${isConfirmed ? `
+                                        <span class="badge-attendance-check" title="Asistencia confirmada por el paciente en el portal">
+                                            <i class="fas fa-check-circle"></i> Confirmada
+                                        </span>
+                                    ` : ''}
                                 </div>
                                 <div style="font-size:11.5px;color:var(--text-secondary);margin-top:2px;">
                                     <strong>${formatTime(app.time)}</strong> (${app.duration || 50} min) · ${app.type || 'Terapia'} ${app.notes ? '· ' + app.notes : ''}
@@ -5409,10 +8555,11 @@ function renderCalendarDay(container) {
                         </div>
                         <div style="display:flex;gap:6px;align-items:center;">
                             <select class="status-badge status-${app.status || 'agendada'}" style="border:none;cursor:pointer;font-weight:700;font-size:11px;padding:3px 6px;border-radius:10px;outline:none;" onchange="setAppointmentStatus('${app.id}', this.value)" title="Cambiar estado de la cita">
-                                <option value="agendada" ${app.status === 'agendada' || app.status === 'pendiente' ? 'selected' : ''}>📅 Agendada</option>
+                                <option value="agendada" ${app.status === 'agendada' || app.status === 'pendiente' ? 'selected' : ''}>Agendada</option>
+                                <option value="confirmada" ${app.status === 'confirmada' ? 'selected' : ''}>✔️ Confirmada</option>
                                 <option value="completada" ${app.status === 'completada' ? 'selected' : ''}>✅ Completada</option>
-                                <option value="reprogramada" ${app.status === 'reprogramada' ? 'selected' : ''}>🔄 Reprogramada</option>
-                                <option value="cancelada" ${app.status === 'cancelada' ? 'selected' : ''}>❌ Cancelada</option>
+                                <option value="reprogramada" ${app.status === 'reprogramada' ? 'selected' : ''}>Reprogramada</option>
+                                <option value="cancelada" ${app.status === 'cancelada' ? 'selected' : ''}>Cancelada</option>
                             </select>
                             <button class="btn-primary" style="padding:5px 10px;font-size:11px;" onclick="openReporteAtencionFromAppointment('${app.id}')" title="Llenar Reporte de Atención">
                                 <i class="fas fa-file-signature"></i> Reporte
@@ -5441,8 +8588,8 @@ function renderCalendarYear(container) {
     }
 
     const yearApps = AppState.appointments.filter(a => {
-        const d = new Date(a.date);
-        return d.getFullYear() === year && a.status !== 'cancelada';
+        const d = parseLocalDate(a.date);
+        return d && d.getFullYear() === year && a.status !== 'cancelada';
     });
 
     const metricsEl = document.getElementById('calendarQuickMetrics');
@@ -5457,7 +8604,10 @@ function renderCalendarYear(container) {
 
     for (let m = 0; m < 12; m++) {
         const isCurrentMonth = today.getFullYear() === year && today.getMonth() === m;
-        const monthApps = yearApps.filter(a => new Date(a.date).getMonth() === m);
+        const monthApps = yearApps.filter(a => {
+            const d = parseLocalDate(a.date);
+            return d && d.getMonth() === m;
+        });
         const daysInMonth = new Date(year, m + 1, 0).getDate();
         let startDay = new Date(year, m, 1).getDay();
         let startPadding = (startDay === 0) ? 6 : startDay - 1;
@@ -5489,7 +8639,7 @@ function renderCalendarYear(container) {
         for (let d = 1; d <= daysInMonth; d++) {
             const checkDate = new Date(year, m, d);
             const isDayToday = isSameDay(checkDate, today);
-            const hasApps = monthApps.some(a => isSameDay(new Date(a.date), checkDate));
+            const hasApps = monthApps.some(a => isSameDay(parseLocalDate(a.date), checkDate));
             const dateStr = toDateInputValue(checkDate);
             html += `
                 <div class="cal-mini-day ${hasApps ? 'has-app' : ''} ${isDayToday ? 'today' : ''}" 
@@ -5515,35 +8665,50 @@ function renderAppointments() {
     const subtitleEl = document.getElementById('dayDetailsSubtitle');
     if (titleEl) titleEl.textContent = `Citas del ${dateFormatted}`;
 
-    const apps = AppState.appointments.filter(a => isSameDay(new Date(a.date), AppState.selectedDate)).sort((a, b) => a.time.localeCompare(b.time));
+    const apps = AppState.appointments.filter(a => isSameDay(parseLocalDate(a.date), AppState.selectedDate)).sort((a, b) => a.time.localeCompare(b.time));
     if (subtitleEl) subtitleEl.textContent = `${apps.length} cita${apps.length === 1 ? '' : 's'} registrada${apps.length === 1 ? '' : 's'}`;
 
     if (apps.length === 0) {
-        container.innerHTML = `<div class="empty-state" style="padding:24px 16px;"><div class="empty-icon">📅</div><p>Sin citas para el ${dateFormatted}</p><button class="btn-secondary" onclick="openAppointmentModalWithSlot('${toDateInputValue(AppState.selectedDate)}', '09:00')" style="margin-top:8px;"><i class="fas fa-plus"></i> Agendar cita en este día</button></div>`;
+        container.innerHTML = `<div class="empty-state" style="padding:24px 16px;"><div class="empty-icon"><i class="fas fa-calendar-check"></i></div><p>Sin citas para el ${dateFormatted}</p><button class="btn-secondary" onclick="openAppointmentModalWithSlot('${toDateInputValue(AppState.selectedDate)}', '09:00')" style="margin-top:8px;"><i class="fas fa-plus"></i> Agendar cita en este día</button></div>`;
         return;
     }
     container.innerHTML = apps.map(app => {
         const p = AppState.patients.find(x => x.id === app.patientId);
         const cat = p ? (typeof getPatientCategory === 'function' ? getPatientCategory(p) : p.category) : 'adult';
-        const catBadge = cat === 'child' ? '🧒 Niñez' : (cat === 'adolescent' ? '🧑 Adolescencia' : '👤 Adulto');
+        const catBadge = cat === 'child' ? 'Infantil' : (cat === 'adolescent' ? 'Adolescente' : 'Adulto');
         const st = app.status || 'agendada';
-        return `<div class="appointment-card" style="border-left:4px solid var(--accent-primary);">
-            <div class="appointment-avatar">${p ? getInitials(p.name) : '?'}</div>
+        const isConfirmed = Boolean(app.attendanceConfirmed || app.attendance_confirmed || st === 'confirmada');
+        return `<div class="appointment-card" style="border-left:4px solid ${isConfirmed ? 'var(--accent-success)' : 'var(--accent-primary)'};">
+            <div class="appointment-avatar" style="${isConfirmed ? 'box-shadow:0 0 0 2px var(--accent-success);' : ''}">${p ? getInitials(p.name) : '?'}</div>
             <div class="appointment-info">
-                <div class="appointment-patient">${p ? p.name : 'Paciente'} <span style="font-size:11px;font-weight:normal;color:var(--text-secondary);margin-left:6px;">(${catBadge})</span></div>
+                <div class="appointment-patient">
+                    ${p ? p.name : 'Paciente'}
+                    <span style="font-size:11px;font-weight:normal;color:var(--text-secondary);margin-left:6px;">(${catBadge})</span>
+                    ${isConfirmed ? `
+                        <span class="badge-attendance-check" title="Asistencia confirmada por el paciente en el portal" style="margin-left:6px;">
+                            <i class="fas fa-check-circle"></i> Confirmada
+                        </span>
+                    ` : ''}
+                </div>
                 <div class="appointment-meta"><strong>${formatTime(app.time)}</strong> · ${app.duration || 50} min · ${app.type || 'Terapia'}${app.notes ? ' · ' + app.notes : ''}</div>
             </div>
             
             <div style="display:flex;align-items:center;gap:6px;">
                 <select class="status-badge status-${st}" style="border:none;cursor:pointer;font-weight:700;font-size:11.5px;padding:4px 8px;border-radius:12px;outline:none;" onchange="setAppointmentStatus('${app.id}', this.value)" title="Cambiar estado de la cita">
-                    <option value="agendada" ${st === 'agendada' || st === 'pendiente' ? 'selected' : ''}>📅 Agendada</option>
+                    <option value="agendada" ${st === 'agendada' || st === 'pendiente' ? 'selected' : ''}>Agendada</option>
+                    <option value="confirmada" ${st === 'confirmada' ? 'selected' : ''}>✔️ Confirmada</option>
                     <option value="completada" ${st === 'completada' ? 'selected' : ''}>✅ Completada</option>
-                    <option value="reprogramada" ${st === 'reprogramada' ? 'selected' : ''}>🔄 Reprogramada</option>
-                    <option value="cancelada" ${st === 'cancelada' ? 'selected' : ''}>❌ Cancelada</option>
+                    <option value="reprogramada" ${st === 'reprogramada' ? 'selected' : ''}>Reprogramada</option>
+                    <option value="cancelada" ${st === 'cancelada' ? 'selected' : ''}>Cancelada</option>
                 </select>
             </div>
 
             <div class="appointment-actions">
+                ${!isConfirmed && st !== 'cancelada' && st !== 'completada' ? `
+                    <button class="btn-icon" onclick="requestPortalConfirmation('${app.id}')" title="Enviar notificación de confirmación al Portal del Paciente">
+                        <i class="fas fa-bell" style="color:var(--accent-warning);"></i>
+                    </button>
+                ` : ''}
                 ${st !== 'completada' ? `<button class="btn-icon" onclick="setAppointmentStatus('${app.id}', 'completada')" title="Marcar como Completada"><i class="fas fa-check" style="color:var(--accent-success);"></i></button>` : ''}
                 <button class="btn-icon" onclick="openReporteAtencionFromAppointment('${app.id}')" title="Llenar Reporte de Atención"><i class="fas fa-file-signature" style="color:var(--accent-primary);"></i></button>
                 <button class="btn-icon" onclick="editAppointment('${app.id}')" title="Editar"><i class="fas fa-edit"></i></button>
@@ -5560,20 +8725,121 @@ function setAppointmentStatus(id, newStatus) {
         completeAppointment(id);
         return;
     }
+    if (newStatus === 'reprogramada' || newStatus === 'cancelada') {
+        openAppointmentActionModal(id);
+        return;
+    }
     a.status = newStatus;
+    if (newStatus === 'confirmada') {
+        a.attendanceConfirmed = true;
+        a.attendance_confirmed = true;
+        a.confirmedAt = new Date().toISOString();
+    }
+    a.updatedAt = new Date().toISOString();
     saveData();
+    if (typeof syncAppointmentStatusToPortalAndBackend === 'function') {
+        syncAppointmentStatusToPortalAndBackend(id, newStatus, { patientId: a.patientId, notes: a.notes, date: a.date, time: a.time, duration: a.duration });
+    }
     renderCalendar();
     renderAppointments();
     updateDashboard();
     updateCounts();
+    if (typeof updateSessionRemindersUI === 'function') updateSessionRemindersUI();
     const statusLabels = {
         agendada: 'Cita marcada como Agendada',
+        confirmada: 'Cita confirmada (asistencia validada)',
         reprogramada: 'Cita marcada como Reprogramada',
         cancelada: 'Cita marcada como Cancelada'
     };
     showToast(statusLabels[newStatus] || `Estado de cita: ${newStatus}`, 'info');
 }
 window.setAppointmentStatus = setAppointmentStatus;
+
+// Enviar notificación al paciente en su portal solicitándole confirmar su asistencia
+function requestPortalConfirmation(appId) {
+    const app = (AppState.appointments || []).find(a => String(a.id) === String(appId));
+    if (!app) return;
+
+    app.confirmationRequested = true;
+    app.confirmationRequestedAt = new Date().toISOString();
+    saveData();
+
+    // 1. Actualizar puente local para el portal
+    try {
+        const bridge = JSON.parse(localStorage.getItem('psico_portal_appointments_bridge') || '{}');
+        if (bridge[appId]) {
+            bridge[appId].confirmationRequested = true;
+            bridge[appId].confirmationRequestedAt = new Date().toISOString();
+            bridge[appId].updatedAt = new Date().toISOString();
+        } else {
+            bridge[appId] = {
+                id: appId,
+                patientId: app.patientId,
+                date: app.date,
+                time: app.time,
+                duration: app.duration || 50,
+                type: app.type || 'Online',
+                status: app.status || 'agendada',
+                confirmationRequested: true,
+                confirmationRequestedAt: new Date().toISOString(),
+                updatedAt: new Date().toISOString()
+            };
+        }
+        localStorage.setItem('psico_portal_appointments_bridge', JSON.stringify(bridge));
+        localStorage.setItem('psico_portal_appointments_last_update', Date.now().toString());
+
+        // Evento en LocalStorage para despertar de inmediato la pestaña del paciente
+        const patient = (AppState.patients || []).find(p => String(p.id) === String(app.patientId));
+        const pName = patient ? patient.name : 'Paciente';
+        localStorage.setItem('psico_portal_confirmation_requested_event', JSON.stringify({
+            appointmentId: appId,
+            patientId: app.patientId,
+            date: app.date,
+            time: app.time,
+            requestedAt: new Date().toISOString()
+        }));
+    } catch (e) {}
+
+    // 2. Sincronizar en caché del portal si existe
+    if (app.patientId) {
+        try {
+            const key = `psico_portal_data_${app.patientId}`;
+            const raw = localStorage.getItem(key);
+            if (raw) {
+                const pData = JSON.parse(raw);
+                if (Array.isArray(pData.appointments)) {
+                    const idx = pData.appointments.findIndex(a => String(a.id) === String(appId));
+                    if (idx >= 0) {
+                        pData.appointments[idx].confirmationRequested = true;
+                        pData.appointments[idx].confirmationRequestedAt = new Date().toISOString();
+                    }
+                }
+                localStorage.setItem(key, JSON.stringify(pData));
+            }
+        } catch (e) {}
+    }
+
+    // 3. Backend sync si está activo
+    if (typeof window !== 'undefined' && window.location && window.location.protocol !== 'file:') {
+        const token = localStorage.getItem('psico_session_token');
+        if (token) {
+            fetch(`/api/v1/appointments/${encodeURIComponent(appId)}/request-confirmation`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${token}`
+                }
+            }).catch(() => {});
+        }
+    }
+
+    const patient = (AppState.patients || []).find(p => String(p.id) === String(app.patientId));
+    const pName = patient ? patient.name : 'el paciente';
+    showToast(`🔔 Solicitud de confirmación enviada al portal de ${pName}`, 'success');
+    renderAppointments();
+    if (typeof updateSessionRemindersUI === 'function') updateSessionRemindersUI();
+}
+window.requestPortalConfirmation = requestPortalConfirmation;
 
 function populateAppointmentRates(selectedRateId = null, forcedPrice = null) {
     const select = document.getElementById('appointmentRateSelect');
@@ -5606,9 +8872,12 @@ function populateAppointmentRates(selectedRateId = null, forcedPrice = null) {
         const opt = document.createElement('option');
         opt.value = r.id;
         opt.dataset.amount = r.amount;
+        opt.dataset.currency = r.currency || 'USD';
+        opt.dataset.exchangeRate = r.customExchangeRate || '';
         opt.dataset.duration = r.durationMinutes;
         opt.dataset.title = r.title;
-        opt.textContent = `${r.title} (${r.durationMinutes} min) - $${parseFloat(r.amount).toFixed(2)} USD${r.isDefault ? ' [Predeterminada]' : ''}`;
+        const sym = (r.currency === 'EUR') ? '€' : ((r.currency === 'VES') ? 'Bs. ' : '$');
+        opt.textContent = `${r.title} (${r.durationMinutes} min) - ${sym}${parseFloat(r.amount).toFixed(2)} ${r.currency || 'USD'}${r.isDefault ? ' [Predeterminada]' : ''}`;
         if (selectedRateId && String(r.id) === String(selectedRateId)) {
             opt.selected = true;
         } else if (!selectedRateId && r.isDefault && (!patient || !patient.customFee)) {
@@ -5620,6 +8889,7 @@ function populateAppointmentRates(selectedRateId = null, forcedPrice = null) {
     const customOpt = document.createElement('option');
     customOpt.value = 'custom';
     customOpt.dataset.amount = '';
+    customOpt.dataset.currency = 'USD';
     customOpt.dataset.duration = '';
     customOpt.dataset.title = 'Tarifa Personalizada';
     customOpt.textContent = '✏️ Otra Tarifa / Precio Personalizado';
@@ -5647,6 +8917,13 @@ function onAppointmentRateSelectChange(forcedPrice = null) {
         priceInput.value = parseFloat(selectedOpt.dataset.amount).toFixed(2);
     }
 
+    const curr = selectedOpt.dataset.currency || 'USD';
+    const sym = (curr === 'EUR') ? '€' : ((curr === 'VES') ? 'Bs.' : '$');
+    const priceLabel = document.getElementById('appointmentPriceLabel') || document.querySelector('label[for="appointmentPrice"]');
+    if (priceLabel) {
+        priceLabel.innerHTML = `<i class="fas fa-tag" style="color:#4dab87;"></i> Precio (${sym} ${curr}) *`;
+    }
+
     if (selectedOpt.dataset.duration && durationSelect) {
         const dur = String(selectedOpt.dataset.duration);
         let optExists = Array.from(durationSelect.options).some(o => String(o.value) === dur);
@@ -5669,6 +8946,9 @@ function handleAppointmentSubmit(e) {
     const priceVal = parseFloat(document.getElementById('appointmentPrice')?.value) || 0;
     const rateId = rateSelect ? rateSelect.value : null;
     const rateTitle = selectedRateOpt ? (selectedRateOpt.dataset.title || selectedRateOpt.textContent) : 'Sesión psicoterapéutica';
+    const appCurrency = selectedRateOpt ? (selectedRateOpt.dataset.currency || 'USD') : 'USD';
+    const appExchangeRate = selectedRateOpt?.dataset?.exchangeRate ? parseFloat(selectedRateOpt.dataset.exchangeRate) : null;
+    const sym = (appCurrency === 'EUR') ? '€' : ((appCurrency === 'VES') ? 'Bs.' : '$');
 
     const app = { 
         id: document.getElementById('appointmentId').value || generateId(), 
@@ -5680,6 +8960,8 @@ function handleAppointmentSubmit(e) {
         notes: document.getElementById('appointmentNotes').value.trim(), 
         status: appStatus,
         price: priceVal,
+        currency: appCurrency,
+        exchangeRate: appExchangeRate,
         rateId: rateId,
         rateTitle: rateTitle,
         createdAt: new Date().toISOString() 
@@ -5691,9 +8973,12 @@ function handleAppointmentSubmit(e) {
         showToast('Cita actualizada con tarifa y precio', 'success'); 
     } else { 
         AppState.appointments.push(app); 
-        showToast(`Cita agendada ($${priceVal.toFixed(2)} USD)`, 'success'); 
+        showToast(`Cita agendada (${sym}${priceVal.toFixed(2)} ${appCurrency})`, 'success'); 
     }
     saveData(); 
+    if (typeof syncAppointmentStatusToPortalAndBackend === 'function') {
+        syncAppointmentStatusToPortalAndBackend(app.id, app.status, { patientId: app.patientId, date: app.date, time: app.time, duration: app.duration, notes: app.notes, type: app.type });
+    }
     if (app.status === 'completada' && typeof registerIncomeFromAppointment === 'function') {
         registerIncomeFromAppointment(app);
     }
@@ -5726,7 +9011,11 @@ function completeAppointment(id) {
     const a = AppState.appointments.find(x => x.id === id);
     if (a) {
         a.status = 'completada';
+        a.updatedAt = new Date().toISOString();
         saveData();
+        if (typeof syncAppointmentStatusToPortalAndBackend === 'function') {
+            syncAppointmentStatusToPortalAndBackend(id, 'completada', { patientId: a.patientId, notes: a.notes, date: a.date, time: a.time, duration: a.duration });
+        }
         if (typeof registerIncomeFromAppointment === 'function') {
             registerIncomeFromAppointment(a);
         }
@@ -5745,36 +9034,455 @@ function completeAppointment(id) {
 }
 
 function deleteAppointment(id) {
-    showConfirmModal(
-        'Eliminar Cita',
-        '¿Está seguro/a de eliminar esta cita agendada?',
-        () => {
-            AppState.appointments = AppState.appointments.filter(a => String(a.id) !== String(id));
-            saveData(); renderCalendar(); renderAppointments(); updateCounts(); updateDashboard();
-            showToast('Cita eliminada', 'info');
+    openAppointmentActionModal(id);
+}
+
+function openAppointmentActionModal(id) {
+    const app = (AppState.appointments || []).find(a => String(a.id) === String(id));
+    if (!app) {
+        showToast('No se encontró la cita seleccionada', 'warning');
+        return;
+    }
+
+    const modal = document.getElementById('appointmentActionModal');
+    if (!modal) {
+        showConfirmModal(
+            'Eliminar Cita',
+            '¿Está seguro/a de eliminar esta cita agendada?',
+            () => {
+                const pId = app.patientId;
+                AppState.appointments = AppState.appointments.filter(a => String(a.id) !== String(id));
+                saveData(); renderCalendar(); renderAppointments(); updateCounts(); updateDashboard();
+                if (typeof syncAppointmentStatusToPortalAndBackend === 'function') {
+                    syncAppointmentStatusToPortalAndBackend(id, 'cancelada', { patientId: pId, deleted: true });
+                }
+                showToast('Cita eliminada', 'info');
+            }
+        );
+        return;
+    }
+
+    const actionAppIdInput = document.getElementById('actionAppointmentId');
+    if (actionAppIdInput) actionAppIdInput.value = app.id;
+
+    const p = (AppState.patients || []).find(pt => String(pt.id) === String(app.patientId));
+    const pName = p ? p.name : 'Paciente';
+
+    const patEl = document.getElementById('actionAppPatientName');
+    const dateEl = document.getElementById('actionAppCurrentDate');
+    const timeEl = document.getElementById('actionAppCurrentTime');
+    if (patEl) patEl.textContent = pName;
+    if (dateEl) dateEl.textContent = formatDate(app.date) || app.date;
+    if (timeEl) timeEl.textContent = formatTime(app.time) || app.time || '—';
+
+    // Inicializar nueva fecha con la fecha de la cita o mañana
+    const newDateInput = document.getElementById('actionNewDate');
+    if (newDateInput) {
+        newDateInput.value = app.date || toDateInputValue(new Date());
+    }
+    const newTimeInput = document.getElementById('actionNewTime');
+    if (newTimeInput) {
+        newTimeInput.value = (app.time || '09:00').substring(0, 5);
+    }
+    const reasonInput = document.getElementById('actionRescheduleReason');
+    if (reasonInput) reasonInput.value = '';
+    const customReasonInput = document.getElementById('actionCancelCustomReason');
+    if (customReasonInput) customReasonInput.value = '';
+
+    // Marcar primer radio 'reprogramar' por defecto
+    const radios = document.getElementsByName('appointmentActionRadio');
+    for (const r of radios) {
+        r.checked = (r.value === 'reprogramar');
+    }
+
+    onAppointmentActionChange('reprogramar');
+    openModal('appointmentActionModal');
+}
+
+function onAppointmentActionChange(actionType) {
+    const secReagendar = document.getElementById('sectionReagendar');
+    const secCancelacion = document.getElementById('sectionCancelacion');
+    const btnConfirm = document.getElementById('btnConfirmAppointmentAction');
+    const cancelTitle = document.getElementById('cancelSectionHeading');
+    const presetSelect = document.getElementById('actionReasonPresetSelect');
+
+    if (!secReagendar || !secCancelacion || !btnConfirm) return;
+
+    if (actionType === 'reprogramar') {
+        secReagendar.style.display = 'block';
+        secCancelacion.style.display = 'none';
+        btnConfirm.innerHTML = '<i class="fas fa-sync-alt"></i> Reagendar Cita';
+        btnConfirm.className = 'btn-primary';
+        btnConfirm.style.background = '';
+        checkAvailabilityForActionModal();
+    } else if (actionType === 'cancel_therapist') {
+        secReagendar.style.display = 'none';
+        secCancelacion.style.display = 'block';
+        if (cancelTitle) {
+            cancelTitle.innerHTML = '<i class="fas fa-user-md" style="color:#6366f1;"></i> Motivo de Cancelación del Terapeuta';
         }
-    );
+        if (presetSelect) {
+            presetSelect.innerHTML = `
+                <option value="Imprevisto médico / de salud del profesional">Imprevisto médico / de salud del profesional</option>
+                <option value="Causa de fuerza mayor / Urgencia familiar">Causa de fuerza mayor / Urgencia familiar</option>
+                <option value="Compromiso académico / Congreso clínico">Compromiso académico / Congreso clínico</option>
+                <option value="Ajuste de agenda profesional">Ajuste de agenda profesional</option>
+                <option value="otro">Otro motivo personalizado...</option>
+            `;
+        }
+        btnConfirm.innerHTML = '<i class="fas fa-user-md"></i> Registrar Cancelación (Terapeuta)';
+        btnConfirm.className = 'btn-primary';
+        btnConfirm.style.background = '#4f46e5';
+    } else if (actionType === 'cancel_patient') {
+        secReagendar.style.display = 'none';
+        secCancelacion.style.display = 'block';
+        if (cancelTitle) {
+            cancelTitle.innerHTML = '<i class="fas fa-user-times" style="color:#ef4444;"></i> Motivo de Cancelación del Paciente';
+        }
+        if (presetSelect) {
+            presetSelect.innerHTML = `
+                <option value="Aviso previo del paciente (motivos personales)">Aviso previo del paciente (motivos personales)</option>
+                <option value="Problemas de salud del paciente">Problemas de salud del paciente</option>
+                <option value="Dificultades laborales / académicas del paciente">Dificultades laborales / académicas del paciente</option>
+                <option value="Dificultades económicas o de traslado">Dificultades económicas o de traslado</option>
+                <option value="Inasistencia comunicada">Inasistencia comunicada</option>
+                <option value="otro">Otro motivo personalizado...</option>
+            `;
+        }
+        btnConfirm.innerHTML = '<i class="fas fa-user-times"></i> Registrar Cancelación (Paciente)';
+        btnConfirm.className = 'btn-primary';
+        btnConfirm.style.background = '#dc2626';
+    } else if (actionType === 'delete_permanent') {
+        secReagendar.style.display = 'none';
+        secCancelacion.style.display = 'none';
+        btnConfirm.innerHTML = '<i class="fas fa-trash-alt"></i> Eliminar Definitivamente';
+        btnConfirm.className = 'btn-primary';
+        btnConfirm.style.background = '#dc2626';
+    }
+}
+
+function onActionReasonPresetChange() {
+    const preset = document.getElementById('actionReasonPresetSelect')?.value;
+    const custom = document.getElementById('actionCancelCustomReason');
+    if (!custom) return;
+    if (preset === 'otro') {
+        custom.placeholder = 'Escriba detalladamente el motivo de la cancelación...';
+        custom.focus();
+    } else if (preset) {
+        custom.placeholder = `Detalle adicional opcional sobre: ${preset}`;
+    }
+}
+
+function checkAvailabilityForActionModal() {
+    const dateInput = document.getElementById('actionNewDate');
+    const container = document.getElementById('actionSlotsGrid');
+    const collisionNotice = document.getElementById('actionSlotCollisionNotice');
+    if (!dateInput || !container) return;
+    
+    const dateVal = dateInput.value;
+    if (!dateVal) {
+        container.innerHTML = '<span style="font-size:12px;color:var(--text-secondary);">Selecciona una fecha para ver disponibilidad.</span>';
+        return;
+    }
+    
+    const activeAppId = document.getElementById('actionAppointmentId')?.value;
+    const targetDate = parseLocalDate(dateVal);
+    if (!targetDate || isNaN(targetDate.getTime())) {
+        container.innerHTML = '<span style="font-size:12px;color:var(--text-secondary);">Fecha no válida.</span>';
+        return;
+    }
+
+    const candidateSlots = ['08:00', '09:00', '10:00', '11:00', '12:00', '14:00', '15:00', '16:00', '17:00', '18:00'];
+    const dayApps = (AppState.appointments || []).filter(a => {
+        if (String(a.id) === String(activeAppId)) return false;
+        if (a.status === 'cancelada') return false;
+        return a.date === dateVal || isSameDay(parseLocalDate(a.date), targetDate);
+    });
+
+    const selectedTime = (document.getElementById('actionNewTime')?.value || '').substring(0, 5);
+
+    let html = '';
+    candidateSlots.forEach(time => {
+        const conflict = dayApps.find(a => (a.time || '').substring(0, 5) === time);
+        const isSelected = selectedTime === time;
+        if (conflict) {
+            const p = (AppState.patients || []).find(pt => pt.id === conflict.patientId);
+            const pName = p ? p.name.split(' ')[0] : 'Ocupado';
+            html += `
+                <button type="button" class="btn-slot occupied" 
+                    title="Ocupado con ${p ? p.name : 'otro paciente'}" 
+                    style="padding:4px 8px;font-size:11px;border-radius:12px;border:1px solid #fca5a5;background:rgba(239,68,68,0.1);color:#b91c1c;cursor:not-allowed;" disabled>
+                    <i class="fas fa-times"></i> ${time} (${pName})
+                </button>
+            `;
+        } else {
+            html += `
+                <button type="button" class="btn-slot available ${isSelected ? 'selected' : ''}" 
+                    onclick="selectActionTimeSlot('${time}')" 
+                    style="padding:4px 10px;font-size:11px;border-radius:12px;cursor:pointer;transition:all 0.15s;${isSelected ? 'background:var(--accent-primary);color:#fff;border:1px solid var(--accent-primary);font-weight:700;' : 'background:rgba(16,185,129,0.1);color:#047857;border:1px solid #6ee7b7;'}">
+                    <i class="fas ${isSelected ? 'fa-check' : 'fa-circle'}" style="font-size:9px;"></i> ${time} Libre
+                </button>
+            `;
+        }
+    });
+
+    container.innerHTML = html;
+    validateSelectedSlotCollision();
+}
+
+function selectActionTimeSlot(time) {
+    const timeInput = document.getElementById('actionNewTime');
+    if (timeInput) timeInput.value = time;
+    checkAvailabilityForActionModal();
+}
+
+function validateSelectedSlotCollision() {
+    const dateInput = document.getElementById('actionNewDate');
+    const timeInput = document.getElementById('actionNewTime');
+    const notice = document.getElementById('actionSlotCollisionNotice');
+    if (!dateInput || !timeInput || !notice) return;
+
+    const dateVal = dateInput.value;
+    const timeVal = (timeInput.value || '').substring(0, 5);
+    const activeAppId = document.getElementById('actionAppointmentId')?.value;
+    const targetDate = parseLocalDate(dateVal);
+
+    if (!dateVal || !timeVal || !targetDate) {
+        notice.style.display = 'none';
+        return;
+    }
+
+    const conflict = (AppState.appointments || []).find(a => {
+        if (String(a.id) === String(activeAppId)) return false;
+        if (a.status === 'cancelada') return false;
+        return (a.date === dateVal || isSameDay(parseLocalDate(a.date), targetDate)) && (a.time || '').substring(0, 5) === timeVal;
+    });
+
+    if (conflict) {
+        const p = (AppState.patients || []).find(pt => pt.id === conflict.patientId);
+        notice.innerHTML = `<i class="fas fa-exclamation-triangle"></i> ¡Atención! Ya tienes una cita programada a las <strong>${timeVal}</strong> con <strong>${p ? p.name : 'otro paciente'}</strong>. Puedes seleccionar otro horario libre arriba.`;
+        notice.style.display = 'block';
+    } else {
+        notice.style.display = 'none';
+    }
+}
+
+function executeAppointmentAction() {
+    const appId = document.getElementById('actionAppointmentId')?.value;
+    const app = (AppState.appointments || []).find(a => String(a.id) === String(appId));
+    if (!app) {
+        showToast('Cita no encontrada', 'error');
+        closeModal('appointmentActionModal');
+        return;
+    }
+
+    const radios = document.getElementsByName('appointmentActionRadio');
+    let actionType = 'reprogramar';
+    for (const r of radios) {
+        if (r.checked) {
+            actionType = r.value;
+            break;
+        }
+    }
+
+    const p = (AppState.patients || []).find(pt => String(pt.id) === String(app.patientId));
+    const pName = p ? p.name : 'el paciente';
+
+    if (actionType === 'reprogramar') {
+        const newDate = document.getElementById('actionNewDate')?.value;
+        const newTime = document.getElementById('actionNewTime')?.value;
+        const reason = (document.getElementById('actionRescheduleReason')?.value || '').trim();
+
+        if (!newDate || !newTime) {
+            showToast('Por favor especifica la nueva fecha y hora para reagendar', 'warning');
+            return;
+        }
+
+        const oldDate = app.date;
+        const oldTime = app.time;
+
+        app.date = newDate;
+        app.time = newTime;
+        app.status = 'reprogramada';
+        app.rescheduledBy = 'therapist';
+        app.rescheduledAt = new Date().toISOString();
+        app.previousDate = oldDate;
+        app.previousTime = oldTime;
+        const noteTag = `[Reprogramada: del ${formatDate(oldDate)} ${oldTime} al ${formatDate(newDate)} ${newTime}${reason ? ' · ' + reason : ''}]`;
+        app.notes = app.notes ? `${app.notes} · ${noteTag}` : noteTag;
+        app.updatedAt = new Date().toISOString();
+
+        saveData();
+        if (typeof syncAppointmentStatusToPortalAndBackend === 'function') {
+            syncAppointmentStatusToPortalAndBackend(app.id, 'reprogramada', { 
+                patientId: app.patientId, 
+                date: newDate, 
+                time: newTime, 
+                notes: app.notes,
+                rescheduled: true,
+                previousDate: oldDate,
+                previousTime: oldTime
+            });
+        }
+
+        AppState.selectedDate = parseLocalDate(newDate);
+        closeModal('appointmentActionModal');
+        renderCalendar();
+        renderAppointments();
+        updateCounts();
+        updateDashboard();
+
+        const tabSesiones = document.getElementById('tab-sesiones');
+        if (tabSesiones && typeof renderTabHistorialSesiones === 'function') {
+            tabSesiones.innerHTML = renderTabHistorialSesiones(app.patientId);
+        }
+
+        showToast(`Cita con ${pName} reagendada con éxito para el ${formatDate(newDate)} a las ${newTime}`, 'success');
+        return;
+    }
+
+    if (actionType === 'cancel_therapist') {
+        const preset = document.getElementById('actionReasonPresetSelect')?.value || '';
+        const custom = (document.getElementById('actionCancelCustomReason')?.value || '').trim();
+        const fullReason = custom ? (preset !== 'otro' ? `${preset}: ${custom}` : custom) : (preset !== 'otro' ? preset : 'Imprevisto profesional del terapeuta');
+
+        app.status = 'cancelada';
+        app.canceledBy = 'therapist';
+        app.cancelReason = fullReason;
+        app.canceledAt = new Date().toISOString();
+        const noteTag = `[Cancelada por Terapeuta: ${fullReason}]`;
+        app.notes = app.notes ? `${app.notes} · ${noteTag}` : noteTag;
+        app.updatedAt = new Date().toISOString();
+
+        saveData();
+        if (typeof syncAppointmentStatusToPortalAndBackend === 'function') {
+            syncAppointmentStatusToPortalAndBackend(app.id, 'cancelada', { 
+                patientId: app.patientId, 
+                canceledBy: 'therapist', 
+                cancelReason: fullReason,
+                notes: app.notes 
+            });
+        }
+
+        closeModal('appointmentActionModal');
+        renderCalendar();
+        renderAppointments();
+        updateCounts();
+        updateDashboard();
+
+        const tabSesiones = document.getElementById('tab-sesiones');
+        if (tabSesiones && typeof renderTabHistorialSesiones === 'function') {
+            tabSesiones.innerHTML = renderTabHistorialSesiones(app.patientId);
+        }
+
+        showToast(`Cita cancelada por el terapeuta registrada (no penaliza adherencia del paciente)`, 'info');
+        return;
+    }
+
+    if (actionType === 'cancel_patient') {
+        const preset = document.getElementById('actionReasonPresetSelect')?.value || '';
+        const custom = (document.getElementById('actionCancelCustomReason')?.value || '').trim();
+        const fullReason = custom ? (preset !== 'otro' ? `${preset}: ${custom}` : custom) : (preset !== 'otro' ? preset : 'Aviso del paciente');
+
+        app.status = 'cancelada';
+        app.canceledBy = 'patient';
+        app.cancelReason = fullReason;
+        app.canceledAt = new Date().toISOString();
+        const noteTag = `[Cancelada por Paciente: ${fullReason}]`;
+        app.notes = app.notes ? `${app.notes} · ${noteTag}` : noteTag;
+        app.updatedAt = new Date().toISOString();
+
+        saveData();
+        if (typeof syncAppointmentStatusToPortalAndBackend === 'function') {
+            syncAppointmentStatusToPortalAndBackend(app.id, 'cancelada', { 
+                patientId: app.patientId, 
+                canceledBy: 'patient', 
+                cancelReason: fullReason,
+                notes: app.notes 
+            });
+        }
+
+        closeModal('appointmentActionModal');
+        renderCalendar();
+        renderAppointments();
+        updateCounts();
+        updateDashboard();
+
+        const tabSesiones = document.getElementById('tab-sesiones');
+        if (tabSesiones && typeof renderTabHistorialSesiones === 'function') {
+            tabSesiones.innerHTML = renderTabHistorialSesiones(app.patientId);
+        }
+
+        showToast(`Cita cancelada por el paciente registrada en su historial`, 'info');
+        return;
+    }
+
+    if (actionType === 'delete_permanent') {
+        const pId = app.patientId;
+        AppState.appointments = (AppState.appointments || []).filter(a => String(a.id) !== String(app.id));
+        saveData();
+
+        try {
+            const deletedIds = JSON.parse(localStorage.getItem('psico_deleted_appointments') || '[]');
+            if (!deletedIds.includes(String(app.id))) {
+                deletedIds.push(String(app.id));
+                localStorage.setItem('psico_deleted_appointments', JSON.stringify(deletedIds));
+            }
+            const bridge = JSON.parse(localStorage.getItem('psico_portal_appointments_bridge') || '{}');
+            delete bridge[app.id];
+            localStorage.setItem('psico_portal_appointments_bridge', JSON.stringify(bridge));
+            localStorage.setItem('psico_portal_appointments_last_update', Date.now().toString());
+        } catch (e) {}
+
+        if (typeof syncAppointmentStatusToPortalAndBackend === 'function') {
+            syncAppointmentStatusToPortalAndBackend(app.id, 'eliminada', { patientId: pId, deleted: true });
+        }
+
+        closeModal('appointmentActionModal');
+        renderCalendar();
+        renderAppointments();
+        updateCounts();
+        updateDashboard();
+
+        const tabSesiones = document.getElementById('tab-sesiones');
+        if (tabSesiones && typeof renderTabHistorialSesiones === 'function') {
+            tabSesiones.innerHTML = renderTabHistorialSesiones(pId);
+        }
+
+        showToast('Cita eliminada definitivamente', 'info');
+        return;
+    }
 }
 
 // Sugerencia Inteligente de Horarios
 function suggestAppointmentSlots() {
-    const patientId = document.getElementById('appointmentPatient').value;
+    const patientId = document.getElementById('appointmentPatient')?.value;
     const container = document.getElementById('aiSuggestResults');
     if (!container) return;
     
-    const today = new Date();
+    const currentDateVal = document.getElementById('appointmentDate')?.value;
+    const baseDate = currentDateVal ? parseLocalDate(currentDateVal) : (AppState.selectedDate ? new Date(AppState.selectedDate) : new Date());
+    const validBase = (baseDate && !isNaN(baseDate.getTime())) ? baseDate : new Date();
     const suggestions = [];
+    const now = new Date();
     
-    for (let d = 1; d <= 5; d++) {
-        const checkDate = new Date(today);
-        checkDate.setDate(checkDate.getDate() + d);
+    for (let d = 0; d <= 5; d++) {
+        const checkDate = new Date(validBase.getFullYear(), validBase.getMonth(), validBase.getDate() + d);
         if (checkDate.getDay() === 0) continue; // omitir domingo
         
         const dateStr = toDateInputValue(checkDate);
-        const dayApps = AppState.appointments.filter(a => a.date === dateStr && a.status !== 'cancelada');
+        const dayApps = (AppState.appointments || []).filter(a => {
+            if (a.status === 'cancelada') return false;
+            return a.date === dateStr || isSameDay(parseLocalDate(a.date), checkDate);
+        });
         
         const candidateHours = ['09:00', '11:00', '15:00', '17:00'];
         for (const hour of candidateHours) {
+            // Si la fecha coincide con hoy en hora local, descartar bloques pasados
+            if (isSameDay(checkDate, now)) {
+                const [h] = hour.split(':').map(Number);
+                if (h <= now.getHours()) continue;
+            }
             const conflict = dayApps.some(a => a.time === hour);
             if (!conflict) {
                 const dayName = checkDate.toLocaleDateString('es-ES', { weekday: 'short', day: 'numeric', month: 'short' });
@@ -5783,7 +9491,7 @@ function suggestAppointmentSlots() {
                     time: hour,
                     display: `${dayName} a las ${hour}`,
                     score: 95 - d * 2,
-                    reason: 'Horario con alta disponibilidad y espacio ideal'
+                    reason: d === 0 ? 'Horario óptimo para la fecha seleccionada' : 'Horario con alta disponibilidad y espacio ideal'
                 });
                 if (suggestions.length >= 3) break;
             }
@@ -5891,7 +9599,7 @@ function renderNotes(filter = '') {
         });
     }
     if (notes.length === 0) {
-        container.innerHTML = `<div class="empty-state"><div class="empty-icon">📝</div><p>${filter ? 'Sin coincidencias' : 'No hay reportes de atención registrados'}</p>${!filter ? '<button class="btn-primary" onclick="openReporteAtencionModal()"><i class="fas fa-file-signature"></i> Registrar Primer Reporte de Atención</button>' : ''}</div>`;
+        container.innerHTML = `<div class="empty-state"><div class="empty-icon"><i class="fas fa-file-alt"></i></div><p>${filter ? 'Sin coincidencias' : 'No hay reportes de atención registrados'}</p>${!filter ? '<button class="btn-primary" onclick="openReporteAtencionModal()"><i class="fas fa-file-signature"></i> Registrar Primer Reporte de Atención</button>' : ''}</div>`;
         return;
     }
     container.innerHTML = notes.map(n => {
@@ -6188,7 +9896,16 @@ window.discardNoteDraft = () => NoteDraftManager.discardDraft();
 
 function handleNoteSubmit(e) {
     e.preventDefault();
-    const validTasks = tempIntersessionTasks.filter(t => t.title.trim());
+    const patientId = document.getElementById('notePatient')?.value;
+    const validTasks = tempIntersessionTasks.filter(t => t.title && t.title.trim()).map(t => ({
+        ...t,
+        id: t.id || generateId(),
+        patientId: patientId,
+        patient_id: patientId,
+        dueDate: t.dueDate || '',
+        deadline: t.dueDate || '',
+        completed: Boolean(t.completed)
+    }));
 
     const sessionNum = document.getElementById('noteSessionNum')?.value || '1';
     const sessionGoals = document.getElementById('noteSessionGoals')?.value?.trim() || '';
@@ -6263,7 +9980,7 @@ function handleNoteSubmit(e) {
                 author: AppState.currentUser?.name || 'Psicólogo Clínico',
                 text: newAddendumText
             });
-            showToast('✍️ Adendum clínico agregado al expediente firmado', 'success');
+            showToast('Adendum clínico agregado al expediente firmado', 'success');
         } else {
             showToast('Documento firmado: registro inmutable preservado sin alteraciones', 'info');
         }
@@ -6275,7 +9992,7 @@ function handleNoteSubmit(e) {
             note.signedAt = new Date().toISOString();
             note.signedRegistry = localStorage.getItem('psico_therapist_registry') || 'FPV';
             note.addendums = [];
-            showToast(`✍️ Reporte de Atención firmado oficialmente (Sesión #${sessionNum})`, 'success');
+            showToast(`Reporte de Atención firmado oficialmente (Sesión #${sessionNum})`, 'success');
         } else {
             note.status = 'borrador';
             note.isSigned = false;
@@ -6297,6 +10014,10 @@ function handleNoteSubmit(e) {
 
     saveData();
     saveTasksForPortal(note);
+    const targetPatient = (AppState.patients || []).find(p => p.id === note.patientId);
+    if (targetPatient && typeof syncPatientToPortalStorage === 'function') {
+        syncPatientToPortalStorage(targetPatient);
+    }
     closeModal('noteModal');
     renderNotes();
     updateCounts();
@@ -6307,7 +10028,7 @@ function handleNoteSubmit(e) {
         if (typeof showCrisisProtocol === 'function' && p) {
             showCrisisProtocol(p);
         } else {
-            alert(`🚨 RIESGO ALTO DETECTADO\n\nPaciente: ${p ? p.name : 'Desconocido'}\nActive protocolo de contención.`);
+            alert(`RIESGO ALTO DETECTADO\n\nPaciente: ${p ? p.name : 'Desconocido'}\nActive protocolo de contención.`);
         }
     }
 }
@@ -6321,13 +10042,35 @@ function saveTasksForPortal(note) {
             existing[taskKey] = {
                 ...task,
                 patientId: note.patientId,
+                patient_id: note.patientId,
                 noteId: note.id,
                 noteTitle: note.title,
                 noteDate: note.date,
-                assignedAt: new Date().toISOString()
+                dueDate: task.dueDate || task.deadline || null,
+                deadline: task.dueDate || task.deadline || null,
+                assignedAt: task.assignedAt || new Date().toISOString()
             };
         });
         localStorage.setItem('psico_portal_tasks_bridge', JSON.stringify(existing));
+
+        // Persistir también al almacén de portal local
+        const rawPortal = localStorage.getItem(`psico_portal_data_${note.patientId}`);
+        const pData = rawPortal ? JSON.parse(rawPortal) : {};
+        const curTasks = Array.isArray(pData.tasks) ? pData.tasks : [];
+        note.intersessionTasks.forEach(task => {
+            const idx = curTasks.findIndex(ct => ct.id === task.id);
+            const taskObj = {
+                ...task,
+                patientId: note.patientId,
+                patient_id: note.patientId,
+                dueDate: task.dueDate || task.deadline || null,
+                deadline: task.dueDate || task.deadline || null
+            };
+            if (idx >= 0) curTasks[idx] = { ...curTasks[idx], ...taskObj };
+            else curTasks.push(taskObj);
+        });
+        pData.tasks = curTasks;
+        localStorage.setItem(`psico_portal_data_${note.patientId}`, JSON.stringify(pData));
     } catch (e) {
         console.error('Error guardando tareas para portal:', e);
     }
@@ -6423,7 +10166,7 @@ function removeIntersessionTask(i) { tempIntersessionTasks.splice(i, 1); renderI
 // ESCALAS CLÍNICAS
 // ============================================
 const CLINICAL_SCALES = {
-    phq9: { name: 'PHQ-9 (Depresión)', questions: ['Poco interés o placer en hacer cosas', 'Se ha sentido decaído/a, deprimido/a o sin esperanza', 'Ha tenido problemas para dormir', 'Se ha sentido cansado/a o con poca energía', 'Sin apetito o ha comido en exceso', 'Se ha sentido mal consigo mismo/a', 'Ha tenido dificultad para concentrarse', 'Se ha movido o hablado tan lento que otros lo notaron, o muy inquieto', 'Pensamientos de que estaría mejor muerto/a o de hacerse daño'], options: ['Nunca (0)', 'Varios días (1)', 'Más de la mitad de los días (2)', 'Casi todos los días (3)'], interpret: (s) => s <= 4 ? { level: 'Mínima', color: '#4dab87', action: 'Seguimiento rutinario' } : s <= 9 ? { level: 'Leve', color: '#7cb342', action: 'Considerar plan de tratamiento' } : s <= 14 ? { level: 'Moderada', color: '#fdcb6e', action: 'Plan de tratamiento activo' } : s <= 19 ? { level: 'Moderadamente severa', color: '#e67e22', action: 'Intervención activa + farmacoterapia' } : { level: 'Severa', color: '#e16259', action: '⚠️ Iniciar tratamiento inmediato' } },
+    phq9: { name: 'PHQ-9 (Depresión)', questions: ['Poco interés o placer en hacer cosas', 'Se ha sentido decaído/a, deprimido/a o sin esperanza', 'Ha tenido problemas para dormir', 'Se ha sentido cansado/a o con poca energía', 'Sin apetito o ha comido en exceso', 'Se ha sentido mal consigo mismo/a', 'Ha tenido dificultad para concentrarse', 'Se ha movido o hablado tan lento que otros lo notaron, o muy inquieto', 'Pensamientos de que estaría mejor muerto/a o de hacerse daño'], options: ['Nunca (0)', 'Varios días (1)', 'Más de la mitad de los días (2)', 'Casi todos los días (3)'], interpret: (s) => s <= 4 ? { level: 'Mínima', color: '#4dab87', action: 'Seguimiento rutinario' } : s <= 9 ? { level: 'Leve', color: '#7cb342', action: 'Considerar plan de tratamiento' } : s <= 14 ? { level: 'Moderada', color: '#fdcb6e', action: 'Plan de tratamiento activo' } : s <= 19 ? { level: 'Moderadamente severa', color: '#e67e22', action: 'Intervención activa + farmacoterapia' } : { level: 'Severa', color: '#e16259', action: 'Iniciar tratamiento inmediato' } },
     gad7: { name: 'GAD-7 (Ansiedad)', questions: ['Sentirse nervioso/a, ansioso/a', 'No ser capaz de parar las preocupaciones', 'Preocuparse demasiado', 'Dificultad para relajarse', 'Estar tan inquieto/a que es difícil permanecer sentado/a', 'Molestarse o irritarse con facilidad', 'Sentir miedo como si algo terrible fuera a pasar'], options: ['Nunca (0)', 'Varios días (1)', 'Más de la mitad de los días (2)', 'Casi todos los días (3)'], interpret: (s) => s <= 4 ? { level: 'Mínima', color: '#4dab87', action: 'Seguimiento' } : s <= 9 ? { level: 'Leve', color: '#7cb342', action: 'Psicoeducación' } : s <= 14 ? { level: 'Moderada', color: '#fdcb6e', action: 'Plan de tratamiento' } : { level: 'Severa', color: '#e16259', action: 'Evaluación urgente' } }
 };
 
@@ -6532,7 +10275,7 @@ async function handleAiChatSubmit(e) {
 
     const botDiv = document.createElement('div');
     botDiv.className = 'ai-msg bot';
-    botDiv.innerHTML = `<div class="ai-avatar">🤖</div><div class="ai-bubble"><em>Pensando con Gemini AI...</em></div>`;
+    botDiv.innerHTML = `<div class="ai-avatar"><i class="fas fa-brain"></i></div><div class="ai-bubble"><em>Pensando con Gemini AI...</em></div>`;
     chatBox.appendChild(botDiv);
     chatBox.scrollTop = chatBox.scrollHeight;
 
@@ -6543,7 +10286,7 @@ async function handleAiChatSubmit(e) {
         
         botDiv.querySelector('.ai-bubble').innerHTML = formatMarkdownResponse(reply);
     } catch (err) {
-        botDiv.querySelector('.ai-bubble').innerHTML = `<span style="color:#e16259;">❌ Error: ${err.message}</span>`;
+        botDiv.querySelector('.ai-bubble').innerHTML = `<span style="color:#e16259;">Error: ${err.message}</span>`;
     }
     chatBox.scrollTop = chatBox.scrollHeight;
 }
@@ -6554,7 +10297,7 @@ async function runAiDiagnosticAnalysis() {
     if (!output) return;
 
     if (!patientId) {
-        output.innerHTML = `<div class="empty-state"><div class="empty-icon">🧠</div><p>Selecciona un paciente para analizar su expediente.</p></div>`;
+        output.innerHTML = `<div class="empty-state"><div class="empty-icon"><i class="fas fa-brain"></i></div><p>Selecciona un paciente para analizar su expediente.</p></div>`;
         return;
     }
 
@@ -6570,7 +10313,7 @@ async function runAiDiagnosticAnalysis() {
         const result = await ClinicalAI.generateDiagnosticHypotheses(patient, notes, scaleResults);
         output.innerHTML = `<div class="ai-analysis-card">${formatMarkdownResponse(result)}</div>`;
     } catch (err) {
-        output.innerHTML = `<div class="alert-box error">❌ Error en el análisis: ${err.message}</div>`;
+        output.innerHTML = `<div class="alert-box error">Error en el análisis: ${err.message}</div>`;
     }
 }
 
@@ -6600,7 +10343,7 @@ async function runAiSoapSynthesis() {
             </div>
         `;
     } catch (err) {
-        resDiv.innerHTML = `<div class="alert-box error">❌ Error: ${err.message}</div>`;
+        resDiv.innerHTML = `<div class="alert-box error">Error: ${err.message}</div>`;
     }
 }
 
@@ -6691,7 +10434,7 @@ function downloadICSFile(appointmentId) {
 
     const icsContent = `BEGIN:VCALENDAR
 VERSION:2.0
-PRODID:-//Psico Notes Clinical//ES
+PRODID:-//SERENA Clinical//ES
 BEGIN:VEVENT
 SUMMARY:Sesión Psicoterapéutica - ${name}
 DESCRIPTION:Sesión clínica (${app.type}). ${app.notes || ''}
@@ -6719,7 +10462,7 @@ function exportPatientReport(patientId) {
     const notes = AppState.notes.filter(n => n.patientId === patientId);
     const apps = AppState.appointments.filter(a => a.patientId === patientId);
     const plans = AppState.treatmentPlans.filter(x => x.patientId === patientId);
-    const html = `<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Informe - ${p.name}</title><style>body{font-family:'Inter',sans-serif;max-width:800px;margin:40px auto;padding:20px;color:#37352f;}h1{border-bottom:2px solid #6b9080;padding-bottom:8px;color:#6b9080;}h2{color:#6b9080;margin-top:24px;}.meta{background:#f7f6f3;padding:16px;border-radius:8px;margin:16px 0;}.note{border-left:3px solid #6b9080;padding:12px;margin:12px 0;background:#fafafa;}.footer{margin-top:40px;font-size:11px;color:#9a9a9a;text-align:center;}@media print{body{margin:0;}}</style></head><body><h1>🧠 Informe Clínico</h1><div class="meta"><strong>Paciente:</strong> ${p.name}<br><strong>Nacimiento:</strong> ${p.birthdate || 'No registrada'}<br><strong>Diagnóstico:</strong> ${p.diagnosis || 'Pendiente'}<br><strong>Motivo:</strong> ${p.reason || 'No registrado'}<br><strong>Generado:</strong> ${new Date().toLocaleDateString('es-ES')}</div><h2>Antecedentes</h2><p>${p.medical || 'Sin antecedentes'}</p>${plans.length > 0 ? `<h2>Plan de Tratamiento</h2><ul>${plans.map(g => `<li><strong>${g.title}</strong> — ${g.progress}%</li>`).join('')}</ul>` : ''}<h2>Sesiones (${apps.length})</h2>${apps.map(a => `<div class="note"><strong>${formatDate(a.date)}</strong> · ${a.duration} min · ${a.type}</div>`).join('')}<h2>Notas SOAP (${notes.length})</h2>${notes.map(n => `<div class="note"><strong>${n.title}</strong> — ${formatDate(n.date)}<br><em>S:</em> ${n.subjetivo || '—'}<br><em>O:</em> ${n.objetivo || '—'}<br><em>A:</em> ${n.analisis || '—'}<br><em>P:</em> ${n.plan || '—'}</div>`).join('')}<div class="footer">Documento confidencial · ${AppState.currentUser?.name || 'Terapeuta'} · ${new Date().toLocaleString('es-ES')}</div><script>window.onload=()=>window.print();</script></body></html>`;
+    const html = `<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Informe - ${p.name}</title><style>body{font-family:'Inter',sans-serif;max-width:800px;margin:40px auto;padding:20px;color:#37352f;}h1{border-bottom:2px solid #6b9080;padding-bottom:8px;color:#6b9080;}h2{color:#6b9080;margin-top:24px;}.meta{background:#f7f6f3;padding:16px;border-radius:8px;margin:16px 0;}.note{border-left:3px solid #6b9080;padding:12px;margin:12px 0;background:#fafafa;}.footer{margin-top:40px;font-size:11px;color:#9a9a9a;text-align:center;}@media print{body{margin:0;}}</style></head><body><h1>Informe Clínico</h1><div class="meta"><strong>Paciente:</strong> ${p.name}<br><strong>Nacimiento:</strong> ${p.birthdate || 'No registrada'}<br><strong>Diagnóstico:</strong> ${p.diagnosis || 'Pendiente'}<br><strong>Motivo:</strong> ${p.reason || 'No registrado'}<br><strong>Generado:</strong> ${new Date().toLocaleDateString('es-ES')}</div><h2>Antecedentes</h2><p>${p.medical || 'Sin antecedentes'}</p>${plans.length > 0 ? `<h2>Plan de Tratamiento</h2><ul>${plans.map(g => `<li><strong>${g.title}</strong> — ${g.progress}%</li>`).join('')}</ul>` : ''}<h2>Sesiones (${apps.length})</h2>${apps.map(a => `<div class="note"><strong>${formatDate(a.date)}</strong> · ${a.duration} min · ${a.type}</div>`).join('')}<h2>Notas SOAP (${notes.length})</h2>${notes.map(n => `<div class="note"><strong>${n.title}</strong> — ${formatDate(n.date)}<br><em>S:</em> ${n.subjetivo || '—'}<br><em>O:</em> ${n.objetivo || '—'}<br><em>A:</em> ${n.analisis || '—'}<br><em>P:</em> ${n.plan || '—'}</div>`).join('')}<div class="footer">Documento confidencial · ${AppState.currentUser?.name || 'Terapeuta'} · ${new Date().toLocaleString('es-ES')}</div><script>window.onload=()=>window.print();</script></body></html>`;
     const w = window.open('', '_blank');
     w.document.write(html); w.document.close();
 }
@@ -6729,12 +10472,12 @@ function exportPatientReport(patientId) {
 // ============================================
 function handleGlobalSearch(query) {
     const c = document.getElementById('searchResults');
-    if (!query.trim()) { c.innerHTML = `<div class="empty-state"><div class="empty-icon">🔍</div><p>Escriba para buscar...</p></div>`; return; }
+    if (!query.trim()) { c.innerHTML = `<div class="empty-state"><div class="empty-icon"><i class="fas fa-search"></i></div><p>Escriba para buscar...</p></div>`; return; }
     const lq = query.toLowerCase();
     const results = [];
     AppState.patients.forEach(p => { if (p.name.toLowerCase().includes(lq) || (p.diagnosis && p.diagnosis.toLowerCase().includes(lq))) results.push({ type: 'patient', data: p, title: p.name, meta: `Diag: ${p.diagnosis}` }); });
     AppState.notes.forEach(n => { const p = AppState.patients.find(x => x.id === n.patientId); if (n.title.toLowerCase().includes(lq) || (n.subjetivo && n.subjetivo.toLowerCase().includes(lq))) results.push({ type: 'note', data: n, title: n.title, meta: `${p ? p.name : 'Paciente'} · ${formatDate(n.date)}` }); });
-    if (results.length === 0) { c.innerHTML = `<div class="empty-state"><div class="empty-icon">🔍</div><p>Sin coincidencias</p></div>`; return; }
+    if (results.length === 0) { c.innerHTML = `<div class="empty-state"><div class="empty-icon"><i class="fas fa-search"></i></div><p>Sin coincidencias</p></div>`; return; }
     const tl = { patient: 'Paciente', note: 'Nota SOAP' };
     c.innerHTML = results.map(r => `<div class="search-result-item" onclick="handleSearchResult('${r.type}', '${r.data.id}')"><div class="search-result-info"><div class="search-result-title">${r.title}</div><div class="search-result-meta">${r.meta}</div></div><span class="search-result-type">${tl[r.type]}</span></div>`).join('');
 }
@@ -6746,7 +10489,7 @@ function updateStats() {
     const ms = new Date(today.getFullYear(), today.getMonth(), 1);
     const me = new Date(today.getFullYear(), today.getMonth() + 1, 0);
     const ap = new Set(); AppState.appointments.forEach(a => ap.add(a.patientId));
-    const ma = AppState.appointments.filter(a => { const d = new Date(a.date); return d >= ms && d <= me; });
+    const ma = AppState.appointments.filter(a => { const d = parseLocalDate(a.date); return d && d >= ms && d <= me; });
     const th = ma.reduce((s, a) => s + parseInt(a.duration || 50, 10), 0) / 60;
     document.getElementById('activePatients').textContent = ap.size;
     document.getElementById('monthAppointments').textContent = ma.length;
@@ -6754,7 +10497,7 @@ function updateStats() {
     document.getElementById('consultationHours').textContent = Math.round(th);
     const wd = ['Dom', 'Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb'];
     const wc = [0, 0, 0, 0, 0, 0, 0];
-    AppState.appointments.forEach(a => wc[new Date(a.date).getDay()]++);
+    AppState.appointments.forEach(a => { const d = parseLocalDate(a.date); if (d) wc[d.getDay()]++; });
     const mc = Math.max(...wc, 1);
     document.getElementById('weekdayChart').innerHTML = wd.map((d, i) => `<div class="bar-item"><div class="bar-fill" style="height:${(wc[i] / mc * 100) || 4}%"></div><div class="bar-label">${d}</div></div>`).join('');
     renderAgendaHeatmap();
@@ -6785,7 +10528,7 @@ function renderAgendaHeatmap() {
 
     let html = `
         <div style="font-size:13px;font-weight:600;margin-bottom:12px;color:var(--text-primary);display:flex;justify-content:space-between;align-items:center;">
-            <span>🔥 Mapa de Calor de Ocupación Semanal de Agenda</span>
+            <span>Mapa de Ocupación Semanal de Agenda</span>
             <span style="font-size:11px;color:var(--text-tertiary);font-weight:normal;">Basado en historial de citas</span>
         </div>
         <div style="display:grid;grid-template-columns: 50px repeat(6, 1fr);gap:6px;font-size:11px;text-align:center;">
@@ -6986,7 +10729,8 @@ function openModal(id) {
             document.getElementById('appointmentForm').reset();
             document.getElementById('appointmentId').value = '';
             document.getElementById('appointmentModalTitle').textContent = 'Agendar Cita';
-            document.getElementById('appointmentDate').value = toDateInputValue(new Date());
+            const defaultDate = AppState.selectedDate || new Date();
+            document.getElementById('appointmentDate').value = toDateInputValue(defaultDate);
             updatePatientSelects();
             if (typeof populateAppointmentRates === 'function') populateAppointmentRates();
         }
@@ -7042,12 +10786,27 @@ function closeModal(id) {
 function showToast(message, type = 'info') {
     const c = document.getElementById('toastContainer');
     if (!c) return;
+
+    // 1. Prevención anti-duplicados idénticos en pantalla simultáneamente
+    const cleanMsg = String(message || '').trim();
+    const isDuplicate = Array.from(c.children).some(child => child.textContent.includes(cleanMsg));
+    if (isDuplicate) return;
+
+    // 2. Limitar máximo de toasts visibles a 3 simultáneos para evitar lluvia visual
+    while (c.children.length >= 3) {
+        c.removeChild(c.firstElementChild);
+    }
+
     const t = document.createElement('div');
     t.className = `toast ${type}`;
-    const icons = { info: 'ℹ️', success: '✅', error: '❌', warning: '⚠️' };
+    const icons = { info: '<i class="fas fa-info-circle"></i>', success: '<i class="fas fa-check-circle"></i>', error: '<i class="fas fa-exclamation-circle"></i>', warning: '<i class="fas fa-exclamation-triangle"></i>' };
     t.innerHTML = `<span>${icons[type] || 'ℹ️'}</span> ${message}`;
     c.appendChild(t);
-    setTimeout(() => { t.style.opacity = '0'; t.style.transform = 'translateX(20px)'; setTimeout(() => t.remove(), 300); }, 3000);
+    setTimeout(() => { 
+        t.style.opacity = '0'; 
+        t.style.transform = 'translateX(20px)'; 
+        setTimeout(() => t.remove(), 300); 
+    }, 3500);
 }
 
 function showConfirmModal(title, message, onConfirm, isDanger = true) {
@@ -7089,22 +10848,74 @@ function showConfirmModal(title, message, onConfirm, isDanger = true) {
 
 function generateId() { return Date.now().toString(36) + Math.random().toString(36).substr(2); }
 function getInitials(n) { return n ? n.split(' ').map(x => x[0]).join('').toUpperCase().substring(0, 2) : '?'; }
-function formatDate(ds) { if (!ds) return ''; const d = new Date(ds.includes('T') ? ds : ds + 'T00:00:00'); return d.toLocaleDateString('es-ES', { day: 'numeric', month: 'short', year: 'numeric' }); }
+function parseLocalDate(input) {
+    if (!input) return null;
+    if (input instanceof Date) {
+        if (isNaN(input.getTime())) return null;
+        if (input.getUTCHours() === 0 && input.getUTCMinutes() === 0 && input.getUTCSeconds() === 0 && input.getUTCMilliseconds() === 0) {
+            return new Date(input.getUTCFullYear(), input.getUTCMonth(), input.getUTCDate());
+        }
+        return new Date(input.getFullYear(), input.getMonth(), input.getDate());
+    }
+    if (typeof input === 'string') {
+        const clean = input.trim();
+        const match = clean.match(/^(\d{4})-(\d{2})-(\d{2})/);
+        if (match) {
+            return new Date(parseInt(match[1], 10), parseInt(match[2], 10) - 1, parseInt(match[3], 10));
+        }
+    }
+    const fallback = new Date(input);
+    if (isNaN(fallback.getTime())) return null;
+    return fallback;
+}
+function formatDate(ds) {
+    if (!ds) return '';
+    const d = parseLocalDate(ds);
+    return d && !isNaN(d.getTime()) ? d.toLocaleDateString('es-ES', { day: 'numeric', month: 'short', year: 'numeric' }) : '';
+}
 function formatTime(ts) { if (!ts) return ''; const [h, m] = ts.split(':'); return `${h}:${m}`; }
-function calculateAge(bd) { if (!bd) return ''; const b = new Date(bd); const t = new Date(); let a = t.getFullYear() - b.getFullYear(); const m = t.getMonth() - b.getMonth(); if (m < 0 || (m === 0 && t.getDate() < b.getDate())) a--; return a; }
-function toDateInputValue(d) { return `${d.getFullYear()}-${(d.getMonth() + 1).toString().padStart(2, '0')}-${d.getDate().toString().padStart(2, '0')}`; }
-function isSameDay(d1, d2) { return d1.getFullYear() === d2.getFullYear() && d1.getMonth() === d2.getMonth() && d1.getDate() === d2.getDate(); }
-function getMoodEmoji(mood) { return { 'muy-bueno': 'Eutímico 😊', 'bueno': 'Estable 🙂', 'neutral': 'Aplanado 😐', 'bajo': 'Ansioso 😔', 'muy-bajo': 'Depresivo 😞' }[mood] || mood; }
+function calculateAge(bd) { if (!bd) return ''; const b = parseLocalDate(bd) || new Date(bd); const t = new Date(); let a = t.getFullYear() - b.getFullYear(); const m = t.getMonth() - b.getMonth(); if (m < 0 || (m === 0 && t.getDate() < b.getDate())) a--; return a; }
+function toDateInputValue(d) {
+    if (!d) return '';
+    const dt = parseLocalDate(d);
+    if (!dt || isNaN(dt.getTime())) return '';
+    return `${dt.getFullYear()}-${(dt.getMonth() + 1).toString().padStart(2, '0')}-${dt.getDate().toString().padStart(2, '0')}`;
+}
+function isSameDay(d1, d2) {
+    const dt1 = parseLocalDate(d1);
+    const dt2 = parseLocalDate(d2);
+    if (!dt1 || !dt2 || isNaN(dt1.getTime()) || isNaN(dt2.getTime())) return false;
+    return dt1.getFullYear() === dt2.getFullYear() && dt1.getMonth() === dt2.getMonth() && dt1.getDate() === dt2.getDate();
+}
+function getMoodEmoji(mood) { return { 'muy-bueno': 'Eutímico', 'bueno': 'Estable', 'neutral': 'Aplanado', 'bajo': 'Ansioso', 'muy-bajo': 'Depresivo' }[mood] || mood; }
 
 // ============================================
 // ATAJOS DE TECLADO
 // ============================================
 document.addEventListener('keydown', (e) => {
     if (e.key === 'Escape') { 
-        document.querySelectorAll('.modal.active').forEach(m => m.classList.remove('active')); 
-        document.body.style.overflow = ''; 
-        document.body.classList.remove('has-active-modal');
-        return; 
+        // 1. Cerrar drawer de recordatorios si está desplegado
+        if (typeof closeReminderDrawer === 'function') {
+            const drawer = document.getElementById('sessionReminderDrawer');
+            if (drawer && drawer.classList.contains('active')) {
+                closeReminderDrawer();
+                return;
+            }
+        }
+        // 2. Cerrar modales activos invocando sus destructores/limpiezas
+        const activeModals = document.querySelectorAll('.modal.active');
+        if (activeModals.length > 0) {
+            activeModals.forEach(m => {
+                if (typeof closeModal === 'function' && m.id) {
+                    closeModal(m.id);
+                } else {
+                    m.classList.remove('active');
+                }
+            });
+            document.body.style.overflow = ''; 
+            document.body.classList.remove('has-active-modal');
+            return;
+        }
     }
     const tag = e.target.tagName.toLowerCase();
     if (tag === 'input' || tag === 'textarea' || e.target.isContentEditable) return;
@@ -7253,7 +11064,7 @@ async function checkPortalCrisisAlerts() {
             });
             if (res.ok) {
                 const data = await res.json();
-                const activeAlerts = (data && data.alerts) || [];
+                const activeAlerts = ((data && data.alerts) || []).filter(a => !a.acknowledged);
                 AppState.activeServerCrisisAlerts = activeAlerts;
                 if (activeAlerts.length > 0) {
                     const firstAlert = activeAlerts[0];
@@ -7283,7 +11094,7 @@ async function checkPortalCrisisAlerts() {
                         break;
                     }
                     if (data.evaluations && Array.isArray(data.evaluations)) {
-                        const criticalEval = data.evaluations.find(e => e.alertRisk);
+                        const criticalEval = data.evaluations.find(e => e.alertRisk && !e.alertRiskAcknowledged);
                         if (criticalEval) {
                             alertPatient = p;
                             reasonText = criticalEval.riskReason || 'Indicadores de alto riesgo autolítico en evaluación';
@@ -7303,7 +11114,7 @@ async function checkPortalCrisisAlerts() {
     if (alertPatient && banner && textEl) {
         window._activeCrisisPatient = alertPatient;
         window._activeCrisisAlertId = serverAlertId;
-        textEl.innerHTML = `<strong>🚨 ALERTA CLÍNICA SOS:</strong> Paciente <strong>${alertPatient.name}</strong> ha registrado indicadores de crisis (${reasonText}).`;
+        textEl.innerHTML = `<strong>ALERTA CLÍNICA SOS:</strong> Paciente <strong>${alertPatient.name}</strong> ha registrado indicadores de crisis (${reasonText}).`;
         banner.style.display = 'block';
     } else if (banner && !window._activeCrisisPatient) {
         banner.style.display = 'none';
@@ -7322,33 +11133,67 @@ async function dismissCrisisBanner() {
     const banner = document.getElementById('crisisLiveBanner');
     if (banner) banner.style.display = 'none';
 
-    // Si existe alerta en servidor, enviar ACK formal para registrar la atención profesional
+    const p = window._activeCrisisPatient;
+    const pId = p ? p.id : null;
     const alertId = window._activeCrisisAlertId;
     const token = localStorage.getItem('psico_session_token');
-    if (alertId && token && typeof window !== 'undefined' && window.location && window.location.protocol !== 'file:') {
+
+    // Si existe alerta en servidor, enviar ACK formal para registrar la atención profesional
+    if (token && typeof window !== 'undefined' && window.location && window.location.protocol !== 'file:') {
         try {
-            await fetch(`/api/v1/portal/crisis-alerts/ack/${alertId}`, {
-                method: 'POST',
-                headers: { 'Authorization': `Bearer ${token}` }
-            });
+            if (pId) {
+                await fetch(`/api/v1/portal/crisis-alerts/ack-patient/${pId}`, {
+                    method: 'POST',
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+            } else if (alertId) {
+                await fetch(`/api/v1/portal/crisis-alerts/ack/${alertId}`, {
+                    method: 'POST',
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+            }
         } catch (ackErr) {
             console.warn('No se pudo enviar ACK al servidor:', ackErr);
         }
     }
 
-    if (window._activeCrisisPatient) {
+    if (pId) {
         try {
-            const pId = window._activeCrisisPatient.id;
             const raw = localStorage.getItem(`psico_portal_data_${pId}`);
             if (raw) {
                 const data = JSON.parse(raw);
                 data.activeCrisisAlert = false;
+                if (Array.isArray(data.evaluations)) {
+                    data.evaluations.forEach(e => {
+                        if (e.alertRisk) {
+                            e.alertRiskAcknowledged = true;
+                            e.alertRisk = false;
+                        }
+                    });
+                }
                 localStorage.setItem(`psico_portal_data_${pId}`, JSON.stringify(data));
             }
+            const rawEvals = localStorage.getItem(`psico_portal_results_${pId}`);
+            if (rawEvals) {
+                const evals = JSON.parse(rawEvals);
+                if (Array.isArray(evals)) {
+                    evals.forEach(e => {
+                        if (e.alertRisk) {
+                            e.alertRiskAcknowledged = true;
+                            e.alertRisk = false;
+                        }
+                    });
+                    localStorage.setItem(`psico_portal_results_${pId}`, JSON.stringify(evals));
+                }
+            }
         } catch (e) {}
-        window._activeCrisisPatient = null;
-        window._activeCrisisAlertId = null;
     }
+
+    if (AppState.activeServerCrisisAlerts && pId) {
+        AppState.activeServerCrisisAlerts = AppState.activeServerCrisisAlerts.filter(a => a.patient_id !== pId);
+    }
+    window._activeCrisisPatient = null;
+    window._activeCrisisAlertId = null;
 }
 
 // ============================================
@@ -7532,7 +11377,7 @@ async function loadSyntheticClinicalPilotCase() {
     if (typeof renderNotes === 'function') renderNotes();
     if (typeof updateCounts === 'function') updateCounts();
     if (typeof showToast === 'function') {
-        showToast('🎯 Caso clínico piloto cargado con éxito en el expediente', 'success');
+        showToast('Caso clínico piloto cargado con éxito en el expediente', 'success');
     }
 
     return { pilotPatient, pilotAppointment, pilotNote, phq9Evaluation, cssrsRecord };
@@ -7574,16 +11419,36 @@ if (typeof window !== 'undefined') {
     if (typeof regeneratePortalToken === 'function') window.regeneratePortalToken = regeneratePortalToken;
     if (typeof refreshPortalTabContent === 'function') window.refreshPortalTabContent = refreshPortalTabContent;
     if (typeof switchPatientTab === 'function') window.switchPatientTab = switchPatientTab;
+    if (typeof getPatientTabsOrder === 'function') window.getPatientTabsOrder = getPatientTabsOrder;
+    if (typeof savePatientTabsOrder === 'function') window.savePatientTabsOrder = savePatientTabsOrder;
+    if (typeof resetPatientTabsOrder === 'function') window.resetPatientTabsOrder = resetPatientTabsOrder;
+    if (typeof openPatientTabsReorderModal === 'function') window.openPatientTabsReorderModal = openPatientTabsReorderModal;
+    if (typeof movePatientTabInModal === 'function') window.movePatientTabInModal = movePatientTabInModal;
+    if (typeof handlePatientTabDragStart === 'function') window.handlePatientTabDragStart = handlePatientTabDragStart;
+    if (typeof handlePatientTabDragOver === 'function') window.handlePatientTabDragOver = handlePatientTabDragOver;
+    if (typeof handlePatientTabDragLeave === 'function') window.handlePatientTabDragLeave = handlePatientTabDragLeave;
+    if (typeof handlePatientTabDrop === 'function') window.handlePatientTabDrop = handlePatientTabDrop;
+    if (typeof handlePatientTabDragEnd === 'function') window.handlePatientTabDragEnd = handlePatientTabDragEnd;
+    if (typeof refreshPatientTabsBar === 'function') window.refreshPatientTabsBar = refreshPatientTabsBar;
+    if (typeof renderPatientTabsBar === 'function') window.renderPatientTabsBar = renderPatientTabsBar;
     if (typeof setPatientCategoryFilter === 'function') window.setPatientCategoryFilter = setPatientCategoryFilter;
     if (typeof setCalendarViewMode === 'function') window.setCalendarViewMode = setCalendarViewMode;
     if (typeof navigateCalendarToday === 'function') window.navigateCalendarToday = navigateCalendarToday;
     if (typeof navigateCalendarPeriod === 'function') window.navigateCalendarPeriod = navigateCalendarPeriod;
     if (typeof setAppointmentStatus === 'function') window.setAppointmentStatus = setAppointmentStatus;
+    if (typeof requestPortalConfirmation === 'function') window.requestPortalConfirmation = requestPortalConfirmation;
     if (typeof completeAppointment === 'function') window.completeAppointment = completeAppointment;
     if (typeof openAppointmentModal === 'function') window.openAppointmentModal = openAppointmentModal;
     if (typeof openAppointmentModalWithSlot === 'function') window.openAppointmentModalWithSlot = openAppointmentModalWithSlot;
     if (typeof editAppointment === 'function') window.editAppointment = editAppointment;
     if (typeof deleteAppointment === 'function') window.deleteAppointment = deleteAppointment;
+    if (typeof openAppointmentActionModal === 'function') window.openAppointmentActionModal = openAppointmentActionModal;
+    if (typeof onAppointmentActionChange === 'function') window.onAppointmentActionChange = onAppointmentActionChange;
+    if (typeof onActionReasonPresetChange === 'function') window.onActionReasonPresetChange = onActionReasonPresetChange;
+    if (typeof checkAvailabilityForActionModal === 'function') window.checkAvailabilityForActionModal = checkAvailabilityForActionModal;
+    if (typeof selectActionTimeSlot === 'function') window.selectActionTimeSlot = selectActionTimeSlot;
+    if (typeof validateSelectedSlotCollision === 'function') window.validateSelectedSlotCollision = validateSelectedSlotCollision;
+    if (typeof executeAppointmentAction === 'function') window.executeAppointmentAction = executeAppointmentAction;
     if (typeof openNoteModal === 'function') window.openNoteModal = openNoteModal;
     if (typeof openReporteAtencionModal === 'function') window.openReporteAtencionModal = openReporteAtencionModal;
     if (typeof openReporteAtencionFromAppointment === 'function') window.openReporteAtencionFromAppointment = openReporteAtencionFromAppointment;
@@ -7613,6 +11478,8 @@ if (typeof window !== 'undefined') {
     if (typeof clearTherapistSignaturePad === 'function') window.clearTherapistSignaturePad = clearTherapistSignaturePad;
     if (typeof showToast === 'function') window.showToast = showToast;
     if (typeof formatDate === 'function') window.formatDate = formatDate;
+    if (typeof parseLocalDate === 'function') window.parseLocalDate = parseLocalDate;
+    if (typeof isSameDay === 'function') window.isSameDay = isSameDay;
     if (typeof toDateInputValue === 'function') window.toDateInputValue = toDateInputValue;
     if (typeof updateDashboard === 'function') window.updateDashboard = updateDashboard;
     if (typeof renderPatients === 'function') window.renderPatients = renderPatients;
@@ -7663,5 +11530,106 @@ if (typeof window !== 'undefined') {
     if (typeof viewAppointmentDetail === 'function') window.viewAppointmentDetail = viewAppointmentDetail;
     if (typeof zoomIntoDay === 'function') window.zoomIntoDay = zoomIntoDay;
     if (typeof evolveAppointmentSession === 'function') window.evolveAppointmentSession = evolveAppointmentSession;
+    if (typeof selectAiNoteFormat === 'function') window.selectAiNoteFormat = selectAiNoteFormat;
+    if (typeof startAmbientSessionRecording === 'function') window.startAmbientSessionRecording = startAmbientSessionRecording;
+    if (typeof openSessionSynthesizedDraftModal === 'function') window.openSessionSynthesizedDraftModal = openSessionSynthesizedDraftModal;
+    if (typeof renderAiDraftPreview === 'function') window.renderAiDraftPreview = renderAiDraftPreview;
+    if (typeof renderTherapySessionsRoadmap === 'function') window.renderTherapySessionsRoadmap = renderTherapySessionsRoadmap;
+    if (typeof openAddRoadmapSessionModal === 'function') window.openAddRoadmapSessionModal = openAddRoadmapSessionModal;
+    if (typeof openEditRoadmapSessionModal === 'function') window.openEditRoadmapSessionModal = openEditRoadmapSessionModal;
+    if (typeof handleSaveRoadmapSession === 'function') window.handleSaveRoadmapSession = handleSaveRoadmapSession;
+    if (typeof handleDeleteRoadmapSession === 'function') window.handleDeleteRoadmapSession = handleDeleteRoadmapSession;
+    if (typeof toggleRoadmapSnippet === 'function') window.toggleRoadmapSnippet = toggleRoadmapSnippet;
+    if (typeof quickToggleRoadmapStatus === 'function') window.quickToggleRoadmapStatus = quickToggleRoadmapStatus;
+    if (typeof handleRoadmapSessionClick === 'function') window.handleRoadmapSessionClick = handleRoadmapSessionClick;
+    if (typeof openReporteAtencionFromRoadmapSession === 'function') window.openReporteAtencionFromRoadmapSession = openReporteAtencionFromRoadmapSession;
+    if (typeof switchRoadmapModalTab === 'function') window.switchRoadmapModalTab = switchRoadmapModalTab;
+    if (typeof applyRoadmapTitleSuggestion === 'function') window.applyRoadmapTitleSuggestion = applyRoadmapTitleSuggestion;
+    if (typeof appendRoadmapFocusTemplate === 'function') window.appendRoadmapFocusTemplate = appendRoadmapFocusTemplate;
+    if (typeof jumpToReporteAtencionFromModal === 'function') window.jumpToReporteAtencionFromModal = jumpToReporteAtencionFromModal;
+    if (typeof calculatePatientSessionStats === 'function') window.calculatePatientSessionStats = calculatePatientSessionStats;
+    if (typeof renderTabHistorialSesiones === 'function') window.renderTabHistorialSesiones = renderTabHistorialSesiones;
+    if (typeof quickChangeSessionAttendance === 'function') window.quickChangeSessionAttendance = quickChangeSessionAttendance;
+    if (typeof promptAddSessionReason === 'function') window.promptAddSessionReason = promptAddSessionReason;
+    if (typeof filterPatientSessionHistory === 'function') window.filterPatientSessionHistory = filterPatientSessionHistory;
+    if (typeof openAppointmentModalForPatient === 'function') window.openAppointmentModalForPatient = openAppointmentModalForPatient;
+    if (typeof openPortalPaymentMethodsModal === 'function') window.openPortalPaymentMethodsModal = openPortalPaymentMethodsModal;
+    if (typeof renderPaymentMethodsEditor === 'function') window.renderPaymentMethodsEditor = renderPaymentMethodsEditor;
+    if (typeof updatePaymentMethodDraftField === 'function') window.updatePaymentMethodDraftField = updatePaymentMethodDraftField;
+    if (typeof togglePaymentMethodEnabled === 'function') window.togglePaymentMethodEnabled = togglePaymentMethodEnabled;
+    if (typeof addNewPaymentMethodRow === 'function') window.addNewPaymentMethodRow = addNewPaymentMethodRow;
+    if (typeof removePaymentMethodRow === 'function') window.removePaymentMethodRow = removePaymentMethodRow;
+    if (typeof resetDefaultPaymentMethods === 'function') window.resetDefaultPaymentMethods = resetDefaultPaymentMethods;
+    if (typeof handleSavePortalPaymentMethods === 'function') window.handleSavePortalPaymentMethods = handleSavePortalPaymentMethods;
+    if (typeof getDefaultPortalPaymentMethods === 'function') window.getDefaultPortalPaymentMethods = getDefaultPortalPaymentMethods;
+    if (typeof syncPortalPaymentsToTherapist === 'function') window.syncPortalPaymentsToTherapist = syncPortalPaymentsToTherapist;
+    if (typeof viewPaymentReceiptModal === 'function') window.viewPaymentReceiptModal = viewPaymentReceiptModal;
+    if (typeof downloadReceiptData === 'function') window.downloadReceiptData = downloadReceiptData;
+    if (typeof approvePatientPayment === 'function') window.approvePatientPayment = approvePatientPayment;
+    if (typeof rejectPatientPayment === 'function') window.rejectPatientPayment = rejectPatientPayment;
+
+    // Controladores de Asistente Serena
+    window.dismissSerenaBanner = dismissSerenaBanner;
+    window.toggleSerenaAssistant = toggleSerenaAssistant;
+    window.initSerenaAssistant = initSerenaAssistant;
+}
+
+/* ============================================
+ * SERENA — ASISTENTE VISUAL Y CONSEJOS CLÍNICOS
+ * ============================================ */
+const SERENA_TIPS = [
+    "¡Bienvenido a SERENA! Organiza tu consulta y mantén el equilibrio de tu práctica.",
+    "Puedes registrar un nuevo paciente o explorar el ciclo vital (Infantil, Adolescente, Adulto) desde la barra lateral.",
+    "Tus notas de evolución cuentan con formato SOAP protocolizado y resguardo confidencial de grado clínico.",
+    "Recuerda que tus pacientes pueden confirmar sus citas y registrar pensamientos ABC desde su portal personal.",
+    "¿Necesitas consultar un psicofármaco? Tienes a mano el Vademécum clínico en el menú lateral."
+];
+
+function initSerenaAssistant() {
+    try {
+        const isDismissed = localStorage.getItem('serena_banner_dismissed') === 'true';
+        const banner = document.getElementById('serenaAssistantBanner');
+        if (banner) {
+            banner.style.display = isDismissed ? 'none' : 'flex';
+        }
+    } catch (_) {}
+}
+
+function dismissSerenaBanner() {
+    try {
+        localStorage.setItem('serena_banner_dismissed', 'true');
+        const banner = document.getElementById('serenaAssistantBanner');
+        if (banner) {
+            banner.style.display = 'none';
+        }
+        if (typeof showToast === 'function') {
+            showToast('Asistente Serena minimizado. Puedes reabrirlo desde la barra superior.');
+        }
+    } catch (_) {}
+}
+
+function toggleSerenaAssistant() {
+    try {
+        const banner = document.getElementById('serenaAssistantBanner');
+        if (!banner) return;
+        const isHidden = banner.style.display === 'none';
+        banner.style.display = isHidden ? 'flex' : 'none';
+        if (isHidden) {
+            localStorage.removeItem('serena_banner_dismissed');
+            const tipEl = document.getElementById('serenaContextualTip');
+            if (tipEl) {
+                const randomTip = SERENA_TIPS[Math.floor(Math.random() * SERENA_TIPS.length)];
+                tipEl.textContent = randomTip;
+            }
+        } else {
+            localStorage.setItem('serena_banner_dismissed', 'true');
+        }
+    } catch (_) {}
+}
+
+if (typeof window !== 'undefined') {
+    window.dismissSerenaBanner = dismissSerenaBanner;
+    window.toggleSerenaAssistant = toggleSerenaAssistant;
+    window.initSerenaAssistant = initSerenaAssistant;
 }
 

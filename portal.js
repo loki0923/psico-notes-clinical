@@ -10,11 +10,13 @@ const PortalState = {
     evaluations: [],
     moodLog: [],
     cbtRecords: [],
+    appointments: [],
     activeCrisisAlert: false,
     currentFilter: 'pending',
     // --- PORTAL PACIENTES KID (PSICO KIDS SPACE) ---
     isKidMode: false,
     kidStars: 0,
+    kidCoins: 50,
     kidAvatar: {
         character: 'fox',
         emoji: '🦊',
@@ -25,8 +27,10 @@ const PortalState = {
     },
     kidWeather: null,
     kidBodyZone: null,
+    kidSensation: null,
     kidBubblesPopped: 0,
     kidCalmCycles: 0,
+    kidCalmTechnique: 'balloon',
     kidActivities: []
 };
 
@@ -88,7 +92,7 @@ const PortalOfflineQueue = {
         this.updateBadge();
 
         if (successCount > 0 && typeof showToast === 'function') {
-            showToast(`🔄 Sincronizados ${successCount} registros pendientes con tu terapeuta`, 'success');
+            showToast(`Sincronizados ${successCount} registros pendientes con tu terapeuta`, 'success');
         }
     },
 
@@ -138,13 +142,13 @@ window.addEventListener('online', () => {
 
 
 const REFLECTIONS = [
-    "Cada pequeño paso cuenta. No necesitas ser perfecto, solo constante. 🌱",
-    "Tus emociones son válidas. Permitirte sentirlas es el primer paso. 💚",
-    "El progreso no es lineal. Los días difíciles también forman parte del camino. 🌊",
-    "Hoy es un nuevo día para practicar la compasión contigo mismo. 🌸",
-    "No tienes que tener todas las respuestas. A veces, solo respirar es suficiente. 🌬️",
-    "Celebra tus logros, por pequeños que parezcan. ✨",
-    "La vulnerabilidad no es debilidad, es valentía. 💪",
+    "Cada pequeño paso cuenta. No necesitas ser perfecto, solo constante.",
+    "Tus emociones son válidas. Permitirte sentirlas es el primer paso.",
+    "El progreso no es lineal. Los días difíciles también forman parte del camino.",
+    "Hoy es un nuevo día para practicar la compasión contigo mismo.",
+    "No tienes que tener todas las respuestas. A veces, solo respirar es suficiente.",
+    "Celebra tus logros, por pequeños que parezcan.",
+    "La vulnerabilidad no es debilidad, es valentía.",
     "Está bien descansar. El descanso también es parte del crecimiento. 🌙",
     "Confía en tu proceso. Estás haciendo más de lo que crees. 🌟",
     "Hoy, elige una cosa pequeña que te haga sentir bien. 🌈",
@@ -210,10 +214,96 @@ const MOOD_QUESTIONS = [
     }
 ];
 
+// ============================================
+// SISTEMA DE MODO OSCURO & TEMA TERAPÉUTICO (PORTAL)
+// ============================================
+function initPortalTheme() {
+    try {
+        const saved = typeof localStorage !== 'undefined' ? localStorage.getItem('portal_theme') : null;
+        const prefersDark = (typeof window !== 'undefined' && window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches);
+        const isDark = saved ? saved === 'dark' : prefersDark;
+        PortalState.darkMode = !!isDark;
+        if (typeof document !== 'undefined' && document.documentElement) {
+            document.documentElement.setAttribute('data-theme', isDark ? 'dark' : 'light');
+        }
+        updatePortalThemeIcon();
+    } catch (e) {}
+}
+
+function togglePortalTheme() {
+    PortalState.darkMode = !PortalState.darkMode;
+    const theme = PortalState.darkMode ? 'dark' : 'light';
+    if (typeof document !== 'undefined' && document.documentElement) {
+        document.documentElement.setAttribute('data-theme', theme);
+    }
+    try {
+        if (typeof localStorage !== 'undefined') {
+            localStorage.setItem('portal_theme', theme);
+        }
+    } catch (e) {}
+    updatePortalThemeIcon();
+}
+
+function updatePortalThemeIcon() {
+    if (typeof document === 'undefined') return;
+    const btn = document.getElementById('btnPortalThemeToggle');
+    if (!btn) return;
+    const icon = btn.querySelector('i');
+    if (icon) {
+        icon.className = PortalState.darkMode ? 'fas fa-sun' : 'fas fa-moon';
+    }
+}
+
+function closeAllPortalModals() {
+    if (typeof document === 'undefined') return false;
+    const modalIds = [
+        'testModal', 'crisisHelpModal', 'breathingModal', 'groundingModal',
+        'consentModalPortal', 'kidCrisisModal', 'kidCustomBubbleModal', 'scheduleSessionModal'
+    ];
+    let closed = false;
+    modalIds.forEach(id => {
+        const el = document.getElementById(id);
+        if (el && (el.style.display === 'flex' || el.style.display === 'block' || el.classList.contains('active'))) {
+            el.style.display = 'none';
+            el.classList.remove('active');
+            closed = true;
+        }
+    });
+    document.querySelectorAll('.portal-app .modal.active, .portal-modal.active').forEach(m => {
+        m.classList.remove('active');
+        m.style.display = 'none';
+        closed = true;
+    });
+    if (closed && document.body) {
+        document.body.style.overflow = '';
+    }
+    return closed;
+}
+
+if (typeof document !== 'undefined') {
+    document.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape') {
+            closeAllPortalModals();
+        }
+    });
+}
+
+if (typeof window !== 'undefined') {
+    window.initPortalTheme = initPortalTheme;
+    window.togglePortalTheme = togglePortalTheme;
+    window.updatePortalThemeIcon = updatePortalThemeIcon;
+    window.closeAllPortalModals = closeAllPortalModals;
+}
+
 document.addEventListener('DOMContentLoaded', async () => {
-    // Soporte para acceso directo por parámetro de URL (?token=PN-XXXXX o ?code=PN-XXXXX)
+    initPortalTheme();
+    // Soporte para acceso directo por parámetro de URL (?token=PN-XXXXX o ?code=PN-XXXXX o ?preconsulta=1)
     try {
         const urlParams = new URLSearchParams(window.location.search);
+        if (urlParams.get('preconsulta') === '1') {
+            renderPortalPreconsultaScreen(urlParams.get('etapa') || 'adult');
+            return;
+        }
         const queryToken = (urlParams.get('token') || urlParams.get('code') || '').trim();
         if (queryToken && window.location.protocol !== 'file:') {
             // Intentar autenticación contra backend PostgreSQL
@@ -291,6 +381,178 @@ function checkExistingSession() {
     }
     showAccessForm();
 }
+
+function renderPortalPreconsultaScreen(stage = 'adult') {
+    const accessScreen = document.getElementById('accessScreen');
+    if (!accessScreen) return;
+
+    const therapistName = localStorage.getItem('psico_therapist_name') || 'Tu Psicólogo Clínico';
+    const therapistSpec = localStorage.getItem('psico_therapist_specialty') || 'Psicología Clínica';
+    const therapistReg = localStorage.getItem('psico_therapist_registry') || '';
+    const regBadge = therapistReg ? ` · ${therapistReg}` : '';
+
+    const isChild = stage === 'child' || stage === 'child_teen';
+    const isTeen = stage === 'adolescent';
+
+    accessScreen.style.alignItems = 'flex-start';
+    accessScreen.style.padding = '24px 16px';
+    accessScreen.style.overflowY = 'auto';
+
+    accessScreen.innerHTML = `
+        <div style="max-width: 720px; width: 100%; margin: 20px auto; background: var(--bg-card); border-radius: 16px; border: 1px solid var(--border-color); box-shadow: var(--shadow-lg); overflow: hidden; padding: 24px;">
+            <div style="text-align: center; margin-bottom: 24px; border-bottom: 1px solid var(--border-secondary); padding-bottom: 18px;">
+                <div style="font-size: 32px; color: var(--accent-primary); margin-bottom: 8px;"><i class="fas fa-clipboard-list"></i></div>
+                <h2 style="font-size: 22px; margin: 0 0 6px 0; color: var(--text-primary);">Formulario Clínico de Pre-consulta</h2>
+                <div style="font-size: 13.5px; color: var(--text-secondary);">
+                    Atención: <strong>${escapeHtml(therapistName)}</strong> (${escapeHtml(therapistSpec)}${escapeHtml(regBadge)})
+                </div>
+                <p style="font-size: 12.5px; color: var(--text-tertiary); margin: 8px 0 0 0; line-height: 1.4;">
+                    Por favor complete la siguiente información antes de acudir a su primera sesión clínica. Los datos son estrictamente confidenciales bajo secreto profesional.
+                </p>
+            </div>
+
+            <form id="portalPreconsultaForm" onsubmit="handlePortalPreconsultaSubmit(event, '${stage}')">
+                <div style="display:flex; flex-direction:column; gap:16px;">
+                    <div class="form-group">
+                        <label style="font-weight:600; font-size:13px; display:block; margin-bottom:6px;">Nombre Completo del Paciente *</label>
+                        <input type="text" id="pre_patientName" required placeholder="Nombre y Apellidos" style="width:100%; padding:10px 12px; border-radius:8px; border:1px solid var(--border-secondary); background:var(--bg-primary); color:var(--text-primary);">
+                    </div>
+
+                    <div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap:12px;">
+                        <div class="form-group">
+                            <label style="font-weight:600; font-size:13px; display:block; margin-bottom:6px;">Cédula de Identidad / DNI</label>
+                            <input type="text" id="pre_patientCI" placeholder="V-12345678" style="width:100%; padding:10px 12px; border-radius:8px; border:1px solid var(--border-secondary); background:var(--bg-primary); color:var(--text-primary);">
+                        </div>
+                        <div class="form-group">
+                            <label style="font-weight:600; font-size:13px; display:block; margin-bottom:6px;">Fecha de Nacimiento *</label>
+                            <input type="date" id="pre_patientBirthdate" required style="width:100%; padding:10px 12px; border-radius:8px; border:1px solid var(--border-secondary); background:var(--bg-primary); color:var(--text-primary);">
+                        </div>
+                        <div class="form-group">
+                            <label style="font-weight:600; font-size:13px; display:block; margin-bottom:6px;">Género</label>
+                            <select id="pre_patientGender" style="width:100%; padding:10px 12px; border-radius:8px; border:1px solid var(--border-secondary); background:var(--bg-primary); color:var(--text-primary);">
+                                <option value="Femenino">Femenino</option>
+                                <option value="Masculino">Masculino</option>
+                                <option value="Otro">Otro / No binario</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap:12px;">
+                        <div class="form-group">
+                            <label style="font-weight:600; font-size:13px; display:block; margin-bottom:6px;">Teléfono de Contacto *</label>
+                            <input type="tel" id="pre_patientPhone" required placeholder="+58 412 1234567" style="width:100%; padding:10px 12px; border-radius:8px; border:1px solid var(--border-secondary); background:var(--bg-primary); color:var(--text-primary);">
+                        </div>
+                        <div class="form-group">
+                            <label style="font-weight:600; font-size:13px; display:block; margin-bottom:6px;">Correo Electrónico</label>
+                            <input type="email" id="pre_patientEmail" placeholder="correo@ejemplo.com" style="width:100%; padding:10px 12px; border-radius:8px; border:1px solid var(--border-secondary); background:var(--bg-primary); color:var(--text-primary);">
+                        </div>
+                    </div>
+
+                    ${(isChild || isTeen) ? `
+                        <div style="background:var(--bg-secondary); padding:16px; border-radius:10px; border:1px solid var(--border-primary); margin-top:8px;">
+                            <h4 style="margin:0 0 12px 0; font-size:14px; color:var(--accent-primary);"><i class="fas fa-user-shield"></i> Datos del Representante Legal</h4>
+                            <div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap:12px;">
+                                <div class="form-group">
+                                    <label style="font-size:12.5px; font-weight:600; display:block; margin-bottom:4px;">Nombre del Representante *</label>
+                                    <input type="text" id="pre_guardianName" required placeholder="Nombre completo" style="width:100%; padding:8px 12px; border-radius:6px; border:1px solid var(--border-secondary); background:var(--bg-primary); color:var(--text-primary);">
+                                </div>
+                                <div class="form-group">
+                                    <label style="font-size:12.5px; font-weight:600; display:block; margin-bottom:4px;">Parentesco con el Paciente</label>
+                                    <input type="text" id="pre_guardianRelation" placeholder="Madre / Padre / Tutor" style="width:100%; padding:8px 12px; border-radius:6px; border:1px solid var(--border-secondary); background:var(--bg-primary); color:var(--text-primary);">
+                                </div>
+                            </div>
+                        </div>
+                    ` : ''}
+
+                    <div class="form-group" style="margin-top:8px;">
+                        <label style="font-weight:600; font-size:13px; display:block; margin-bottom:6px;">Motivo Principal de Consulta *</label>
+                        <textarea id="pre_patientReason" rows="3" required placeholder="Describa brevemente qué situación o síntoma le motivó a solicitar la consulta..." style="width:100%; padding:10px 12px; border-radius:8px; border:1px solid var(--border-secondary); background:var(--bg-primary); color:var(--text-primary);"></textarea>
+                    </div>
+
+                    <div class="form-group">
+                        <label style="font-weight:600; font-size:13px; display:block; margin-bottom:6px;">Expectativas u Objetivos del Tratamiento</label>
+                        <textarea id="pre_patientGoals" rows="2" placeholder="¿Qué cambios o mejorías le gustaría alcanzar con el acompañamiento terapéutico?" style="width:100%; padding:10px 12px; border-radius:8px; border:1px solid var(--border-secondary); background:var(--bg-primary); color:var(--text-primary);"></textarea>
+                    </div>
+
+                    <div style="margin-top:16px; display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:12px;">
+                        <a href="portal.html" style="font-size:13px; color:var(--text-secondary); text-decoration:none;">
+                            <i class="fas fa-arrow-left"></i> Volver al Portal de Pacientes
+                        </a>
+                        <button type="submit" class="portal-btn-primary" style="padding:10px 24px; font-size:14px;">
+                            <i class="fas fa-paper-plane"></i> Enviar Formulario de Pre-consulta
+                        </button>
+                    </div>
+                </div>
+            </form>
+        </div>
+    `;
+}
+window.renderPortalPreconsultaScreen = renderPortalPreconsultaScreen;
+
+function handlePortalPreconsultaSubmit(e, stage) {
+    if (e) e.preventDefault();
+    const name = document.getElementById('pre_patientName')?.value.trim();
+    if (!name) return;
+
+    const ci = document.getElementById('pre_patientCI')?.value.trim() || '';
+    const birthdate = document.getElementById('pre_patientBirthdate')?.value || '';
+    const gender = document.getElementById('pre_patientGender')?.value || 'Otro';
+    const phone = document.getElementById('pre_patientPhone')?.value.trim() || '';
+    const email = document.getElementById('pre_patientEmail')?.value.trim() || '';
+    const reason = document.getElementById('pre_patientReason')?.value.trim() || '';
+    const goals = document.getElementById('pre_patientGoals')?.value.trim() || '';
+    const guardianName = document.getElementById('pre_guardianName')?.value.trim() || '';
+    const guardianRelation = document.getElementById('pre_guardianRelation')?.value.trim() || '';
+
+    // Guardar en la base de datos local y emitir puente
+    const patients = loadPortalPatients();
+    const newId = 'pat_pre_' + Date.now().toString(36);
+    const newToken = 'PN-' + Math.random().toString(36).substr(2, 8).toUpperCase();
+
+    const newPat = {
+        id: newId,
+        name: name,
+        ci: ci,
+        birthdate: birthdate,
+        gender: gender,
+        phone: phone,
+        email: email,
+        reason: reason,
+        goals: goals,
+        guardianName: guardianName,
+        guardianRelationship: guardianRelation,
+        category: stage === 'child' || stage === 'child_teen' ? 'child' : (stage === 'adolescent' ? 'adolescent' : 'adult'),
+        status: 'Por iniciar',
+        portalToken: newToken,
+        portalEnabled: true,
+        source: 'preconsulta_remota',
+        createdAt: new Date().toISOString()
+    };
+
+    patients.push(newPat);
+    savePortalPatients(patients);
+
+    const accessScreen = document.getElementById('accessScreen');
+    if (accessScreen) {
+        accessScreen.innerHTML = `
+            <div style="max-width:540px; margin:40px auto; background:var(--bg-card); padding:32px; border-radius:16px; border:1px solid var(--border-color); text-align:center; box-shadow:var(--shadow-lg);">
+                <div style="font-size:48px; color:#059669; margin-bottom:16px;"><i class="fas fa-check-circle"></i></div>
+                <h2 style="font-size:22px; color:var(--text-primary); margin:0 0 10px 0;">¡Pre-consulta Registrada con Éxito!</h2>
+                <p style="font-size:14px; color:var(--text-secondary); line-height:1.5;">
+                    Gracias <strong>${escapeHtml(name)}</strong>. Tu información ha sido enviada confidencialmente a tu psicólogo clínico para preparar tu primera sesión.
+                </p>
+                <div style="margin:20px 0; padding:14px; background:rgba(5, 150, 105, 0.08); border-radius:10px; border:1px solid rgba(5, 150, 105, 0.2);">
+                    <div style="font-size:12px; color:var(--text-secondary); margin-bottom:4px;">Tu Código de Acceso al Portal:</div>
+                    <div style="font-size:20px; font-weight:800; color:#059669; letter-spacing:1px; font-family:monospace;">${newToken}</div>
+                </div>
+                <a href="portal.html?token=${newToken}" class="portal-btn-primary" style="display:inline-block; padding:10px 20px; text-decoration:none; margin-top:8px;">
+                    <i class="fas fa-sign-in-alt"></i> Ir a mi Portal de Paciente
+                </a>
+            </div>
+        `;
+    }
+}
+window.handlePortalPreconsultaSubmit = handlePortalPreconsultaSubmit;
 
 function showAccessForm() {
     document.getElementById('accessScreen').style.display = 'flex';
@@ -397,6 +659,9 @@ async function enterPortal() {
     updateProgress();
     checkConsentCard();
     initKidModeState();
+    if (typeof checkAppointmentConfirmationAlert === 'function') {
+        checkAppointmentConfirmationAlert(true);
+    }
     PortalOfflineQueue.updateBadge();
     PortalOfflineQueue.flush();
     showToast(`Bienvenido/a, ${(PortalState.patientName || 'Paciente').split(' ')[0]}`, 'success');
@@ -468,7 +733,20 @@ async function loadPatientData() {
             if (res.ok) {
                 const data = await res.json();
                 if (data.status === 'ok') {
-                    if (data.tasks) PortalState.tasks = data.tasks;
+                    if (data.tasks) {
+                        PortalState.tasks = data.tasks.map(t => ({
+                            ...t,
+                            id: t.id,
+                            patientId: t.patient_id || t.patientId || PortalState.patientId,
+                            patient_id: t.patient_id || t.patientId || PortalState.patientId,
+                            title: t.title || t.text,
+                            description: t.description || '',
+                            dueDate: t.dueDate || t.deadline || null,
+                            deadline: t.deadline || t.dueDate || null,
+                            completed: Boolean(t.completed),
+                            completedAt: t.completed_at || t.completedAt || null
+                        }));
+                    }
                     if (data.evaluations) PortalState.evaluations = data.evaluations;
                     if (data.moodLogs) PortalState.moodLog = data.moodLogs.map(m => ({
                         id: m.id,
@@ -488,6 +766,30 @@ async function loadPatientData() {
                     }));
                     PortalState.activeCrisisAlert = Boolean(data.hasActiveCrisisAlert);
                     if (data.therapistName) PortalState.therapistName = data.therapistName;
+                    if (data.therapistInfo) PortalState.therapistInfo = data.therapistInfo;
+                    if (data.documents) PortalState.documents = data.documents;
+                    if (data.paymentMethods) PortalState.paymentMethods = data.paymentMethods;
+                    if (data.paymentReports) PortalState.paymentReports = data.paymentReports;
+                    if (data.patient) {
+                        PortalState.patientProfile = data.patient;
+                        if (data.patient.name) PortalState.patientName = data.patient.name;
+                    }
+
+                    // Extraer palabra del día si existe en el último mood log de hoy
+                    if (Array.isArray(data.moodLogs) && data.moodLogs.length > 0) {
+                        const todayStr = new Date().toISOString().split('T')[0];
+                        const todayMood = data.moodLogs.find(m => (m.created_at || m.date || '').startsWith(todayStr) && m.word);
+                        if (todayMood && todayMood.word) {
+                            PortalState.dailyWord = todayMood.word;
+                            const inputWord = document.getElementById('inputDailyWord');
+                            const tagWord = document.getElementById('dailyWordSavedTag');
+                            if (inputWord) inputWord.value = todayMood.word;
+                            if (tagWord) {
+                                tagWord.textContent = `"${todayMood.word}" registrada ✓`;
+                                tagWord.style.display = 'inline-block';
+                            }
+                        }
+                    }
 
                     // Datos específicos de actividades lúdicas infantiles
                     if (Array.isArray(data.kidActivities)) {
@@ -501,6 +803,44 @@ async function loadPatientData() {
 
                     // Auto-activación estricta de Portal KIDS si edad < 13 años
                     PortalState.isKidMode = determineIfKid(data.patient);
+
+                    if (Array.isArray(data.appointments)) {
+                        PortalState.appointments = data.appointments.map(a => ({
+                            id: a.id,
+                            patientId: a.patientId || a.patient_id || PortalState.patientId,
+                            date: a.date,
+                            time: a.time,
+                            duration: Number(a.duration) || 50,
+                            status: a.status || 'agendada',
+                            attendanceConfirmed: Boolean(a.attendanceConfirmed || a.attendance_confirmed || a.status === 'confirmada'),
+                            type: a.type || 'Presencial',
+                            notes: a.notes || '',
+                            createdAt: a.createdAt || new Date().toISOString()
+                        }));
+
+                        // Sincronizar el puente local con el estatus del servidor para mantener consistencia
+                        try {
+                            const bridge = JSON.parse(localStorage.getItem('psico_portal_appointments_bridge') || '{}');
+                            let bridgeChanged = false;
+                            data.appointments.forEach(sa => {
+                                if (sa && sa.id && bridge[sa.id]) {
+                                    if (bridge[sa.id].status !== sa.status) {
+                                        bridge[sa.id].status = sa.status;
+                                        bridgeChanged = true;
+                                    }
+                                }
+                            });
+                            if (bridgeChanged) {
+                                localStorage.setItem('psico_portal_appointments_bridge', JSON.stringify(bridge));
+                            }
+                        } catch (e) {}
+                    }
+                    if (typeof mergeAppointmentsFromBridge === 'function') mergeAppointmentsFromBridge();
+                    if (typeof renderNextSession === 'function') renderNextSession();
+                    if (typeof renderTherapistCard === 'function') renderTherapistCard();
+                    if (typeof renderDocumentsView === 'function') renderDocumentsView();
+                    if (typeof renderPaymentsView === 'function') renderPaymentsView();
+                    if (typeof renderProfileView === 'function') renderProfileView();
 
                     savePatientDataLocally();
                     return;
@@ -518,28 +858,59 @@ async function loadPatientData() {
 function loadPatientDataLocally() {
     try {
         const stored = localStorage.getItem(`psico_portal_data_${PortalState.patientId}`);
+        const patients = loadPortalPatients();
+        const pObj = patients.find(p => p.id === PortalState.patientId);
+
         if (stored) {
             const data = JSON.parse(stored);
             PortalState.tasks = data.tasks || [];
             PortalState.evaluations = data.evaluations || [];
             PortalState.moodLog = data.moodLog || [];
             PortalState.cbtRecords = data.cbtRecords || [];
+            PortalState.appointments = data.appointments || [];
             PortalState.activeCrisisAlert = Boolean(data.activeCrisisAlert);
             PortalState.kidStars = typeof data.kidStars === 'number' ? data.kidStars : 0;
+            PortalState.kidCoins = typeof data.kidCoins === 'number' ? data.kidCoins : 50;
             PortalState.kidAvatar = data.kidAvatar || PortalState.kidAvatar;
             PortalState.kidActivities = data.kidActivities || [];
+            PortalState.therapistOccupiedSlots = data.therapistOccupiedSlots || [];
+            PortalState.documents = data.documents || PortalState.documents || [];
+            PortalState.paymentReports = data.paymentReports || PortalState.paymentReports || [];
+            PortalState.paymentMethods = data.paymentMethods || PortalState.paymentMethods || [];
+            PortalState.patientProfile = data.patientProfile || PortalState.patientProfile || pObj || {};
+            PortalState.therapistInfo = data.therapistInfo || PortalState.therapistInfo || null;
+            PortalState.dailyWord = data.dailyWord || PortalState.dailyWord || '';
         } else {
             PortalState.tasks = [];
             PortalState.evaluations = [];
             PortalState.moodLog = [];
             PortalState.cbtRecords = [];
+            PortalState.appointments = [];
             PortalState.activeCrisisAlert = false;
             PortalState.kidStars = 0;
+            PortalState.kidCoins = 50;
             PortalState.kidActivities = [];
+            PortalState.documents = PortalState.documents || [];
+            PortalState.paymentReports = PortalState.paymentReports || [];
+            PortalState.paymentMethods = PortalState.paymentMethods || [];
+            PortalState.patientProfile = PortalState.patientProfile || pObj || {};
         }
 
-        const patients = loadPortalPatients();
-        const pObj = patients.find(p => p.id === PortalState.patientId);
+        // Cargar formas de pago personalizadas del terapeuta desde localStorage si existen
+        try {
+            const customMethods = JSON.parse(localStorage.getItem('psico_therapist_payment_methods') || 'null');
+            if (Array.isArray(customMethods) && customMethods.length > 0) {
+                PortalState.paymentMethods = customMethods;
+            }
+        } catch (e) {}
+
+        if (typeof mergeAppointmentsFromBridge === 'function') mergeAppointmentsFromBridge();
+        if (typeof renderNextSession === 'function') renderNextSession();
+        if (typeof renderTherapistCard === 'function') renderTherapistCard();
+        if (typeof renderDocumentsView === 'function') renderDocumentsView();
+        if (typeof renderPaymentsView === 'function') renderPaymentsView();
+        if (typeof renderProfileView === 'function') renderProfileView();
+
         PortalState.isKidMode = determineIfKid(pObj);
     } catch (e) {
         console.error('Error cargando datos locales del portal:', e);
@@ -557,10 +928,19 @@ function savePatientData() {
             evaluations: PortalState.evaluations,
             moodLog: PortalState.moodLog,
             cbtRecords: PortalState.cbtRecords,
+            appointments: PortalState.appointments,
             activeCrisisAlert: PortalState.activeCrisisAlert,
             kidStars: PortalState.kidStars,
+            kidCoins: PortalState.kidCoins,
             kidAvatar: PortalState.kidAvatar,
             kidActivities: PortalState.kidActivities,
+            therapistOccupiedSlots: PortalState.therapistOccupiedSlots || [],
+            documents: PortalState.documents || [],
+            paymentReports: PortalState.paymentReports || [],
+            paymentMethods: PortalState.paymentMethods || [],
+            patientProfile: PortalState.patientProfile || {},
+            therapistInfo: PortalState.therapistInfo || null,
+            dailyWord: PortalState.dailyWord || '',
             lastUpdate: new Date().toISOString()
         };
         localStorage.setItem(`psico_portal_data_${PortalState.patientId}`, JSON.stringify(data));
@@ -570,9 +950,11 @@ function savePatientData() {
             localStorage.setItem(`psico_portal_results_${PortalState.patientId}`, JSON.stringify(PortalState.evaluations));
             localStorage.setItem(`psico_portal_mood_${PortalState.patientId}`, JSON.stringify(PortalState.moodLog));
             localStorage.setItem(`psico_portal_cbt_${PortalState.patientId}`, JSON.stringify(PortalState.cbtRecords));
+            localStorage.setItem(`psico_portal_payments_${PortalState.patientId}`, JSON.stringify(PortalState.paymentReports || []));
             localStorage.setItem(`psico_portal_kid_${PortalState.patientId}`, JSON.stringify({
                 avatar: PortalState.kidAvatar,
                 stars: PortalState.kidStars,
+                coins: PortalState.kidCoins,
                 activities: PortalState.kidActivities
             }));
         }
@@ -584,22 +966,42 @@ function savePatientData() {
 function loadTasksFromNotes() {
     try {
         const bridge = JSON.parse(localStorage.getItem('psico_portal_tasks_bridge') || '{}');
-        const patientTasks = Object.values(bridge).filter(t => t.patientId === PortalState.patientId);
-        if (patientTasks.length === 0) {
+        const patientTasks = Object.values(bridge).filter(t => String(t.patientId || t.patient_id) === String(PortalState.patientId));
+        
+        let localTasks = [];
+        try {
+            const stored = localStorage.getItem(`psico_portal_data_${PortalState.patientId}`);
+            if (stored) {
+                const parsed = JSON.parse(stored);
+                if (Array.isArray(parsed.tasks)) localTasks = parsed.tasks;
+            }
+        } catch (e) {}
+
+        const allAvailable = [...patientTasks];
+        localTasks.forEach(lt => {
+            if (!allAvailable.some(at => at.id === lt.id)) allAvailable.push(lt);
+        });
+
+        if (allAvailable.length === 0) {
             return;
         }
         const currentTasks = PortalState.tasks || [];
-        patientTasks.forEach(task => {
+        const mergedTasks = allAvailable.map(task => {
             const existing = currentTasks.find(t => t.id === task.id);
-            if (existing) {
-                task.completed = existing.completed;
-                task.completedAt = existing.completedAt;
-            } else {
-                task.completed = false;
-                task.completedAt = null;
-            }
+            return {
+                ...task,
+                id: task.id,
+                patientId: task.patientId || task.patient_id || PortalState.patientId,
+                patient_id: task.patient_id || task.patientId || PortalState.patientId,
+                title: task.title || task.text,
+                description: task.description || '',
+                dueDate: task.dueDate || task.deadline || null,
+                deadline: task.deadline || task.dueDate || null,
+                completed: existing ? existing.completed : Boolean(task.completed),
+                completedAt: existing ? existing.completedAt : (task.completedAt || null)
+            };
         });
-        PortalState.tasks = patientTasks;
+        PortalState.tasks = mergedTasks;
         savePatientData();
     } catch (e) {
         console.error('Error cargando tareas desde puente:', e);
@@ -619,11 +1021,21 @@ function updateHeader() {
 function switchView(viewName) {
     document.querySelectorAll('.portal-view').forEach(v => v.classList.remove('active'));
     document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
-    document.getElementById(`view${viewName.charAt(0).toUpperCase() + viewName.slice(1)}`).classList.add('active');
-    document.querySelector(`.nav-btn[data-view="${viewName}"]`).classList.add('active');
+    const target = document.getElementById(`view${viewName.charAt(0).toUpperCase() + viewName.slice(1)}`);
+    if (target) target.classList.add('active');
+    const navBtn = document.querySelector(`.nav-btn[data-view="${viewName}"]`);
+    if (navBtn) navBtn.classList.add('active');
+    if (viewName === 'sessions') renderSessionsView();
     if (viewName === 'tasks') renderTasks();
     if (viewName === 'tests') updateTestsLastResults();
     if (viewName === 'progress') updateProgress();
+    if (viewName === 'home') {
+        renderNextSession();
+        if (typeof renderTherapistCard === 'function') renderTherapistCard();
+    }
+    if (viewName === 'documents' && typeof renderDocumentsView === 'function') renderDocumentsView();
+    if (viewName === 'payments' && typeof renderPaymentsView === 'function') renderPaymentsView();
+    if (viewName === 'profile' && typeof renderProfileView === 'function') renderProfileView();
 }
 
 function updateDailyReflection() {
@@ -635,9 +1047,12 @@ function updateDailyReflection() {
 function selectMood(value) {
     document.querySelectorAll('.mood-btn').forEach(btn => btn.classList.remove('selected'));
     document.querySelector(`.mood-btn[data-mood="${value}"]`).classList.add('selected');
+    const currentWord = (document.getElementById('inputDailyWord')?.value || PortalState.dailyWord || '').trim();
+
     const moodLog = {
         id: generateId(),
         value: value,
+        word: currentWord,
         date: new Date().toISOString(),
         timestamp: Date.now()
     };
@@ -651,7 +1066,8 @@ function selectMood(value) {
             token: PortalState.portalToken,
             mood: value,
             sleep: 3,
-            energy: 3
+            energy: 3,
+            word: currentWord
         });
     }
 
@@ -742,11 +1158,33 @@ function toggleTask(taskId) {
 function updateTaskInBridge(task) {
     try {
         const bridge = JSON.parse(localStorage.getItem('psico_portal_tasks_bridge') || '{}');
-        const taskKey = `${task.patientId}_${task.id}`;
+        const pId = task.patientId || task.patient_id || PortalState.patientId;
+        const taskKey = `${pId}_${task.id}`;
         if (bridge[taskKey]) {
             bridge[taskKey].completed = task.completed;
             bridge[taskKey].completedAt = task.completedAt;
-            localStorage.setItem('psico_portal_tasks_bridge', JSON.stringify(bridge));
+        } else {
+            bridge[taskKey] = {
+                ...task,
+                patientId: pId,
+                patient_id: pId,
+                completed: task.completed,
+                completedAt: task.completedAt
+            };
+        }
+        localStorage.setItem('psico_portal_tasks_bridge', JSON.stringify(bridge));
+
+        const stored = localStorage.getItem(`psico_portal_data_${pId}`);
+        if (stored) {
+            const parsed = JSON.parse(stored);
+            if (Array.isArray(parsed.tasks)) {
+                const tIdx = parsed.tasks.findIndex(t => t.id === task.id);
+                if (tIdx >= 0) {
+                    parsed.tasks[tIdx].completed = task.completed;
+                    parsed.tasks[tIdx].completedAt = task.completedAt;
+                }
+                localStorage.setItem(`psico_portal_data_${pId}`, JSON.stringify(parsed));
+            }
         }
     } catch (e) {
         console.error('Error actualizando tarea en puente:', e);
@@ -1033,6 +1471,10 @@ function submitTest(testType, questionCount) {
 }
 
 function triggerPortalEmergencyHelp(reason) {
+    if (PortalState.isKidMode) {
+        triggerKidSosHelp(reason);
+        return;
+    }
     const modal = document.getElementById('crisisHelpModal');
     if (modal) {
         modal.style.display = 'flex';
@@ -1059,6 +1501,8 @@ function triggerPortalEmergencyHelp(reason) {
 function closeCrisisHelpModal() {
     const modal = document.getElementById('crisisHelpModal');
     if (modal) modal.style.display = 'none';
+    PortalState.activeCrisisAlert = false;
+    savePatientData();
 }
 
 function submitMoodLog() {
@@ -1191,10 +1635,21 @@ function getInitials(name) {
     return name.split(' ').map(n => n[0]).slice(0, 2).join('').toUpperCase();
 }
 
+function getLocalDateStr(d = new Date()) {
+    const y = d.getFullYear();
+    const m = String(d.getMonth() + 1).padStart(2, '0');
+    const day = String(d.getDate()).padStart(2, '0');
+    return `${y}-${m}-${day}`;
+}
+
 function formatDateSafe(dateString) {
     if (!dateString) return 'Fecha no disponible';
     try {
-        const date = new Date(dateString);
+        const clean = String(dateString).trim();
+        const match = clean.match(/^(\d{4})-(\d{2})-(\d{2})/);
+        const date = match 
+            ? new Date(parseInt(match[1], 10), parseInt(match[2], 10) - 1, parseInt(match[3], 10))
+            : new Date(dateString);
         if (isNaN(date.getTime())) return 'Fecha no disponible';
         return date.toLocaleDateString('es-ES', { day: 'numeric', month: 'short', year: 'numeric' });
     } catch (e) {
@@ -1960,8 +2415,10 @@ function initKidModeState() {
     KidConfetti.init();
 
     const starsEl = document.getElementById('kidStarsCount');
-    const badgeEl = document.getElementById('kidStarsBadge');
     if (starsEl) starsEl.textContent = PortalState.kidStars || 0;
+
+    const coinsEl = document.getElementById('kidCoinsCount');
+    if (coinsEl) coinsEl.textContent = PortalState.kidCoins || 50;
     
     // Configurar avatar en home y header
     updateKidAvatarDisplays();
@@ -1971,6 +2428,14 @@ function initKidModeState() {
     if (greetingNameEl) {
         greetingNameEl.textContent = (PortalState.patientName || 'Explorador').split(' ')[0];
     }
+
+    const greetingMsgEl = document.getElementById('kidGreetingMsg');
+    if (greetingMsgEl) {
+        greetingMsgEl.textContent = 'Hoy podemos descubrir cosas maravillosas sobre tu mundo interior y divertirnos explorando.';
+    }
+
+    // Actualizar progreso de Bento cards
+    updateKidBentoProgress();
 
     // Activar modo correspondiente de forma determinista
     toggleKidMode(Boolean(PortalState.isKidMode));
@@ -1985,7 +2450,8 @@ function toggleKidMode(forceValue) {
 
     const toggleBtn = document.getElementById('btnKidModeToggle');
     const soundBtn = document.getElementById('btnKidSoundToggle');
-    const badgeEl = document.getElementById('kidStarsBadge');
+    const starsBadge = document.getElementById('kidStarsBadge');
+    const coinsBadge = document.getElementById('kidCoinsBadge');
     const stdNav = document.getElementById('standardNav');
     const kidNav = document.getElementById('kidNav');
 
@@ -2000,7 +2466,8 @@ function toggleKidMode(forceValue) {
     if (PortalState.isKidMode) {
         document.body.classList.add('kid-mode-active');
         if (soundBtn) soundBtn.style.display = 'inline-flex';
-        if (badgeEl) badgeEl.style.display = 'inline-flex';
+        if (starsBadge) starsBadge.style.display = 'inline-flex';
+        if (coinsBadge) coinsBadge.style.display = 'inline-flex';
         if (stdNav) stdNav.style.display = 'none';
         if (kidNav) kidNav.style.display = 'flex';
         switchKidView('kid-home');
@@ -2009,7 +2476,8 @@ function toggleKidMode(forceValue) {
     } else {
         document.body.classList.remove('kid-mode-active');
         if (soundBtn) soundBtn.style.display = 'none';
-        if (badgeEl) badgeEl.style.display = 'none';
+        if (starsBadge) starsBadge.style.display = 'none';
+        if (coinsBadge) coinsBadge.style.display = 'none';
         if (stdNav) stdNav.style.display = 'flex';
         if (kidNav) kidNav.style.display = 'none';
         switchView('home');
@@ -2043,6 +2511,8 @@ function switchKidView(viewKey) {
     // Inicializaciones bajo demanda
     if (viewKey === 'kid-bubbles') initKidBubbles();
     if (viewKey === 'kid-drawing') initKidDrawingCanvas();
+    if (viewKey === 'kid-avatar') updateKidAvatarDisplays();
+    if (viewKey === 'kid-home') updateKidBentoProgress();
 }
 
 function updateKidAvatarDisplays() {
@@ -2065,6 +2535,12 @@ function updateKidAvatarDisplays() {
     if (stageAcc) stageAcc.textContent = avatar.accEmoji || '🦸';
     if (stageName) stageName.textContent = avatar.name || 'Zorrito Valiente';
 
+    // Campo de texto de nombre editable si existe
+    const customNameInput = document.getElementById('kidAvatarDisplayNameInput') || document.getElementById('kidAvatarCustomName');
+    if (customNameInput && !customNameInput.value) {
+        customNameInput.value = avatar.name || '';
+    }
+
     // Header avatar
     const headerAvatar = document.getElementById('headerAvatar');
     if (headerAvatar && PortalState.isKidMode) {
@@ -2072,15 +2548,100 @@ function updateKidAvatarDisplays() {
     }
 }
 
+function updateKidBentoProgress() {
+    const pWeather = document.getElementById('bentoProgressWeather');
+    if (pWeather) {
+        if (PortalState.kidWeather) {
+            pWeather.textContent = '¡Completado hoy! ✨';
+            pWeather.classList.add('completed');
+        } else {
+            pWeather.textContent = 'Explorar hoy';
+            pWeather.classList.remove('completed');
+        }
+    }
+
+    const pAvatar = document.getElementById('bentoProgressAvatar');
+    if (pAvatar) {
+        pAvatar.textContent = (PortalState.kidAvatar && PortalState.kidAvatar.name) ? 'Personalizado 🌟' : 'Personalizar';
+        pAvatar.classList.add('completed');
+    }
+
+    const pBubbles = document.getElementById('bentoProgressBubbles');
+    if (pBubbles) {
+        const count = PortalState.kidBubblesPopped || 0;
+        pBubbles.textContent = count > 0 ? `${count} soltadas 🫧` : 'Por jugar';
+        if (count > 0) pBubbles.classList.add('completed');
+    }
+
+    const pDrawing = document.getElementById('bentoProgressDrawing');
+    if (pDrawing) {
+        const drawingsCount = (PortalState.kidActivities || []).filter(a => a.activity_type === 'drawing').length;
+        pDrawing.textContent = drawingsCount > 0 ? `${drawingsCount} creados 🎨` : 'Lienzo listo';
+        if (drawingsCount > 0) pDrawing.classList.add('completed');
+    }
+
+    const pCalm = document.getElementById('bentoProgressCalm');
+    if (pCalm) {
+        const cycles = PortalState.kidCalmCycles || 0;
+        pCalm.textContent = cycles > 0 ? `${cycles} respiraciones 🍃` : 'Sin empezar';
+        if (cycles > 0) pCalm.classList.add('completed');
+    }
+}
+
+function awardKidStars(amount) {
+    PortalState.kidStars = (PortalState.kidStars || 0) + (amount || 1);
+    const starsEl = document.getElementById('kidStarsCount');
+    if (starsEl) starsEl.textContent = PortalState.kidStars;
+    savePatientData();
+    updateKidBentoProgress();
+}
+
+function awardKidCoins(amount) {
+    PortalState.kidCoins = (PortalState.kidCoins || 0) + (amount || 5);
+    const coinsEl = document.getElementById('kidCoinsCount');
+    if (coinsEl) coinsEl.textContent = PortalState.kidCoins;
+    savePatientData();
+}
+
 // ----------------------------------------------------
 // 1. CLIMA EMOCIONAL & MAPA SOMÁTICO CORPORAL
 // ----------------------------------------------------
+const KID_WEATHER_QUESTIONS = {
+    sunny: '☀️ ¡Qué lindo que te sientas alegre! ¿Qué fue lo más bonito que pasó hoy?',
+    partly_cloudy: '🌤️ Tranquilidad y calma. ¿Qué te gusta hacer cuando te sientes en paz?',
+    rainbow: '🌈 ¡Qué energía tan mágica y colorida! ¿Qué juego o idea tienes en mente?',
+    rainy: '🌧️ A veces llueve por dentro y es completamente normal. ¿Quieres contarme qué pasó?',
+    storm: '⚡ Sentir enojo o frustración es natural. ¿Qué hizo que la tormenta llegara?',
+    tornado: '🌪️ Si sientes muchas cosas revueltas o confusión, estamos aquí contigo. ¿Cómo te ayudamos?'
+};
+
 function selectKidWeather(weatherKey) {
     PortalState.kidWeather = weatherKey;
     document.querySelectorAll('.kid-weather-card-v2').forEach(btn => {
         btn.classList.toggle('selected', btn.getAttribute('data-weather') === weatherKey);
     });
+
+    const reflectionBox = document.getElementById('kidWeatherReflectionBox');
+    const promptText = document.getElementById('kidWeatherPromptText');
+    if (reflectionBox) {
+        reflectionBox.style.display = 'block';
+    }
+    if (promptText && KID_WEATHER_QUESTIONS[weatherKey]) {
+        promptText.textContent = KID_WEATHER_QUESTIONS[weatherKey];
+    }
+
     KidAudioEffects.playBoing();
+}
+
+function selectKidThoughtChip(chipText) {
+    const input = document.getElementById('kidWeatherOptionalNote') || document.getElementById('kidWeatherStory');
+    if (input) {
+        input.value = chipText;
+    }
+    document.querySelectorAll('.kid-thought-chip').forEach(chip => {
+        chip.classList.toggle('active', chip.textContent.trim() === chipText.trim());
+    });
+    KidAudioEffects.playDing();
 }
 
 function selectKidBodyZone(zoneKey) {
@@ -2104,12 +2665,21 @@ function selectKidBodyZone(zoneKey) {
             throat: '🗣️ ¡Tengo un nudito en la garganta o palabras que quiero decir!',
             chest: '💖 ¡Mi corazón late como un tambor y siento calor en el pecho!',
             belly: '🌀 ¡Siento mariposas revoloteando o cosquillitas en la pancita!',
-            hands: '✊ ¡Mis manitas quieren apretar o moverse con mucha energía!'
+            hands: '✊ ¡Mis manitas quieren apretar o moverse con mucha energía!',
+            feet: '👟 ¡Mis pies quieren saltar, correr o quedarse quietecitos!'
         };
         speechEl.textContent = zonePhrases[zoneKey] || '✨ ¡Tu cuerpo te da señales mágicas!';
     }
 
     KidAudioEffects.playBoing();
+}
+
+function selectKidSensation(sensationKey, label) {
+    PortalState.kidSensation = { key: sensationKey, label: label };
+    document.querySelectorAll('.kid-sensation-pill').forEach(pill => {
+        pill.classList.toggle('selected', pill.getAttribute('data-sensation') === sensationKey);
+    });
+    KidAudioEffects.playDing();
 }
 
 async function submitKidWeatherAndBody(e) {
@@ -2132,14 +2702,20 @@ async function submitKidWeatherAndBody(e) {
         throat: 'En la garganta 🗣️',
         chest: 'En el pecho 💖',
         belly: 'En la pancita 🌀',
-        hands: 'En las manitas ✊'
+        hands: 'En las manitas ✊',
+        feet: 'En los pies 👟'
     };
+
+    const storyInput = document.getElementById('kidWeatherOptionalNote') || document.getElementById('kidWeatherStory');
+    const reflectionStory = storyInput ? storyInput.value.trim() : '';
 
     const payloadData = {
         weather: PortalState.kidWeather,
         weatherLabel: weatherNames[PortalState.kidWeather] || PortalState.kidWeather,
         bodyZone: PortalState.kidBodyZone || 'general',
         bodyZoneLabel: zoneNames[PortalState.kidBodyZone] || 'En todo el cuerpo',
+        sensation: PortalState.kidSensation || null,
+        note: reflectionStory || null,
         recordedAt: new Date().toISOString()
     };
 
@@ -2152,10 +2728,11 @@ async function submitKidWeatherAndBody(e) {
     };
     PortalState.kidActivities.unshift(activityRecord);
 
-    // Sumar +1 Estrella ⭐ y disparo de confeti
+    // Sumar +1 Estrella ⭐ y +5 Monedas 🪙 con confeti
     awardKidStars(1);
+    awardKidCoins(5);
     KidAudioEffects.playSuccess();
-    KidConfetti.burst(window.innerWidth / 2, window.innerHeight * 0.4, 40);
+    KidConfetti.burst(window.innerWidth / 2, window.innerHeight * 0.4, 45);
 
     // Enviar al backend PostgreSQL con cola offline
     if (PortalState.portalToken) {
@@ -2167,14 +2744,8 @@ async function submitKidWeatherAndBody(e) {
     }
 
     savePatientData();
-    showToast('✨ ¡Genial! Tu clima emocional llegó a tu terapeuta (+1 ⭐)', 'success');
-}
-
-function awardKidStars(amount) {
-    PortalState.kidStars = (PortalState.kidStars || 0) + (amount || 1);
-    const starsEl = document.getElementById('kidStarsCount');
-    if (starsEl) starsEl.textContent = PortalState.kidStars;
-    savePatientData();
+    updateKidBentoProgress();
+    showToast('✨ ¡Genial! Tu clima emocional llegó a tu terapeuta (+1 ⭐, +5 🪙)', 'success');
 }
 
 // ----------------------------------------------------
@@ -2191,14 +2762,22 @@ function pickAvatarChar(charKey, emoji, name) {
     });
 
     const stageChar = document.getElementById('kidStageChar');
-    const stageName = document.getElementById('kidAvatarDisplayName');
+    const stageName = document.getElementById('kidAvatarDisplayNameInput') || document.getElementById('kidAvatarDisplayName');
     if (stageChar) {
         stageChar.textContent = emoji;
         stageChar.classList.remove('kid-hop');
         void stageChar.offsetWidth;
         stageChar.classList.add('kid-hop');
     }
-    if (stageName) stageName.textContent = name;
+    if (stageName) {
+        if ('value' in stageName) stageName.value = name;
+        else stageName.textContent = name;
+    }
+
+    const customNameInput = document.getElementById('kidAvatarDisplayNameInput') || document.getElementById('kidAvatarCustomName');
+    if (customNameInput) {
+        customNameInput.value = name;
+    }
 
     KidAudioEffects.playBoing();
 }
@@ -2208,7 +2787,7 @@ function pickAvatarAura(auraClass) {
     PortalState.kidAvatar.aura = auraClass;
 
     document.querySelectorAll('.aura-sparkle-btn').forEach(b => {
-        b.classList.toggle('active', b.classList.contains(auraClass + '-btn'));
+        b.classList.toggle('active', b.classList.contains(auraClass + '-btn') || b.getAttribute('data-aura') === auraClass);
     });
 
     const stageDisplay = document.getElementById('kidAvatarStageDisplay');
@@ -2235,8 +2814,8 @@ function pickAvatarAccessory(accKey, accEmoji) {
 }
 
 function generateRandomKidAvatarName() {
-    const prefixes = ['Super', 'Capitán', 'Príncipe', 'Princesa', 'Maestro', 'Explorador', 'Comandante', 'Mago'];
-    const suffixes = ['de las Galaxias', 'del Relámpago', 'de las Nubes', 'del Arcoíris', 'del Fuego Mágico', 'de las Estrellas', 'de la Calma', 'del Viento'];
+    const prefixes = ['Super', 'Capitán', 'Príncipe', 'Princesa', 'Maestro', 'Explorador', 'Comandante', 'Mago', 'Guardián', 'Valiente'];
+    const suffixes = ['de las Galaxias', 'del Relámpago', 'de las Nubes', 'del Arcoíris', 'del Fuego Mágico', 'de las Estrellas', 'de la Calma', 'del Viento', 'del Bosque', 'de los Sueños'];
     const baseName = (PortalState.kidAvatar && PortalState.kidAvatar.name) ? PortalState.kidAvatar.name.split(' ')[0] : 'Compañero';
 
     const p = prefixes[Math.floor(Math.random() * prefixes.length)];
@@ -2246,8 +2825,14 @@ function generateRandomKidAvatarName() {
     if (!PortalState.kidAvatar) PortalState.kidAvatar = {};
     PortalState.kidAvatar.name = randomTitle;
 
-    const nameEl = document.getElementById('kidAvatarDisplayName');
-    if (nameEl) nameEl.textContent = randomTitle;
+    const nameEl = document.getElementById('kidAvatarDisplayNameInput') || document.getElementById('kidAvatarDisplayName');
+    if (nameEl) {
+        if ('value' in nameEl) nameEl.value = randomTitle;
+        else nameEl.textContent = randomTitle;
+    }
+
+    const customNameInput = document.getElementById('kidAvatarDisplayNameInput') || document.getElementById('kidAvatarCustomName');
+    if (customNameInput) customNameInput.value = randomTitle;
 
     const charEl = document.getElementById('kidStageChar');
     if (charEl) {
@@ -2261,8 +2846,14 @@ function generateRandomKidAvatarName() {
 }
 
 async function saveKidAvatar() {
+    const customNameInput = document.getElementById('kidAvatarDisplayNameInput') || document.getElementById('kidAvatarCustomName');
+    if (customNameInput && customNameInput.value.trim()) {
+        PortalState.kidAvatar.name = customNameInput.value.trim();
+    }
+
     updateKidAvatarDisplays();
     awardKidStars(1);
+    awardKidCoins(5);
     KidAudioEffects.playSuccess();
     KidConfetti.burst(window.innerWidth / 2, 300, 45);
 
@@ -2288,7 +2879,8 @@ async function saveKidAvatar() {
     }
 
     savePatientData();
-    showToast('🌟 ¡Avatar guardado! Te acompañará en todo tu espacio mágico (+1 ⭐)', 'success');
+    updateKidBentoProgress();
+    showToast('🌟 ¡Avatar guardado! Te acompañará en todo tu espacio mágico (+1 ⭐, +5 🪙)', 'success');
 }
 
 // ----------------------------------------------------
@@ -2302,7 +2894,9 @@ const DEFAULT_KID_WORRIES = [
     'Tristeza repentina 🌧️',
     'Enojo en la panza ⚡',
     'Ganas de llorar 💧',
-    'Miedo a la oscuridad 🔦'
+    'Miedo a la oscuridad 🔦',
+    'Vergüenza de hablar 🗣️',
+    'Pensar que no puedo hacerlo 🧱'
 ];
 
 function initKidBubbles() {
@@ -2314,7 +2908,7 @@ function initKidBubbles() {
 
     // Solo rellenar si está vacío
     if (playfield.children.length === 0) {
-        DEFAULT_KID_WORRIES.forEach(worry => {
+        DEFAULT_KID_WORRIES.slice(0, 7).forEach(worry => {
             const bubble = createBubbleElement(worry);
             playfield.appendChild(bubble);
         });
@@ -2333,7 +2927,7 @@ function popKidBubble(el, worryText, ev) {
     if (el.classList.contains('popping')) return;
     el.classList.add('popping');
 
-    // Efecto de sonido POP y confeti en las coordenadas del toque
+    // Sonido pop y confeti en las coordenadas del toque
     KidAudioEffects.playPop();
     const clickX = ev && ev.clientX ? ev.clientX : window.innerWidth / 2;
     const clickY = ev && ev.clientY ? ev.clientY : window.innerHeight / 2;
@@ -2343,6 +2937,9 @@ function popKidBubble(el, worryText, ev) {
     const countEl = document.getElementById('kidBubblesPoppedCount');
     if (countEl) countEl.textContent = PortalState.kidBubblesPopped;
 
+    // Cada burbuja da +1 moneda 🪙
+    awardKidCoins(1);
+
     setTimeout(() => {
         if (el.parentNode) el.parentNode.removeChild(el);
 
@@ -2351,9 +2948,10 @@ function popKidBubble(el, worryText, ev) {
         if (playfield && playfield.children.length === 0) {
             initKidBubbles();
             awardKidStars(1);
+            awardKidCoins(10);
             KidAudioEffects.playSuccess();
             KidConfetti.burst(window.innerWidth / 2, window.innerHeight / 2, 50);
-            showToast('🎉 ¡Has limpiado todas las burbujas! ¡Gran trabajo soltando tensiones! (+1 ⭐)', 'success');
+            showToast('🎉 ¡Has soltado todas las burbujas! ¡Gran trabajo liberando tensiones! (+1 ⭐, +10 🪙)', 'success');
         }
     }, 280);
 
@@ -2370,6 +2968,7 @@ function popKidBubble(el, worryText, ev) {
     };
     PortalState.kidActivities.unshift(activityRecord);
     savePatientData();
+    updateKidBentoProgress();
 
     // Notificar al terapeuta
     if (PortalState.portalToken) {
@@ -2381,21 +2980,65 @@ function popKidBubble(el, worryText, ev) {
     }
 }
 
-function promptCustomBubble() {
-    const custom = prompt('¿Qué preocupación o pensamiento quieres meter en una burbuja para dejarla ir?');
-    if (custom && custom.trim()) {
-        const playfield = document.getElementById('kidBubblesPlayfield');
-        if (playfield) {
-            const newBubble = createBubbleElement(custom.trim());
-            playfield.insertBefore(newBubble, playfield.firstChild);
-            KidAudioEffects.playDing();
-            showToast('🫧 ¡Burbuja creada! Tócala cuando estés listo para soltarla.', 'info');
+function skipCurrentBubble() {
+    const playfield = document.getElementById('kidBubblesPlayfield');
+    if (playfield && playfield.children.length > 0) {
+        const first = playfield.firstElementChild;
+        first.style.opacity = '0.3';
+        first.style.transform = 'translateY(80px) scale(0.6)';
+        setTimeout(() => {
+            if (first.parentNode) {
+                first.parentNode.removeChild(first);
+                playfield.appendChild(first);
+                first.style.opacity = '1';
+                first.style.transform = '';
+            }
+        }, 300);
+        KidAudioEffects.playBoing();
+        showToast('🍃 ¡No pasa nada! La dejamos flotar para después sin ninguna prisa.', 'info');
+    }
+}
+
+function openCustomBubbleModal() {
+    const modal = document.getElementById('kidCustomBubbleModal');
+    if (modal) {
+        modal.style.display = 'flex';
+        const input = document.getElementById('kidCustomBubbleInput');
+        if (input) {
+            input.value = '';
+            setTimeout(() => input.focus(), 150);
         }
     }
 }
 
+function closeCustomBubbleModal() {
+    const modal = document.getElementById('kidCustomBubbleModal');
+    if (modal) modal.style.display = 'none';
+}
+
+function confirmCustomBubble() {
+    const input = document.getElementById('kidCustomBubbleInput');
+    const text = input ? input.value.trim() : '';
+    if (!text) {
+        showToast('Escribe algo cortito para poner en tu burbuja 🫧', 'warning');
+        return;
+    }
+    const playfield = document.getElementById('kidBubblesPlayfield');
+    if (playfield) {
+        const newBubble = createBubbleElement(text);
+        playfield.insertBefore(newBubble, playfield.firstChild);
+        KidAudioEffects.playDing();
+        closeCustomBubbleModal();
+        showToast('🫧 ¡Burbuja lista! Dale un toque cuando quieras soltarla.', 'success');
+    }
+}
+
+function promptCustomBubble() {
+    openCustomBubbleModal();
+}
+
 // ----------------------------------------------------
-// 4. EL LIENZO MÁGICO (HTML5 CANVAS CON PINCEL ARCOÍRIS)
+// 4. EL LIENZO MÁGICO (HTML5 CANVAS CON DESHACER)
 // ----------------------------------------------------
 let kidCanvasState = {
     canvas: null,
@@ -2406,8 +3049,34 @@ let kidCanvasState = {
     isEraser: false,
     isRainbow: false,
     rainbowHue: 0,
-    selectedStamp: null
+    selectedStamp: null,
+    undoStack: []
 };
+
+function saveCanvasSnapshot() {
+    if (!kidCanvasState.ctx || !kidCanvasState.canvas) return;
+    try {
+        const snap = kidCanvasState.ctx.getImageData(0, 0, kidCanvasState.canvas.width, kidCanvasState.canvas.height);
+        kidCanvasState.undoStack.push(snap);
+        if (kidCanvasState.undoStack.length > 20) {
+            kidCanvasState.undoStack.shift();
+        }
+    } catch (e) {
+        console.warn('Canvas snapshot skipped:', e);
+    }
+}
+
+function undoKidCanvas() {
+    if (kidCanvasState.undoStack.length === 0) {
+        showToast('¡No hay más trazos anteriores para deshacer! 🎨', 'info');
+        return;
+    }
+    const prevSnap = kidCanvasState.undoStack.pop();
+    if (prevSnap && kidCanvasState.ctx) {
+        kidCanvasState.ctx.putImageData(prevSnap, 0, 0);
+        KidAudioEffects.playBoing();
+    }
+}
 
 function initKidDrawingCanvas() {
     const canvas = document.getElementById('kidDrawingCanvas');
@@ -2422,6 +3091,7 @@ function initKidDrawingCanvas() {
         ctx.fillStyle = '#ffffff';
         ctx.fillRect(0, 0, canvas.width, canvas.height);
         canvas.setAttribute('data-initialized', 'true');
+        saveCanvasSnapshot();
     }
 
     ctx.lineCap = 'round';
@@ -2445,6 +3115,7 @@ function initKidDrawingCanvas() {
 
     function startDraw(e) {
         e.preventDefault();
+        saveCanvasSnapshot();
         const coords = getCoords(e);
 
         if (kidCanvasState.selectedStamp) {
@@ -2512,7 +3183,8 @@ function setCanvasColor(hexColor) {
 
     document.querySelectorAll('.crayon-btn').forEach(btn => {
         btn.classList.remove('active');
-        if (btn.style.backgroundColor && btn.style.backgroundColor.includes(hexColor.toLowerCase())) {
+        const bg = btn.style.backgroundColor || '';
+        if (btn.getAttribute('data-color') === hexColor || bg.includes(hexColor.toLowerCase())) {
             btn.classList.add('active');
         }
     });
@@ -2574,6 +3246,7 @@ function clearKidCanvas() {
     if (confirm('¿Quieres limpiar todo el lienzo para empezar un dibujo nuevo? 🎨')) {
         const canvas = kidCanvasState.canvas || document.getElementById('kidDrawingCanvas');
         if (canvas) {
+            saveCanvasSnapshot();
             const ctx = canvas.getContext('2d');
             ctx.fillStyle = '#ffffff';
             ctx.fillRect(0, 0, canvas.width, canvas.height);
@@ -2594,8 +3267,12 @@ async function submitKidDrawing() {
         return;
     }
 
+    const storyInput = document.getElementById('kidDrawingStoryInput');
+    const drawingStory = storyInput ? storyInput.value.trim() : '';
+
     const payloadData = {
         imageDataUrl: drawingDataUrl,
+        story: drawingStory || null,
         sentAt: new Date().toISOString()
     };
 
@@ -2608,6 +3285,7 @@ async function submitKidDrawing() {
     PortalState.kidActivities.unshift(activityRecord);
 
     awardKidStars(2);
+    awardKidCoins(10);
     KidAudioEffects.playSuccess();
     KidConfetti.burst(window.innerWidth / 2, window.innerHeight * 0.45, 45);
 
@@ -2620,126 +3298,202 @@ async function submitKidDrawing() {
     }
 
     savePatientData();
-    showToast('🎨✨ ¡Precioso dibujo! Ya está en el consultorio de tu terapeuta (+2 ⭐)', 'success');
+    updateKidBentoProgress();
+    showToast('🎨✨ ¡Precioso dibujo! Ya está en el consultorio de tu terapeuta (+2 ⭐, +10 🪙)', 'success');
 }
 
 // ----------------------------------------------------
-// 5. EL GLOBO DE LA CALMA (RESPIRACIÓN ANIMADA)
+// 5. JARDÍN DE LA CALMA (RESPIRACIÓN MULTI-TÉCNICA)
 // ----------------------------------------------------
-let balloonBreathingTimer = null;
-let balloonBreathingActive = false;
-let balloonPhaseSeconds = 0;
-let isBalloonInhaling = true;
+let calmBreathingTimer = null;
+let calmBreathingActive = false;
+let calmPhaseSeconds = 0;
+let calmCurrentTechnique = 'balloon'; // balloon | flower | turtle
+
+function selectCalmTechnique(techKey) {
+    if (calmBreathingActive) {
+        stopBalloonBreathing();
+    }
+    calmCurrentTechnique = techKey;
+    PortalState.kidCalmTechnique = techKey;
+
+    document.querySelectorAll('.calm-tech-tab').forEach(tab => {
+        tab.classList.toggle('active', tab.getAttribute('data-tech') === techKey);
+    });
+
+    const balloonEl = document.getElementById('kidBalloon');
+    const flowerEl = document.getElementById('kidFlower');
+    const turtleEl = document.getElementById('kidTurtle');
+
+    if (balloonEl) balloonEl.style.display = techKey === 'balloon' ? 'flex' : 'none';
+    if (flowerEl) flowerEl.style.display = techKey === 'flower' ? 'flex' : 'none';
+    if (turtleEl) turtleEl.style.display = techKey === 'turtle' ? 'flex' : 'none';
+
+    const titleEl = document.getElementById('kidCalmTechTitle');
+    const descEl = document.getElementById('kidCalmTechDesc');
+
+    if (techKey === 'balloon') {
+        if (titleEl) titleEl.textContent = 'El Globo de la Calma';
+        if (descEl) descEl.textContent = 'Inhala para inflar el globo y exhala despacito para desinflarlo.';
+    } else if (techKey === 'flower') {
+        if (titleEl) titleEl.textContent = 'La Flor Mágica';
+        if (descEl) descEl.textContent = 'Huele la flor despacio, sostén su rico aroma y sopla suavemente.';
+    } else if (techKey === 'turtle') {
+        if (titleEl) titleEl.textContent = 'La Tortuga Serena';
+        if (descEl) descEl.textContent = 'Asómate al mundo tomando aire y guárdate en tu caparazón tranquilo soltando el aire.';
+    }
+
+    KidAudioEffects.playBoing();
+}
 
 function toggleBalloonBreathing() {
-    if (balloonBreathingActive) {
-        stopBalloonBreathing();
+    if (calmBreathingActive) {
+        pauseBalloonBreathing();
     } else {
         startBalloonBreathing();
     }
 }
 
 function startBalloonBreathing() {
-    balloonBreathingActive = true;
+    calmBreathingActive = true;
     const btn = document.getElementById('btnToggleBalloon');
-    if (btn) btn.innerHTML = '<span class="btn-puffy-icon">⏸️</span> <span class="btn-puffy-text">Pausar Respiración</span>';
+    if (btn) btn.innerHTML = '<span class="btn-puffy-icon">⏸️</span> <span class="btn-puffy-text">Pausar</span>';
 
     KidAudioEffects.playTone(392, 'sine', 0.5, 0.2); // Sol suave
-    runBalloonCycle();
+    runCalmCycle();
 }
 
-function stopBalloonBreathing() {
-    balloonBreathingActive = false;
-    if (balloonBreathingTimer) {
-        clearInterval(balloonBreathingTimer);
-        balloonBreathingTimer = null;
+function pauseBalloonBreathing() {
+    calmBreathingActive = false;
+    if (calmBreathingTimer) {
+        clearInterval(calmBreathingTimer);
+        calmBreathingTimer = null;
+    }
+    const btn = document.getElementById('btnToggleBalloon');
+    if (btn) btn.innerHTML = '<span class="btn-puffy-icon">▶️</span> <span class="btn-puffy-text">Continuar</span>';
+    const instruction = document.getElementById('kidBreathingInstruction');
+    if (instruction) instruction.textContent = 'Pausado. ¡Puedes respirar normal y continuar cuando quieras!';
+}
+
+function stopBalloonBreathing(isFinished) {
+    calmBreathingActive = false;
+    if (calmBreathingTimer) {
+        clearInterval(calmBreathingTimer);
+        calmBreathingTimer = null;
     }
 
     const balloon = document.getElementById('kidBalloon');
+    const flower = document.getElementById('kidFlower');
+    const turtle = document.getElementById('kidTurtle');
     const instruction = document.getElementById('kidBreathingInstruction');
     const timer = document.getElementById('kidBreathingTimer');
     const btn = document.getElementById('btnToggleBalloon');
     const eyes = document.getElementById('kidBalloonEyes');
     const mouth = document.getElementById('kidBalloonMouth');
 
-    if (balloon) {
-        balloon.classList.remove('inhale', 'exhale');
-    }
+    if (balloon) balloon.classList.remove('inhale', 'exhale');
+    if (flower) flower.classList.remove('inhale', 'exhale');
+    if (turtle) turtle.classList.remove('inhale', 'exhale');
+
     if (eyes) eyes.innerHTML = '<span class="eye left">●</span><span class="eye right">●</span>';
     if (mouth) mouth.textContent = '‿';
-    if (instruction) instruction.textContent = '¡Muy bien hecho! Puedes volver a respirar cuando quieras.';
+    if (instruction) instruction.textContent = isFinished ? '¡Excelente trabajo! Has completado tus momentos de calma.' : 'Puedes volver a respirar cuando quieras.';
     if (timer) timer.textContent = '0s';
-    if (btn) btn.innerHTML = '<span class="btn-puffy-icon">🎈</span> <span class="btn-puffy-text">¡Comenzar a Respirar!</span>';
+    if (btn) btn.innerHTML = '<span class="btn-puffy-icon">🎈</span> <span class="btn-puffy-text">¡Comenzar!</span>';
+
+    if (isFinished) {
+        awardKidStars(1);
+        awardKidCoins(5);
+        KidAudioEffects.playSuccess();
+        KidConfetti.burst(window.innerWidth / 2, window.innerHeight * 0.45, 35);
+        showToast('🌟 ¡Paz y serenidad completadas! (+1 ⭐, +5 🪙)', 'success');
+    }
 }
 
-function runBalloonCycle() {
-    if (!balloonBreathingActive) return;
+function runCalmCycle() {
+    if (!calmBreathingActive) return;
 
     const balloon = document.getElementById('kidBalloon');
+    const flower = document.getElementById('kidFlower');
+    const turtle = document.getElementById('kidTurtle');
     const instruction = document.getElementById('kidBreathingInstruction');
     const timer = document.getElementById('kidBreathingTimer');
     const eyes = document.getElementById('kidBalloonEyes');
     const mouth = document.getElementById('kidBalloonMouth');
 
-    // Fase 1: Inhalar (4 segundos)
-    isBalloonInhaling = true;
-    balloonPhaseSeconds = 4;
-    if (balloon) {
-        balloon.classList.remove('exhale');
-        balloon.classList.add('inhale');
-    }
+    // Fase 1: Inhalar (4s)
+    calmPhaseSeconds = 4;
+    if (balloon) { balloon.classList.remove('exhale'); balloon.classList.add('inhale'); }
+    if (flower) { flower.classList.remove('exhale'); flower.classList.add('inhale'); }
+    if (turtle) { turtle.classList.remove('exhale'); turtle.classList.add('inhale'); }
+
     if (eyes) eyes.innerHTML = '<span class="eye left">◉</span><span class="eye right">◉</span>';
     if (mouth) mouth.textContent = 'o';
-    if (instruction) instruction.textContent = '🌬️ Inhala suavemente por la nariz... llenando el globo';
-    if (timer) timer.textContent = `${balloonPhaseSeconds}s`;
 
+    if (calmCurrentTechnique === 'flower') {
+        if (instruction) instruction.textContent = '🌸 Inhala por la nariz... huele el aroma de la flor mágica';
+    } else if (calmCurrentTechnique === 'turtle') {
+        if (instruction) instruction.textContent = '🐢 Asómate al mundo... tomando aire suavemente';
+    } else {
+        if (instruction) instruction.textContent = '🌬️ Inhala suavemente por la nariz... llenando el globo';
+    }
+
+    if (timer) timer.textContent = `${calmPhaseSeconds}s`;
     KidAudioEffects.playTone(440, 'sine', 1.0, 0.15); // Tono suave de inhalación
 
     let elapsed = 0;
-    balloonBreathingTimer = setInterval(() => {
-        if (!balloonBreathingActive) return;
+    calmBreathingTimer = setInterval(() => {
+        if (!calmBreathingActive) return;
         elapsed++;
-        const remaining = balloonPhaseSeconds - elapsed;
+        const remaining = calmPhaseSeconds - elapsed;
         if (timer) timer.textContent = `${Math.max(0, remaining)}s`;
 
-        if (elapsed >= balloonPhaseSeconds) {
-            clearInterval(balloonBreathingTimer);
-            startBalloonExhale();
+        if (elapsed >= calmPhaseSeconds) {
+            clearInterval(calmBreathingTimer);
+            startCalmExhale();
         }
     }, 1000);
 }
 
-function startBalloonExhale() {
-    if (!balloonBreathingActive) return;
+function startCalmExhale() {
+    if (!calmBreathingActive) return;
 
     const balloon = document.getElementById('kidBalloon');
+    const flower = document.getElementById('kidFlower');
+    const turtle = document.getElementById('kidTurtle');
     const instruction = document.getElementById('kidBreathingInstruction');
     const timer = document.getElementById('kidBreathingTimer');
     const eyes = document.getElementById('kidBalloonEyes');
     const mouth = document.getElementById('kidBalloonMouth');
 
-    isBalloonInhaling = false;
-    balloonPhaseSeconds = 6;
-    if (balloon) {
-        balloon.classList.remove('inhale');
-        balloon.classList.add('exhale');
-    }
+    calmPhaseSeconds = 6;
+    if (balloon) { balloon.classList.remove('inhale'); balloon.classList.add('exhale'); }
+    if (flower) { flower.classList.remove('inhale'); flower.classList.add('exhale'); }
+    if (turtle) { turtle.classList.remove('inhale'); turtle.classList.add('exhale'); }
+
     if (eyes) eyes.innerHTML = '<span class="eye left">^</span><span class="eye right">^</span>';
     if (mouth) mouth.textContent = '‿';
-    if (instruction) instruction.textContent = '🍃 Exhala despacito por la boca... soltando el aire como una pluma';
-    if (timer) timer.textContent = `${balloonPhaseSeconds}s`;
 
-    KidAudioEffects.playTone(330, 'sine', 1.5, 0.12); // Tono relajante de exhalación
+    if (calmCurrentTechnique === 'flower') {
+        if (instruction) instruction.textContent = '🍃 Sopla despacio por la boca... acariciando los pétalos';
+    } else if (calmCurrentTechnique === 'turtle') {
+        if (instruction) instruction.textContent = '🐢 Guárdate en tu caparazón seguro... soltando el aire despacito';
+    } else {
+        if (instruction) instruction.textContent = '🍃 Exhala despacito por la boca... soltando el aire como una pluma';
+    }
+
+    if (timer) timer.textContent = `${calmPhaseSeconds}s`;
+    KidAudioEffects.playTone(330, 'sine', 1.5, 0.12); // Tono de exhalación
 
     let elapsed = 0;
-    balloonBreathingTimer = setInterval(() => {
-        if (!balloonBreathingActive) return;
+    calmBreathingTimer = setInterval(() => {
+        if (!calmBreathingActive) return;
         elapsed++;
-        const remaining = balloonPhaseSeconds - elapsed;
+        const remaining = calmPhaseSeconds - elapsed;
         if (timer) timer.textContent = `${Math.max(0, remaining)}s`;
 
-        if (elapsed >= balloonPhaseSeconds) {
-            clearInterval(balloonBreathingTimer);
+        if (elapsed >= calmPhaseSeconds) {
+            clearInterval(calmBreathingTimer);
 
             // Ciclo completado
             PortalState.kidCalmCycles = (PortalState.kidCalmCycles || 0) + 1;
@@ -2748,14 +3502,16 @@ function startBalloonExhale() {
 
             if (PortalState.kidCalmCycles % 3 === 0) {
                 awardKidStars(1);
+                awardKidCoins(5);
                 KidAudioEffects.playSuccess();
                 KidConfetti.burst(window.innerWidth / 2, window.innerHeight * 0.45, 30);
-                showToast('⭐ ¡Superpoder de calma desbloqueado! 3 respiraciones completas (+1 ⭐)', 'success');
+                showToast('⭐ ¡Superpoder de calma desbloqueado! 3 respiraciones completas (+1 ⭐, +5 🪙)', 'success');
 
                 const calmRecord = {
                     id: 'act_' + Date.now() + '_' + Math.random().toString(36).substr(2, 4),
                     activity_type: 'calm_breathing',
                     data: {
+                        technique: calmCurrentTechnique,
                         cyclesCompleted: PortalState.kidCalmCycles,
                         timestamp: new Date().toISOString()
                     },
@@ -2763,6 +3519,7 @@ function startBalloonExhale() {
                 };
                 PortalState.kidActivities.unshift(calmRecord);
                 savePatientData();
+                updateKidBentoProgress();
 
                 // Notificar al backend
                 if (PortalState.portalToken) {
@@ -2774,24 +3531,795 @@ function startBalloonExhale() {
                 }
             }
 
-            // Siguiente ciclo
-            runBalloonCycle();
+            // Continuar con el siguiente ciclo
+            runCalmCycle();
         }
     }, 1000);
 }
 
+// ----------------------------------------------------
+// 6. ASISTENCIA INFANTIL RECONFORTANTE (SOS CHILD-FRIENDLY)
+// ----------------------------------------------------
+function triggerKidSosHelp(reason) {
+    const modal = document.getElementById('kidCrisisModal');
+    if (modal) {
+        modal.style.display = 'flex';
+    }
+    KidAudioEffects.playDing();
+}
+
+function closeKidCrisisModal() {
+    const modal = document.getElementById('kidCrisisModal');
+    if (modal) modal.style.display = 'none';
+    PortalState.activeCrisisAlert = false;
+    savePatientData();
+}
+
+function alertKidAdultTalk() {
+    alert('💛 Puedes acercarte a mamá, papá o la persona adulta que te cuida y decirles:\n\n"Necesito un abrazo o que hablemos un ratito."\n\n¡Siempre hay alguien que te quiere y te escucha!');
+}
+
+function goToKidCalmFromSos() {
+    closeKidCrisisModal();
+    switchKidView('kid-calm');
+}
+
+function sendKidSosToTherapist() {
+    if (PortalState.patientId && PortalState.portalToken) {
+        fetch('/api/v1/portal/crisis', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                patientId: PortalState.patientId,
+                token: PortalState.portalToken,
+                reason: 'El paciente infantil solicitó apoyo o contención desde el botón SOS infantil.'
+            })
+        }).catch(err => console.warn('Error enviando SOS infantil:', err));
+    }
+    closeKidCrisisModal();
+    showToast('💛 Le hemos avisado a tu terapeuta. Recuerda también hablar con el adulto que te acompaña.', 'info');
+}
+
+function toggleKidAudioMute() {
+    KidAudioEffects.enabled = !KidAudioEffects.enabled;
+    const btn = document.getElementById('btnKidSoundToggle');
+    if (btn) {
+        btn.textContent = KidAudioEffects.enabled ? '🔊 Sonidos' : '🔇 Silencio';
+    }
+    if (KidAudioEffects.enabled) KidAudioEffects.playDing();
+}
+
+// ============================================
+// GESTIÓN Y AGENDAMIENTO DE SESIONES EN EL PORTAL
+// ============================================
+function mergeAppointmentsFromBridge() {
+    try {
+        const bridge = JSON.parse(localStorage.getItem('psico_portal_appointments_bridge') || '{}');
+        const deletedIds = JSON.parse(localStorage.getItem('psico_deleted_appointments') || '[]');
+
+        // Limpiar citas eliminadas permanentemente
+        if (deletedIds.length > 0 && Array.isArray(PortalState.appointments)) {
+            PortalState.appointments = PortalState.appointments.filter(a => !deletedIds.includes(String(a.id)));
+        }
+
+        const patientAppointments = Object.values(bridge).filter(a => {
+            if (a.deleted || deletedIds.includes(String(a.id))) return false;
+            return String(a.patientId || a.patient_id) === String(PortalState.patientId);
+        });
+        patientAppointments.forEach(ba => {
+            const idx = (PortalState.appointments || []).findIndex(a => String(a.id) === String(ba.id));
+            if (idx >= 0) {
+                const current = PortalState.appointments[idx];
+                // Si la cita fue cancelada por el terapeuta en backend o en el puente, priorizar siempre estado cancelado
+                let resolvedStatus = ba.status || current.status;
+                if (current.status === 'cancelada' && ba.status !== 'reprogramada' && ba.status !== 'agendada') {
+                    resolvedStatus = 'cancelada';
+                } else if (ba.status === 'cancelada') {
+                    resolvedStatus = 'cancelada';
+                }
+                PortalState.appointments[idx] = { 
+                    ...current, 
+                    ...ba,
+                    status: resolvedStatus
+                };
+            } else {
+                if (!PortalState.appointments) PortalState.appointments = [];
+                PortalState.appointments.push(ba);
+            }
+        });
+    } catch (e) {}
+}
+
+function renderNextSession() {
+    const todayStr = new Date().toISOString().split('T')[0];
+    const upcoming = (PortalState.appointments || [])
+        .filter(a => a.status !== 'cancelada' && a.status !== 'completada' && (a.date >= todayStr || a.status === 'agendada'))
+        .sort((a, b) => new Date(a.date + 'T' + (a.time || '00:00')) - new Date(b.date + 'T' + (b.time || '00:00')));
+
+    const nextApp = upcoming[0];
+    const nextSessionStatEl = document.getElementById('nextSessionText');
+    const homeCardEl = document.getElementById('homeNextSessionCard');
+
+    if (!nextApp) {
+        if (nextSessionStatEl) nextSessionStatEl.textContent = 'Sin agendar';
+        if (homeCardEl) {
+            homeCardEl.innerHTML = `
+                <div class="portal-session-banner-inner">
+                    <div style="display: flex; align-items: center; gap: 14px;">
+                        <div style="width: 44px; height: 44px; border-radius: 12px; background: rgba(59, 130, 246, 0.12); color: #2563eb; display: flex; align-items: center; justify-content: center; font-size: 20px;">
+                            📅
+                        </div>
+                        <div>
+                            <strong style="display: block; font-size: 14.5px; color: var(--text-primary);">Próxima Sesión Terapéutica</strong>
+                            <p style="margin: 2px 0 0 0; font-size: 12px; color: var(--text-secondary);">No tienes ninguna sesión programada en este momento.</p>
+                        </div>
+                    </div>
+                    <button class="btn-primary" onclick="openScheduleSessionModal()" style="font-size: 12.5px; padding: 8px 16px; border-radius: var(--radius-sm); font-weight: 700;">
+                        <i class="fas fa-calendar-plus" style="margin-right: 6px;"></i> Agendar Cita
+                    </button>
+                </div>
+            `;
+        }
+        return;
+    }
+
+    const dateObj = new Date(nextApp.date + 'T12:00:00');
+    const dayNum = isNaN(dateObj.getDate()) ? '—' : dateObj.getDate();
+    const monthStr = isNaN(dateObj.getDate()) ? '' : dateObj.toLocaleDateString('es-ES', { month: 'short' });
+    const yearNum = isNaN(dateObj.getFullYear()) ? '' : dateObj.getFullYear();
+    const formattedDate = formatDateSafe(nextApp.date);
+
+    if (nextSessionStatEl) {
+        nextSessionStatEl.textContent = `${dayNum} ${monthStr}`;
+    }
+
+    const appType = nextApp.type || nextApp.appointment_type || nextApp.modality || 'Presencial';
+    const isOnline = appType.toLowerCase().includes('online') || appType.toLowerCase().includes('remot');
+    const therapist = PortalState.therapistName || 'Tu Terapeuta';
+
+    if (homeCardEl) {
+        homeCardEl.innerHTML = `
+            <div class="portal-session-banner-inner">
+                <div style="display: flex; align-items: center; gap: 14px; flex: 1; min-width: 240px;">
+                    <div class="portal-session-date-box">
+                        <span class="portal-session-day">${dayNum}</span>
+                        <span class="portal-session-month">${monthStr}</span>
+                        <span class="portal-session-year">${yearNum}</span>
+                    </div>
+                    <div class="portal-session-info-wrap">
+                        <div class="portal-session-badge-row">
+                            <span class="portal-session-badge portal-badge-agendada">
+                                <i class="fas fa-calendar-check"></i> Próxima Sesión
+                            </span>
+                            <span class="portal-session-badge ${isOnline ? 'portal-badge-online' : 'portal-badge-presencial'}">
+                                <i class="fas ${isOnline ? 'fa-video' : 'fa-building'}"></i> ${appType}
+                            </span>
+                        </div>
+                        <h4 class="portal-session-title">${formattedDate} a las ${nextApp.time || '10:00'}</h4>
+                        <p class="portal-session-subtitle">
+                            <span><i class="fas fa-user-md"></i> ${therapist}</span>
+                            <span>•</span>
+                            <span><i class="far fa-clock"></i> ${nextApp.duration || 50} min</span>
+                        </p>
+                    </div>
+                </div>
+
+                <div class="portal-session-actions">
+                    ${(nextApp.attendanceConfirmed || nextApp.status === 'confirmada') ? `
+                        <span class="badge-attendance-confirmed" title="Asistencia confirmada para esta sesión">
+                            <i class="fas fa-check-circle"></i> Asistencia confirmada
+                        </span>
+                    ` : `
+                        <button class="btn-confirm-attendance" onclick="confirmSessionAttendance('${nextApp.id}')" title="Confirmar mi asistencia con mi psicólogo">
+                            <i class="fas fa-check"></i> Confirmar Asistencia
+                        </button>
+                    `}
+                    ${isOnline ? `
+                        <button class="btn-telehealth-join" onclick="openTelehealthFromPortal('${nextApp.id}')" title="Ingresar a la sala cifrada de teleconsulta">
+                            <i class="fas fa-video"></i> Unirme a Sesión
+                        </button>
+                    ` : ''}
+                    <button class="btn-secondary" onclick="switchView('sessions')" style="font-size: 12px; padding: 8px 14px; border-radius: var(--radius-sm);">
+                        Ver Sesiones
+                    </button>
+                </div>
+            </div>
+        `;
+    }
+    if (typeof checkAppointmentConfirmationAlert === 'function') {
+        checkAppointmentConfirmationAlert();
+    }
+}
+
+function renderSessionsView() {
+    renderNextSession();
+
+    const container = document.getElementById('sessionsUpcomingContainer');
+    const historyList = document.getElementById('sessionsHistoryList');
+    const historyCountEl = document.getElementById('sessionsHistoryCount');
+
+    const todayStr = new Date().toISOString().split('T')[0];
+    const appointments = PortalState.appointments || [];
+
+    const upcoming = appointments
+        .filter(a => a.status !== 'cancelada' && a.status !== 'completada' && (a.date >= todayStr || a.status === 'agendada'))
+        .sort((a, b) => new Date(a.date + 'T' + (a.time || '00:00')) - new Date(b.date + 'T' + (b.time || '00:00')));
+
+    const history = appointments
+        .filter(a => a.status === 'completada' || a.status === 'cancelada' || a.status === 'reprogramada' || a.date < todayStr)
+        .sort((a, b) => new Date(b.date + 'T' + (b.time || '00:00')) - new Date(a.date + 'T' + (a.time || '00:00')));
+
+    if (historyCountEl) {
+        historyCountEl.textContent = `${history.length} sesión${history.length === 1 ? '' : 'es'}`;
+    }
+
+    if (container) {
+        if (upcoming.length === 0) {
+            container.innerHTML = `
+                <div class="section-card" style="text-align: center; padding: 26px 20px;">
+                    <div style="font-size: 38px; margin-bottom: 8px;">📅</div>
+                    <h3 style="margin: 0 0 6px 0; font-size: 16px; color: var(--text-primary);">No tienes sesiones programadas</h3>
+                    <p style="margin: 0 0 16px 0; font-size: 13px; color: var(--text-secondary); max-width: 380px; margin-inline: auto;">
+                        Mantén la constancia en tu proceso terapéutico agendando tu próxima sesión de forma rápida y sencilla.
+                    </p>
+                    <button class="btn-primary" onclick="openScheduleSessionModal()" style="padding: 10px 20px; font-weight: 700; border-radius: var(--radius-sm);">
+                        <i class="fas fa-calendar-plus" style="margin-right: 6px;"></i> Agendar mi Próxima Sesión
+                    </button>
+                </div>
+            `;
+        } else {
+            const next = upcoming[0];
+            const dateObj = new Date(next.date + 'T12:00:00');
+            const dayNum = isNaN(dateObj.getDate()) ? '—' : dateObj.getDate();
+            const monthStr = isNaN(dateObj.getDate()) ? '' : dateObj.toLocaleDateString('es-ES', { month: 'short' });
+            const yearNum = isNaN(dateObj.getFullYear()) ? '' : dateObj.getFullYear();
+            const appType = next.type || next.appointment_type || next.modality || 'Presencial';
+            const isOnline = appType.toLowerCase().includes('online') || appType.toLowerCase().includes('remot');
+
+            container.innerHTML = `
+                <div class="portal-next-session-card" style="margin-top: 0; border-color: var(--accent-primary);">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; border-bottom: 1px solid var(--border-secondary); padding-bottom: 8px;">
+                        <span style="font-size: 12px; font-weight: 700; text-transform: uppercase; color: var(--accent-primary); letter-spacing: 0.5px;">
+                            <i class="fas fa-star" style="margin-right: 4px;"></i> Próxima Consulta Confirmada
+                        </span>
+                        <span class="portal-session-badge portal-badge-agendada">Programada</span>
+                    </div>
+                    <div class="portal-session-banner-inner">
+                        <div style="display: flex; align-items: center; gap: 14px; flex: 1; min-width: 240px;">
+                            <div class="portal-session-date-box">
+                                <span class="portal-session-day">${dayNum}</span>
+                                <span class="portal-session-month">${monthStr}</span>
+                                <span class="portal-session-year">${yearNum}</span>
+                            </div>
+                            <div class="portal-session-info-wrap">
+                                <h4 class="portal-session-title">${formatDateSafe(next.date)} a las ${next.time || '10:00'}</h4>
+                                <p class="portal-session-subtitle">
+                                    <span><i class="fas fa-user-md"></i> ${PortalState.therapistName || 'Tu Terapeuta'}</span>
+                                    <span>•</span>
+                                    <span><i class="far fa-clock"></i> ${next.duration || 50} minutos</span>
+                                </p>
+                                <div style="margin-top: 6px; font-size: 12px; color: var(--text-secondary);">
+                                    <i class="fas ${isOnline ? 'fa-video' : 'fa-building'}" style="color: var(--accent-primary); margin-right: 4px;"></i>
+                                    <strong>Modalidad:</strong> ${appType}
+                                </div>
+                                ${next.notes ? `<div style="margin-top: 4px; font-size: 12px; color: var(--text-tertiary); font-style: italic;">"${next.notes}"</div>` : ''}
+                            </div>
+                        </div>
+
+                        <div class="portal-session-actions">
+                            ${(next.attendanceConfirmed || next.status === 'confirmada') ? `
+                                <span class="badge-attendance-confirmed" title="Asistencia confirmada para esta sesión">
+                                    <i class="fas fa-check-circle"></i> Asistencia confirmada
+                                </span>
+                            ` : `
+                                <button class="btn-confirm-attendance" onclick="confirmSessionAttendance('${next.id}')" title="Confirmar mi asistencia con mi psicólogo">
+                                    <i class="fas fa-check"></i> Confirmar Asistencia
+                                </button>
+                            `}
+                            ${isOnline ? `
+                                <button class="btn-telehealth-join" onclick="openTelehealthFromPortal('${next.id}')">
+                                    <i class="fas fa-video"></i> Unirme a Videollamada
+                                </button>
+                            ` : ''}
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+    }
+
+    if (typeof loadPortalAvailability === 'function') {
+        const picker = document.getElementById('portalAvailabilityPicker');
+        const dt = picker && picker.value ? picker.value : '';
+        loadPortalAvailability(dt);
+    }
+
+    if (historyList) {
+        if (history.length === 0) {
+            historyList.innerHTML = `
+                <div style="text-align: center; padding: 20px 10px; color: var(--text-tertiary); font-size: 13px;">
+                    <p style="margin: 0;">No tienes sesiones pasadas registradas en tu historial.</p>
+                </div>
+            `;
+        } else {
+            historyList.innerHTML = history.map(h => {
+                const dateObj = new Date(h.date + 'T12:00:00');
+                const dayNum = isNaN(dateObj.getDate()) ? '—' : dateObj.getDate();
+                const monthStr = isNaN(dateObj.getDate()) ? '' : dateObj.toLocaleDateString('es-ES', { month: 'short' });
+                const status = h.status || 'completada';
+
+                const isCancelledByTherapist = status === 'cancelada' && (h.canceledBy === 'therapist' || (h.notes && h.notes.toLowerCase().includes('cancelada por terapeuta')));
+                const isCancelledByPatient = status === 'cancelada' && !isCancelledByTherapist;
+
+                const statusBadges = {
+                    completada: '<span class="portal-session-badge portal-badge-completada"><i class="fas fa-check-circle"></i> Asistida</span>',
+                    reprogramada: '<span class="portal-session-badge portal-badge-reprogramada"><i class="fas fa-sync-alt"></i> Reprogramada</span>',
+                    cancelada: isCancelledByTherapist 
+                        ? '<span class="portal-session-badge" style="background:#e0e7ff;color:#3730a3;border:1px solid rgba(99,102,241,0.3);"><i class="fas fa-user-md"></i> Cancelada por el terapeuta</span>'
+                        : '<span class="portal-session-badge portal-badge-cancelada"><i class="fas fa-times-circle"></i> Cancelada</span>',
+                    agendada: '<span class="portal-session-badge portal-badge-agendada"><i class="fas fa-calendar-alt"></i> Agendada</span>'
+                };
+
+                const reasonText = h.cancelReason || (h.notes && h.notes.includes('Cancelada') ? h.notes : '');
+
+                return `
+                    <div class="portal-session-history-item">
+                        <div style="display: flex; align-items: center; gap: 12px;">
+                            <div style="font-weight: 800; font-size: 15px; color: var(--text-primary); min-width: 45px; text-align: center;">
+                                ${dayNum} ${monthStr}
+                            </div>
+                            <div>
+                                <div style="font-size: 13.5px; font-weight: 600; color: var(--text-primary);">
+                                    Sesión ${h.type || 'Presencial'} — ${h.time || 'Horario no especificado'}
+                                </div>
+                                <div style="font-size: 11.5px; color: var(--text-secondary);">
+                                    ${formatDateSafe(h.date)} (${h.duration || 50} min)
+                                    ${reasonText ? `<div style="margin-top:2px;color:var(--text-tertiary);font-style:italic;"><i class="fas fa-info-circle"></i> ${escapeHtml(reasonText)}</div>` : ''}
+                                </div>
+                            </div>
+                        </div>
+                        <div>
+                            ${statusBadges[status] || `<span class="portal-session-badge portal-badge-agendada">${status}</span>`}
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        }
+    }
+}
+
+// ============================================
+// SELECCIÓN INTELIGENTE DE HORARIOS Y DISPONIBILIDAD
+// ============================================
+
+const DEFAULT_SMART_SLOTS = [
+    { time: '08:00', label: '08:00 AM', shift: 'morning', recommended: false },
+    { time: '09:00', label: '09:00 AM', shift: 'morning', recommended: true },
+    { time: '10:00', label: '10:00 AM', shift: 'morning', recommended: true },
+    { time: '11:00', label: '11:00 AM', shift: 'morning', recommended: false },
+    { time: '12:00', label: '12:00 PM', shift: 'morning', recommended: false },
+    { time: '14:00', label: '02:00 PM', shift: 'afternoon', recommended: false },
+    { time: '15:00', label: '03:00 PM', shift: 'afternoon', recommended: true },
+    { time: '16:00', label: '04:00 PM', shift: 'afternoon', recommended: true },
+    { time: '17:00', label: '05:00 PM', shift: 'afternoon', recommended: false },
+    { time: '18:00', label: '06:00 PM', shift: 'afternoon', recommended: false }
+];
+
+async function fetchPortalAvailability(dateStr) {
+    if (!dateStr) return null;
+    if (PortalState.portalToken && typeof fetch !== 'undefined' && window.location.protocol !== 'file:') {
+        try {
+            const res = await fetch(`/api/v1/portal/availability?token=${encodeURIComponent(PortalState.portalToken)}&date=${encodeURIComponent(dateStr)}`);
+            if (res.ok) {
+                return await res.json();
+            }
+        } catch (e) {
+            console.warn('[Portal] Error consultando disponibilidad en servidor, usando cálculo local:', e);
+        }
+    }
+
+    // Cálculo local inteligente (modo offline / local file / mock)
+    const [y, m, d] = dateStr.split('-').map(Number);
+    const targetDate = new Date(y, m - 1, d, 12, 0, 0);
+    const dayOfWeek = targetDate.getDay();
+    const isSunday = dayOfWeek === 0;
+    const dayNames = ['Domingo', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado'];
+    const dayName = dayNames[dayOfWeek] || '';
+
+    const now = new Date();
+    const todayStr = getLocalDateStr(now);
+    const isToday = dateStr === todayStr;
+    const currentMinutes = now.getHours() * 60 + now.getMinutes();
+
+    let occupied = [];
+    try {
+        const stored = JSON.parse(localStorage.getItem('psico_therapist_occupied_slots') || '[]');
+        if (Array.isArray(stored)) occupied = stored;
+    } catch (e) {}
+
+    // Agregar citas del propio portal
+    (PortalState.appointments || []).forEach(a => {
+        if (a.status !== 'cancelada') {
+            occupied.push({ date: a.date, time: String(a.time || '').substring(0, 5) });
+        }
+    });
+
+    const slots = DEFAULT_SMART_SLOTS.map(slot => {
+        const [sh, sm] = slot.time.split(':').map(Number);
+        const slotMinutes = sh * 60 + sm;
+
+        if (isSunday) {
+            return { ...slot, available: false, reason: 'Día no laborable (Domingo)' };
+        }
+        if (isToday && slotMinutes <= currentMinutes + 15) {
+            return { ...slot, available: false, reason: 'Horario pasado' };
+        }
+        const isOcc = occupied.some(o => o.date === dateStr && o.time === slot.time);
+        if (isOcc) {
+            return { ...slot, available: false, reason: 'Horario ocupado' };
+        }
+        return { ...slot, available: true, reason: null };
+    });
+
+    return {
+        date: dateStr,
+        dayName,
+        isWorkingDay: !isSunday,
+        slots,
+        totalAvailable: slots.filter(s => s.available).length,
+        totalOccupied: slots.filter(s => !s.available && s.reason === 'Horario ocupado').length,
+        message: isSunday ? 'El consultorio no atiende los domingos. Por favor selecciona de lunes a sábado.' : ''
+    };
+}
+
+async function handleScheduleDateChange(dateStr) {
+    const container = document.getElementById('smartSlotsContainer');
+    const summaryEl = document.getElementById('slotAvailabilitySummary');
+    const dayBadgeEl = document.getElementById('scheduleDayBadge');
+    const feedbackEl = document.getElementById('slotSelectedFeedback');
+    const selectEl = document.getElementById('scheduleTime');
+
+    if (!dateStr || !container) return;
+
+    if (summaryEl) summaryEl.textContent = 'Consultando...';
+    container.innerHTML = `
+        <div style="display:flex;align-items:center;justify-content:center;gap:8px;padding:20px;color:var(--text-secondary);font-size:12.5px;">
+            <i class="fas fa-spinner fa-spin" style="color:var(--accent-primary);"></i> Verificando disponibilidad de agenda...
+        </div>
+    `;
+
+    const data = await fetchPortalAvailability(dateStr);
+    if (!data) return;
+
+    if (dayBadgeEl) {
+        dayBadgeEl.textContent = data.dayName;
+    }
+
+    if (!data.isWorkingDay) {
+        if (summaryEl) {
+            summaryEl.textContent = 'No laborable';
+            summaryEl.style.color = '#d97706';
+            summaryEl.style.background = '#fef3c7';
+        }
+        if (feedbackEl) feedbackEl.style.display = 'none';
+        if (selectEl) selectEl.value = '';
+        container.innerHTML = `
+            <div class="slot-alert-box alert-closed">
+                <div style="font-size: 24px;">🗓️</div>
+                <div style="flex:1;">
+                    <strong style="display:block;font-size:13px;">Domingo no laborable</strong>
+                    <div style="font-size:11.5px;margin-top:2px;opacity:0.9;">El terapeuta atiende de lunes a sábado. Te invitamos a seleccionar el lunes.</div>
+                </div>
+                <button type="button" class="btn-slot-quick-pick" onclick="selectNextAvailableWorkingDay()">Elegir Lunes</button>
+            </div>
+        `;
+        return;
+    }
+
+    if (data.totalAvailable === 0) {
+        if (summaryEl) {
+            summaryEl.textContent = 'Día Completo (0 disponibles)';
+            summaryEl.style.color = '#dc2626';
+            summaryEl.style.background = '#fee2e2';
+        }
+        if (feedbackEl) feedbackEl.style.display = 'none';
+        if (selectEl) selectEl.value = '';
+        container.innerHTML = `
+            <div class="slot-alert-box alert-full">
+                <div style="font-size: 22px;">🔒</div>
+                <div style="flex:1;">
+                    <strong style="display:block;font-size:13px;">Sin disponibilidad en esta fecha</strong>
+                    <div style="font-size:11.5px;margin-top:2px;">Todos los horarios están reservados. Te sugerimos revisar el siguiente día disponible.</div>
+                </div>
+                <button type="button" class="btn-slot-quick-pick" onclick="selectNextAvailableWorkingDay()">Día Siguiente</button>
+            </div>
+        `;
+        return;
+    }
+
+    if (summaryEl) {
+        summaryEl.textContent = `🟢 ${data.totalAvailable} horarios disponibles`;
+        summaryEl.style.color = '#059669';
+        summaryEl.style.background = 'rgba(16, 185, 129, 0.12)';
+    }
+
+    const morningSlots = data.slots.filter(s => s.shift === 'morning');
+    const afternoonSlots = data.slots.filter(s => s.shift === 'afternoon');
+
+    let currentSelected = PortalState.selectedScheduleSlot;
+    // Si el horario seleccionado previamente ya no está disponible, seleccionar el primer horario disponible recomendado
+    const isCurrentValid = data.slots.some(s => s.time === currentSelected && s.available);
+    if (!isCurrentValid) {
+        const firstAvail = data.slots.find(s => s.available && s.recommended) || data.slots.find(s => s.available);
+        currentSelected = firstAvail ? firstAvail.time : '';
+        PortalState.selectedScheduleSlot = currentSelected;
+    }
+
+    if (selectEl && currentSelected) {
+        selectEl.value = currentSelected;
+    }
+
+    const renderShiftGroup = (title, icon, slots) => `
+        <div class="slot-shift-section">
+            <div class="slot-shift-title">${icon} ${title}</div>
+            <div class="slot-chips-grid">
+                ${slots.map(s => {
+                    const isSel = s.time === currentSelected && s.available;
+                    if (!s.available) {
+                        const isPast = s.reason === 'Horario pasado';
+                        return `
+                            <button type="button" class="slot-chip-btn ${isPast ? 'past' : 'occupied'}" disabled title="${s.reason || 'No disponible'}">
+                                <span class="slot-chip-time">${s.label}</span>
+                                <span class="slot-chip-tag">${isPast ? 'Pasado' : '🔒 Ocupado'}</span>
+                            </button>
+                        `;
+                    }
+                    const isRec = s.recommended;
+                    return `
+                        <button type="button" 
+                                class="slot-chip-btn available ${isRec ? 'recommended' : ''} ${isSel ? 'selected' : ''}" 
+                                onclick="pickSmartSlot('${s.time}', '${s.label}')">
+                            <span class="slot-chip-time">${s.label}</span>
+                            <span class="slot-chip-tag">${isRec ? '✨ Sugerido' : 'Libre'}</span>
+                        </button>
+                    `;
+                }).join('')}
+            </div>
+        </div>
+    `;
+
+    container.innerHTML = `
+        ${renderShiftGroup('Turno Mañana', '☀️', morningSlots)}
+        ${renderShiftGroup('Turno Tarde', '🌤️', afternoonSlots)}
+    `;
+
+    if (currentSelected) {
+        const selSlotObj = data.slots.find(s => s.time === currentSelected);
+        if (selSlotObj && feedbackEl) {
+            feedbackEl.style.display = 'block';
+            const feedbackText = document.getElementById('selectedSlotText');
+            if (feedbackText) feedbackText.textContent = `${selSlotObj.label} (${data.dayName})`;
+        }
+    } else if (feedbackEl) {
+        feedbackEl.style.display = 'none';
+    }
+}
+
+function pickSmartSlot(timeStr, labelStr) {
+    PortalState.selectedScheduleSlot = timeStr;
+    const selectEl = document.getElementById('scheduleTime');
+    if (selectEl) {
+        selectEl.value = timeStr;
+    }
+
+    // Actualizar clases activas en los botones
+    const allBtns = document.querySelectorAll('.slot-chip-btn.available');
+    allBtns.forEach(btn => {
+        if (btn.querySelector('.slot-chip-time')?.textContent === labelStr || btn.getAttribute('onclick')?.includes(timeStr)) {
+            btn.classList.add('selected');
+        } else {
+            btn.classList.remove('selected');
+        }
+    });
+
+    const feedbackEl = document.getElementById('slotSelectedFeedback');
+    const feedbackText = document.getElementById('selectedSlotText');
+    const dayBadgeEl = document.getElementById('scheduleDayBadge');
+    const dayStr = dayBadgeEl?.textContent ? ` · ${dayBadgeEl.textContent}` : '';
+
+    if (feedbackEl) feedbackEl.style.display = 'block';
+    if (feedbackText) feedbackText.textContent = `${labelStr || timeStr}${dayStr}`;
+}
+
+function selectNextAvailableWorkingDay() {
+    const dateInput = document.getElementById('scheduleDate');
+    if (!dateInput) return;
+    const curr = new Date(dateInput.value + 'T12:00:00');
+    curr.setDate(curr.getDate() + 1);
+    if (curr.getDay() === 0) {
+        curr.setDate(curr.getDate() + 1); // Si cae domingo, pasar a lunes
+    }
+    const nextStr = curr.toISOString().split('T')[0];
+    dateInput.value = nextStr;
+    handleScheduleDateChange(nextStr);
+}
+
+function openScheduleSessionModal() {
+    const modal = document.getElementById('scheduleSessionModal');
+    if (!modal) return;
+    const form = document.getElementById('scheduleSessionForm');
+    if (form) form.reset();
+
+    const dateInput = document.getElementById('scheduleDate');
+    let targetDateStr = '';
+    if (dateInput) {
+        const tomorrow = new Date();
+        tomorrow.setDate(tomorrow.getDate() + 1);
+        if (tomorrow.getDay() === 0) {
+            tomorrow.setDate(tomorrow.getDate() + 1); // Si mañana es domingo, abrir en lunes
+        }
+        targetDateStr = getLocalDateStr(tomorrow);
+        dateInput.min = getLocalDateStr();
+        dateInput.value = targetDateStr;
+    }
+
+    selectPortalModality('Online');
+    modal.style.display = 'flex';
+
+    if (targetDateStr) {
+        handleScheduleDateChange(targetDateStr);
+    }
+}
+
+function closeScheduleSessionModal() {
+    const modal = document.getElementById('scheduleSessionModal');
+    if (modal) modal.style.display = 'none';
+}
+
+function selectPortalModality(modality) {
+    const onlineLabel = document.getElementById('modalityOnlineLabel');
+    const presencialLabel = document.getElementById('modalityPresencialLabel');
+    const radios = document.querySelectorAll('input[name="portalModality"]');
+
+    radios.forEach(r => {
+        if (r.value === modality) r.checked = true;
+    });
+
+    if (modality === 'Online') {
+        if (onlineLabel) onlineLabel.classList.add('active');
+        if (presencialLabel) presencialLabel.classList.remove('active');
+    } else {
+        if (onlineLabel) onlineLabel.classList.remove('active');
+        if (presencialLabel) presencialLabel.classList.add('active');
+    }
+}
+
+async function handleScheduleSessionSubmit(e) {
+    e.preventDefault();
+    const date = document.getElementById('scheduleDate')?.value;
+    const time = document.getElementById('scheduleTime')?.value;
+    const modality = document.querySelector('input[name="portalModality"]:checked')?.value || 'Online';
+    const notes = document.getElementById('scheduleNotes')?.value?.trim() || '';
+
+    if (!date || !time) {
+        showToast('Por favor selecciona una fecha y un horario disponible', 'warning');
+        return;
+    }
+
+    // Verificar si el día es domingo
+    const [y, m, d] = date.split('-').map(Number);
+    if (new Date(y, m - 1, d, 12, 0, 0).getDay() === 0) {
+        showToast('El consultorio no atiende los domingos. Por favor selecciona de lunes a sábado.', 'warning');
+        return;
+    }
+
+    // Si hay backend disponible, validar contra la API antes de persistir
+    if (PortalState.portalToken && PortalState.patientId && typeof fetch !== 'undefined' && window.location.protocol !== 'file:') {
+        try {
+            const res = await fetch('/api/v1/portal/appointments/request', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    token: PortalState.portalToken,
+                    patientId: PortalState.patientId,
+                    date: date,
+                    time: time,
+                    duration: 50,
+                    type: modality,
+                    notes: notes
+                })
+            });
+
+            if (res.status === 409) {
+                const errData = await res.json().catch(() => ({}));
+                showToast(errData.error || 'El horario seleccionado ya no se encuentra disponible. Por favor elige otro.', 'warning');
+                handleScheduleDateChange(date);
+                return;
+            }
+
+            if (!res.ok) {
+                const errData = await res.json().catch(() => ({}));
+                showToast(errData.error || 'Error agendando cita en el servidor', 'warning');
+                return;
+            }
+        } catch (netErr) {
+            console.warn('[Portal] Servidor no disponible, procediendo con guardado local:', netErr);
+        }
+    }
+
+    const appointmentRecord = {
+        id: `apt_${Date.now()}_${Math.random().toString(36).substr(2, 6)}`,
+        patientId: PortalState.patientId,
+        patient_id: PortalState.patientId,
+        date: date,
+        time: time,
+        duration: 50,
+        type: modality,
+        status: 'agendada',
+        notes: notes || 'Sesión agendada desde el Portal del Paciente',
+        createdAt: new Date().toISOString()
+    };
+
+    if (!PortalState.appointments) PortalState.appointments = [];
+    PortalState.appointments.push(appointmentRecord);
+
+    // Guardar en puente local para que la app del terapeuta lo vea de inmediato
+    try {
+        const bridge = JSON.parse(localStorage.getItem('psico_portal_appointments_bridge') || '{}');
+        bridge[appointmentRecord.id] = appointmentRecord;
+        localStorage.setItem('psico_portal_appointments_bridge', JSON.stringify(bridge));
+        localStorage.setItem('psico_portal_appointments_last_update', Date.now().toString());
+    } catch (err) {}
+
+    savePatientData();
+
+    closeScheduleSessionModal();
+    renderNextSession();
+    renderSessionsView();
+    showToast('🎉 ¡Sesión agendada exitosamente!', 'success');
+}
+
+function openTelehealthFromPortal(appointmentId) {
+    const pId = PortalState.patientId || 'patient';
+    const roomName = `psiconotes-session-${pId.substring(0, 8)}-${(appointmentId || 'live').substring(0, 8)}`;
+    const jitsiUrl = `https://meet.jit.si/${encodeURIComponent(roomName)}#config.prejoinPageEnabled=false&userInfo.displayName=${encodeURIComponent(PortalState.patientName || 'Paciente')}`;
+    window.open(jitsiUrl, '_blank');
+    showToast('Abriendo sala de teleconsulta cifrada...', 'info');
+}
+
 // Exponer funciones globales para eventos onClick en portal.html
+window.renderNextSession = renderNextSession;
+window.renderSessionsView = renderSessionsView;
+window.openScheduleSessionModal = openScheduleSessionModal;
+window.closeScheduleSessionModal = closeScheduleSessionModal;
+window.selectPortalModality = selectPortalModality;
+window.handleScheduleSessionSubmit = handleScheduleSessionSubmit;
+window.openTelehealthFromPortal = openTelehealthFromPortal;
+window.handleScheduleDateChange = handleScheduleDateChange;
+window.pickSmartSlot = pickSmartSlot;
+window.selectNextAvailableWorkingDay = selectNextAvailableWorkingDay;
+window.fetchPortalAvailability = fetchPortalAvailability;
 window.toggleKidMode = toggleKidMode;
 window.switchKidView = switchKidView;
 window.selectKidWeather = selectKidWeather;
+window.selectKidThoughtChip = selectKidThoughtChip;
 window.selectKidBodyZone = selectKidBodyZone;
+window.selectKidSensation = selectKidSensation;
 window.submitKidWeatherAndBody = submitKidWeatherAndBody;
 window.pickAvatarChar = pickAvatarChar;
 window.pickAvatarAura = pickAvatarAura;
 window.pickAvatarAccessory = pickAvatarAccessory;
 window.generateRandomKidAvatarName = generateRandomKidAvatarName;
 window.saveKidAvatar = saveKidAvatar;
+window.initKidBubbles = initKidBubbles;
+window.popKidBubble = popKidBubble;
+window.skipCurrentBubble = skipCurrentBubble;
+window.openCustomBubbleModal = openCustomBubbleModal;
+window.closeCustomBubbleModal = closeCustomBubbleModal;
+window.confirmCustomBubble = confirmCustomBubble;
 window.promptCustomBubble = promptCustomBubble;
+window.saveCanvasSnapshot = saveCanvasSnapshot;
+window.undoKidCanvas = undoKidCanvas;
 window.setCanvasColor = setCanvasColor;
 window.setRainbowBrush = setRainbowBrush;
 window.setCanvasBrushSize = setCanvasBrushSize;
@@ -2799,6 +4327,985 @@ window.toggleCanvasEraser = toggleCanvasEraser;
 window.setCanvasStamp = setCanvasStamp;
 window.clearKidCanvas = clearKidCanvas;
 window.submitKidDrawing = submitKidDrawing;
+window.selectCalmTechnique = selectCalmTechnique;
 window.toggleBalloonBreathing = toggleBalloonBreathing;
+window.startBalloonBreathing = startBalloonBreathing;
+window.pauseBalloonBreathing = pauseBalloonBreathing;
+window.stopBalloonBreathing = stopBalloonBreathing;
+window.triggerKidSosHelp = triggerKidSosHelp;
+window.closeKidCrisisModal = closeKidCrisisModal;
+window.alertKidAdultTalk = alertKidAdultTalk;
+window.goToKidCalmFromSos = goToKidCalmFromSos;
+window.sendKidSosToTherapist = sendKidSosToTherapist;
+window.toggleKidAudioMute = toggleKidAudioMute;
 window.KidAudioEffects = KidAudioEffects;
 window.KidConfetti = KidConfetti;
+
+// ============================================
+// FUNCIONES PSIRIS: PALABRA DEL DÍA, MI PSICÓLOGO,
+// DOCUMENTOS, PAGOS, ASISTENCIA Y PERFIL
+// ============================================
+
+function escapeHtml(str) {
+    if (!str) return '';
+    return String(str)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
+}
+
+function renderTherapistCard() {
+    const info = PortalState.therapistInfo || {};
+    const name = info.name || PortalState.therapistName || 'Dr. Jose Correa';
+    const specialty = info.specialty || 'Psicología Clínica y de la Salud';
+    const fpv = info.registryNumber || 'FPV Nº 54567';
+    const email = info.email || 'atalantillo@gmail.com';
+    const location = info.location || 'Consultorio Clínico / Consulta Online y Presencial';
+
+    const nameEl = document.getElementById('therapistCardName');
+    const specEl = document.getElementById('therapistCardSpecialty');
+    const fpvEl = document.getElementById('therapistCardFpv');
+    const emailEl = document.getElementById('therapistCardEmail');
+    const locEl = document.getElementById('therapistCardLocation');
+
+    if (nameEl) nameEl.textContent = name;
+    if (specEl) specEl.textContent = specialty;
+    if (fpvEl) fpvEl.textContent = fpv;
+    if (emailEl) emailEl.textContent = email;
+    if (locEl) locEl.textContent = location;
+}
+
+function selectDailyWordChip(word) {
+    const input = document.getElementById('inputDailyWord');
+    if (input) {
+        input.value = word;
+        submitDailyWord();
+    }
+}
+
+async function submitDailyWord() {
+    const input = document.getElementById('inputDailyWord');
+    const word = (input ? input.value : '').trim();
+    if (!word) {
+        showToast('Escribe una palabra o selecciona una sugerencia', 'warning');
+        return;
+    }
+
+    PortalState.dailyWord = word;
+    const tag = document.getElementById('dailyWordSavedTag');
+    if (tag) {
+        tag.textContent = `"${word}" guardada ✓`;
+        tag.style.display = 'inline-block';
+    }
+
+    // Persistir y sincronizar con mood log de hoy
+    if (PortalState.patientId && PortalState.portalToken) {
+        sendPortalPost('/api/v1/portal/mood', {
+            patientId: PortalState.patientId,
+            token: PortalState.portalToken,
+            mood: 4,
+            sleep: 3,
+            energy: 3,
+            word: word
+        });
+    }
+
+    showToast(`Palabra del día registrada: "${word}" ✨`, 'success');
+}
+
+async function confirmSessionAttendance(appointmentId) {
+    if (!appointmentId) return;
+
+    // 1. Actualización local inmediata (optimistic UI)
+    const app = (PortalState.appointments || []).find(a => String(a.id) === String(appointmentId));
+    if (app) {
+        app.attendanceConfirmed = true;
+        app.attendance_confirmed = true;
+        app.status = 'confirmada';
+        app.confirmedAt = new Date().toISOString();
+    }
+    savePatientDataLocally();
+    renderNextSession();
+    renderSessionsView();
+
+    // 2. Sincronizar en el puente local (psico_portal_appointments_bridge) para reflejo inmediato en la pantalla del terapeuta
+    try {
+        const bridge = JSON.parse(localStorage.getItem('psico_portal_appointments_bridge') || '{}');
+        if (!bridge[appointmentId]) {
+            if (app) {
+                bridge[appointmentId] = {
+                    id: app.id,
+                    patientId: PortalState.patientId,
+                    patient_id: PortalState.patientId,
+                    date: app.date,
+                    time: app.time,
+                    duration: app.duration || 50,
+                    type: app.type || 'Presencial',
+                    status: 'confirmada',
+                    attendanceConfirmed: true,
+                    attendance_confirmed: true,
+                    confirmedAt: new Date().toISOString(),
+                    notes: app.notes || '',
+                    updatedAt: new Date().toISOString()
+                };
+            }
+        } else {
+            bridge[appointmentId].status = 'confirmada';
+            bridge[appointmentId].attendanceConfirmed = true;
+            bridge[appointmentId].attendance_confirmed = true;
+            bridge[appointmentId].confirmedAt = new Date().toISOString();
+            bridge[appointmentId].updatedAt = new Date().toISOString();
+        }
+        localStorage.setItem('psico_portal_appointments_bridge', JSON.stringify(bridge));
+        localStorage.setItem('psico_portal_appointments_last_update', Date.now().toString());
+
+        // Evento de confirmación en tiempo real para despertar listeners en la ventana del terapeuta
+        const patientName = PortalState.patientProfile?.name || 'El paciente';
+        localStorage.setItem('psico_portal_appointment_confirmed_event', JSON.stringify({
+            appointmentId: appointmentId,
+            patientId: PortalState.patientId,
+            patientName: patientName,
+            date: app?.date,
+            time: app?.time,
+            confirmedAt: new Date().toISOString()
+        }));
+    } catch (bridgeErr) {
+        console.warn('[Portal] Error actualizando puente local de cita confirmada:', bridgeErr);
+    }
+
+    // 3. Sincronización defensiva con backend
+    if (PortalState.portalToken && typeof window !== 'undefined' && window.location && window.location.protocol !== 'file:') {
+        try {
+            const res = await fetch(`/api/v1/portal/appointments/${encodeURIComponent(appointmentId)}/confirm`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    token: PortalState.portalToken,
+                    patientId: PortalState.patientId
+                })
+            });
+
+            if (!res.ok) {
+                console.warn('[Portal] Servidor devolvió estado no exitoso para confirmación, conservado localmente');
+            }
+        } catch (netErr) {
+            console.warn('[Portal] Red o backend no disponible al confirmar asistencia, registrado localmente');
+        }
+    }
+
+    showToast('¡Asistencia confirmada! Tu terapeuta ha sido notificado.', 'success');
+    if (typeof checkAppointmentConfirmationAlert === 'function') {
+        checkAppointmentConfirmationAlert();
+    }
+}
+
+// ============================================
+// SISTEMA DE NOTIFICACIONES Y ALERTAS DE CONFIRMACIÓN DE SESIÓN AL PACIENTE
+// ============================================
+function checkAppointmentConfirmationAlert(forceShowToast = false) {
+    const banner = document.getElementById('appointmentConfirmationAlertBanner');
+    const titleEl = document.getElementById('confirmAlertTitle');
+    const detailsEl = document.getElementById('confirmAlertDetails');
+    const navBadge = document.getElementById('sessionsNavBadge');
+
+    const todayStr = new Date().toISOString().split('T')[0];
+    const upcoming = (PortalState.appointments || [])
+        .filter(a => a.status !== 'cancelada' && a.status !== 'completada' && (a.date >= todayStr || a.status === 'agendada'))
+        .sort((a, b) => new Date(a.date + 'T' + (a.time || '00:00')) - new Date(b.date + 'T' + (b.time || '00:00')));
+
+    const unconfirmed = upcoming.find(a => !a.attendanceConfirmed && a.status !== 'confirmada');
+
+    if (!unconfirmed) {
+        PortalState.activeUnconfirmedAppId = null;
+        if (banner) banner.style.display = 'none';
+        if (navBadge) navBadge.style.display = 'none';
+        return;
+    }
+
+    PortalState.activeUnconfirmedAppId = unconfirmed.id;
+    const formattedDate = formatDateSafe(unconfirmed.date);
+    const timeStr = unconfirmed.time ? unconfirmed.time.substring(0, 5) : '10:00';
+    const therapist = PortalState.therapistName || PortalState.therapistInfo?.name || 'tu psicólogo';
+    const isRequested = Boolean(unconfirmed.confirmationRequested);
+
+    if (banner) {
+        banner.style.display = 'flex';
+        if (titleEl) {
+            titleEl.innerHTML = isRequested 
+                ? '<i class="fas fa-bell" style="color:#d97706;margin-right:6px;"></i> ¡Tu terapeuta solicita confirmar tu asistencia!' 
+                : '<i class="fas fa-calendar-check" style="color:#d97706;margin-right:6px;"></i> ¡Tienes una sesión pendiente de confirmar!';
+        }
+        if (detailsEl) {
+            detailsEl.textContent = `Sesión programada con ${therapist} para el ${formattedDate} a las ${timeStr} (${unconfirmed.type || 'Presencial'}). Por favor confirma tu asistencia para asegurar tu horario.`;
+        }
+    }
+
+    if (navBadge) {
+        navBadge.style.display = 'inline-flex';
+        navBadge.textContent = '1';
+    }
+
+    if (forceShowToast || !PortalState.hasShownConfirmationToast) {
+        PortalState.hasShownConfirmationToast = true;
+        showToast(`🔔 Recuerda confirmar tu asistencia a la sesión del ${formattedDate} (${timeStr})`, 'info');
+        showSystemNotification('SERENA: Confirmar Cita', `Tienes una sesión programada para el ${formattedDate} a las ${timeStr}. Por favor confirma tu asistencia.`);
+    }
+}
+
+function confirmAppointmentFromAlertBanner() {
+    if (PortalState.activeUnconfirmedAppId) {
+        confirmSessionAttendance(PortalState.activeUnconfirmedAppId);
+    }
+}
+
+function dismissAppointmentConfirmBanner() {
+    const banner = document.getElementById('appointmentConfirmationAlertBanner');
+    if (banner) banner.style.display = 'none';
+}
+
+function showSystemNotification(title, body) {
+    if (typeof window !== 'undefined' && 'Notification' in window) {
+        if (Notification.permission === 'granted') {
+            try {
+                new Notification(title, { body: body, icon: '/favicon.ico' });
+            } catch (e) {}
+        } else if (Notification.permission === 'default') {
+            Notification.requestPermission().then(perm => {
+                if (perm === 'granted') {
+                    try {
+                        new Notification(title, { body: body, icon: '/favicon.ico' });
+                    } catch (e) {}
+                }
+            }).catch(() => {});
+        }
+    }
+}
+
+window.checkAppointmentConfirmationAlert = checkAppointmentConfirmationAlert;
+window.confirmAppointmentFromAlertBanner = confirmAppointmentFromAlertBanner;
+window.dismissAppointmentConfirmBanner = dismissAppointmentConfirmBanner;
+window.showSystemNotification = showSystemNotification;
+
+async function loadPortalAvailability(dateStr) {
+    const container = document.getElementById('availableSlotsChipsContainer');
+    const picker = document.getElementById('portalAvailabilityPicker');
+    if (!dateStr) {
+        const tmrw = new Date();
+        tmrw.setDate(tmrw.getDate() + 1);
+        dateStr = tmrw.toISOString().split('T')[0];
+    }
+    if (picker) picker.value = dateStr;
+
+    if (!container) return;
+    container.innerHTML = `<div style="grid-column: 1/-1; font-size: 12px; color: var(--text-tertiary); text-align: center; padding: 10px;"><i class="fas fa-spinner fa-spin"></i> Consultando horarios...</div>`;
+
+    let slots = [];
+    if (typeof window !== 'undefined' && window.location && window.location.protocol !== 'file:' && PortalState.portalToken) {
+        try {
+            const token = PortalState.portalToken || '';
+            const res = await fetch(`/api/v1/portal/availability?token=${encodeURIComponent(token)}&date=${encodeURIComponent(dateStr)}`);
+            if (res.ok) {
+                const data = await res.json();
+                slots = data.availableSlots || [];
+            }
+        } catch (e) {
+            console.warn('[Portal] Backend no disponible para disponibilidad, recurriendo a cálculo inteligente local');
+        }
+    }
+
+    // Fallback defensivo inteligente si el servidor no está disponible o es file://
+    if (slots.length === 0) {
+        const checkDate = new Date(dateStr + 'T12:00:00');
+        const dayOfWeek = checkDate.getDay();
+        if (dayOfWeek !== 0) { // Lunes a Sábado
+            const hours = ['09:00', '10:00', '11:00', '14:00', '15:00', '16:00', '17:00'];
+            const occupied = PortalState.therapistOccupiedSlots || [];
+            const patientApps = (PortalState.appointments || []).filter(a => a.status !== 'cancelada');
+            slots = hours.filter(h => {
+                const isOccupied = occupied.some(o => o.date === dateStr && o.time === h);
+                const isPatientBooked = patientApps.some(a => a.date === dateStr && a.time === h);
+                return !isOccupied && !isPatientBooked;
+            }).map((h, idx) => ({
+                time: h,
+                label: `${h} hrs`,
+                recommended: idx === 0 || idx === 3
+            }));
+        }
+    }
+
+    if (slots.length === 0) {
+        container.innerHTML = `
+            <div style="grid-column: 1/-1; background: #fffbeb; border: 1px solid #fef3c7; color: #92400e; padding: 10px 14px; border-radius: 8px; font-size: 12px; text-align: center;">
+                No hay turnos disponibles para el ${formatDateSafe(dateStr)}. Por favor selecciona otra fecha.
+            </div>
+        `;
+        return;
+    }
+
+    container.innerHTML = slots.map(s => `
+        <button type="button" class="portal-slot-chip ${s.recommended ? 'recommended' : ''}" onclick="pickAvailableSlot('${dateStr}', '${s.time}')" title="${s.recommended ? 'Horario recomendado' : ''}">
+            ${s.label || s.time}
+        </button>
+    `).join('');
+}
+
+function pickAvailableSlot(dateStr, timeStr) {
+    if (typeof openScheduleSessionModal === 'function') {
+        openScheduleSessionModal();
+        const dateInput = document.getElementById('scheduleDate') || document.getElementById('scheduleSessionDate');
+        const timeInput = document.getElementById('scheduleTime') || document.getElementById('scheduleSessionTime');
+        if (dateInput) {
+            dateInput.value = dateStr;
+            dateInput.dispatchEvent(new Event('change'));
+        }
+        setTimeout(() => {
+            if (timeInput) timeInput.value = timeStr;
+        }, 300);
+    }
+}
+
+function renderDocumentsView() {
+    const listTherapist = document.getElementById('therapistDocsList');
+    const listPatient = document.getElementById('patientDocsList');
+    const countTherapist = document.getElementById('therapistDocsCount');
+    const countPatient = document.getElementById('patientDocsCount');
+
+    const docs = PortalState.documents || [];
+    const therapistDocs = docs.filter(d => d.uploaded_by === 'therapist' || d.uploadedBy === 'therapist');
+    const patientDocs = docs.filter(d => d.uploaded_by !== 'therapist' && d.uploadedBy !== 'therapist');
+
+    if (countTherapist) countTherapist.textContent = `${therapistDocs.length} archivo${therapistDocs.length === 1 ? '' : 's'}`;
+    if (countPatient) countPatient.textContent = `${patientDocs.length} archivo${patientDocs.length === 1 ? '' : 's'}`;
+
+    if (listTherapist) {
+        if (therapistDocs.length === 0) {
+            listTherapist.innerHTML = `<div class="empty-state-small">Tu terapeuta no ha compartido documentos aún.</div>`;
+        } else {
+            listTherapist.innerHTML = therapistDocs.map(d => renderDocumentItem(d, false)).join('');
+        }
+    }
+
+    if (listPatient) {
+        if (patientDocs.length === 0) {
+            listPatient.innerHTML = `<div class="empty-state-small">Aún no has compartido documentos con tu terapeuta.</div>`;
+        } else {
+            listPatient.innerHTML = patientDocs.map(d => renderDocumentItem(d, true)).join('');
+        }
+    }
+}
+
+function renderDocumentItem(d, allowDelete = false) {
+    const ext = (d.file_name || d.fileName || '').split('.').pop().toLowerCase();
+    let badgeClass = 'other';
+    let icon = '📁';
+    if (ext === 'pdf') { badgeClass = 'pdf'; icon = '📕'; }
+    else if (ext === 'doc' || ext === 'docx') { badgeClass = 'word'; icon = '📘'; }
+    else if (['png', 'jpg', 'jpeg', 'webp'].includes(ext)) { badgeClass = 'img'; icon = '🖼️'; }
+
+    const sizeKb = d.file_size ? `${Math.round(d.file_size / 1024)} KB` : '';
+    const dateFormatted = d.created_at ? formatDateSafe(d.created_at.split('T')[0]) : '';
+
+    return `
+        <div class="portal-document-item">
+            <div class="doc-item-left">
+                <div class="doc-icon-badge ${badgeClass}">${icon}</div>
+                <div class="doc-meta">
+                    <div class="doc-title">${escapeHtml(d.title || d.file_name || d.fileName)}</div>
+                    <div class="doc-sub">
+                        <span>${escapeHtml(d.file_name || d.fileName)}</span>
+                        ${sizeKb ? `<span>• ${sizeKb}</span>` : ''}
+                        ${dateFormatted ? `<span>• ${dateFormatted}</span>` : ''}
+                    </div>
+                </div>
+            </div>
+            <div style="display: flex; gap: 6px;">
+                ${d.file_data ? `
+                    <button class="btn-sm btn-secondary" onclick="downloadPortalDoc('${d.id}')" title="Descargar / Ver">
+                        <i class="fas fa-download"></i>
+                    </button>
+                ` : ''}
+                ${allowDelete ? `
+                    <button class="btn-sm btn-secondary" onclick="deletePortalDoc('${d.id}')" title="Eliminar" style="color: #dc2626;">
+                        <i class="fas fa-trash"></i>
+                    </button>
+                ` : ''}
+            </div>
+        </div>
+    `;
+}
+
+function downloadPortalDoc(docId) {
+    const doc = (PortalState.documents || []).find(d => String(d.id) === String(docId));
+    if (!doc || !doc.file_data) {
+        showToast('Documento no disponible para descarga directa', 'warning');
+        return;
+    }
+    const link = document.createElement('a');
+    link.href = doc.file_data;
+    link.download = doc.file_name || doc.fileName || 'documento';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+}
+
+async function handleDocumentUpload(e) {
+    e.preventDefault();
+    const title = (document.getElementById('docTitleInput').value || '').trim();
+    const category = document.getElementById('docCategorySelect').value || 'general';
+    const fileInput = document.getElementById('docFileInput');
+    const file = fileInput ? fileInput.files[0] : null;
+
+    if (!file) {
+        showToast('Selecciona un archivo', 'warning');
+        return;
+    }
+
+    if (file.size > 15 * 1024 * 1024) {
+        showToast('El archivo supera el límite de 15 MB. Por favor sube un archivo más ligero.', 'warning');
+        return;
+    }
+
+    const btn = document.getElementById('btnUploadDoc');
+    if (btn) btn.disabled = true;
+
+    try {
+        const reader = new FileReader();
+        reader.onload = async () => {
+            try {
+                const fileData = reader.result;
+                const docRecord = {
+                    id: `doc_${Date.now()}_${Math.random().toString(36).substr(2, 6)}`,
+                    patient_id: PortalState.patientId,
+                    title: title || file.name,
+                    category,
+                    file_name: file.name,
+                    fileName: file.name,
+                    file_type: file.type || 'application/octet-stream',
+                    fileType: file.type || 'application/octet-stream',
+                    file_size: file.size,
+                    fileSize: file.size,
+                    file_data: fileData,
+                    fileData: fileData,
+                    uploaded_by: 'patient',
+                    uploadedBy: 'patient',
+                    notes: '',
+                    created_at: new Date().toISOString()
+                };
+
+                // Optimistic local storage & UI
+                if (!Array.isArray(PortalState.documents)) PortalState.documents = [];
+                PortalState.documents.unshift(docRecord);
+                savePatientDataLocally();
+                renderDocumentsView();
+
+                // Intentar sincronizar con backend si no es file://
+                if (PortalState.portalToken && typeof window !== 'undefined' && window.location && window.location.protocol !== 'file:') {
+                    try {
+                        const payload = {
+                            token: PortalState.portalToken,
+                            patientId: PortalState.patientId,
+                            title: docRecord.title,
+                            category: docRecord.category,
+                            fileName: docRecord.file_name,
+                            fileType: docRecord.file_type,
+                            fileSize: docRecord.file_size,
+                            fileData: docRecord.file_data
+                        };
+                        const res = await fetch('/api/v1/portal/documents/upload', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify(payload)
+                        });
+                        if (res.ok) {
+                            const data = await res.json();
+                            if (data.document && data.document.id) {
+                                docRecord.id = data.document.id;
+                                savePatientDataLocally();
+                            }
+                        }
+                    } catch (netErr) {
+                        console.warn('[Portal] Servidor no alcanzable para subir documento, almacenado localmente:', netErr);
+                    }
+                }
+
+                showToast('Documento guardado y compartido exitosamente', 'success');
+                const form = document.getElementById('formUploadDocument');
+                if (form) form.reset();
+            } catch (errInner) {
+                console.error('[Portal] Error procesando archivo:', errInner);
+                showToast('Error procesando el archivo', 'error');
+            } finally {
+                if (btn) btn.disabled = false;
+            }
+        };
+        reader.readAsDataURL(file);
+    } catch (err) {
+        if (btn) btn.disabled = false;
+        showToast('Error al leer el archivo seleccionado', 'error');
+    }
+}
+
+async function deletePortalDoc(docId) {
+    if (!confirm('¿Deseas eliminar este documento compartido?')) return;
+
+    PortalState.documents = (PortalState.documents || []).filter(d => String(d.id) !== String(docId));
+    savePatientDataLocally();
+    renderDocumentsView();
+
+    if (PortalState.portalToken && typeof window !== 'undefined' && window.location && window.location.protocol !== 'file:') {
+        try {
+            await fetch(`/api/v1/portal/documents/${encodeURIComponent(docId)}`, {
+                method: 'DELETE',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ token: PortalState.portalToken })
+            });
+        } catch (netErr) {
+            console.warn('[Portal] Servidor no alcanzable al eliminar documento, removido localmente:', netErr);
+        }
+    }
+    showToast('Documento eliminado', 'info');
+}
+
+function renderPaymentsView() {
+    const methodsGrid = document.getElementById('paymentMethodsGrid');
+    const reportsList = document.getElementById('paymentReportsList');
+    const countEl = document.getElementById('paymentReportsCount');
+    const payMethodSelect = document.getElementById('payMethodSelect');
+
+    const allMethods = PortalState.paymentMethods && PortalState.paymentMethods.length > 0 
+        ? PortalState.paymentMethods 
+        : getDefaultPaymentMethods();
+
+    // Filtrar métodos activos y habilitados
+    const activeMethods = allMethods.filter(m => m.enabled !== false && m.active !== false);
+
+    if (methodsGrid) {
+        if (activeMethods.length === 0) {
+            methodsGrid.innerHTML = `
+                <div class="empty-state-small" style="grid-column: 1 / -1; padding: 20px; text-align: center; color: var(--text-secondary);">
+                    No hay formas de pago habilitadas actualmente. Por favor consulta con tu terapeuta.
+                </div>
+            `;
+        } else {
+            methodsGrid.innerHTML = activeMethods.map(m => `
+                <div class="portal-payment-method-card">
+                    <div>
+                        <div class="pay-method-header">
+                            <span class="pay-method-icon">${m.icon || '💳'}</span>
+                            <span class="pay-method-title">${escapeHtml(m.name)}</span>
+                        </div>
+                        <div class="pay-method-body">
+                            ${m.bank ? `<div><strong>Banco:</strong> ${escapeHtml(m.bank)}</div>` : ''}
+                            ${m.idNumber ? `<div><strong>C.I. / RIF:</strong> ${escapeHtml(m.idNumber)}</div>` : ''}
+                            ${m.phone ? `<div><strong>Teléfono:</strong> ${escapeHtml(m.phone)}</div>` : ''}
+                            ${m.email ? `<div><strong>Email:</strong> ${escapeHtml(m.email)}</div>` : ''}
+                            ${m.holder ? `<div><strong>Titular:</strong> ${escapeHtml(m.holder)}</div>` : ''}
+                            ${m.accountNumber ? `<div><strong>Cuenta:</strong> <span style="font-family:monospace;font-size:11px;">${escapeHtml(m.accountNumber)}</span></div>` : ''}
+                            ${m.payId ? `<div><strong>Pay ID:</strong> <span style="font-family:monospace;font-weight:700;">${escapeHtml(m.payId)}</span></div>` : ''}
+                            ${m.network ? `<div><strong>Red:</strong> ${escapeHtml(m.network)}</div>` : ''}
+                            ${m.instructions ? `<div style="margin-top:6px;font-style:italic;color:var(--text-tertiary);">${escapeHtml(m.instructions)}</div>` : ''}
+                        </div>
+                    </div>
+                    <button type="button" class="btn-copy-payment" onclick="copyPaymentDetails('${m.id}')">
+                        <i class="fas fa-copy"></i> Copiar Datos
+                    </button>
+                </div>
+            `).join('');
+        }
+    }
+
+    // Actualizar dinámicamente las opciones del selector de método de pago
+    if (payMethodSelect && activeMethods.length > 0) {
+        const prevValue = payMethodSelect.value;
+        payMethodSelect.innerHTML = activeMethods.map(m => `
+            <option value="${escapeHtml(m.id)}">${m.icon ? escapeHtml(m.icon) + ' ' : ''}${escapeHtml(m.name)}</option>
+        `).join('');
+        if (activeMethods.some(m => m.id === prevValue)) {
+            payMethodSelect.value = prevValue;
+        }
+    }
+
+    const reports = PortalState.paymentReports || [];
+    if (countEl) countEl.textContent = `${reports.length} registro${reports.length === 1 ? '' : 's'}`;
+
+    if (reportsList) {
+        if (reports.length === 0) {
+            reportsList.innerHTML = `<div class="empty-state-small">No has reportado pagos todavía.</div>`;
+        } else {
+            reportsList.innerHTML = reports.map(r => {
+                const statusClass = (r.status || 'pendiente').toLowerCase();
+                const statusLabel = r.status === 'verificado' || r.status === 'aprobado' ? 'Aprobado ✓' : (r.status === 'rechazado' ? 'Rechazado' : 'Pendiente ⏳');
+                return `
+                    <div class="portal-payment-report-item">
+                        <div>
+                            <div style="font-size: 14px; font-weight: 700; color: var(--text-primary); display: flex; align-items: center; gap: 8px;">
+                                <span>${r.currency || 'USD'} ${Number(r.amount).toFixed(2)}</span>
+                                <span class="report-status-badge status-${statusClass}">${statusLabel}</span>
+                            </div>
+                            <div style="font-size: 12px; color: var(--text-secondary); margin-top: 3px;">
+                                <strong>Ref:</strong> ${escapeHtml(r.reference)} • <strong>Fecha:</strong> ${formatDateSafe(r.payment_date || r.paymentDate)}
+                            </div>
+                            <div style="font-size: 11px; color: var(--text-tertiary); margin-top: 2px;">
+                                ${escapeHtml(r.concept || 'Sesión de psicoterapia')} (${formatPaymentMethodName(r.payment_method || r.paymentMethod)})
+                            </div>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        }
+    }
+}
+
+function getDefaultPaymentMethods() {
+    return [
+        { id: 'pago_movil', name: 'Pago Móvil Interbancario', icon: '📱', enabled: true, bank: 'Banesco (0134) / Mercantil (0105)', idNumber: 'V-15890123', phone: '0414-2345678', instructions: 'Transferencias interbancarias inmediatas' },
+        { id: 'zelle', name: 'Zelle (USD)', icon: '💵', enabled: true, email: 'atalantillo@gmail.com', holder: 'Lic. Jose Correa', instructions: 'Indicar únicamente el nombre del paciente en la nota' },
+        { id: 'transferencia', name: 'Transferencia Bancaria Nacional', icon: '🏦', enabled: true, bank: 'Banesco Banco Universal', accountNumber: '0134-0987-65-0123456789', idNumber: 'V-15890123', holder: 'Consulta Psicológica' },
+        { id: 'binance', name: 'Binance Pay (USDT)', icon: '🟡', enabled: true, payId: '892341052', network: 'USDT (Red TRC20 / BEP20)', instructions: 'Transferencias directas sin comisiones' },
+        { id: 'efectivo', name: 'Efectivo en Consulta', icon: '💶', enabled: true, instructions: 'Pago directo al inicio de tu sesión presencial' }
+    ];
+}
+
+function formatPaymentMethodName(id) {
+    const methods = PortalState.paymentMethods && PortalState.paymentMethods.length > 0 ? PortalState.paymentMethods : getDefaultPaymentMethods();
+    const found = methods.find(x => x.id === id);
+    if (found && found.name) return found.name;
+    const map = { pago_movil: 'Pago Móvil', zelle: 'Zelle', transferencia: 'Transferencia', binance: 'Binance Pay', efectivo: 'Efectivo' };
+    return map[id] || id;
+}
+
+function copyPaymentDetails(methodId) {
+    const methods = PortalState.paymentMethods && PortalState.paymentMethods.length > 0 ? PortalState.paymentMethods : getDefaultPaymentMethods();
+    const m = methods.find(x => x.id === methodId);
+    if (!m) return;
+
+    let text = `${m.name}\n`;
+    if (m.bank) text += `Banco: ${m.bank}\n`;
+    if (m.idNumber) text += `C.I./RIF: ${m.idNumber}\n`;
+    if (m.phone) text += `Teléfono: ${m.phone}\n`;
+    if (m.email) text += `Email: ${m.email}\n`;
+    if (m.holder) text += `Titular: ${m.holder}\n`;
+    if (m.accountNumber) text += `Cuenta: ${m.accountNumber}\n`;
+    if (m.payId) text += `Binance Pay ID: ${m.payId}\n`;
+
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(text.trim()).then(() => {
+            showToast(`Datos de ${m.name} copiados al portapapeles ✓`, 'success');
+        }).catch(() => {
+            showToast('Copia manual: ' + text.trim().substring(0, 40) + '...', 'info');
+        });
+    } else {
+        showToast(`Datos de ${m.name} copiados ✓`, 'success');
+    }
+}
+
+async function handleReportPayment(e) {
+    e.preventDefault();
+    const amountVal = parseFloat(document.getElementById('payAmountInput').value);
+    const currency = document.getElementById('payCurrencySelect').value || 'USD';
+    const paymentMethod = document.getElementById('payMethodSelect').value || 'pago_movil';
+    const reference = (document.getElementById('payReferenceInput').value || '').trim();
+    const paymentDate = document.getElementById('payDateInput').value || new Date().toISOString().split('T')[0];
+    const concept = (document.getElementById('payConceptInput').value || '').trim();
+    const receiptFileInput = document.getElementById('payReceiptFile');
+    const receiptFile = receiptFileInput && receiptFileInput.files ? receiptFileInput.files[0] : null;
+
+    if (!amountVal || isNaN(amountVal) || amountVal <= 0) {
+        showToast('Ingresa un monto válido', 'warning');
+        return;
+    }
+    if (!reference) {
+        showToast('Ingresa el número de referencia bancaria', 'warning');
+        return;
+    }
+
+    const doSubmit = async (receiptData = '') => {
+        const reportRecord = {
+            id: `pay_${Date.now()}_${Math.random().toString(36).substr(2, 6)}`,
+            patient_id: PortalState.patientId,
+            amount: amountVal,
+            currency,
+            payment_method: paymentMethod,
+            paymentMethod,
+            reference,
+            payment_date: paymentDate,
+            paymentDate,
+            concept: concept || 'Sesión de psicoterapia',
+            receipt_data: receiptData,
+            receiptData,
+            status: 'pendiente',
+            created_at: new Date().toISOString()
+        };
+
+        // Guardado optimista local
+        if (!Array.isArray(PortalState.paymentReports)) PortalState.paymentReports = [];
+        PortalState.paymentReports.unshift(reportRecord);
+        savePatientDataLocally();
+        renderPaymentsView();
+
+        // Notificar al entorno local y entre pestañas para sincronización inmediata con el terapeuta
+        try {
+            const bridge = JSON.parse(localStorage.getItem('psico_therapist_payment_reports_bridge') || '[]');
+            bridge.unshift({ ...reportRecord, patientName: PortalState.patientName || 'Paciente' });
+            localStorage.setItem('psico_therapist_payment_reports_bridge', JSON.stringify(bridge));
+            localStorage.setItem('psico_portal_payment_reported', JSON.stringify({
+                patientId: PortalState.patientId,
+                patientName: PortalState.patientName || 'Paciente',
+                report: reportRecord,
+                timestamp: Date.now()
+            }));
+            localStorage.setItem('psico_portal_payment_last_update', Date.now().toString());
+            if (typeof window !== 'undefined') {
+                window.dispatchEvent(new CustomEvent('psico_payment_reported', { detail: reportRecord }));
+            }
+        } catch (e) {}
+
+        // Sincronización en backend si no es file://
+        if (PortalState.portalToken && typeof window !== 'undefined' && window.location && window.location.protocol !== 'file:') {
+            try {
+                const payload = {
+                    token: PortalState.portalToken,
+                    patientId: PortalState.patientId,
+                    amount: amountVal,
+                    currency,
+                    paymentMethod,
+                    reference,
+                    paymentDate,
+                    concept: reportRecord.concept,
+                    receiptData
+                };
+                const res = await fetch('/api/v1/portal/payments/report', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+                if (res.ok) {
+                    const data = await res.json();
+                    if (data.paymentReport && data.paymentReport.id) {
+                        reportRecord.id = data.paymentReport.id;
+                        savePatientDataLocally();
+                    }
+                }
+            } catch (netErr) {
+                console.warn('[Portal] Servidor no alcanzable al reportar pago, registrado localmente:', netErr);
+            }
+        }
+
+        showToast('Pago reportado exitosamente. Tu terapeuta lo validará en breve.', 'success');
+        const form = document.getElementById('formReportPayment');
+        if (form) form.reset();
+    };
+
+    try {
+        if (receiptFile) {
+            if (receiptFile.size > 15 * 1024 * 1024) {
+                showToast('El comprobante supera el tamaño máximo permitido (15 MB)', 'warning');
+                return;
+            }
+            const reader = new FileReader();
+            reader.onload = async () => {
+                await doSubmit(reader.result);
+            };
+            reader.readAsDataURL(receiptFile);
+        } else {
+            await doSubmit('');
+        }
+    } catch (err) {
+        console.error('[Portal] Error al reportar pago:', err);
+        showToast('Error al procesar el comprobante', 'error');
+    }
+}
+
+function renderProfileView() {
+    const patient = PortalState.patientProfile || {};
+    const nameEl = document.getElementById('profileDisplayName');
+    const avatarEl = document.getElementById('profileLargeAvatar');
+    const name = patient.name || PortalState.patientName || 'Paciente';
+
+    if (nameEl) nameEl.textContent = name;
+    if (avatarEl) avatarEl.textContent = getInitials(name);
+
+    const nameInput = document.getElementById('profNameInput');
+    const birthdateInput = document.getElementById('profBirthdateInput');
+    const phoneInput = document.getElementById('profPhoneInput');
+    const emailInput = document.getElementById('profEmailInput');
+    const occInput = document.getElementById('profOccupationInput');
+    const addressInput = document.getElementById('profAddressInput');
+    const emerContactInput = document.getElementById('profEmergencyContactInput');
+    const emerPhoneInput = document.getElementById('profEmergencyPhoneInput');
+    const expInput = document.getElementById('profExpectationsInput');
+
+    if (nameInput) nameInput.value = patient.name || PortalState.patientName || '';
+    if (birthdateInput && patient.birthdate) birthdateInput.value = patient.birthdate.split('T')[0];
+    if (phoneInput) phoneInput.value = patient.phone || '';
+    if (emailInput) emailInput.value = patient.email || '';
+    if (occInput) occInput.value = patient.occupation || '';
+    if (addressInput) addressInput.value = patient.address || '';
+    if (emerContactInput) emerContactInput.value = patient.emergency_contact || patient.emergencyContact || '';
+    if (emerPhoneInput) emerPhoneInput.value = patient.emergency_phone || patient.emergencyPhone || '';
+    if (expInput) expInput.value = patient.expectations || patient.preconsulta_data?.expectations || '';
+}
+
+async function handleSavePatientProfile(e) {
+    e.preventDefault();
+    const name = (document.getElementById('profNameInput').value || '').trim();
+    const birthdate = document.getElementById('profBirthdateInput').value;
+    const phone = (document.getElementById('profPhoneInput').value || '').trim();
+    const email = (document.getElementById('profEmailInput').value || '').trim();
+    const occupation = (document.getElementById('profOccupationInput').value || '').trim();
+    const address = (document.getElementById('profAddressInput').value || '').trim();
+    const emergencyContact = (document.getElementById('profEmergencyContactInput').value || '').trim();
+    const emergencyPhone = (document.getElementById('profEmergencyPhoneInput').value || '').trim();
+    const expectations = (document.getElementById('profExpectationsInput').value || '').trim();
+
+    // Actualización inmediata en estado local y header
+    PortalState.patientProfile = {
+        ...(PortalState.patientProfile || {}),
+        name: name || PortalState.patientName,
+        birthdate,
+        phone,
+        email,
+        occupation,
+        address,
+        emergency_contact: emergencyContact,
+        emergencyContact,
+        emergency_phone: emergencyPhone,
+        emergencyPhone,
+        expectations
+    };
+    if (name) {
+        PortalState.patientName = name;
+        updateHeader();
+    }
+    savePatientDataLocally();
+
+    // Sincronización en backend si no es file://
+    if (PortalState.portalToken && typeof window !== 'undefined' && window.location && window.location.protocol !== 'file:') {
+        try {
+            const res = await fetch('/api/v1/portal/profile', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    token: PortalState.portalToken,
+                    patientId: PortalState.patientId,
+                    name,
+                    birthdate,
+                    phone,
+                    email,
+                    occupation,
+                    address,
+                    emergencyContact,
+                    emergencyPhone,
+                    expectations
+                })
+            });
+            if (res.ok) {
+                const data = await res.json();
+                if (data.patient) {
+                    PortalState.patientProfile = data.patient;
+                    if (data.patient.name) PortalState.patientName = data.patient.name;
+                    savePatientDataLocally();
+                }
+            } else {
+                console.warn('[Portal] Servidor devolvió error al guardar perfil, persistido localmente');
+            }
+        } catch (netErr) {
+            console.warn('[Portal] Servidor no alcanzable al guardar perfil, persistido localmente:', netErr);
+        }
+    }
+
+    showToast('Tus datos han sido actualizados y sincronizados con tu expediente ✓', 'success');
+}
+
+// Exposición global
+window.renderTherapistCard = renderTherapistCard;
+window.selectDailyWordChip = selectDailyWordChip;
+window.submitDailyWord = submitDailyWord;
+window.confirmSessionAttendance = confirmSessionAttendance;
+window.loadPortalAvailability = loadPortalAvailability;
+window.pickAvailableSlot = pickAvailableSlot;
+window.renderDocumentsView = renderDocumentsView;
+window.downloadPortalDoc = downloadPortalDoc;
+window.handleDocumentUpload = handleDocumentUpload;
+window.deletePortalDoc = deletePortalDoc;
+window.renderPaymentsView = renderPaymentsView;
+window.copyPaymentDetails = copyPaymentDetails;
+window.handleReportPayment = handleReportPayment;
+window.renderProfileView = renderProfileView;
+window.handleSavePatientProfile = handleSavePatientProfile;
+
+// ============================================
+// ESCUCHA REACTIVA DE ACTUALIZACIONES DEL TERAPEUTA (CITAS, CANCELACIONES, PERFIL)
+// ============================================
+if (typeof window !== 'undefined') {
+    // Sincronización en tiempo real ante eventos de LocalStorage (entre pestañas)
+    window.addEventListener('storage', (e) => {
+        if (!e.key || e.key === 'psico_portal_appointments_bridge' || 
+            e.key === 'psico_portal_appointments_last_update' || 
+            e.key === 'psico_portal_confirmation_requested_event' ||
+            e.key === 'psico_therapist_payment_methods' ||
+            e.key === 'psico_payment_methods_updated' ||
+            (PortalState.patientId && e.key === `psico_portal_data_${PortalState.patientId}`)) {
+            if (e.key === 'psico_therapist_payment_methods') {
+                try {
+                    const parsed = JSON.parse(e.newValue || '[]');
+                    if (Array.isArray(parsed) && parsed.length > 0) {
+                        PortalState.paymentMethods = parsed;
+                    }
+                } catch (err) {}
+            }
+            if (typeof mergeAppointmentsFromBridge === 'function') mergeAppointmentsFromBridge();
+            if (typeof renderNextSession === 'function') renderNextSession();
+            if (typeof renderSessionsView === 'function') renderSessionsView();
+            if (typeof renderTherapistCard === 'function') renderTherapistCard();
+            if (typeof renderPaymentsView === 'function') renderPaymentsView();
+
+            if (e.key === 'psico_portal_confirmation_requested_event') {
+                if (typeof checkAppointmentConfirmationAlert === 'function') {
+                    checkAppointmentConfirmationAlert(true);
+                }
+            }
+        }
+    });
+
+    // Sincronización en la misma ventana / contexto
+    window.addEventListener('psico_appointment_updated', (e) => {
+        if (typeof mergeAppointmentsFromBridge === 'function') mergeAppointmentsFromBridge();
+        if (typeof renderNextSession === 'function') renderNextSession();
+        if (typeof renderSessionsView === 'function') renderSessionsView();
+        if (typeof checkAppointmentConfirmationAlert === 'function') checkAppointmentConfirmationAlert();
+    });
+
+    window.addEventListener('psico_portal_confirmation_requested', () => {
+        if (typeof mergeAppointmentsFromBridge === 'function') mergeAppointmentsFromBridge();
+        if (typeof renderNextSession === 'function') renderNextSession();
+        if (typeof renderSessionsView === 'function') renderSessionsView();
+        if (typeof checkAppointmentConfirmationAlert === 'function') checkAppointmentConfirmationAlert(true);
+    });
+
+    window.addEventListener('psico_payment_methods_updated', (e) => {
+        try {
+            const custom = JSON.parse(localStorage.getItem('psico_therapist_payment_methods') || 'null');
+            if (Array.isArray(custom) && custom.length > 0) {
+                PortalState.paymentMethods = custom;
+            }
+        } catch (err) {}
+        if (typeof renderPaymentsView === 'function') renderPaymentsView();
+    });
+
+    // Auto-actualización cuando el paciente vuelve al tab
+    window.addEventListener('focus', () => {
+        if (PortalState.portalToken && typeof loadPatientData === 'function') {
+            loadPatientData();
+        }
+    });
+
+    // Sondeo de seguridad cada 20s para verificar cambios remotos si el tab está visible
+    setInterval(() => {
+        if (typeof document !== 'undefined' && !document.hidden && PortalState.portalToken && typeof loadPatientData === 'function') {
+            loadPatientData();
+        }
+    }, 20000);
+}

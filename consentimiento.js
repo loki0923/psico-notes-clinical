@@ -23,10 +23,10 @@ function openInformedConsentModal(patientId) {
     const cat = (typeof getPatientCategory === 'function') ? getPatientCategory(patient) : 'adult';
     let consentIntro = '';
     let consentClauses = '';
-    let modalDocTitle = '📜 Consentimiento Informado & Firma Digital';
+    let modalDocTitle = 'Consentimiento Informado & Firma Digital';
 
     if (cat === 'child') {
-        modalDocTitle = '🧒 Consentimiento Informado — Representación Legal en la Niñez';
+        modalDocTitle = 'Consentimiento Informado — Representación Legal en la Niñez';
         consentIntro = `Yo, <strong>${patient.guardianName || 'Representante Legal'}</strong>, en calidad de <strong>${patient.guardianRelation || 'Tutor/a Legal'}</strong> del/de la menor <strong>${patient.name}</strong>, autorizo el inicio del proceso psicoterapéutico y de acompañamiento en la infancia con <strong>${AppState.currentUser?.name || 'el/la profesional'}</strong>.`;
         consentClauses = `
             <p><strong>1. Encuadre en la Niñez:</strong> La intervención contempla sesiones de evaluación, actividades terapéuticas adaptadas y devoluciones periódicas de orientación a los tutores.</p>
@@ -34,7 +34,7 @@ function openInformedConsentModal(patientId) {
             <p><strong>3. Orientación y Acompañamiento Parental:</strong> Se brindarán pautas de acompañamiento psicoemocional y parental para favorecer el bienestar integral del menor.</p>
         `;
     } else if (cat === 'adolescent') {
-        modalDocTitle = '🧑 Consentimiento Informado — Adolescencia y Representación Legal';
+        modalDocTitle = 'Consentimiento Informado — Adolescencia y Representación Legal';
         consentIntro = `En representación de <strong>${patient.name}</strong> (adolescente) y con su asentimiento, yo <strong>${patient.guardianName || 'Tutor/a Legal'}</strong> (${patient.guardianRelation || 'Tutor'}), acordamos el encuadre psicoterapéutico con <strong>${AppState.currentUser?.name || 'el/la profesional'}</strong>.`;
         consentClauses = `
             <p><strong>1. Espacio Privado y Reserva Profesional:</strong> El espacio terapéutico brinda un marco de escucha confidencial. Se garantiza reserva frente a terceros, salvo situación de riesgo vital o vulneración grave.</p>
@@ -67,11 +67,22 @@ function openInformedConsentModal(patientId) {
                     Paciente: <strong>${patient.name}</strong> · ${cat === 'child' ? 'Etapa: Niñez' : cat === 'adolescent' ? 'Etapa: Adolescencia' : 'Etapa: Adultez'} | Fecha: ${new Date().toLocaleDateString('es-ES')}
                 </p>
 
-                <div style="max-height: 200px; overflow-y: auto; background: var(--bg-secondary); padding: 14px; border-radius: var(--radius-md); font-size: 12px; line-height: 1.5; margin-bottom: 16px; border: 1px solid var(--border-primary);">
-                    <h4 style="margin-top:0;">Encuadre Clínico y Secreto Profesional Adaptado</h4>
+                <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;">
+                    <h4 style="margin:0;font-size:13px;color:var(--text-primary);">Encuadre Clínico y Secreto Profesional Adaptado</h4>
+                    <button type="button" class="btn-sm btn-secondary" onclick="toggleConsentEditorMode()" id="btnToggleConsentEdit">
+                        <i class="fas fa-edit"></i> Modificar Formato
+                    </button>
+                </div>
+
+                <div id="consentPreviewBox" style="max-height: 200px; overflow-y: auto; background: var(--bg-secondary); padding: 14px; border-radius: var(--radius-md); font-size: 12px; line-height: 1.5; margin-bottom: 16px; border: 1px solid var(--border-primary);">
                     <p>${consentIntro}</p>
                     ${consentClauses}
                     ${sharedClauses}
+                </div>
+
+                <div id="consentEditBox" style="display:none;margin-bottom:16px;">
+                    <textarea id="txtCustomConsentFormat" rows="8" style="width:100%;font-size:12px;padding:10px;border-radius:var(--radius-md);border:1px solid var(--border-primary);background:var(--bg-card);color:var(--text-primary);line-height:1.5;">${(patient.customConsentText || `${consentIntro}\n\n${consentClauses.replace(/<[^>]*>/g, '').trim()}\n\n${sharedClauses.replace(/<[^>]*>/g, '').trim()}`)}</textarea>
+                    <small style="color:var(--text-secondary);font-size:11px;">Puedes personalizar las cláusulas o términos del consentimiento informado libremente.</small>
                 </div>
 
                 <div style="margin-bottom:14px;background:var(--bg-secondary);padding:10px 14px;border-radius:var(--radius-md);font-size:12px;border:1px solid var(--border-primary);">
@@ -92,7 +103,7 @@ function openInformedConsentModal(patientId) {
 
                 <div class="form-group">
                     <label style="font-weight:600;display:flex;justify-content:space-between;align-items:center;">
-                        <span>✍️ ${cat === 'child' ? 'Firma del Representante Legal / Tutor:' : cat === 'adolescent' ? 'Firma del Tutor / Asentimiento Adolescente:' : 'Firma del Paciente en pantalla:'}</span>
+                        <span>${cat === 'child' ? 'Firma del Representante Legal / Tutor:' : cat === 'adolescent' ? 'Firma del Tutor / Asentimiento Adolescente:' : 'Firma del Paciente en pantalla:'}</span>
                         <button type="button" class="btn-secondary btn-sm" onclick="clearSignatureCanvas()">Limpiar Trazo</button>
                     </label>
                     <div style="border: 2px dashed var(--accent-primary); border-radius: var(--radius-md); background: #ffffff; overflow: hidden; margin-top: 6px;">
@@ -195,7 +206,7 @@ function generateSignedInformedConsent() {
     let sigLabel = `<strong>Firma del Paciente</strong><br>${patient.name}`;
 
     if (cat === 'child') {
-        docTitle = 'Documento de Consentimiento Parental para Psicoterapia Infantil';
+        docTitle = 'Documento de Consentimiento Informado para Psicoterapia Infantil';
         docIntro = `Yo, <strong>${patient.guardianName || 'Representante Legal'}</strong>, en mi condición de <strong>${patient.guardianRelation || 'Tutor/a Legal'}</strong> del/de la menor <strong>${patient.name}</strong> ${patient.birthdate ? `(Edad: ${calculateAge(patient.birthdate)} años)` : ''}, autorizo la atención psicoterapéutica brindada por <strong>${AppState.currentUser?.name || 'Terapeuta'}</strong>.`;
         docClauses = `
             <div class="clause">
@@ -244,6 +255,12 @@ function generateSignedInformedConsent() {
     `;
     docClauses += sharedDocClauses;
 
+    const customTxtEl = (typeof document !== 'undefined') ? document.getElementById('txtCustomConsentFormat') : null;
+    if (customTxtEl && customTxtEl.value && customTxtEl.value.trim().length > 30) {
+        patient.customConsentText = customTxtEl.value.trim();
+        docClauses = `<div class="clause" style="white-space:pre-wrap;line-height:1.6;">${customTxtEl.value.trim().replace(/</g, '&lt;').replace(/>/g, '&gt;')}</div>`;
+    }
+
     // Persistir el consentimiento informado firmado en el expediente clínico del paciente
     const nowIso = new Date().toISOString();
     patient.informedConsent = {
@@ -263,7 +280,7 @@ function generateSignedInformedConsent() {
         CloudSyncManager.schedulePush();
     }
     if (typeof showToast === 'function') {
-        showToast(`✅ Consentimiento informado registrado para ${patient.name}`, 'success');
+        showToast(`Consentimiento informado registrado para ${patient.name}`, 'success');
     }
 
     const html = `
@@ -324,10 +341,28 @@ function generateInformedConsent(patientId) {
     openInformedConsentModal(patientId);
 }
 
+function toggleConsentEditorMode() {
+    if (typeof document === 'undefined') return;
+    const prev = document.getElementById('consentPreviewBox');
+    const edit = document.getElementById('consentEditBox');
+    const btn = document.getElementById('btnToggleConsentEdit');
+    if (!prev || !edit) return;
+    if (edit.style.display === 'none') {
+        edit.style.display = 'block';
+        prev.style.display = 'none';
+        if (btn) btn.innerHTML = '<i class="fas fa-eye"></i> Ver Formato';
+    } else {
+        edit.style.display = 'none';
+        prev.style.display = 'block';
+        if (btn) btn.innerHTML = '<i class="fas fa-edit"></i> Modificar Formato';
+    }
+}
+
 // Exposición global
 if (typeof window !== 'undefined') {
     window.openInformedConsentModal = openInformedConsentModal;
     window.generateInformedConsent = generateInformedConsent;
     window.generateSignedInformedConsent = generateSignedInformedConsent;
     window.clearSignatureCanvas = clearSignatureCanvas;
+    window.toggleConsentEditorMode = toggleConsentEditorMode;
 }

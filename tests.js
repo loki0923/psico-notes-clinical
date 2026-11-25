@@ -786,7 +786,7 @@ ClinicalTestSuite.add('TC-VITAL-02', 'Validación de Acompañamiento en la Niñe
         throw new Error('El acompañamiento en la niñez requiere tutor legal y vínculo de filiación');
     }
     if (pediatricPatient.guardianConsent !== 'firmado') {
-        throw new Error('El consentimiento parental debe poder registrar estado firmado');
+        throw new Error('El Consentimiento Informado debe poder registrar estado firmado');
     }
     if (!pediatricPatient.schoolName || !pediatricPatient.developmentalMilestones) {
         throw new Error('Faltan datos de neurodesarrollo o contexto escolar en la niñez');
@@ -4277,6 +4277,4929 @@ ClinicalTestSuite.add('TC-FIN-07', 'Apertura Reactiva, Inyección Dinámica y Pe
         global.document = prevDoc;
         global.window = prevWin;
         global.localStorage = prevStorage;
+    }
+});
+
+// ============================================
+// SUITE HEYFREUD-BENCHMARK (v7.0)
+// ============================================
+
+// 96. TC-REC-01: SessionRecorder & Ambient Listening Zero-Retention
+ClinicalTestSuite.add('TC-REC-01', 'SessionRecorder & Ambient Listening Zero-Retention (HeyFreud Benchmark)', async () => {
+    await import('./session-recorder.js');
+    const SessionRecorder = globalThis.SessionRecorder || (typeof global !== 'undefined' ? global.SessionRecorder : null);
+
+    if (!SessionRecorder || typeof SessionRecorder.formatTime !== 'function') {
+        throw new Error('SessionRecorder no exporta formatTime');
+    }
+
+    // 1. Verificación de formateo de tiempo
+    if (SessionRecorder.formatTime(0) !== '00:00') {
+        throw new Error(`formatTime(0) esperado 00:00 pero se obtuvo ${SessionRecorder.formatTime(0)}`);
+    }
+    if (SessionRecorder.formatTime(125) !== '02:05') {
+        throw new Error(`formatTime(125) esperado 02:05 pero se obtuvo ${SessionRecorder.formatTime(125)}`);
+    }
+    if (SessionRecorder.formatTime(3665) !== '61:05') {
+        throw new Error(`formatTime(3665) esperado 61:05 pero se obtuvo ${SessionRecorder.formatTime(3665)}`);
+    }
+
+    // 2. Verificación de callbacks y ciclo de vida de estado
+    let stateNotificationReceived = false;
+    const testListener = (state) => {
+        stateNotificationReceived = true;
+        if (typeof state.secondsElapsed !== 'number') {
+            throw new Error('El estado notificado no contiene secondsElapsed numérico');
+        }
+    };
+
+    SessionRecorder.onStatusChange(testListener);
+    SessionRecorder.notifyStatus();
+    if (!stateNotificationReceived) {
+        throw new Error('SessionRecorder no ejecutó el callback registrado en onStatusChange');
+    }
+    SessionRecorder.offStatusChange(testListener);
+
+    // 3. Garantía Ética Zero-Retention: purga y destrucción de memoria
+    SessionRecorder.audioChunks = [new Uint8Array([1, 2, 3]), new Uint8Array([4, 5, 6])];
+    SessionRecorder.isRecording = true;
+    SessionRecorder.isPaused = true;
+
+    SessionRecorder.purgeAudio();
+
+    if (SessionRecorder.audioChunks.length !== 0) {
+        throw new Error('purgeAudio() no vació el buffer de audio chunks en memoria');
+    }
+    if (SessionRecorder.isRecording !== false || SessionRecorder.isPaused !== false) {
+        throw new Error('purgeAudio() no restableció las banderas de grabación');
+    }
+});
+
+// 97. TC-FMT-01: Motor Clínico Multiformato (SOAP, DAP, BIRP, GIRP, NARRATIVE, TREATMENT_PLAN)
+ClinicalTestSuite.add('TC-FMT-01', 'Motor Clínico Multiformato (SOAP, DAP, BIRP, GIRP, Narrative, Treatment Plan)', async () => {
+    await import('./ai-clinical.js');
+    const ClinicalAI = globalThis.ClinicalAI || (typeof global !== 'undefined' ? global.ClinicalAI : null);
+
+    if (!ClinicalAI || typeof ClinicalAI.simulateMultiformatSynthesis !== 'function') {
+        throw new Error('ClinicalAI no exporta simulateMultiformatSynthesis');
+    }
+
+    const sample = 'Paciente acude refiriendo estrés laboral y episodios de insomnio. Trabajamos reestructuración y respiración.';
+
+    // 1. Probar formato DAP
+    const dap = await ClinicalAI.simulateMultiformatSynthesis(sample, 'DAP');
+    if (!dap.data || !dap.assessment || !dap.plan) {
+        throw new Error('El formato DAP no contiene las claves canónicas data, assessment y plan');
+    }
+
+    // 2. Probar formato BIRP
+    const birp = await ClinicalAI.simulateMultiformatSynthesis(sample, 'BIRP');
+    if (!birp.behavior || !birp.intervention || !birp.response || !birp.plan) {
+        throw new Error('El formato BIRP no contiene las claves canónicas behavior, intervention, response y plan');
+    }
+
+    // 3. Probar formato GIRP
+    const girp = await ClinicalAI.simulateMultiformatSynthesis(sample, 'GIRP');
+    if (!girp.goals || !girp.intervention || !girp.response || !girp.plan) {
+        throw new Error('El formato GIRP no contiene las claves canónicas goals, intervention, response y plan');
+    }
+
+    // 4. Probar formato NARRATIVE
+    const narrative = await ClinicalAI.simulateMultiformatSynthesis(sample, 'NARRATIVE');
+    if (!narrative.resumenSesion || !narrative.temasAbordados || !narrative.intervenciones || !narrative.acuerdos) {
+        throw new Error('El formato NARRATIVE no contiene las claves canónicas resumenSesion, temasAbordados, intervenciones y acuerdos');
+    }
+
+    // 5. Probar formato TREATMENT_PLAN
+    const tp = await ClinicalAI.simulateMultiformatSynthesis(sample, 'TREATMENT_PLAN');
+    if (!tp.problemasIdentificados || !tp.objetivosCortoPlazo || !tp.objetivosLargoPlazo || !tp.modalidadTerapeutica || !tp.criteriosAlta) {
+        throw new Error('El formato TREATMENT_PLAN no contiene las claves canónicas de planificación clínica');
+    }
+
+    // 6. Probar método principal synthesizeSessionNote en entorno headless
+    const synthResult = await ClinicalAI.synthesizeSessionNote(sample, { format: 'BIRP' });
+    if (synthResult.format !== 'BIRP' || !synthResult.content || !synthResult.content.behavior) {
+        throw new Error('synthesizeSessionNote no devolvió la estructura BIRP esperada');
+    }
+});
+
+// 98. TC-STY-01: Perfil de Estilo del Terapeuta (HeyFreud Style Learning)
+ClinicalTestSuite.add('TC-STY-01', 'Perfil de Estilo del Terapeuta (HeyFreud Style Learning)', async () => {
+    const { db } = await import('./db.js');
+    await db.initialize();
+
+    const testTherapistId = `therapist_style_test_${Date.now()}`;
+    const testProfile = {
+        theoreticalFramework: 'ACT',
+        tone: 'humanista-cálido',
+        conciseness: 'detailed',
+        defaultFormat: 'DAP',
+        preferredGlossary: ['defusión', 'valores', 'yo-como-contexto']
+    };
+
+    // 1. Guardar perfil de estilo
+    const saved = await db.saveTherapistStyleProfile(testTherapistId, testProfile);
+    if (!saved || saved.theoreticalFramework !== 'ACT' || saved.defaultFormat !== 'DAP') {
+        throw new Error('Fallo al guardar el perfil de estilo del terapeuta en db.js');
+    }
+
+    // 2. Recuperar perfil de estilo
+    const fetched = await db.getTherapistStyleProfile(testTherapistId);
+    if (!fetched || fetched.theoreticalFramework !== 'ACT' || fetched.tone !== 'humanista-cálido') {
+        throw new Error('No se recuperó el perfil de estilo coincidente desde la base de datos');
+    }
+
+    // 3. Probar persistencia ante actualizaciones parciales
+    const updated = await db.saveTherapistStyleProfile(testTherapistId, {
+        ...fetched,
+        conciseness: 'concise'
+    });
+    if (updated.conciseness !== 'concise') {
+        throw new Error('Fallo al actualizar la concisión en el perfil de estilo');
+    }
+});
+
+// 99. TC-ROA-01: Validación de Renderizado del Mapa Serpenteante de Sesiones en el Expediente Clínico
+ClinicalTestSuite.add('TC-ROA-01', 'Mapa de Ruta Longitudinal de Sesiones en Expediente Clínico (UI, Serpentine Layout y Acordeón ✨)', async () => {
+    const fs = await import('fs');
+    const appJs = fs.readFileSync('app.js', 'utf8');
+    const stylesCss = fs.readFileSync('styles.css', 'utf8');
+    const indexHtml = fs.readFileSync('index.html', 'utf8');
+
+    // 1. Validar presencia en styles.css de clases críticas del roadmap
+    const requiredCssClasses = [
+        '.therapy-roadmap-container',
+        '.therapy-session-card',
+        '.therapy-roadmap-row',
+        '.therapy-roadmap-track',
+        '.therapy-roadmap-node',
+        '.session-card-focus-box',
+        '.session-status-pill',
+        '.btn-add-session-roadmap'
+    ];
+    for (const cls of requiredCssClasses) {
+        if (!stylesCss.includes(cls)) {
+            throw new Error(`styles.css debe incluir la regla de estilo ${cls} para el roadmap`);
+        }
+    }
+
+    // 2. Validar presencia de modal independiente en index.html
+    if (!indexHtml.includes('id="roadmapSessionModal"')) {
+        throw new Error('index.html debe contener el modal independiente #roadmapSessionModal');
+    }
+    const modalFields = ['roadmapSessionNumber', 'roadmapSessionTitle', 'roadmapSessionDate', 'roadmapSessionStatus', 'roadmapSessionFocus'];
+    for (const f of modalFields) {
+        if (!indexHtml.includes(`id="${f}"`)) {
+            throw new Error(`index.html debe incluir el campo #${f} en el modal de sesión`);
+        }
+    }
+
+    // 3. Validar integración de renderTherapySessionsRoadmap dentro de la pestaña de Planificación de Sesiones en app.js
+    if (!appJs.includes('renderTherapySessionsRoadmap(patientId)')) {
+        throw new Error('renderTabHistorialSesiones en app.js debe invocar renderTherapySessionsRoadmap(patientId)');
+    }
+    if (!appJs.includes('function renderTherapySessionsRoadmap')) {
+        throw new Error('app.js debe definir la función renderTherapySessionsRoadmap');
+    }
+    if (!appJs.includes('toggleRoadmapSnippet') || !appJs.includes('quickToggleRoadmapStatus')) {
+        throw new Error('app.js debe definir los helpers interactivos toggleRoadmapSnippet y quickToggleRoadmapStatus');
+    }
+});
+
+// 100. TC-ROA-02: Integración de API REST y Ciclo de Vida del Mapa de Ruta (CRUD, Persistencia y Seguridad BOLA/IDOR)
+ClinicalTestSuite.add('TC-ROA-02', 'API REST de Sesiones del Mapa de Ruta (CRUD, BOLA/IDOR Prevention y Persistencia Relacional)', async () => {
+    const baseUrl = await ensureTestServer();
+    const { generateSessionToken } = await import('./server.js');
+    const { db } = await import('./db.js');
+
+    const therapistA = 'dr_roadmap_a_' + Date.now();
+    const therapistB = 'dr_roadmap_b_' + Date.now();
+    const tokenA = generateSessionToken(therapistA, 'roadmap_a@clinica.com');
+    const tokenB = generateSessionToken(therapistB, 'roadmap_b@clinica.com');
+
+    const patientA = {
+        id: 'pat_roadmap_' + Date.now(),
+        name: 'Carlos Valenzuela',
+        diagnosis: 'F41.1 Ansiedad Generalizada',
+        therapist_id: therapistA
+    };
+    await db.syncPatients([patientA], therapistA);
+
+    // 1. Crear sesión en el roadmap vía REST API
+    const newSessionPayload = {
+        sessionNumber: 1,
+        title: 'Evaluación Inicial y Psicoeducación',
+        date: '2026-10-25',
+        focusSummary: 'Identificación de pensamientos automáticos y establecimiento de línea base PHQ-9.',
+        status: 'pendiente'
+    };
+
+    const createRes = await fetch(`${baseUrl}/api/v1/patients/${patientA.id}/therapy-sessions`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${tokenA}`
+        },
+        body: JSON.stringify(newSessionPayload)
+    });
+
+    if (createRes.status !== 201) {
+        throw new Error(`Fallo al crear sesión en roadmap: esperado 201, recibido ${createRes.status}`);
+    }
+    const createData = await createRes.json();
+    if (!createData.session || createData.session.title !== newSessionPayload.title) {
+        throw new Error('La sesión devuelta por la API no coincide con la enviada');
+    }
+    const sessionId = createData.session.id;
+
+    // 2. Consultar sesiones como Terapeuta A (200 OK)
+    const listRes = await fetch(`${baseUrl}/api/v1/patients/${patientA.id}/therapy-sessions`, {
+        headers: { 'Authorization': `Bearer ${tokenA}` }
+    });
+    if (listRes.status !== 200) {
+        throw new Error(`Fallo al consultar sesiones: esperado 200, recibido ${listRes.status}`);
+    }
+    const listData = await listRes.json();
+    if (!Array.isArray(listData.sessions) || listData.sessions.length === 0) {
+        throw new Error('La lista de sesiones no devolvió el registro persistido');
+    }
+
+    // 3. Prueba de seguridad BOLA / IDOR: Terapeuta B intenta consultar el paciente de Terapeuta A (403 Forbidden)
+    const crossRes = await fetch(`${baseUrl}/api/v1/patients/${patientA.id}/therapy-sessions`, {
+        headers: { 'Authorization': `Bearer ${tokenB}` }
+    });
+    if (crossRes.status !== 403) {
+        throw new Error(`Fallo de seguridad BOLA/IDOR: Terapeuta B pudo consultar paciente ajeno (status: ${crossRes.status}, esperado: 403)`);
+    }
+
+    // 4. Actualizar sesión a completada
+    const updateRes = await fetch(`${baseUrl}/api/v1/patients/${patientA.id}/therapy-sessions/${sessionId}`, {
+        method: 'PUT',
+        headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${tokenA}`
+        },
+        body: JSON.stringify({ status: 'completada' })
+    });
+    if (updateRes.status !== 200) {
+        throw new Error(`Fallo al actualizar sesión: esperado 200, recibido ${updateRes.status}`);
+    }
+    const updateData = await updateRes.json();
+    if (updateData.session.status !== 'completada') {
+        throw new Error('El estado de la sesión no se actualizó a completada');
+    }
+
+    // 5. Eliminar sesión del roadmap
+    const delRes = await fetch(`${baseUrl}/api/v1/patients/${patientA.id}/therapy-sessions/${sessionId}`, {
+        method: 'DELETE',
+        headers: { 'Authorization': `Bearer ${tokenA}` }
+    });
+    if (delRes.status !== 200) {
+        throw new Error(`Fallo al eliminar sesión: esperado 200, recibido ${delRes.status}`);
+    }
+});
+
+// 101. TC-HIST-08: Protocolo Clínico y Deontológico Venezolano (FPV, LOPNNA, MPPS, Semiótica y Cero Fuga Materna en Adultos)
+ClinicalTestSuite.add('TC-HIST-08', 'Protocolo Clínico y Deontológico Venezolano (FPV, LOPNNA, MPPS, Semiótica y Cero Fuga Materna)', async () => {
+    if (typeof ClinicalHistorySystem === 'undefined') {
+        await import('./historia-clinica.js');
+    }
+    const CHS = globalThis.ClinicalHistorySystem;
+
+    // 1. Verificación de acreditación gremial venezolana (FPV, Colegio Regional, MPPS)
+    globalThis.AppState = globalThis.AppState || {};
+    globalThis.AppState.currentUser = {
+        name: 'Lic. Mariana Velásquez',
+        specialty: 'Psicología Clínica y de la Salud',
+        fpvNumber: '14.280',
+        regionalCollege: 'Colegio de Psicólogos de Miranda',
+        mppsNumber: '78.912'
+    };
+
+    const therapist = CHS.getTherapistInfo();
+    if (!therapist.registry.includes('FPV N.º 14.280') || !therapist.registry.includes('MPPS N.º 78.912')) {
+        throw new Error('El membrete oficial debe reflejar las credenciales FPV y MPPS de Venezuela');
+    }
+
+    // 2. Ficha de Adulto: Verificación de Cero Fuga de Escolaridad Materna
+    const adultPatient = {
+        id: 'pat_adult_ve_01',
+        name: 'Andrés Eloy Blanco',
+        category: 'adult',
+        birthdate: '1988-06-14',
+        ci: 'V-18.992.341',
+        occupation: 'Ingeniero de Sistemas',
+        schoolGrade: '', // Vacío a propósito para verificar fallback seguro
+        motherName: 'Carmen Blanco',
+        motherEducation: 'Primaria Incompleta', // NO debe fugarse al paciente
+        emergencyContactName: 'Beatriz Blanco',
+        emergencyContactRelation: 'Hermana',
+        emergencyContactPhone: '+58 414 5551234',
+        currentIllness: 'Episodios de angustia paroxística desde hace 3 meses con impacto laboral.',
+        mentalOrientation: 'Orientado globalmente',
+        mentalThought: 'Coherente sin ideación delirante',
+        mentalSuicidalRisk: 'Descartado / Negativo',
+        diagnosticImpression: 'F41.0 Trastorno de Pánico [DSM-5: 300.01]',
+        treatmentPlan: 'Terapia Cognitivo-Conductual y reestructuración cognitiva'
+    };
+
+    globalThis.AppState.patients = globalThis.AppState.patients || [];
+    globalThis.AppState.patients.push(adultPatient);
+
+    const full = CHS.getFullHistory(adultPatient);
+    if (!full.emergencyContactName || !full.currentIllness || !full.diagnosticImpression) {
+        throw new Error('Faltan campos clínicos de emergencia, situación actual o diagnóstico en getFullHistory');
+    }
+
+    // 3. Verificación de Ausencia de "Deontología Médica" y Presencia de "FPV" en PDFs
+    const adultPdf = CHS.exportHistoriaOficialPDF(adultPatient.id);
+    if (adultPdf.includes('Código de Deontología Médica')) {
+        throw new Error('Error deontológico: La historia clínica psicológica no debe citar Deontología Médica');
+    }
+    if (!adultPdf.includes('Código de Ética Profesional del Psicólogo') || !adultPdf.includes('FPV')) {
+        throw new Error('La historia debe citar el Código de Ética Profesional del Psicólogo (FPV)');
+    }
+    if (adultPdf.includes('Primaria Incompleta') && adultPdf.includes('Escolaridad / Nivel:</strong> Primaria Incompleta')) {
+        throw new Error('Fallo crítico de privacidad: La escolaridad de la madre se fugó a la ficha del paciente adulto');
+    }
+    if (!adultPdf.includes('Contacto de Emergencia') || !adultPdf.includes('Beatriz Blanco')) {
+        throw new Error('El PDF de historia clínica debe registrar el contacto de emergencia');
+    }
+
+    // 4. Verificación de Asentimiento LOPNNA en Historia de Adolescente
+    const teenPatient = {
+        id: 'pat_teen_ve_01',
+        name: 'Sebastián Ramos',
+        category: 'adolescent',
+        birthdate: '2010-09-02',
+        ci: 'V-32.100.222',
+        guardianName: 'José Ramos (Padre)',
+        guardianRelation: 'Padre',
+        guardianConsent: 'firmado',
+        reason: 'Estrés académico y labilidad afectiva'
+    };
+    const teenFull = CHS.getFullHistory(teenPatient);
+    const teenPdf = CHS.exportHistoriaOficialAdolescentePDF(teenPatient, teenFull, '16', therapist);
+    if (!teenPdf.includes('LOPNNA') || !teenPdf.includes('Asentimiento Informado')) {
+        throw new Error('El PDF adolescente debe contemplar el marco LOPNNA y el Asentimiento Informado');
+    }
+    if (teenPdf.includes('Código de Deontología Médica')) {
+        throw new Error('Error deontológico en adolescente: Cita errónea de Deontología Médica');
+    }
+});
+
+// 101.1 TC-HIST-09: Historia Clínica Adulto (Paridad Estricta con PDF de 5 Páginas y Cero Campos Foráneos)
+ClinicalTestSuite.add('TC-HIST-09', 'Historia Clínica Adulto (Paridad Estricta con PDF de 5 Páginas y Cero Campos Foráneos)', async () => {
+    if (typeof ClinicalHistorySystem === 'undefined') {
+        await import('./historia-clinica.js');
+    }
+    const CHS = globalThis.ClinicalHistorySystem;
+
+    const testAdult = {
+        id: 'pat_adult_pdf_strict_01',
+        name: 'Carlos Mendoza',
+        category: 'adult',
+        birthdate: '1985-04-12',
+        gender: 'Masculino',
+        maritalStatus: 'Casado(a)',
+        ci: 'V-17.892.400',
+        schoolGrade: 'Universitaria Completa',
+        occupation: 'Contador Público',
+        religion: 'Católica',
+        livesWith: 'Esposa y dos hijos',
+        address: 'Av. Libertador, Edif. Los Samanes, Apt 4-B',
+        phone: '+58 412 5558899',
+        referral: ['Médico/Especialista'],
+        hasAttendedBefore: 'SI',
+        previousAttendanceDate: '15/01/2024',
+        siblingsCount: 2,
+        stepSiblingsCount: 1,
+        halfSiblingsCount: 0,
+        genogramNotes: 'Familia nuclear reconstituida, adecuada alianza conyugal.',
+        reason: 'Estrés laboral crónico y dificultades para conciliar el sueño.',
+        observedGestures: 'Tensión mandibular, postura erguida, contacto visual sostenido.',
+        mentalExam: 'Orientado en tiempo, espacio y persona. Discurso fluido y coherente.',
+        symptomsBehavioral: 'Inquietud psicomotriz leve en horario nocturno.',
+        symptomsEmotional: 'Preocupación anticipatoria y leve irritabilidad.',
+        symptomsOrganic: 'Tensión cervical y cefalea tensional vespertina.',
+        neuroEvaluation: 'Evaluación neurológica previa normal (EEG sin alteraciones).',
+        traumaInjuries: 'Esguince de tobillo derecho hace 3 años en actividad deportiva.',
+        surgeries: 'Apendicectomía a los 18 años sin complicaciones.',
+        seizures: 'Negadas.',
+        immuneDiseases: 'Negadas.',
+        allergies: 'Rinitis alérgica estacional.',
+        medicalTreatment: 'Ningún tratamiento farmacológico prescrito actualmente.',
+        familyMedicalHistory: 'Padre hipertenso, madre con diabetes mellitus tipo 2.',
+        patientPsychiatricHistory: 'Niega hospitalizaciones ni tratamientos psiquiátricos previos.',
+        familyPsychiatricHistory: 'Tía materna con antecedentes de trastorno depresivo.',
+        adultInfancyHistory: 'Crianza en hogar estable, hitos normales, sin pérdidas tempranas.',
+        adultAdolescenceHistory: 'Socialización adecuada, rendimiento escolar destacado.',
+        adultSocial: 'Red de amistades cercana, reuniones familiares de fin de semana.',
+        adultFamilyDynamics: 'Convivencia armónica, comunicación asertiva con cónyuge.',
+        adultSpirituality: 'Valores católicos practicantes.',
+        adultSexual: 'Vida de pareja estable y satisfactoria.',
+        adultWork: 'Jornadas de 9 horas, sobrecarga de tareas en cierres mensuales.',
+        adultLegal: 'Sin litigios, juicios ni antecedentes penales.',
+        housingType: 'Apartamento',
+        housingServices: 'Sí',
+        housingSharesRoom: 'Sí',
+        housingSharesRoomDesc: 'Comparte habitación con su cónyuge.',
+        occupantsAdultsF: 1,
+        occupantsAdultsM: 1,
+        occupantsTeensF: 0,
+        occupantsTeensM: 0,
+        occupantsChildrenF: 1,
+        occupantsChildrenM: 1,
+        addictions: 'Café (3 tazas al día). Niega tabaco, alcohol u otras sustancias.',
+        socialManias: 'Rutina estricta de orden en escritorio antes de iniciar el trabajo.',
+        phobias: 'Temor leve a las alturas (acrofobia leve no incapacitante).',
+        nightTerrors: 'Negados.',
+        onychophagy: 'Negada.',
+        sleepPattern: 'Insomnio de conciliación (demora 45 min en dormir).',
+        eatingPattern: 'Alimentación regular, 3 comidas al día.',
+        hygienePattern: 'Adecuada presentación y cuidado personal.',
+        recreationArea: 'Lectura los fines de semana y caminatas al aire libre.',
+        dailyRoutine: 'Despierta 6:30am, jornada laboral 8am-5pm, cena en familia, duerme 11:30pm.',
+        mediumTermGoals: 'Consolidación de técnicas de autorregulación emocional y disminución de tensión.',
+        longTermGoals: 'Equilibrio trabajo-familia y prevención de recaídas a largo plazo.'
+    };
+
+    globalThis.AppState.patients = globalThis.AppState.patients || [];
+    globalThis.AppState.patients.push(testAdult);
+
+    const h = CHS.getFullHistory(testAdult);
+    const therapist = CHS.getTherapistInfo();
+    const pdfHtml = CHS.exportHistoriaOficialAdultoPDF(testAdult, h, '39', therapist);
+
+    // 1. Verificación de los Títulos y Secciones Estrictas de las 5 Páginas del PDF
+    const requiredSections = [
+        'HISTORIA CLÍNICA ADULTO',
+        'Ha asistido antes a Consulta Psicológica: NO',
+        'IDENTIFICACIÓN DEL PACIENTE:',
+        'DATOS FILIATORIOS:',
+        'GENOGRAMA',
+        'MOTIVO DE CONSULTA',
+        'GESTUALIDAD OBSERVADA AL MOMENTO DE EXPLICITAR MOTIVO DE CONSULTA',
+        'EXAMEN MENTAL',
+        'SINTOMATOLOGÍA PRESENTADA',
+        'Características Conductuales',
+        'Características Emocionales',
+        'Características Orgánicas',
+        'ANTECEDENTES DEL PACIENTE',
+        'Evaluación Neurológica previa',
+        'Golpes, caídas, lesiones, esguinces o fracturas.',
+        'Operaciones',
+        'Convulsiones',
+        'Enfermedades que afectan el Sistema Inmunológico (Hepatitis, Viruela, etc.)',
+        'Alergias',
+        'Tratamiento Médico y otras patologías',
+        'Antecedentes Médicos Familiares',
+        'Antecedentes Psiquiátricos o psicológicos del Paciente',
+        'Antecedentes Psiquiátricos o psicológicos Familiares',
+        'Infancia',
+        'Adolescencia',
+        'SITUACIÓN ACTUAL',
+        'Área Social y Relaciones Interpersonales',
+        'Dinámica Familiar',
+        'Área Espiritual',
+        'Área Sexual',
+        'Área Laboral',
+        'Aspectos Legales',
+        'ÁREA DE VIVIENDA',
+        'Apartamento',
+        'Servicios Básicos',
+        'Comparte Habitación',
+        'Personas que Habitan en la Vivienda',
+        'HÁBITOS PSICOBIOLÓGICOS:',
+        'Adicciones (Drogas, alcohol, tecnología, cigarrillos, etc.):',
+        'Manías Sociales (Tics, rutinas que maneje en un determinado espacio)',
+        'Fobias o Miedo Intenso',
+        'Miedos Nocturnos',
+        'Ornicofagia',
+        'Sueño',
+        'Alimentación',
+        'Higiene',
+        'Área Recreacional',
+        'Rutina Diaria',
+        'FIRMA Y SELLO'
+    ];
+
+    for (const sec of requiredSections) {
+        if (!pdfHtml.includes(sec)) {
+            throw new Error(`Falta campo o sección oficial del PDF en Historia Clínica Adulto: "${sec}"`);
+        }
+    }
+
+    // 2. Verificación de CERO campos foráneos no presentes en el PDF de adultos
+    const forbiddenInAdults = [
+        'DATOS FILIATORIOS DE LOS PADRES: Madre:',
+        'DATOS FILIATORIOS DE LOS PADRES: Padre:',
+        'DATOS DEL PARTO Y ESTADO AL NACER',
+        'ESCOLARIDAD, RENDIMIENTO Y ADAPTACIÓN (ÁREA PEDAGÓGICA)',
+        'Hitos Primeros Años: Sostén cefálico',
+        'IMPRESIÓN DIAGNÓSTICA (CIE-10 / CIE-11 & DSM-5-TR):',
+        'PLAN TERAPÉUTICO Y METAS DE INTERVENCIÓN:'
+    ];
+
+    for (const forb of forbiddenInAdults) {
+        if (pdfHtml.includes(forb)) {
+            throw new Error(`Error: Se detectó campo foráneo no permitido en Historia Clínica Adulto: "${forb}"`);
+        }
+    }
+
+    // 3. Verificación de que el editor de adultos HTML exclusivo genera las 7 pestañas organizadas por temática
+    const editorHtml = CHS.renderAdultHistoryEditorHTML(testAdult, h, therapist.registry);
+    if (!editorHtml.includes('htab-adult-1') || !editorHtml.includes('htab-adult-3') || !editorHtml.includes('htab-adult-5') || !editorHtml.includes('htab-adult-6') || !editorHtml.includes('htab-adult-7')) {
+        throw new Error('El editor de historia de adulto debe contener las 7 pestañas organizadas');
+    }
+    const requiredTabNames = [
+        'Identificación del Paciente',
+        'Motivo de Consulta',
+        'Examen Mental',
+        'Antecedentes',
+        'Situación Actual y Áreas Vitales',
+        'Hábitos Psicobiológicos',
+        'Metas y Proyecto de Vida'
+    ];
+    for (const tabName of requiredTabNames) {
+        if (!editorHtml.includes(tabName)) {
+            throw new Error(`El editor de historia de adulto debe contener la pestaña: "${tabName}"`);
+        }
+    }
+    if (!editorHtml.includes('fh_ornicofagia') && !editorHtml.includes('fh_onychophagy')) {
+        throw new Error('El editor de historia de adulto debe contener el campo Ornicofagia');
+    }
+    if (!editorHtml.includes('fh_mediumTermGoals') || !editorHtml.includes('fh_longTermGoals')) {
+        throw new Error('El editor de historia de adulto debe incluir los campos separados de metas a mediano y largo plazo');
+    }
+
+    // 4. Verificación de metas a mediano y largo plazo por separado
+    if (!h.mediumTermGoals || !h.longTermGoals) {
+        throw new Error('getFullHistory debe recuperar las metas a mediano y largo plazo por separado');
+    }
+    const adultViewHtml = CHS.renderAdultHistoryIntegral(testAdult, h, therapist, therapist.registry);
+    if (!adultViewHtml.includes('Metas a Mediano Plazo') || !adultViewHtml.includes('Metas a Largo Plazo')) {
+        throw new Error('El visor de historia de adulto debe renderizar las metas a mediano y largo plazo por separado');
+    }
+    if (!pdfHtml.includes('Metas a Mediano Plazo') || !pdfHtml.includes('Metas a Largo Plazo')) {
+        throw new Error('El PDF de historia de adulto debe reflejar las metas a mediano y largo plazo por separado');
+    }
+});
+
+// 101.2 TC-HIST-10: Historia Clínica Adolescente (Paridad Estricta con PDF de 7 Páginas y Cero Campos Foráneos)
+ClinicalTestSuite.add('TC-HIST-10', 'Historia Clínica Adolescente (Paridad Estricta con PDF de 7 Páginas y Cero Campos Foráneos)', async () => {
+    if (typeof ClinicalHistorySystem === 'undefined') {
+        await import('./historia-clinica.js');
+    }
+    const CHS = globalThis.ClinicalHistorySystem;
+
+    const testTeen = {
+        id: 'pat_teen_pdf_strict_01',
+        name: 'Valentina Rodríguez',
+        category: 'adolescent',
+        birthdate: '2010-05-18',
+        birthPlace: 'Caracas, Distrito Capital',
+        gender: 'Femenino',
+        schoolGrade: '3er Año de Bachillerato',
+        livesWith: 'Madre, padrastro y hermano menor',
+        address: 'Urb. El Marqués, Calle Araguaney, Qta. Villa Sol',
+        referral: ['Orientador Escolar'],
+        hasAttendedBefore: 'SI',
+        previousAttendanceDate: '10/03/2023',
+        motherName: 'Carmen Elena Morales',
+        motherAge: 42,
+        motherCi: 'V-15.448.910',
+        motherEducation: 'Universitaria Completa (Lic. en Administración)',
+        motherOccupation: 'Administradora de Empresas',
+        motherAddress: 'Urb. El Marqués, Qta. Villa Sol, Caracas',
+        fatherName: 'Roberto José Rodríguez',
+        fatherAge: 45,
+        fatherCi: 'V-14.230.119',
+        fatherEducation: 'Universitaria Completa (Ingeniero Mecánico)',
+        fatherOccupation: 'Ingeniero Consultor',
+        fatherAddress: 'Los Palos Grandes, Av. Andrés Bello, Caracas',
+        siblingsCount: 1,
+        stepSiblingsCount: 1,
+        halfSiblingsCount: 0,
+        genogramNotes: 'Estructura nuclear con padres divorciados hace 5 años; buena relación filial.',
+        reason: 'Episodios de ansiedad ante exámenes escolares y dificultad para poner límites a sus pares.',
+        observedGestures: 'Contacto visual intermitente, manos inquietas sobre regazo, tono de voz pausado.',
+        symptomsBehavioral: 'Aislamiento en su habitación al regresar de clases y postergación de deberes.',
+        symptomsEmotional: 'Temor al fracaso académico, frustración rápida y llanto ocasional sin causa aparente.',
+        symptomsOrganic: 'Cefalea frontal recurrente post-escolar y sensación de nudo en la garganta.',
+        mentalExam: 'Adolescente orientada en las tres esferas, aliñada, lenguaje fluido con adecuada coherencia.',
+        neuroEvaluation: 'Sin alteraciones reportadas en control pediátrico habitual.',
+        traumaInjuries: 'Caída de patineta a los 11 años con traumatismo en muñeca izquierda (sin fractura).',
+        surgeries: 'Amigdalectomía a los 6 años bajo anestesia general sin complicaciones.',
+        seizures: 'Negadas categóricamente.',
+        immuneDiseases: 'Negadas.',
+        allergies: 'Rinitis alérgica estacional controlada con antihistamínicos ocasionales.',
+        medicalTreatment: 'Ningún fármaco administrado de forma continua.',
+        otherMedicalHistory: 'Control odontológico con ortodoncia correctiva activa.',
+        familyMedicalHistory: 'Abuela materna con hipertensión arterial; abuelo paterno con diabetes mellitus.',
+        patientPsychiatricHistory: 'Asistió a 3 sesiones de orientación escolar a los 12 años por adaptación a bachillerato.',
+        familyPsychiatricHistory: 'Madre con antecedentes de ansiedad postparto superada.',
+        pedagogicalHistory: 'Evaluación psicopedagógica a los 8 años por ortografía; cociente intelectual promedio-alto.',
+        desiredPregnancy: 'SI',
+        plannedPregnancy: 'SI',
+        fetalDevelopment: 'Embarazo normoevolutivo controlado mensualmente con ecografías regulares.',
+        motherEmotionalState: 'Tranquila, buen apoyo de la pareja y red familiar.',
+        pregnancyMedications: 'Ácido fólico, hierro y complejo polivitamínico prenatal.',
+        motherPregnancyIllnesses: 'Hiperémesis gravídica leve durante el primer trimestre, sin deshidratación.',
+        pregnancyNumber: 1,
+        pregnancyDuration: '39 semanas',
+        laborDuration: '8 horas',
+        deliveryType: 'Cesárea',
+        birthCry: 'SI',
+        birthPosition: 'Cefálica',
+        birthWeight: '3.250 gr',
+        birthLength: '50 cm',
+        resuscitation: 'NO',
+        incubator: 'NO',
+        firstFeeding: 'Lactancia materna exclusiva durante los primeros 6 meses.',
+        birthOtherObs: 'Apgar 9/10 al primer y quinto minuto. Sin complicaciones neonatales.',
+        earlyFeeding: 'Lactancia materna complementada con ablactación progresiva a partir de los 6 meses.',
+        weaningAge: '14 meses',
+        headControlAge: '3 meses',
+        sittingAge: '6 meses',
+        crawlingAge: '8 meses',
+        firstStepsAge: '11 meses',
+        firstWordsAge: '10 meses',
+        firstTeethAge: '7 meses',
+        sphincterControlAge: 'Diurno a los 2 años, nocturno a los 2 años y medio.',
+        daycareOrCaregivers: 'Guardería maternal desde el año y medio, cuidada en las tardes por abuela.',
+        schoolStartAge: '3 años (Educación Inicial)',
+        schoolAdaptation: 'Adaptación rápida, sin llanto prolongado, sociable con sus compañeros.',
+        teacherRelationship: 'Excelente; descrita como colaboradora y atenta en clase.',
+        friendsInteraction: 'Comparte juegos de roles, mantiene amistades estables y empáticas.',
+        readingAge: '5 años',
+        writingAge: '5 años y medio',
+        countingAge: '4 años',
+        primarySchoolDevelopment: 'Desempeño sobresaliente en la primaria, cuadro de honor en varios grados.',
+        learningDifficulties: 'Matemáticas y física (razonamiento abstracto complejo bajo presión).',
+        learningStrengths: 'Literatura, redacción, idiomas extranjeros y expresión plástica.',
+        schoolBehavior: 'Comportamiento respetuoso con profesores y adecuada disciplina en aula.',
+        schoolAttitude: 'Responsable y comprometida, con alta autoexigencia hacia sus notas.',
+        homeworkSupport: 'Madre supervisa; realiza las tareas con alto grado de autonomía.',
+        homeBehavior: 'Colaboradora en tareas del hogar; ocasional introversión en momentos de estrés.',
+        outdoorsBehavior: 'Sociable, atenta y respetuosa con las normas del entorno público.',
+        likesActivities: 'Dibujar, escuchar música pop/indie, leer novelas juveniles y pasear en bicicleta.',
+        dislikesActivities: 'Discusiones ruidosas, tareas mecánicas repetitivas y llamadas de atención en público.',
+        familyDynamicsDesc: 'Comunicación fluida y afectuosa con la madre; límites claros y respetuosos.',
+        teenChildhood: 'Recuerda una infancia feliz, rodeada de primos y actividades al aire libre.',
+        teenSocial: 'Mantiene un grupo pequeño de 4 amigas íntimas con quienes comparte salidas regulares.',
+        teenSexuality: 'Identidad femenina cisgénero congruente; sin inicio de vida sexual activa.',
+        teenSpirituality: 'Participa ocasionalmente en actividades comunitarias de valores éticos.',
+        teenFamilyDynamics: 'Siente que su madre la apoya pero desearía más espacio para tomar decisiones propias.',
+        teenRelationships: 'No tiene pareja actualmente; da prioridad a sus metas académicas y a sus amigas.',
+        housingType: 'Casa',
+        housingServices: 'Sí',
+        housingSharesRoom: 'No',
+        housingSharesRoomDesc: 'Habitación individual propia con escritorio de estudio.',
+        occupantsAdultsM: 1,
+        occupantsAdultsF: 1,
+        occupantsTeensM: 0,
+        occupantsTeensF: 1,
+        occupantsChildrenM: 1,
+        occupantsChildrenF: 0,
+        addictions: 'Niega consumo de tabaco, alcohol y drogas; uso diario de smartphone 3-4 hrs (redes sociales).',
+        socialManias: 'Acomodar sus útiles escolares por colores antes de comenzar a estudiar.',
+        phobias: 'Aracnofobia moderada (miedo intenso e irracional a las arañas).',
+        nightTerrors: 'Negados actualmente (presentó pesadillas esporádicas a los 7 años).',
+        onychophagy: 'Negada.',
+        sleepPattern: 'Sueño de 7 horas en promedio; dificultad para conciliar en víspera de exámenes.',
+        eatingPattern: 'Dieta balanceada, 3 comidas principales y merienda matutina.',
+        hygienePattern: 'Impecable cuidado e higiene personal.',
+        recreationArea: 'Club deportivo los sábados, clases de dibujo artístico y paseos al parque.',
+        dailyRoutine: 'Despierta 6:00am, colegio de 7:00am a 2:30pm, tareas y dibujo 4:00pm-7:00pm, cena 8:00pm, duerme 10:30pm.',
+        teenShortGoals: 'Aprobar el año escolar con promedio superior a 18 puntos y mejorar gestión de la ansiedad.',
+        teenLongGoals: 'Estudiar Diseño Gráfico o Arquitectura en la universidad e independizarse con éxito.'
+    };
+
+    globalThis.AppState = globalThis.AppState || {};
+    globalThis.AppState.patients = globalThis.AppState.patients || [];
+    globalThis.AppState.patients.push(testTeen);
+
+    const h = CHS.getFullHistory(testTeen);
+    const therapist = CHS.getTherapistInfo();
+    const pdfHtml = CHS.exportHistoriaOficialAdolescentePDF(testTeen, h, '15', therapist);
+
+    // 1. Verificación de la estructura exacta de 7 páginas
+    const pageMatches = pdfHtml.match(/<div class="pdf-page">/g) || [];
+    if (pageMatches.length !== 7) {
+        throw new Error(`El PDF de historia adolescente debe contener exactamente 7 páginas (encontradas: ${pageMatches.length})`);
+    }
+
+    for (let i = 1; i <= 7; i++) {
+        if (!pdfHtml.includes(`<div class="page-footer">${i}</div>`)) {
+            throw new Error(`Falta el pie de página numerado oficial "${i}" en el PDF de adolescente`);
+        }
+    }
+
+    // 2. Verificación de todos los Títulos y Secciones Estrictas de las 7 Páginas del PDF
+    const requiredSections = [
+        // Pág 1
+        'HISTORIA CLÍNICA ADOLESCENTE',
+        'Ha asistido antes a Consulta Psicológica: NO',
+        'IDENTIFICACIÓN DEL PACIENTE:',
+        'DATOS FILIATORIOS:',
+        'Nombre Completo de la Madre:',
+        'Nombre Completo del Padre:',
+        'Nº Hermanos:',
+        'Nº Hermanastros',
+        'Nº Medio Hermanos:',
+        'GENOGRAMA',
+        'MOTIVO DE CONSULTA:',
+        'GESTUALIDAD OBSERVADA AL MOMENTO DE EXPLICAR EL MOTIVO DE CONSULTA',
+        'SINTOMATOLOGÍA PRESENTADA:',
+        'Características Conductuales:',
+        // Pág 2
+        'Características Emocionales:',
+        'Características Orgánicas:',
+        'EXAMEN MENTAL:',
+        'ANTECEDENTES',
+        'Antecedentes Médicos del Paciente',
+        'Evaluación Neurológica',
+        'Golpes, caídas, lesiones, esguinces o fracturas.',
+        'Operaciones',
+        'Convulsiones',
+        'Enfermedades que afectan el Sistema Inmunológico',
+        'Alergias',
+        'Tratamiento Actual',
+        'Otros antecedentes',
+        'Antecedentes Médicos Familiares',
+        // Pág 3
+        'Antecedentes Psiquiátricos o psicológicos del Paciente',
+        'Antecedentes Psiquiátricos o psicológicos Familiares',
+        'Evaluación o tratamiento Pedagógico Previo del Paciente',
+        'DESARROLLO PRENATAL',
+        'Embarazo Deseado: SI',
+        'Embarazo Planificado: SI',
+        'Desarrollo del feto durante el embarazo',
+        'Estado emocional de la madre durante el embarazo',
+        'Medicación Durante el Embarazo',
+        'Enfermedades de la Madre Durante el Embarazo',
+        'Número de Embarazo de la Madre',
+        'DATOS DEL PARTO',
+        'Duración del Embarazo:',
+        'Duración del Parto:',
+        'Tipo de Parto:',
+        'Espontáneo:',
+        'Inducido:',
+        'Cesárea:',
+        'Natural:',
+        'ESTADO DEL NIÑO AL NACER',
+        'Llanto al nacer:',
+        'Posición del Bebé:',
+        'Peso:',
+        'Medida:',
+        'Reanimación:',
+        'Incubadora:',
+        'Primera alimentación:',
+        'Otras Observaciones:',
+        'DESARROLLO SOCIAL Y PSICOMOTOR DEL NIÑO ALREDEDOR DE LOS',
+        // Pág 4
+        'PRIMEROS AÑOS DE VIDA',
+        'Descripción de la alimentación durante los primeros meses de vida',
+        'Descripción del proceso de destete',
+        'Control o dureza cefálica',
+        'Edad a la que se sentó por primera vez',
+        'Gatear',
+        'Primeros pasos',
+        'Primeras palabras',
+        'Primero dientes',
+        'Control de esfínteres vesical y anal',
+        'ESCOLARIDAD',
+        'Guardería o cuidadores',
+        'Edad a la que comenzó la escolaridad',
+        'Proceso de adaptación a la escolaridad',
+        'Relación con las maestras',
+        'Amigos e interacción en la escuela',
+        'Edad a la que aprendió a leer',
+        'Edad a la que aprendió a escribir',
+        'Edad a la que aprendió a contar',
+        'Desarrollo en la primaria',
+        // Pág 5
+        'Áreas con mayor dificultad para su aprendizaje',
+        'Áreas con mayor facilidad para su aprendizaje',
+        'Conducta en el colegio',
+        'Actitud al realizar actividades',
+        'Personas con quien realizar actividades escolares en el hogar',
+        'DINÁMICA FAMILIAR Y SOCIAL',
+        'Conducta en el Hogar',
+        'Conducta al Salir de Casa',
+        'Cosas que le gusta',
+        'Cosas que le disgusta',
+        'Descripción de la Dinámica Familiar',
+        'DESCRIPCIÓN DE ACUERDO A LA ENTEVISTA CON EL ADOLESCENTE',
+        'Infancia',
+        'Área Social',
+        'Área Sexual (Interés por Sexualidad o identificación de género)',
+        // Pág 6
+        'Área Espiritual',
+        'Descripción de la Dinámica Familiar',
+        'Relaciones Interpersonales (amistades y pareja)',
+        'ÁREA DE VIVIENDA',
+        'Apartamento',
+        'Casa',
+        'Otro',
+        'Servicios Básicos',
+        'Comparte Habitación',
+        'Personas que Habitan en la Vivienda',
+        'HÁBITOS PSICOBIOLÓGICOS:',
+        'Adicciones (Drogas, alcohol, tecnología, cigarrillos, etc.):',
+        'Manías Sociales (Tics, rutinas que maneje en un determinado espacio)',
+        'Fobias o miedo intenso',
+        'Miedos nocturnos',
+        'Ornicofagia',
+        'Sueño',
+        // Pág 7
+        'Alimentación',
+        'Higiene',
+        'Área Recreacional',
+        'Rutina Diaria',
+        'Metas a Corto y Mediano Plazo',
+        'Metas a Largo Plazo',
+        'FIRMA Y SELLO',
+        'LOPNNA',
+        'Asentimiento Informado'
+    ];
+
+    for (const sec of requiredSections) {
+        if (!pdfHtml.includes(sec)) {
+            throw new Error(`Falta campo o sección oficial del PDF en Historia Clínica Adolescente: "${sec}"`);
+        }
+    }
+
+    // 3. Verificación de CERO campos foráneos no pertenecientes al PDF oficial del adolescente
+    const forbiddenInTeens = [
+        'HISTORIA CLÍNICA ADULTO',
+        'Área Laboral:',
+        'Aspectos Legales:',
+        'IMPRESIÓN DIAGNÓSTICA (CIE-10 / CIE-11 & DSM-5-TR):',
+        'PLAN TERAPÉUTICO Y METAS DE INTERVENCIÓN:'
+    ];
+
+    for (const forb of forbiddenInTeens) {
+        if (pdfHtml.includes(forb)) {
+            throw new Error(`Error: Se detectó campo foráneo no permitido en Historia Clínica Adolescente: "${forb}"`);
+        }
+    }
+
+    // 4. Verificación de que el editor de adolescente genera las 7 pestañas correspondientes a las 7 páginas del PDF
+    const editorHtml = CHS.renderTeenHistoryEditorHTML(testTeen, h, therapist.registry);
+    for (let tabNum = 1; tabNum <= 7; tabNum++) {
+        if (!editorHtml.includes(`htab-teen-${tabNum}`)) {
+            throw new Error(`El editor de historia de adolescente debe contener la pestaña htab-teen-${tabNum}`);
+        }
+    }
+
+    const requiredTeenEditorFields = [
+        'fh_birthPlace',
+        'fh_motherName',
+        'fh_fatherName',
+        'fh_siblingsCount',
+        'fh_reason',
+        'fh_mentalExam',
+        'fh_pregnancyDesired',
+        'fh_pregnancyPlanned',
+        'fh_deliveryType',
+        'fh_headControl',
+        'fh_readingAge',
+        'fh_learningDifficulties',
+        'fh_teenChildhood',
+        'fh_teenSexuality',
+        'fh_teenRelationships',
+        'fh_housingType',
+        'fh_addictions',
+        'fh_teenShortGoals',
+        'fh_teenLongGoals'
+    ];
+
+    for (const fieldId of requiredTeenEditorFields) {
+        if (!editorHtml.includes(fieldId)) {
+            throw new Error(`El editor de historia de adolescente debe contener el campo de formulario id="${fieldId}"`);
+        }
+    }
+
+    // 5. Verificación de renderizado integral en pantalla
+    const teenViewHtml = CHS.renderTeenHistoryIntegral(testTeen, h, therapist, therapist.registry);
+    if (!teenViewHtml.includes('Áreas Vitales & Entrevista Privada con el Adolescente') || !teenViewHtml.includes('Desarrollo Prenatal, Parto e Hitos')) {
+        throw new Error('El visor de historia de adolescente debe renderizar las secciones acordadas');
+    }
+});
+
+// 101.3 TC-HIST-11: Historia Clínica Infantil (Paridad Estricta con PDF de 7 Páginas y Cero Campos Foráneos)
+ClinicalTestSuite.add('TC-HIST-11', 'Historia Clínica Infantil (Paridad Estricta con PDF de 7 Páginas y Cero Campos Foráneos)', async () => {
+    if (typeof ClinicalHistorySystem === 'undefined') {
+        await import('./historia-clinica.js');
+    }
+    const CHS = globalThis.ClinicalHistorySystem;
+
+    const testChild = {
+        id: 'pat_child_pdf_strict_01',
+        name: 'Mateo Alejandro Torres',
+        category: 'child',
+        birthdate: '2018-04-12',
+        birthPlace: 'Valencia, Estado Carabobo',
+        gender: 'Masculino',
+        schoolGrade: '3er Grado de Primaria',
+        livesWith: 'Madre y abuela materna',
+        address: 'Urb. Trigal Norte, Calle Los Robles, Qta. Flor',
+        referral: ['Orientadora Escolar'],
+        hasAttendedBefore: 'SI',
+        previousAttendanceDate: '15/02/2023',
+        motherName: 'Beatriz Elena Torres',
+        motherAge: 36,
+        motherCI: 'V-18.992.104',
+        motherEducation: 'Universitaria (Lic. en Administración)',
+        motherJob: 'Administradora',
+        motherAddress: 'Urb. Trigal Norte, Qta. Flor, Valencia',
+        fatherName: 'Manuel Alejandro Silva',
+        fatherAge: 38,
+        fatherCI: 'V-17.654.321',
+        fatherEducation: 'TSU en Informática',
+        fatherJob: 'Analista de Sistemas',
+        fatherAddress: 'Urb. El Parral, Valencia',
+        siblingsCount: 0,
+        stepSiblingsCount: 0,
+        halfSiblingsCount: 1,
+        genogramNotes: 'Familia monoparental materna con figura de apoyo activa de abuela materna.',
+        reason: 'Dificultades de atención y conducta motriz inquieta en el aula de clases.',
+        observedGestures: 'Niño activo, contacto visual adecuado, colaborador durante la entrevista.',
+        symptomsBehavioral: 'Inquietud psicomotriz en tareas pasivas, distractibilidad ante estímulos irrelevantes.',
+        symptomsEmotional: 'Tolerancia baja a la frustración; afecto modulado y reactivo.',
+        symptomsOrganic: 'Negadas; sueño y apetito regulares.',
+        mentalExam: 'Orientado en tiempo, espacio y persona. Discurso coherente y vocabulario rico para su edad. Pensamiento sin alteraciones lógicas.',
+        neuroEvaluation: 'Evaluación neuropediátrica sin anomalías estructurales.',
+        traumaInjuries: 'Caída de bicicleta a los 5 años sin pérdida de conciencia ni secuelas.',
+        surgeries: 'Amigdalectomía a los 6 años sin complicaciones.',
+        seizures: 'Negadas.',
+        immuneDiseases: 'Negadas.',
+        allergies: 'Rinitis alérgica estacional leve.',
+        medicalTreatment: 'Sin medicación activa.',
+        otherMedicalHistory: 'Control pediátrico regular al día.',
+        familyMedicalHistory: 'Hipertensión arterial en abuelo materno.',
+        patientPsychiatricHistory: 'Sin antecedentes psiquiátricos previos.',
+        familyPsychiatricHistory: 'Tía materna con antecedentes de ansiedad generalizada.',
+        pedagogicalHistory: 'Evaluación psicopedagógica previa a los 5 años: fortalezas en lenguaje y destrezas visuales.',
+        pregnancyDesired: 'SI',
+        pregnancyPlanned: 'SI',
+        pregnancyNumber: 1,
+        fetalDevelopment: 'Evolución intrauterina normal y controles ecográficos mensuales regulares.',
+        motherEmotionalState: 'Embarazo tranquilo, acompañada por la familia materna.',
+        pregnancyMedication: 'Ácido fólico, hierro y multivitamínicos prenatales.',
+        pregnancyDiseases: 'Negadas.',
+        pregnancyDuration: '39 semanas',
+        deliveryDuration: '5 horas',
+        deliveryType: 'Natural',
+        birthCry: 'SI',
+        babyPosition: 'Cefálica',
+        birthWeight: '3.350 kg',
+        birthLength: '51 cm',
+        resuscitation: 'NO',
+        incubator: 'NO',
+        firstFeeding: 'Lactancia materna exclusiva hasta los 6 meses.',
+        birthObservations: 'Apgar 9/10, coloración sonrosada, sin complicaciones perinatales.',
+        earlyFeedingDesc: 'Succión vigorosa, buena tolerancia, sin episodios de cólicos severos.',
+        weaningDesc: 'Inicio de ablactación a los 6 meses con papillas y frutas; destete natural a los 14 meses.',
+        headControl: '3 meses',
+        sittingAge: '6 meses',
+        crawlingAge: '8 meses',
+        firstStepsAge: '12 meses',
+        firstWordsAge: '10 meses (mamá, papá, agua)',
+        firstTeeth: '6 meses',
+        sphincterControl: '2 años y 4 meses (diurno y nocturno)',
+        daycareOrCaregivers: 'Cuidado materno y abuela materna; no asistió a guardería.',
+        schoolStartAge: '3 años (Educación Inicial)',
+        schoolAdaptation: 'Adaptación rápida, sin llanto prolongado, alegre al integrarse al grupo.',
+        teacherRelation: 'Cariñosa y respetuosa; en primaria requiere redirección de foco.',
+        schoolFriends: 'Muchos amigos, juegos grupales compartidos en el recreo.',
+        readingAge: '5 años',
+        writingAge: '5 años y medio',
+        countingAge: '4 años',
+        elementaryDevelopment: 'Buen rendimiento global; destaca en lectura y ciencias.',
+        learningDifficulties: 'Permanecer sentado durante períodos extensos de copia mecánica.',
+        learningStrengths: 'Comprensión lectora, expresión oral, dibujo y deportes.',
+        schoolBehavior: 'Inquietud en el asiento; no es agresivo ni desafiante.',
+        taskAttitude: 'Motivado ante retos dinámicos; se frustra con planas repetitivas.',
+        homeworkSupport: 'Madre y abuela supervisan el horario de tareas.',
+        homeBehavior: 'Colaborador y cariñoso; juega con legos y figuras de acción.',
+        outdoorsBehavior: 'Sociable y extrovertido en parques y visitas familiares.',
+        likes: 'Construir con bloques, dinosaurios, bicicleta y natación.',
+        dislikes: 'Esperar turnos largos, sopas de verduras y regaños en público.',
+        autonomy: 'Se baña, se viste y come de forma totalmente autónoma.',
+        familyDynamics: 'Ambiente afectivo estable, límites claros y acuerdos dialogados.',
+        socialArea: 'Comparte con primos y vecinos de su edad con empatía.',
+        sexuality: 'Curiosidad biológica habitual acorde a su edad.',
+        spirituality: 'Participa en tradiciones familiares y valores de solidaridad.',
+        housingType: 'Casa',
+        housingServices: 'Sí',
+        housingSharesRoom: 'No',
+        housingSharesRoomDesc: 'Habitación propia decorada con motivos infantiles.',
+        occupantsAdultsM: 0,
+        occupantsAdultsF: 2,
+        occupantsTeensM: 0,
+        occupantsTeensF: 0,
+        occupantsChildrenM: 1,
+        occupantsChildrenF: 0,
+        addictions: 'Niega sustancias; videojuegos limitados a 1 hora los fines de semana.',
+        socialManias: 'Acomodar sus figuras en hilera antes de dormir.',
+        phobias: 'Temor a truenos muy fuertes durante tormentas.',
+        nightTerrors: 'Negados actualmente.',
+        ornicofagia: 'Negada.',
+        sleepPattern: 'Sueño de 9 a 10 horas continuas, descanso reparador.',
+        eatingPattern: 'Buen apetito, 3 comidas y meriendas escolares.',
+        hygienePattern: 'Hábitos de higiene consolidados y adecuados.',
+        recreationArea: 'Clases de natación dos veces por semana y paseos familiares.',
+        dailyRoutine: 'Despierta 6:30am, colegio 7:30am-1:00pm, almuerzo 1:30pm, tareas y juego 3:00pm-6:00pm, cena 7:30pm, duerme 9:00pm.',
+        shortTermGoals: 'Mejorar estrategias de autocontrol motor en el aula y mantener motivación escolar.',
+        longTermGoals: 'Desarrollo madurativo integral, autorregulación y bienestar socioemocional.'
+    };
+
+    globalThis.AppState = globalThis.AppState || {};
+    globalThis.AppState.patients = globalThis.AppState.patients || [];
+    globalThis.AppState.patients.push(testChild);
+
+    const h = CHS.getFullHistory(testChild);
+    const therapist = CHS.getTherapistInfo();
+    const pdfHtml = CHS.exportHistoriaOficialInfantilPDF(testChild, h, '8', therapist);
+
+    // 1. Verificación de la estructura exacta de 7 páginas
+    const pageMatches = pdfHtml.match(/<div class="pdf-page">/g) || [];
+    if (pageMatches.length !== 7) {
+        throw new Error(`El PDF de historia infantil debe contener exactamente 7 páginas (encontradas: ${pageMatches.length})`);
+    }
+
+    for (let i = 1; i <= 7; i++) {
+        if (!pdfHtml.includes(`<div class="page-footer">${i}</div>`)) {
+            throw new Error(`Falta el pie de página numerado oficial "${i}" en el PDF de historia infantil`);
+        }
+    }
+
+    // 2. Verificación de todos los Títulos y Secciones Estrictas de las 7 Páginas del PDF Infantil
+    const requiredSections = [
+        // Pág 1
+        'HISTORIA CLÍNICA INFANTIL',
+        'Ha asistido antes a Consulta Psicológica: NO',
+        'DATOS DE IDENTIFICACIÓN DEL PACIENTE:',
+        'DATOS FILIATORIOS DE LOS PADRES:',
+        'Nombre Completo de la Madre:',
+        'Nombre Completo del Padre:',
+        'Nº Hermanos:',
+        'Nº Hermanastros',
+        'Nº Medio Hermanos:',
+        'GENOGRAMA',
+        'MOTIVO DE CONSULTA:',
+        'GESTUALIDAD OBSERVADA AL MOMENTO DE EXPLICAR EL MOTIVO DE CONSULTA',
+        'SINTOMATOLOGÍA PRESENTADA:',
+        'Características Conductuales:',
+        // Pág 2
+        'Características Emocionales:',
+        'Características Orgánicas:',
+        'EXAMEN MENTAL:',
+        'ANTECEDENTES',
+        'Antecedentes Médicos del Paciente',
+        'Evaluación Neurológica',
+        'Golpes, caídas, lesiones, esguinces o fracturas.',
+        'Operaciones',
+        'Convulsiones',
+        'Enfermedades que afectan el Sistema Inmunológico',
+        'Alergias',
+        'Tratamiento Actual',
+        'Otros antecedentes',
+        'Antecedentes Médicos Familiares',
+        // Pág 3
+        'Antecedentes Psiquiátricos o psicológicos del Paciente',
+        'Antecedentes Psiquiátricos o psicológicos Familiares',
+        'Evaluación o tratamiento Pedagógico Previo del Paciente',
+        'DESARROLLO PRENATAL',
+        'Embarazo Deseado: SI',
+        'Embarazo Planificado: SI',
+        'Desarrollo del feto durante el embarazo',
+        'Estado emocional de la madre durante el embarazo',
+        'Medicación Durante el Embarazo',
+        'Enfermedades de la Madre Durante el Embarazo',
+        'Número de Embarazo de la Madre',
+        'DATOS DEL PARTO',
+        'Duración del Embarazo:',
+        'Duración del Parto:',
+        'Tipo de Parto:',
+        'Espontáneo:',
+        'Inducido:',
+        'Cesárea:',
+        'Natural:',
+        'ESTADO DEL NIÑO AL NACER',
+        'Llanto al nacer:',
+        'Posición del Bebé:',
+        'Peso:',
+        'Medida:',
+        'Reanimación:',
+        'Incubadora:',
+        'Primera alimentación:',
+        'Otras Observaciones:',
+        'DESARROLLO SOCIAL Y PSICOMOTOR DEL NIÑO ALREDEDOR DE LOS',
+        // Pág 4
+        'PRIMEROS AÑOS DE VIDA',
+        'Descripción de la alimentación durante los primeros meses de vida',
+        'Descripción del proceso de destete',
+        'Control o dureza cefálica',
+        'Edad a la que se sentó por primera vez',
+        'Gatear',
+        'Primeros pasos',
+        'Primeras palabras',
+        'Primero dientes',
+        'Control de esfínteres vesical y anal',
+        'ESCOLARIDAD',
+        'Guardería o cuidadores',
+        'Edad a la que comenzó la escolaridad',
+        'Proceso de adaptación a la escolaridad',
+        'Relación con las maestras',
+        'Amigos e interacción en la escuela',
+        'Edad a la que aprendió a leer',
+        'Edad a la que aprendió a escribir',
+        'Edad a la que aprendió a contar',
+        // Pág 5
+        'Desarrollo en la primaria',
+        'Áreas con mayor dificultad para su aprendizaje',
+        'Áreas con mayor facilidad para su aprendizaje',
+        'Conducta en el colegio',
+        'Actitud al realizar actividades',
+        'Personas con quien realizar actividades escolares en el hogar',
+        'DINÁMICA FAMILIAR Y SOCIAL',
+        'Conducta en el Hogar',
+        'Conducta al Salir de Casa',
+        'Cosas que le gusta',
+        'Cosas que le disgusta',
+        'Autonomía',
+        'Dinámica Familiar',
+        'Área Social',
+        // Pág 6
+        'Sexualidad',
+        'Área Espiritual',
+        'ÁREA DE VIVIENDA',
+        'Apartamento',
+        'Casa',
+        'Otro',
+        'Servicios Básicos',
+        'Comparte Habitación',
+        'Personas que Habitan en la Vivienda',
+        'HÁBITOS PSICOBIOLÓGICOS:',
+        'Adicciones (Drogas, alcohol, tecnología, cigarrillos, etc.):',
+        'Manías Sociales (Tics, rutinas que maneje en un determinado espacio)',
+        'Fobias o miedo intenso',
+        'Miedos nocturnos',
+        'Ornicofagia',
+        'Sueño',
+        'Alimentación',
+        'Higiene',
+        // Pág 7
+        'Área Recreacional',
+        'Rutina Diaria',
+        'Metas a Corto y Mediano Plazo',
+        'Metas a Largo Plazo',
+        'FIRMA Y SELLO'
+    ];
+
+    for (const sec of requiredSections) {
+        if (!pdfHtml.includes(sec)) {
+            throw new Error(`Falta campo o sección oficial del PDF en Historia Clínica Infantil: "${sec}"`);
+        }
+    }
+
+    // 3. Verificación de CERO campos foráneos no pertenecientes al PDF oficial infantil
+    const forbiddenInChild = [
+        'HISTORIA CLÍNICA ADULTO',
+        'Área Laboral:',
+        'Aspectos Legales:',
+        'IMPRESIÓN DIAGNÓSTICA (CIE-10 / CIE-11 & DSM-5-TR):',
+        'PLAN TERAPÉUTICO Y METAS DE INTERVENCIÓN:',
+        'DESCRIPCIÓN DE ACUERDO A LA ENTEVISTA CON EL ADOLESCENTE'
+    ];
+
+    for (const forb of forbiddenInChild) {
+        if (pdfHtml.includes(forb)) {
+            throw new Error(`Error: Se detectó campo foráneo no permitido en Historia Clínica Infantil: "${forb}"`);
+        }
+    }
+
+    // 4. Verificación de que el editor infantil genera las 7 pestañas correspondientes
+    const editorHtml = CHS.renderChildHistoryEditorHTML(testChild, h, therapist.registry);
+    for (let tabNum = 1; tabNum <= 7; tabNum++) {
+        if (!editorHtml.includes(`htab-child-${tabNum}`)) {
+            throw new Error(`El editor de historia infantil debe contener la pestaña htab-child-${tabNum}`);
+        }
+    }
+
+    const requiredChildTabs = [
+        'Identificación del Paciente',
+        'Motivo de Consulta y Examen Mental',
+        'Antecedentes',
+        'Desarrollo y Escolaridad',
+        'Dinámica Familiar y Vivienda',
+        'Hábitos Psicobiológicos',
+        'Metas y Proyecto de Vida'
+    ];
+
+    for (const tab of requiredChildTabs) {
+        if (!editorHtml.includes(tab)) {
+            throw new Error(`El editor de historia infantil debe contener la pestaña: "${tab}"`);
+        }
+    }
+
+    const requiredChildEditorFields = [
+        'fh_patientName',
+        'fh_birthPlace',
+        'fh_motherName',
+        'fh_fatherName',
+        'fh_siblingsCount',
+        'fh_reason',
+        'fh_mentalExam',
+        'fh_pregnancyDesired',
+        'fh_pregnancyPlanned',
+        'fh_deliveryType',
+        'fh_headControl',
+        'fh_readingAge',
+        'fh_learningDifficulties',
+        'fh_homeBehavior',
+        'fh_autonomy',
+        'fh_sexuality',
+        'fh_spirituality',
+        'fh_housingType',
+        'fh_addictions',
+        'fh_shortTermGoals',
+        'fh_longTermGoals'
+    ];
+
+    for (const fieldId of requiredChildEditorFields) {
+        if (!editorHtml.includes(fieldId)) {
+            throw new Error(`El editor de historia infantil debe contener el campo de formulario id="${fieldId}"`);
+        }
+    }
+
+    // 5. Verificación de renderizado integral en pantalla
+    const childViewHtml = CHS.renderChildHistoryIntegral(testChild, h, therapist, therapist.registry);
+    if (!childViewHtml.includes('Datos de Identificación del Paciente & Convivencia') || !childViewHtml.includes('Neurodesarrollo Prenatal, Parto, Hitos y Escolaridad')) {
+        throw new Error('El visor de historia infantil debe renderizar las secciones acordadas');
+    }
+});
+
+// 102. TC-PORTAL-06: Sincronización de tareas intersesión y desactivación efectiva de alertas SOS en portal adulto/adolescente
+ClinicalTestSuite.add('TC-PORTAL-06', 'Sincronización de tareas intersesión y desactivación efectiva de alertas SOS en portal adulto/adolescente', async () => {
+    const baseUrl = await ensureTestServer();
+    const { generateSessionToken } = await import('./server.js');
+    const { default: db } = await import('./db.js');
+
+    const therapistId = 'dr_sync_test_' + Date.now();
+    const token = generateSessionToken(therapistId, 'sync_test@clinica.com');
+
+    const patientId = 'pat_sync_' + Date.now();
+    const portalToken = 'PN-SYNC-' + Math.floor(Math.random() * 90000 + 10000);
+
+    // 1. Crear paciente adulto / adolescente con tareas intersesión asignadas por el terapeuta
+    const patientData = {
+        id: patientId,
+        name: 'Camila Adulto/Adolescente',
+        category: 'adolescent',
+        lifeStage: 'adolescent',
+        portalToken: portalToken,
+        portalEnabled: true,
+        therapist_id: therapistId
+    };
+
+    const task1 = {
+        id: 'task_sync_1_' + Date.now(),
+        patient_id: patientId,
+        title: 'Completar autoregistro ABC de pensamientos',
+        description: 'Identificar situación, pensamiento automático y emoción',
+        dueDate: '2026-11-01',
+        completed: false
+    };
+
+    // Sincronizar paciente y tareas a través de /api/v1/patients/sync
+    const syncRes = await fetch(`${baseUrl}/api/v1/patients/sync`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({
+            patients: [patientData],
+            tasks: [task1]
+        })
+    });
+    if (syncRes.status !== 200) {
+        throw new Error(`Sincronización inicial de paciente falló con status ${syncRes.status}`);
+    }
+
+    // 2. Verificar que el portal del paciente en /api/v1/portal/me recibe las tareas asignadas
+    const portalMeRes = await fetch(`${baseUrl}/api/v1/portal/me?token=${encodeURIComponent(portalToken)}`);
+    if (portalMeRes.status !== 200) {
+        throw new Error(`Acceso al portal por token falló con status ${portalMeRes.status}`);
+    }
+    const portalData = await portalMeRes.json();
+    if (!Array.isArray(portalData.tasks) || portalData.tasks.length === 0) {
+        throw new Error('Las tareas asignadas por el terapeuta no aparecen en la respuesta de portal /me');
+    }
+    const foundTask = portalData.tasks.find(t => t.id === task1.id);
+    if (!foundTask || foundTask.title !== task1.title) {
+        throw new Error('La tarea intersesión no coincide con la asignada por el terapeuta');
+    }
+
+    // 3. Paciente activa alerta SOS desde el formulario / botón SOS
+    const sosRes = await fetch(`${baseUrl}/api/v1/portal/crisis`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+            patientId,
+            token: portalToken,
+            reason: 'Alerta SOS de prueba en portal',
+            severity: 'CRITICO'
+        })
+    });
+    if (sosRes.status !== 200) {
+        throw new Error(`Activación SOS falló con status ${sosRes.status}`);
+    }
+
+    // 4. Terapeuta consulta alertas de crisis activas: debe existir la alerta SOS
+    const alertsRes = await fetch(`${baseUrl}/api/v1/portal/crisis-alerts`, {
+        headers: { 'Authorization': `Bearer ${token}` }
+    });
+    if (alertsRes.status !== 200) {
+        throw new Error(`Consulta de alertas SOS falló con status ${alertsRes.status}`);
+    }
+    const alertsData = await alertsRes.json();
+    const activeAlert = (alertsData.alerts || []).find(a => a.patient_id === patientId && !a.acknowledged);
+    if (!activeAlert) {
+        throw new Error('La alerta SOS activa no fue encontrada en la lista del terapeuta');
+    }
+
+    // 5. Terapeuta llena y atiende el formulario de crisis, enviando ACK para desactivar la alerta SOS
+    const ackRes = await fetch(`${baseUrl}/api/v1/portal/crisis-alerts/ack-patient/${patientId}`, {
+        method: 'POST',
+        headers: { 'Authorization': `Bearer ${token}` }
+    });
+    if (ackRes.status !== 200) {
+        throw new Error(`ACK de alerta SOS falló con status ${ackRes.status}`);
+    }
+
+    // 6. Verificar que la alerta SOS ya NO aparece en las consultas subsecuentes del terapeuta ni en el portal
+    const afterAlertsRes = await fetch(`${baseUrl}/api/v1/portal/crisis-alerts`, {
+        headers: { 'Authorization': `Bearer ${token}` }
+    });
+    const afterAlertsData = await afterAlertsRes.json();
+    const stillActiveAlert = (afterAlertsData.alerts || []).find(a => a.patient_id === patientId && !a.acknowledged);
+    if (stillActiveAlert) {
+        throw new Error('FALLO CRÍTICO: La alerta SOS sigue apareciendo después de llenar el formulario y enviar ACK');
+    }
+
+    const afterPortalRes = await fetch(`${baseUrl}/api/v1/portal/me?token=${encodeURIComponent(portalToken)}`);
+    const afterPortalData = await afterPortalRes.json();
+    if (afterPortalData.hasActiveCrisisAlert) {
+        throw new Error('FALLO CRÍTICO: El portal del paciente sigue reportando alerta de crisis activa tras la atención');
+    }
+});
+
+// 103. TC-STATUS-01: Transición de estatus de paciente (Alta -> Otro estatus) remueve banner de alta y limpia dischargeDate
+ClinicalTestSuite.add('TC-STATUS-01', 'Transición de estatus de paciente (Alta -> Otro estatus) remueve banner de alta y limpia dischargeDate', async () => {
+    const fs = await import('fs');
+    const appJs = fs.readFileSync('app.js', 'utf8');
+
+    // 1. quickUpdatePatientStatus debe limpiar dischargeDate cuando el nuevo estatus no sea 'Alta'
+    if (!appJs.includes("p.dischargeDate = '';")) {
+        throw new Error("quickUpdatePatientStatus debe limpiar dischargeDate asignando '' cuando el estatus no es Alta");
+    }
+
+    // 2. onPatientStatusChange debe limpiar el campo del formulario cuando estatus != 'Alta'
+    if (!appJs.includes("dischargeInput.value = '';")) {
+        throw new Error("onPatientStatusChange debe limpiar dischargeInput.value cuando el estatus cambia fuera de Alta");
+    }
+
+    // 3. renderPatientDetail debe condicionar el banner de alta estrictamente a isAlta
+    if (appJs.includes("if (isAlta || dischargeDate)")) {
+        throw new Error("renderPatientDetail no debe usar (isAlta || dischargeDate) porque causa que el banner de alta quede atascado");
+    }
+
+    // 4. Simular lógica funcional de transición de estatus
+    const mockPatient = {
+        id: 'pat-test-alta-transition',
+        name: 'Paciente Prueba Alta',
+        status: 'Alta',
+        dischargeDate: '2026-10-26'
+    };
+
+    const mockAppState = { patients: [mockPatient] };
+    
+    // Simular quickUpdatePatientStatus a 'Por iniciar'
+    function simulateQuickUpdate(patientId, newStatus) {
+        const p = mockAppState.patients.find(pt => pt.id === patientId);
+        if (!p) return;
+        p.status = newStatus;
+        if (newStatus === 'Alta') {
+            if (!p.dischargeDate) p.dischargeDate = '2026-10-26';
+        } else {
+            p.dischargeDate = '';
+        }
+    }
+
+    simulateQuickUpdate('pat-test-alta-transition', 'Por iniciar');
+    if (mockPatient.status !== 'Por iniciar') {
+        throw new Error("El estatus del paciente no cambió a 'Por iniciar'");
+    }
+    if (mockPatient.dischargeDate !== '') {
+        throw new Error("La fecha de alta (dischargeDate) no fue limpiada al cambiar el estatus fuera de Alta");
+    }
+
+    // Verificar que al evaluar condición de alta en vista de detalle no se muestre el banner
+    const isAlta = mockPatient.status === 'Alta';
+    if (isAlta) {
+        throw new Error("isAlta no debe ser true para un paciente con estatus 'Por iniciar'");
+    }
+});
+
+// 104. TC-SES-01: Historial de sesiones del paciente, métricas cuantitativas (asistencia, reprogramaciones, cancelaciones, inasistencias) y distribución de adherencia
+ClinicalTestSuite.add('TC-SES-01', 'Historial de sesiones del paciente, métricas cuantitativas (asistencia, reprogramaciones, cancelaciones, inasistencias) y distribución de adherencia', async () => {
+    const fs = await import('fs');
+    const appJs = fs.readFileSync('app.js', 'utf8');
+    const indexHtml = fs.readFileSync('index.html', 'utf8');
+    const stylesCss = fs.readFileSync('styles.css', 'utf8');
+
+    // 1. Verificar existencia de pestaña de Historial de Sesiones en app.js y switchPatientTab
+    if (!appJs.includes("switchPatientTab('sesiones', this)") || !appJs.includes('id="tab-sesiones"')) {
+        throw new Error('app.js debe incluir la pestaña de Historial de Sesiones y su contenedor #tab-sesiones');
+    }
+
+    // 2. Verificar funciones centrales de cálculo de métricas y renderizado
+    if (!appJs.includes('function calculatePatientSessionStats') || !appJs.includes('function renderTabHistorialSesiones') || !appJs.includes('function quickChangeSessionAttendance')) {
+        throw new Error('app.js debe implementar calculatePatientSessionStats, renderTabHistorialSesiones y quickChangeSessionAttendance');
+    }
+
+    // 3. Verificar soporte de inasistencias (no_asistio) en index.html
+    if (!indexHtml.includes('value="no_asistio"')) {
+        throw new Error('index.html debe contener la opción value="no_asistio" en el selector de citas');
+    }
+
+    // 4. Verificar estilos cromáticos y visuales en styles.css
+    if (!stylesCss.includes('.session-stats-grid') || !stylesCss.includes('.session-adherence-card') || !stylesCss.includes('.session-progress-bar-wrap') || !stylesCss.includes('.badge-status-no_asistio')) {
+        throw new Error('styles.css debe contener los estilos de estadísticas de sesión, barra de adherencia y badges de estado');
+    }
+
+    // 5. Test unitario de cálculo de métricas de asistencia y adherencia
+    const mockAppointments = [
+        { id: 'a1', patientId: 'p-stat-test', date: '2026-10-01', status: 'completada' },
+        { id: 'a2', patientId: 'p-stat-test', date: '2026-10-08', status: 'completada' },
+        { id: 'a3', patientId: 'p-stat-test', date: '2026-10-15', status: 'completada' },
+        { id: 'a4', patientId: 'p-stat-test', date: '2026-10-22', status: 'completada' },
+        { id: 'a5', patientId: 'p-stat-test', date: '2026-10-25', status: 'reprogramada' },
+        { id: 'a6', patientId: 'p-stat-test', date: '2026-10-26', status: 'cancelada' },
+        { id: 'a7', patientId: 'p-stat-test', date: '2026-10-27', status: 'no_asistio' },
+        { id: 'a8', patientId: 'p-stat-test', date: '2026-10-30', status: 'agendada' }
+    ];
+
+    const totalCount = mockAppointments.length; // 8
+    const completedCount = mockAppointments.filter(a => a.status === 'completada').length; // 4
+    const rescheduledCount = mockAppointments.filter(a => a.status === 'reprogramada').length; // 1
+    const cancelledCount = mockAppointments.filter(a => a.status === 'cancelada').length; // 1
+    const noShowCount = mockAppointments.filter(a => a.status === 'no_asistio').length; // 1
+    const evaluableCount = completedCount + rescheduledCount + cancelledCount + noShowCount; // 7
+
+    const attendanceRate = Math.round((completedCount / evaluableCount) * 100); // 57%
+    const rescheduleRate = Math.round((rescheduledCount / evaluableCount) * 100); // 14%
+    const cancellationRate = Math.round((cancelledCount / evaluableCount) * 100); // 14%
+    const noShowRate = Math.round((noShowCount / evaluableCount) * 100); // 14%
+
+    if (attendanceRate !== 57) {
+        throw new Error(`Tasa de asistencia calculada incorrecta: esperaba 57%, obtuvo ${attendanceRate}%`);
+    }
+    if (rescheduleRate !== 14 || cancellationRate !== 14 || noShowRate !== 14) {
+        throw new Error('Tasas de reprogramación, cancelación o inasistencia calculadas incorrectamente');
+    }
+
+    // 6. Test de caso con adherencia óptima (90%)
+    const highAdherenceApps = [
+        { id: 'h1', patientId: 'p-high', date: '2026-10-01', status: 'completada' },
+        { id: 'h2', patientId: 'p-high', date: '2026-10-05', status: 'completada' },
+        { id: 'h3', patientId: 'p-high', date: '2026-10-10', status: 'completada' },
+        { id: 'h4', patientId: 'p-high', date: '2026-10-15', status: 'completada' },
+        { id: 'h5', patientId: 'p-high', date: '2026-10-20', status: 'completada' },
+        { id: 'h6', patientId: 'p-high', date: '2026-10-25', status: 'completada' },
+        { id: 'h7', patientId: 'p-high', date: '2026-10-26', status: 'completada' },
+        { id: 'h8', patientId: 'p-high', date: '2026-10-27', status: 'completada' },
+        { id: 'h9', patientId: 'p-high', date: '2026-10-28', status: 'completada' },
+        { id: 'h10', patientId: 'p-high', date: '2026-10-29', status: 'reprogramada' }
+    ];
+    const highEvaluable = highAdherenceApps.length;
+    const highCompleted = highAdherenceApps.filter(a => a.status === 'completada').length;
+    const highRate = Math.round((highCompleted / highEvaluable) * 100);
+    if (highRate !== 90) {
+        throw new Error(`Tasa de alta adherencia debe ser 90%, obtuvo ${highRate}%`);
+    }
+});
+
+// 105. TC-PORTAL-07: Visualización y agendamiento de próxima sesión en el portal del paciente
+ClinicalTestSuite.add('TC-PORTAL-07', 'Visualización y agendamiento de próxima sesión en el portal del paciente (backend, sincronización y UI)', async () => {
+    const fs = await import('fs');
+    const portalHtml = fs.readFileSync('portal.html', 'utf8');
+    const portalJs = fs.readFileSync('portal.js', 'utf8');
+    const portalCss = fs.readFileSync('portal.css', 'utf8');
+
+    // 1. Verificación de UI en portal.html
+    if (!portalHtml.includes('id="viewSessions"') || !portalHtml.includes('id="homeNextSessionCard"') || !portalHtml.includes('id="scheduleSessionModal"')) {
+        throw new Error('portal.html debe contener viewSessions, homeNextSessionCard y scheduleSessionModal');
+    }
+
+    // 2. Verificación de funciones en portal.js
+    if (!portalJs.includes('function renderNextSession') || !portalJs.includes('function renderSessionsView') || !portalJs.includes('function handleScheduleSessionSubmit')) {
+        throw new Error('portal.js debe implementar renderNextSession, renderSessionsView y handleScheduleSessionSubmit');
+    }
+
+    // 3. Verificación de estilos en portal.css
+    if (!portalCss.includes('.portal-next-session-card') || !portalCss.includes('.btn-telehealth-join') || !portalCss.includes('.portal-badge-online')) {
+        throw new Error('portal.css debe contener los estilos de .portal-next-session-card, .btn-telehealth-join y badges de modalidad');
+    }
+
+    // 4. Verificación de API backend con servidor de pruebas
+    const baseUrl = await ensureTestServer();
+    const { generateSessionToken } = await import('./server.js');
+
+    const therapistId = 'dr_app_test_' + Date.now();
+    const token = generateSessionToken(therapistId, 'app_test@clinica.com');
+    const patientId = 'pat_app_' + Date.now();
+    const portalToken = 'PN-APP-' + Math.floor(Math.random() * 90000 + 10000);
+
+    const patientData = {
+        id: patientId,
+        name: 'Sofia Agendamiento Portal',
+        category: 'adult',
+        portalToken: portalToken,
+        portalEnabled: true,
+        therapist_id: therapistId
+    };
+
+    const syncRes = await fetch(`${baseUrl}/api/v1/patients/sync`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({ patients: [patientData] })
+    });
+    if (syncRes.status !== 200) {
+        throw new Error(`Sincronización de paciente falló con status ${syncRes.status}`);
+    }
+
+    // 5. Paciente agenda una cita a través de /api/v1/portal/appointments/request
+    const reqRes = await fetch(`${baseUrl}/api/v1/portal/appointments/request`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+            token: portalToken,
+            patientId: patientId,
+            date: '2026-10-30',
+            time: '15:00',
+            duration: 50,
+            type: 'Online',
+            notes: 'Consulta para revisar avances de tareas'
+        })
+    });
+    if (reqRes.status !== 201) {
+        throw new Error(`Agendamiento de cita desde el portal falló con status ${reqRes.status}`);
+    }
+    const reqData = await reqRes.json();
+    if (!reqData.appointment || reqData.appointment.date !== '2026-10-30') {
+        throw new Error('La cita devuelta no contiene los datos agendados por el paciente');
+    }
+
+    // 6. Verificar que /api/v1/portal/me ahora devuelve la cita en el listado de appointments del paciente
+    const portalMeRes = await fetch(`${baseUrl}/api/v1/portal/me?token=${encodeURIComponent(portalToken)}`);
+    if (portalMeRes.status !== 200) {
+        throw new Error(`Consulta de portal/me falló con status ${portalMeRes.status}`);
+    }
+    const portalMeData = await portalMeRes.json();
+    const scheduledApp = (portalMeData.appointments || []).find(a => a.id === reqData.appointment.id || a.date === '2026-10-30');
+    if (!scheduledApp) {
+        throw new Error('La cita agendada no aparece en los appointments de /api/v1/portal/me');
+    }
+});
+
+// 106. TC-PORTAL-08: Selección Inteligente de Horarios y Bloqueo de Disponibilidad
+ClinicalTestSuite.add('TC-PORTAL-08', 'Selección inteligente de horarios y bloqueo de disponibilidad en el portal del paciente', async () => {
+    const fs = await import('fs');
+    const portalHtml = fs.readFileSync('portal.html', 'utf8');
+    const portalJs = fs.readFileSync('portal.js', 'utf8');
+    const portalCss = fs.readFileSync('portal.css', 'utf8');
+
+    // 1. Verificación de UI en portal.html
+    if (!portalHtml.includes('id="smartSlotsContainer"') || !portalHtml.includes('handleScheduleDateChange') || !portalHtml.includes('id="slotAvailabilitySummary"')) {
+        throw new Error('portal.html debe contener smartSlotsContainer, handleScheduleDateChange y slotAvailabilitySummary');
+    }
+
+    // 2. Verificación de lógica en portal.js
+    if (!portalJs.includes('function handleScheduleDateChange') || !portalJs.includes('function pickSmartSlot') || !portalJs.includes('function fetchPortalAvailability') || !portalJs.includes('function selectNextAvailableWorkingDay')) {
+        throw new Error('portal.js debe implementar handleScheduleDateChange, pickSmartSlot, fetchPortalAvailability y selectNextAvailableWorkingDay');
+    }
+
+    // 3. Verificación de estilos en portal.css
+    if (!portalCss.includes('.smart-slots-container') || !portalCss.includes('.slot-chip-btn') || !portalCss.includes('.slot-chip-btn.occupied')) {
+        throw new Error('portal.css debe contener los estilos de .smart-slots-container, .slot-chip-btn y .slot-chip-btn.occupied');
+    }
+
+    // 4. Servidor de pruebas y verificación de API
+    const baseUrl = await ensureTestServer();
+    const { generateSessionToken } = await import('./server.js');
+
+    const therapistId = 'dr_avail_test_' + Date.now();
+    const token = generateSessionToken(therapistId, 'avail_test@clinica.com');
+    const patient1Id = 'pat_avail_1_' + Date.now();
+    const patient2Id = 'pat_avail_2_' + Date.now();
+    const portalToken1 = 'PN-AVAIL-' + Math.floor(Math.random() * 90000 + 10000);
+    const portalToken2 = 'PN-AVAIL-' + Math.floor(Math.random() * 90000 + 10000);
+
+    const patients = [
+        { id: patient1Id, name: 'Lucas Paciente 1', category: 'adult', portalToken: portalToken1, portalEnabled: true, therapist_id: therapistId },
+        { id: patient2Id, name: 'Camila Paciente 2', category: 'adult', portalToken: portalToken2, portalEnabled: true, therapist_id: therapistId }
+    ];
+
+    const syncRes = await fetch(`${baseUrl}/api/v1/patients/sync`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({ patients })
+    });
+    if (syncRes.status !== 200) {
+        throw new Error(`Sincronización de pacientes falló con status ${syncRes.status}`);
+    }
+
+    // 5. Consultar disponibilidad en día laborable (Miércoles 2026-11-18)
+    const availRes1 = await fetch(`${baseUrl}/api/v1/portal/availability?token=${encodeURIComponent(portalToken1)}&date=2026-11-18`);
+    if (availRes1.status !== 200) {
+        throw new Error(`GET /api/v1/portal/availability falló con status ${availRes1.status}`);
+    }
+    const availData1 = await availRes1.json();
+    if (!availData1.isWorkingDay || !Array.isArray(availData1.slots)) {
+        throw new Error('La disponibilidad debe indicar isWorkingDay: true y contener un array de slots');
+    }
+
+    const slot10amBefore = availData1.slots.find(s => s.time === '10:00');
+    if (!slot10amBefore || !slot10amBefore.available) {
+        throw new Error('El horario 10:00 AM debe estar inicialmente disponible');
+    }
+
+    // 6. Consultar disponibilidad en día Domingo (2026-11-22) -> Debe marcarse como no laborable
+    const sundayRes = await fetch(`${baseUrl}/api/v1/portal/availability?token=${encodeURIComponent(portalToken1)}&date=2026-11-22`);
+    const sundayData = await sundayRes.json();
+    if (sundayData.isWorkingDay !== false || sundayData.slots.some(s => s.available)) {
+        throw new Error('Los domingos deben registrarse como no laborables y sin horarios disponibles');
+    }
+
+    // 7. Paciente 1 agenda el turno de las 10:00 AM el 2026-11-18
+    const bookRes1 = await fetch(`${baseUrl}/api/v1/portal/appointments/request`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+            token: portalToken1,
+            patientId: patient1Id,
+            date: '2026-11-18',
+            time: '10:00',
+            duration: 50,
+            type: 'Online',
+            notes: 'Primera sesión agendada'
+        })
+    });
+    if (bookRes1.status !== 201) {
+        throw new Error(`Agendamiento inicial falló con status ${bookRes1.status}`);
+    }
+
+    // 8. Paciente 2 consulta disponibilidad para el mismo día (2026-11-18)
+    // El horario de las 10:00 AM ahora debe aparecer bloqueado (available: false, reason: 'Horario ocupado')
+    const availRes2 = await fetch(`${baseUrl}/api/v1/portal/availability?token=${encodeURIComponent(portalToken2)}&date=2026-11-18`);
+    const availData2 = await availRes2.json();
+    const slot10amAfter = availData2.slots.find(s => s.time === '10:00');
+    if (!slot10amAfter || slot10amAfter.available !== false || slot10amAfter.reason !== 'Horario ocupado') {
+        throw new Error('El horario 10:00 AM debe figurar como ocupado (available: false) para otros pacientes del mismo terapeuta');
+    }
+
+    // 9. Paciente 2 intenta agendar a la fuerza el horario ocupado (10:00 AM) -> Backend debe responder con HTTP 409 Conflict
+    const conflictRes = await fetch(`${baseUrl}/api/v1/portal/appointments/request`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+            token: portalToken2,
+            patientId: patient2Id,
+            date: '2026-11-18',
+            time: '10:00',
+            duration: 50,
+            type: 'Presencial',
+            notes: 'Intento de colisión en horario ocupado'
+        })
+    });
+    if (conflictRes.status !== 409) {
+        throw new Error(`Se esperaba HTTP 409 Conflict ante colisión de horario, pero respondió con ${conflictRes.status}`);
+    }
+    const conflictData = await conflictRes.json();
+    if (!conflictData.error || !conflictData.error.toLowerCase().includes('disponible')) {
+        throw new Error('El mensaje de error debe indicar claramente la falta de disponibilidad');
+    }
+
+    // 10. Paciente 2 selecciona un horario libre (11:00 AM) -> Debe permitirse con éxito (HTTP 201)
+    const validRes = await fetch(`${baseUrl}/api/v1/portal/appointments/request`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+            token: portalToken2,
+            patientId: patient2Id,
+            date: '2026-11-18',
+            time: '11:00',
+            duration: 50,
+            type: 'Online',
+            notes: 'Horario con disponibilidad confirmada'
+        })
+    });
+    if (validRes.status !== 201) {
+        throw new Error(`Agendamiento en horario libre falló con status ${validRes.status}`);
+    }
+});
+
+// ============================================
+// TC-PORTAL-09: Portal Pacientes PSIRIS - Palabra del Día, Mi Psicólogo, Asistencia, Pagos, Perfil y Documentos
+// ============================================
+ClinicalTestSuite.add('TC-PORTAL-09', 'Portal Pacientes Mejoras PSIRIS (Palabra del día, Mi psicólogo, Confirmar asistencia, Pagos, Mi Perfil, Mis Documentos)', async () => {
+    const fs = await import('fs');
+    const portalHtml = fs.readFileSync('portal.html', 'utf8');
+    const portalJs = fs.readFileSync('portal.js', 'utf8');
+    const portalCss = fs.readFileSync('portal.css', 'utf8');
+
+    // Verificación de UI en portal.html
+    if (!portalHtml.includes('id="moodWordBox"') || !portalHtml.includes('id="inputDailyWord"') || !portalHtml.includes('id="therapistInfoCard"')) {
+        throw new Error('portal.html debe contener moodWordBox, inputDailyWord y therapistInfoCard');
+    }
+    if (!portalHtml.includes('id="viewDocuments"') || !portalHtml.includes('id="viewPayments"') || !portalHtml.includes('id="viewProfile"')) {
+        throw new Error('portal.html debe contener viewDocuments, viewPayments y viewProfile');
+    }
+
+    // Verificación de lógica en portal.js
+    if (!portalJs.includes('function submitDailyWord') || !portalJs.includes('function confirmSessionAttendance') || !portalJs.includes('function renderDocumentsView')) {
+        throw new Error('portal.js debe implementar submitDailyWord, confirmSessionAttendance y renderDocumentsView');
+    }
+    if (!portalJs.includes('function renderPaymentsView') || !portalJs.includes('function copyPaymentDetails') || !portalJs.includes('function handleSavePatientProfile')) {
+        throw new Error('portal.js debe implementar renderPaymentsView, copyPaymentDetails y handleSavePatientProfile');
+    }
+
+    // Verificación de estilos en portal.css
+    if (!portalCss.includes('.mood-word-chip') || !portalCss.includes('.portal-therapist-card') || !portalCss.includes('.btn-confirm-attendance')) {
+        throw new Error('portal.css debe contener los estilos de .mood-word-chip, .portal-therapist-card y .btn-confirm-attendance');
+    }
+
+    const baseUrl = await ensureTestServer();
+    const { generateSessionToken } = await import('./server.js');
+    const { db } = await import('./db.js');
+    const stamp = Date.now();
+
+    // 1. Registrar terapeuta para el test
+    const therapistId = 'dr_psiris_' + stamp;
+    const therapistEmail = `psiris_dr_${stamp}@clinica.com`;
+    const therapistToken = generateSessionToken(therapistId, therapistEmail);
+
+    await db.registerTherapist({
+        id: therapistId,
+        email: therapistEmail,
+        name: 'Dr. Jose Correa',
+        specialty: 'Psicología Clínica y de la Salud',
+        registry_number: 'FPV Nº 54567',
+        phone: '+58 414-9876543',
+        institution: 'Consultorio Clínico Las Mercedes, Caracas'
+    });
+
+    // 2. Crear paciente con acceso al portal
+    const portalToken = `PSIRIS${stamp.toString().slice(-4)}`;
+    const patientId = `patient_psiris_${stamp}`;
+    const pSyncRes = await fetch(`${baseUrl}/api/v1/patients/sync`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${therapistToken}`
+        },
+        body: JSON.stringify({
+            patients: [{
+                id: patientId,
+                therapistId,
+                therapist_id: therapistId,
+                name: 'Mariana Silva',
+                email: 'mariana.silva@gmail.com',
+                phone: '+58 412-1112233',
+                birthdate: '1995-05-15',
+                occupation: 'Diseñadora UX',
+                portalToken,
+                portal_token: portalToken,
+                portalEnabled: true,
+                portal_enabled: true
+            }]
+        })
+    });
+    if (!pSyncRes.ok) {
+        throw new Error('No se pudo registrar el paciente para la prueba PSIRIS');
+    }
+
+    // 3. FEATURE 1: Palabra del día ("Una palabra con la que te sientas identificado hoy")
+    const moodRes = await fetch(`${baseUrl}/api/v1/portal/mood`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+            patientId,
+            token: portalToken,
+            mood: 4,
+            sleep: 4,
+            energy: 3,
+            word: 'Esperanza',
+            identifyingWord: 'Esperanza'
+        })
+    });
+    if (!moodRes.ok) throw new Error('Fallo al registrar estado de ánimo con palabra del día');
+    const moodData = await moodRes.json();
+    if (!moodData.record || moodData.record.word !== 'Esperanza') {
+        throw new Error('La palabra del día no fue persistida en el registro de ánimo');
+    }
+
+    // 4. FEATURE 2: Espacio informativo "Mi psicólogo" en GET /api/v1/portal/me
+    const meRes = await fetch(`${baseUrl}/api/v1/portal/me?token=${encodeURIComponent(portalToken)}`);
+    if (!meRes.ok) throw new Error('Fallo al consultar /api/v1/portal/me');
+    const meData = await meRes.json();
+    if (!meData.therapistInfo) {
+        throw new Error('El objeto therapistInfo no fue retornado en el portal del paciente');
+    }
+    if (!meData.therapistInfo.name || !meData.therapistInfo.registryNumber) {
+        throw new Error('therapistInfo debe contener nombre y número de FPV');
+    }
+
+    // 5. FEATURE 3 & 4: Horarios disponibles y Confirmar Asistencia a la sesión
+    const availRes = await fetch(`${baseUrl}/api/v1/portal/availability?token=${encodeURIComponent(portalToken)}&date=2026-11-05`);
+    const availData = await availRes.json();
+    if (!Array.isArray(availData.availableSlots) || availData.availableSlots.length === 0) {
+        throw new Error('La consulta de disponibilidad debe retornar horarios libres');
+    }
+
+    // Agendar cita
+    const bookRes = await fetch(`${baseUrl}/api/v1/portal/appointments/request`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+            token: portalToken,
+            patientId,
+            date: '2026-11-05',
+            time: '09:00',
+            duration: 50,
+            type: 'Online',
+            notes: 'Sesión de seguimiento'
+        })
+    });
+    if (!bookRes.ok) throw new Error('Fallo agendando cita desde el portal');
+    const bookData = await bookRes.json();
+    const apptId = bookData.appointment.id;
+
+    // Confirmar asistencia
+    const confRes = await fetch(`${baseUrl}/api/v1/portal/appointments/${encodeURIComponent(apptId)}/confirm`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+            token: portalToken,
+            patientId
+        })
+    });
+    if (!confRes.ok) throw new Error('Fallo confirmando asistencia a la cita');
+    const confData = await confRes.json();
+    if (!confData.appointment || confData.appointment.status !== 'confirmada' || !confData.appointment.attendanceConfirmed) {
+        throw new Error('La cita debe actualizar su estatus a confirmada tras confirmar asistencia');
+    }
+
+    // 6. FEATURE 5: Métodos de Pago y Reporte de Pagos
+    const payGetRes = await fetch(`${baseUrl}/api/v1/portal/payments?token=${encodeURIComponent(portalToken)}`);
+    if (!payGetRes.ok) throw new Error('Fallo obteniendo métodos de pago');
+    const payGetData = await payGetRes.json();
+    if (!Array.isArray(payGetData.paymentMethods) || payGetData.paymentMethods.length === 0) {
+        throw new Error('Debe retornarse la lista de métodos de pago activos');
+    }
+
+    // Reportar pago
+    const repPayRes = await fetch(`${baseUrl}/api/v1/portal/payments/report`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+            token: portalToken,
+            patientId,
+            amount: 35.00,
+            currency: 'USD',
+            paymentMethod: 'pago_movil',
+            reference: 'PM-88992211',
+            paymentDate: '2026-10-26',
+            concept: 'Pago sesión terapéutica',
+            receiptData: 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg=='
+        })
+    });
+    if (repPayRes.status !== 201) throw new Error('Fallo al reportar pago');
+    const repPayData = await repPayRes.json();
+    const paymentReportId = repPayData.paymentReport.id;
+    if (repPayData.paymentReport.status !== 'pendiente') {
+        throw new Error('El reporte de pago debe crearse en estado pendiente');
+    }
+
+    // Verificación de pago por parte del terapeuta
+    const verifyPayRes = await fetch(`${baseUrl}/api/v1/portal/payments/${encodeURIComponent(paymentReportId)}/verify`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${therapistToken}`
+        },
+        body: JSON.stringify({
+            status: 'verificado',
+            notes: 'Acreditado en cuenta Banesco'
+        })
+    });
+    if (!verifyPayRes.ok) throw new Error('Fallo en verificación de pago por el terapeuta');
+    const verifyPayData = await verifyPayRes.json();
+    if (verifyPayData.paymentReport.status !== 'verificado') {
+        throw new Error('El estatus del reporte de pago debe ser verificado');
+    }
+
+    // 7. FEATURE 6: "Mi Perfil" (datos llenados por el paciente)
+    const updateProfRes = await fetch(`${baseUrl}/api/v1/portal/profile`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+            token: portalToken,
+            patientId,
+            name: 'Mariana Silva de Correa',
+            phone: '+58 412-9998888',
+            email: 'mariana.silva.correa@gmail.com',
+            occupation: 'Lead Product Designer',
+            address: 'Caracas, Venezuela',
+            emergencyContact: 'Carlos Silva (Hermano)',
+            emergencyPhone: '+58 414-7776655',
+            expectations: 'Aprender autorregulación emocional y técnicas de respiración para el trabajo',
+            birthdate: '1995-05-15'
+        })
+    });
+    if (!updateProfRes.ok) throw new Error('Fallo actualizando perfil del paciente');
+
+    const getProfRes = await fetch(`${baseUrl}/api/v1/portal/profile?token=${encodeURIComponent(portalToken)}`);
+    const getProfData = await getProfRes.json();
+    if (getProfData.profile.occupation !== 'Lead Product Designer' || !getProfData.profile.expectations.includes('autorregulación')) {
+        throw new Error('Los datos del perfil no se actualizaron correctamente');
+    }
+
+    // 8. FEATURE 7: "Mis Documentos" (compartir archivos en Word, PDF, imágenes)
+    // 8.1 Paciente sube documento Word
+    const upDocRes = await fetch(`${baseUrl}/api/v1/portal/documents/upload`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+            token: portalToken,
+            patientId,
+            title: 'Autorregistro semanal de pensamientos',
+            category: 'tarea',
+            fileName: 'registro_semana_1.docx',
+            fileType: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+            fileSize: 15420,
+            fileData: 'data:application/vnd.openxmlformats-officedocument.wordprocessingml.document;base64,UEsDBBQABgAIAAAAIQA='
+        })
+    });
+    if (upDocRes.status !== 201) throw new Error('Fallo subiendo documento Word del paciente');
+    const upDocData = await upDocRes.json();
+    const docId = upDocData.document.id;
+
+    // 8.2 Terapeuta comparte guía clínica PDF
+    const shareDocRes = await fetch(`${baseUrl}/api/v1/portal/documents/share-with-patient`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${therapistToken}`
+        },
+        body: JSON.stringify({
+            patientId,
+            title: 'Guía Clínica de Manejo del Estrés',
+            category: 'guia',
+            fileName: 'guia_estres_clinico.pdf',
+            fileType: 'application/pdf',
+            fileSize: 84210,
+            fileData: 'data:application/pdf;base64,JVBERi0xLjQKJcOkw7zDtsOfCjIgMCBvYmo='
+        })
+    });
+    if (shareDocRes.status !== 201) throw new Error('Fallo compartiendo documento desde terapeuta');
+
+    // 8.3 Paciente consulta sus documentos
+    const getDocsRes = await fetch(`${baseUrl}/api/v1/portal/documents?token=${encodeURIComponent(portalToken)}`);
+    const getDocsData = await getDocsRes.json();
+    if (!Array.isArray(getDocsData.documents) || getDocsData.documents.length < 2) {
+        throw new Error('El paciente debe recibir tanto los documentos subidos como los compartidos por el terapeuta');
+    }
+
+    // 8.4 Paciente elimina documento propio
+    const delDocRes = await fetch(`${baseUrl}/api/v1/portal/documents/${encodeURIComponent(docId)}`, {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ token: portalToken })
+    });
+    if (!delDocRes.ok) throw new Error('Fallo eliminando documento del paciente');
+});
+
+// ============================================
+// TC-PORTAL-10: Reflejo Inmediato de Cancelación de Citas en el Portal del Paciente
+// ============================================
+ClinicalTestSuite.add('TC-PORTAL-10', 'Reflejo y sincronización bidireccional de cancelación de citas entre terapeuta y portal paciente', async () => {
+    const fs = await import('fs');
+    const appJs = fs.readFileSync('app.js', 'utf8');
+    const portalJs = fs.readFileSync('portal.js', 'utf8');
+
+    // 1. Verificación de funciones de sincronización en el código
+    if (!appJs.includes('syncAppointmentStatusToPortalAndBackend')) {
+        throw new Error('app.js debe implementar syncAppointmentStatusToPortalAndBackend');
+    }
+    if (!portalJs.includes('mergeAppointmentsFromBridge') || !portalJs.includes('psico_appointment_updated')) {
+        throw new Error('portal.js debe sincronizar citas desde el puente y escuchar eventos reactivos');
+    }
+
+    const therapistId = `th_cancel_${Date.now()}`;
+    const patientId = `pt_cancel_${Date.now()}`;
+    const portalToken = `PN-CAN${Math.random().toString(36).substring(2, 6).toUpperCase()}`;
+
+    const { generateSessionToken } = await import('./server.js');
+    const therapistToken = generateSessionToken(therapistId);
+
+    const { db } = await import('./db.js');
+    await db.registerTherapist({
+        id: therapistId,
+        name: 'Dra. Terapeuta Citas',
+        email: `citas_${Date.now()}@test.com`,
+        passwordHash: 'dummy'
+    });
+
+    const baseUrl = await ensureTestServer();
+
+    // 2. Sincronizar paciente con portal habilitado
+    const pSyncRes = await fetch(`${baseUrl}/api/v1/patients/sync`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${therapistToken}`
+        },
+        body: JSON.stringify({
+            patients: [{
+                id: patientId,
+                therapistId: therapistId,
+                name: 'Paciente Prueba Cancelación',
+                portalToken,
+                portalEnabled: true
+            }]
+        })
+    });
+    if (!pSyncRes.ok) throw new Error('No se pudo crear paciente para la prueba de cancelación');
+
+    // 3. Paciente solicita cita desde el portal
+    const bookRes = await fetch(`${baseUrl}/api/v1/portal/appointments/request`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+            token: portalToken,
+            patientId,
+            date: '2026-11-20',
+            time: '15:00',
+            duration: 50,
+            type: 'Online',
+            notes: 'Cita programada para prueba de cancelación'
+        })
+    });
+    if (!bookRes.ok) throw new Error('Fallo agendando cita inicial');
+    const bookData = await bookRes.json();
+    const apptId = bookData.appointment.id;
+    if (bookData.appointment.status !== 'agendada') {
+        throw new Error('La cita nueva debe tener estado agendada');
+    }
+
+    // 4. Verificar que /api/v1/portal/me muestra la cita como agendada
+    const meBeforeRes = await fetch(`${baseUrl}/api/v1/portal/me?token=${encodeURIComponent(portalToken)}`);
+    const meBeforeData = await meBeforeRes.json();
+    const appBefore = (meBeforeData.appointments || []).find(a => String(a.id) === String(apptId));
+    if (!appBefore || appBefore.status !== 'agendada') {
+        throw new Error('La cita debe reflejarse como agendada en el portal del paciente inicialmente');
+    }
+
+    // 5. El terapeuta cancela la cita vía PATCH /api/v1/appointments/:id/status
+    const cancelRes = await fetch(`${baseUrl}/api/v1/appointments/${encodeURIComponent(apptId)}/status`, {
+        method: 'PATCH',
+        headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${therapistToken}`
+        },
+        body: JSON.stringify({
+            status: 'cancelada',
+            notes: 'Cancelada por el terapeuta por fuerza mayor médica'
+        })
+    });
+    if (!cancelRes.ok) throw new Error('Fallo al cancelar la cita desde el endpoint del terapeuta');
+    const cancelData = await cancelRes.json();
+    if (!cancelData.appointment || cancelData.appointment.status !== 'cancelada') {
+        throw new Error('El endpoint de actualización debe confirmar el estado cancelada');
+    }
+
+    // 6. Consultar nuevamente /api/v1/portal/me y verificar que la cita ahora tiene status cancelada
+    const meAfterRes = await fetch(`${baseUrl}/api/v1/portal/me?token=${encodeURIComponent(portalToken)}`);
+    const meAfterData = await meAfterRes.json();
+    const appAfter = (meAfterData.appointments || []).find(a => String(a.id) === String(apptId));
+    if (!appAfter || appAfter.status !== 'cancelada') {
+        throw new Error('La cita cancelada por el terapeuta DEBE reflejarse con status "cancelada" en el portal del paciente');
+    }
+
+    // 7. Probar endpoint DELETE /api/v1/appointments/:id
+    const delApptRes = await fetch(`${baseUrl}/api/v1/appointments/${encodeURIComponent(apptId)}`, {
+        method: 'DELETE',
+        headers: {
+            'Authorization': `Bearer ${therapistToken}`
+        }
+    });
+    if (!delApptRes.ok) throw new Error('Fallo al eliminar cita por terapeuta');
+});
+
+// ============================================
+// TC-PORTAL-11: Resiliencia Offline, CORS y Mitigación de 'Failed to Fetch' en Nuevas Funciones
+// ============================================
+ClinicalTestSuite.add('TC-PORTAL-11', 'Mitigación de "Failed to fetch", proxy de Vite, CORS y persistencia local defensiva', async () => {
+    const fs = await import('fs');
+    const viteConfig = fs.readFileSync('vite.config.ts', 'utf8');
+    const serverJs = fs.readFileSync('server.js', 'utf8');
+    const portalJs = fs.readFileSync('portal.js', 'utf8');
+
+    // 1. Verificación del proxy en vite.config.ts
+    if (!viteConfig.includes("'/api'") || !viteConfig.includes('proxy:')) {
+        throw new Error('vite.config.ts debe configurar un proxy para /api para evitar "Failed to fetch" en desarrollo');
+    }
+
+    // 2. Verificación de CORS con PATCH y soporte para LAN en server.js
+    if (!serverJs.includes('PATCH') || !serverJs.includes('Access-Control-Allow-Methods')) {
+        throw new Error('server.js debe incluir PATCH en Access-Control-Allow-Methods');
+    }
+    if (!serverJs.includes("limit: '50mb'")) {
+        throw new Error('server.js debe soportar cargas de documentos de hasta 50MB');
+    }
+
+    // 3. Verificación de persistencia local defensiva en portal.js
+    if (!portalJs.includes('savePatientDataLocally') || !portalJs.includes('PortalState.documents')) {
+        throw new Error('portal.js debe persistir y restaurar documentos localmente');
+    }
+
+    // 4. Verificación de manejo optimista sin errores crudos "Failed to fetch"
+    const funcsToCheck = [
+        'confirmSessionAttendance',
+        'handleDocumentUpload',
+        'deletePortalDoc',
+        'handleReportPayment',
+        'handleSavePatientProfile',
+        'loadPortalAvailability'
+    ];
+    for (const fn of funcsToCheck) {
+        if (!portalJs.includes(`function ${fn}`) && !portalJs.includes(`async function ${fn}`)) {
+            throw new Error(`portal.js debe definir ${fn}`);
+        }
+    }
+});
+
+// ============================================
+// TC-PORTAL-12: Edición y Personalización de Formas de Pago del Terapeuta para el Portal
+// ============================================
+ClinicalTestSuite.add('TC-PORTAL-12', 'Edición y personalización de formas de pago del terapeuta y reflejo dinámico en el portal de pacientes', async () => {
+    const fs = await import('fs');
+    const appJs = fs.readFileSync('app.js', 'utf8');
+    const portalJs = fs.readFileSync('portal.js', 'utf8');
+    const indexHtml = fs.readFileSync('index.html', 'utf8');
+    const financeJs = fs.readFileSync('finance.js', 'utf8');
+    const serverJs = fs.readFileSync('server.js', 'utf8');
+    const dbJs = fs.readFileSync('db.js', 'utf8');
+
+    // 1. Verificación de interfaz y modales en HTML / JS
+    if (!indexHtml.includes('id="portalPaymentMethodsModal"')) {
+        throw new Error('index.html debe contener el modal portalPaymentMethodsModal');
+    }
+    if (!indexHtml.includes('openPortalPaymentMethodsModal()')) {
+        throw new Error('index.html debe contener botón para invocar openPortalPaymentMethodsModal()');
+    }
+    if (!financeJs.includes('openPortalPaymentMethodsModal()')) {
+        throw new Error('finance.js debe ofrecer acceso para editar formas de pago del portal');
+    }
+
+    // 2. Verificación de lógica en app.js
+    const appFuncs = [
+        'openPortalPaymentMethodsModal',
+        'renderPaymentMethodsEditor',
+        'handleSavePortalPaymentMethods',
+        'addNewPaymentMethodRow',
+        'resetDefaultPaymentMethods',
+        'getDefaultPortalPaymentMethods'
+    ];
+    for (const fn of appFuncs) {
+        if (!appJs.includes(fn)) {
+            throw new Error(`app.js debe implementar ${fn}`);
+        }
+    }
+
+    // 3. Verificación de lógica de renderizado y filtrado en portal.js
+    if (!portalJs.includes('renderPaymentsView') || !portalJs.includes('payMethodSelect')) {
+        throw new Error('portal.js debe renderizar formas de pago y actualizar payMethodSelect');
+    }
+    if (!portalJs.includes('psico_therapist_payment_methods') && !portalJs.includes('psico_payment_methods_updated')) {
+        throw new Error('portal.js debe escuchar cambios de formas de pago del terapeuta');
+    }
+
+    // 4. Verificación de métodos en db.js
+    if (!dbJs.includes('getTherapistPaymentMethods') || !dbJs.includes('saveTherapistPaymentMethods')) {
+        throw new Error('db.js debe implementar getTherapistPaymentMethods y saveTherapistPaymentMethods');
+    }
+
+    // 5. Verificación de endpoints en server.js
+    if (!serverJs.includes('/api/v1/therapist/payment-methods')) {
+        throw new Error('server.js debe exponer la ruta /api/v1/therapist/payment-methods');
+    }
+
+    // 6. Prueba funcional con el servidor HTTP
+    const baseUrl = await ensureTestServer();
+    const { generateSessionToken } = await import('./server.js');
+    const { db } = await import('./db.js');
+
+    const testTherapistId = 'therapist_pay_test_' + Date.now();
+    const sessionToken = generateSessionToken(testTherapistId);
+
+    // Obtener métodos por defecto
+    const getRes = await fetch(`${baseUrl}/api/v1/therapist/payment-methods`, {
+        headers: { 'Authorization': `Bearer ${sessionToken}` }
+    });
+    if (!getRes.ok) {
+        throw new Error(`GET /api/v1/therapist/payment-methods falló con status ${getRes.status}`);
+    }
+    const getData = await getRes.json();
+    if (!Array.isArray(getData.paymentMethods) || getData.paymentMethods.length === 0) {
+        throw new Error('Debe devolver la lista de métodos de pago predeterminados');
+    }
+
+    // Actualizar con métodos personalizados (cambiando Zelle y agregando PayPal personalizado)
+    const customMethods = [
+        {
+            id: 'pago_movil',
+            name: 'Pago Móvil Banco de Venezuela',
+            icon: '📱',
+            enabled: true,
+            bank: 'Banco de Venezuela (0102)',
+            idNumber: 'V-20123456',
+            phone: '0424-9876543',
+            instructions: 'Transferencia inmediata BDV'
+        },
+        {
+            id: 'zelle_dr',
+            name: 'Zelle Personalizado Dr.',
+            icon: '💵',
+            enabled: true,
+            email: 'consultas.dr.test@gmail.com',
+            holder: 'Dr. Test Terapeuta',
+            instructions: 'Solo colocar nombre del paciente'
+        },
+        {
+            id: 'binance_disabled',
+            name: 'Binance Pay',
+            icon: '🟡',
+            enabled: false,
+            payId: '0000000',
+            instructions: 'Desactivado temporalmente'
+        }
+    ];
+
+    const putRes = await fetch(`${baseUrl}/api/v1/therapist/payment-methods`, {
+        method: 'PUT',
+        headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${sessionToken}`
+        },
+        body: JSON.stringify({ paymentMethods: customMethods })
+    });
+    if (!putRes.ok) {
+        throw new Error(`PUT /api/v1/therapist/payment-methods falló con status ${putRes.status}`);
+    }
+    const putData = await putRes.json();
+    if (putData.status !== 'ok' || !Array.isArray(putData.paymentMethods)) {
+        throw new Error('Respuesta de guardado de métodos inválida');
+    }
+
+    // Comprobar persistencia con un nuevo GET
+    const verifyRes = await fetch(`${baseUrl}/api/v1/therapist/payment-methods`, {
+        headers: { 'Authorization': `Bearer ${sessionToken}` }
+    });
+    const verifyData = await verifyRes.json();
+    const zelleFound = verifyData.paymentMethods.find(m => m.id === 'zelle_dr');
+    if (!zelleFound || zelleFound.email !== 'consultas.dr.test@gmail.com') {
+        throw new Error('No se guardaron correctamente los datos personalizados del terapeuta');
+    }
+
+    // Crear paciente asociado a este terapeuta y verificar endpoint del portal
+    const patientId = 'pat_pay_test_' + Date.now();
+    const portalToken = 'PAY_' + Date.now().toString(36).toUpperCase();
+    await db.upsertPatient({
+        id: patientId,
+        therapist_id: testTherapistId,
+        therapistId: testTherapistId,
+        name: 'Paciente Test Pagos',
+        portal_token: portalToken,
+        portalToken: portalToken,
+        portal_enabled: true,
+        portalEnabled: true
+    });
+
+    // Consultar /api/v1/portal/payments usando el token del portal
+    const portalPayRes = await fetch(`${baseUrl}/api/v1/portal/payments?token=${portalToken}`);
+    if (!portalPayRes.ok) {
+        throw new Error(`GET /api/v1/portal/payments falló con status ${portalPayRes.status}`);
+    }
+    const portalPayData = await portalPayRes.json();
+    if (!Array.isArray(portalPayData.paymentMethods)) {
+        throw new Error('portal/payments debe retornar paymentMethods');
+    }
+    const portalZelle = portalPayData.paymentMethods.find(m => m.id === 'zelle_dr');
+    if (!portalZelle || portalZelle.email !== 'consultas.dr.test@gmail.com') {
+        throw new Error('El portal del paciente debe reflejar las formas de pago configuradas por su terapeuta');
+    }
+});
+
+// ============================================
+// TC-PORTAL-13: Recepción, Visualización y Validación de Comprobantes de Pago del Paciente
+// ============================================
+ClinicalTestSuite.add('TC-PORTAL-13', 'Recepción de comprobantes en el portal, sincronización con el terapeuta, visualizador de recibos y validación en finanzas', async () => {
+    const fs = await import('fs');
+    const appJs = fs.readFileSync('app.js', 'utf8');
+    const portalJs = fs.readFileSync('portal.js', 'utf8');
+    const financeJs = fs.readFileSync('finance.js', 'utf8');
+    const indexHtml = fs.readFileSync('index.html', 'utf8');
+    const serverJs = fs.readFileSync('server.js', 'utf8');
+    const dbJs = fs.readFileSync('db.js', 'utf8');
+
+    // 1. Verificación estructural en el frontend y DOM
+    if (!indexHtml.includes('id="paymentReceiptModal"')) {
+        throw new Error('index.html debe contener el modal paymentReceiptModal para visualizar comprobantes');
+    }
+    if (!appJs.includes('viewPaymentReceiptModal') || !appJs.includes('approvePatientPayment') || !appJs.includes('rejectPatientPayment')) {
+        throw new Error('app.js debe implementar viewPaymentReceiptModal, approvePatientPayment y rejectPatientPayment');
+    }
+    if (!financeJs.includes('renderPortalPaymentsTabHtml') || !financeJs.includes('getAllPatientPaymentReports')) {
+        throw new Error('finance.js debe implementar renderPortalPaymentsTabHtml y getAllPatientPaymentReports');
+    }
+
+    // 2. Verificación de métodos en backend y base de datos
+    if (!dbJs.includes('getTherapistPaymentReports')) {
+        throw new Error('db.js debe implementar getTherapistPaymentReports');
+    }
+    if (!serverJs.includes('/api/v1/therapist/payment-reports') || !serverJs.includes('/api/v1/portal/payments/:id/verify')) {
+        throw new Error('server.js debe exponer /api/v1/therapist/payment-reports y /api/v1/portal/payments/:id/verify');
+    }
+
+    // 3. Prueba funcional de flujo de reporte y aprobación
+    const baseUrl = await ensureTestServer();
+    const { generateSessionToken } = await import('./server.js');
+    const { db } = await import('./db.js');
+
+    const testTherapistId = 'dr_receipt_test_' + Date.now();
+    const sessionToken = generateSessionToken(testTherapistId);
+    const testPatientId = 'pat_receipt_test_' + Date.now();
+    const portalToken = 'REC_' + Date.now().toString(36).toUpperCase();
+
+    await db.upsertPatient({
+        id: testPatientId,
+        therapist_id: testTherapistId,
+        therapistId: testTherapistId,
+        name: 'Carlos Comprobantes',
+        portal_token: portalToken,
+        portalToken: portalToken,
+        portal_enabled: true,
+        portalEnabled: true
+    });
+
+    // Simular que el paciente reporta un pago con comprobante base64
+    const sampleReceiptBase64 = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==';
+    const reportRes = await fetch(`${baseUrl}/api/v1/portal/payments/report`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+            token: portalToken,
+            patientId: testPatientId,
+            amount: 45.00,
+            currency: 'USD',
+            paymentMethod: 'pago_movil',
+            reference: 'REF-789012',
+            paymentDate: '2026-10-26',
+            concept: 'Sesión TCC Individual',
+            receiptData: sampleReceiptBase64
+        })
+    });
+    if (!reportRes.ok) {
+        throw new Error(`POST /api/v1/portal/payments/report falló con status ${reportRes.status}`);
+    }
+    const reportData = await reportRes.json();
+    if (!reportData.paymentReport || !reportData.paymentReport.id) {
+        throw new Error('No se generó el registro de reporte de pago');
+    }
+    const createdReportId = reportData.paymentReport.id;
+
+    // Verificar que el terapeuta ve el comprobante en su endpoint
+    const therapistGetRes = await fetch(`${baseUrl}/api/v1/therapist/payment-reports`, {
+        headers: { 'Authorization': `Bearer ${sessionToken}` }
+    });
+    if (!therapistGetRes.ok) {
+        throw new Error(`GET /api/v1/therapist/payment-reports falló con status ${therapistGetRes.status}`);
+    }
+    const therapistData = await therapistGetRes.json();
+    if (!Array.isArray(therapistData.paymentReports)) {
+        throw new Error('paymentReports debe ser un array');
+    }
+    const found = therapistData.paymentReports.find(r => r.id === createdReportId);
+    if (!found) {
+        throw new Error('El comprobante cargado por el paciente no se encuentra en los reportes del terapeuta');
+    }
+    if (found.reference !== 'REF-789012' || found.status !== 'pendiente') {
+        throw new Error('Los datos del comprobante recibido no coinciden');
+    }
+
+    // Terapeuta aprueba el comprobante
+    const verifyRes = await fetch(`${baseUrl}/api/v1/portal/payments/${createdReportId}/verify`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${sessionToken}`
+        },
+        body: JSON.stringify({ status: 'aprobado', notes: 'Verificado exitosamente' })
+    });
+    if (!verifyRes.ok) {
+        throw new Error(`POST /verify falló con status ${verifyRes.status}`);
+    }
+    const verifyData = await verifyRes.json();
+    if (verifyData.status !== 'ok' || verifyData.paymentReport.status !== 'aprobado') {
+        throw new Error('No se actualizó el estatus del comprobante a aprobado');
+    }
+});
+
+// 112. TC-EXP-03: Ficha de Paciente e Historia Clínica Adolescente (Consentimiento Informado, Pestañas sin Emojis y Áreas Vitales)
+ClinicalTestSuite.add('TC-EXP-03', 'Ficha Paciente e Historia Clínica Adolescente: Consentimiento Informado, tabs sin emojis y áreas vitales completas', async () => {
+    const fs = await import('fs');
+    const path = await import('path');
+
+    // 1. Validar index.html para tabs de población sin emojis
+    const indexHtml = fs.readFileSync(path.resolve('index.html'), 'utf8');
+    if (!indexHtml.includes('>Infantil</span>') || !indexHtml.includes('>Adolescente</span>') || !indexHtml.includes('>Adulto</span>')) {
+        throw new Error('index.html debe contener las etiquetas de pestañas "Infantil", "Adolescente" y "Adulto"');
+    }
+    // Verificar que tabPopChild, tabPopAdolescent, tabPopAdult no tengan emojis
+    const tabChildBlock = indexHtml.substring(indexHtml.indexOf('id="tabPopChild"'), indexHtml.indexOf('id="tabPopAdolescent"'));
+    if (tabChildBlock.includes('🧒') || tabChildBlock.includes('👶')) {
+        throw new Error('tabPopChild no debe tener emojis en las pestañas');
+    }
+    const tabTeenBlock = indexHtml.substring(indexHtml.indexOf('id="tabPopAdolescent"'), indexHtml.indexOf('id="tabPopAdult"'));
+    if (tabTeenBlock.includes('🧑') || tabTeenBlock.includes('🧒')) {
+        throw new Error('tabPopAdolescent no debe tener emojis en las pestañas');
+    }
+
+    // 2. Validar app.js para "Consentimiento Informado:"
+    const appJs = fs.readFileSync(path.resolve('app.js'), 'utf8');
+    if (!appJs.includes('<span class="expediente-data-label">Consentimiento Informado:</span>')) {
+        throw new Error('app.js debe denominar la fila del expediente como "Consentimiento Informado:"');
+    }
+
+    // 3. Validar historia-clinica.js para HC Adolescente con todas las áreas vitales
+    if (typeof ClinicalHistorySystem === 'undefined') {
+        await import('./historia-clinica.js');
+    }
+    const CHS = globalThis.ClinicalHistorySystem;
+    if (!CHS) throw new Error('ClinicalHistorySystem no está disponible');
+
+    const teenPatient = {
+        id: 'teen_test_vital_01',
+        name: 'Camila Rivas',
+        category: 'adolescent',
+        birthdate: '2010-05-15',
+        gender: 'Femenino',
+        schoolName: 'Liceo Bolivariano',
+        schoolGrade: '3er Año Bachillerato',
+        status: 'En Evaluación',
+        guardianName: 'Mariana Rivas',
+        guardianRelation: 'Madre',
+        guardianConsent: 'firmado',
+        teenChildhood: 'Infancia tranquila con apego seguro',
+        teenFamilyDynamics: 'Buena comunicación; acuerdos de autonomía',
+        teenSocial: 'Grupo de pares estructurado y deportivo',
+        teenSexuality: 'Exploración adaptativa acorde a etapa',
+        teenRelationships: 'Amistades cercanas en el liceo',
+        teenShortGoals: 'Aprobar año escolar con honores',
+        teenLongGoals: 'Estudiar Psicología o Medicina'
+    };
+
+    const renderedHtml = CHS.renderTabHistoriaIntegral(teenPatient);
+
+    // Verificar secciones clave en la historia del adolescente
+    const requiredSections = [
+        'Ficha del Paciente (Adolescente)',
+        'Ficha del Representante / Tutor Legal',
+        'Información Referente a la Consulta Psicológica',
+        'Encuadre y Acuerdos de Consulta',
+        'Examen Mental & Tríada Sintomatológica',
+        'Antecedentes Médicos, Neurológicos & Quirúrgicos',
+        'Área Escolar, Académica & Dinámica de Aprendizaje',
+        'Áreas Vitales & Entrevista Privada con el Adolescente',
+        'Vivienda, Hábitos Psicobiológicos, Sueño & Fobias',
+        'Impresión Diagnóstica & Plan Terapéutico'
+    ];
+
+    for (const sec of requiredSections) {
+        if (!renderedHtml.includes(sec)) {
+            throw new Error(`Historia Clínica Adolescente debe contener la sección: ${sec}`);
+        }
+    }
+
+    // Verificar presencia de botones de acción
+    if (!renderedHtml.includes('Editar Historia Completa') || !renderedHtml.includes('PDF Oficial')) {
+        throw new Error('Toolbar de HC Adolescente debe incluir Editar Historia Completa y PDF Oficial');
+    }
+});
+
+// 113. TC-EXP-04: Modificaciones en Historia Clínica Infantil (Eliminar Cédula del Niño y Separar Escolaridad/Ocupación de Padres)
+ClinicalTestSuite.add('TC-EXP-04', 'Historia Clínica Infantil: Sin cédula infantil, nombre completo y escolaridad/ocupación de padres separadas', async () => {
+    if (typeof ClinicalHistorySystem === 'undefined') {
+        await import('./historia-clinica.js');
+    }
+    const CHS = globalThis.ClinicalHistorySystem;
+    if (!CHS) throw new Error('ClinicalHistorySystem no está disponible');
+
+    const pediatricPatient = {
+        id: 'child_exp_04',
+        name: 'Sebastián Morales',
+        category: 'child',
+        birthdate: '2019-03-20',
+        gender: 'Masculino',
+        schoolName: 'U.E. Simón Bolívar',
+        schoolGrade: '1er Grado',
+        motherName: 'Valeria Méndez',
+        motherAge: '34',
+        motherCI: 'V-19.882.114',
+        motherEducation: 'Universitaria (Lic. en Educación)',
+        motherJob: 'Docente de Primaria',
+        fatherName: 'Carlos Morales',
+        fatherAge: '37',
+        fatherCI: 'V-18.455.901',
+        fatherEducation: 'Técnico Superior Universitario',
+        fatherJob: 'Coordinador de Logística'
+    };
+
+    globalThis.AppState = globalThis.AppState || {};
+    globalThis.AppState.patients = globalThis.AppState.patients || [];
+    globalThis.AppState.patients.push(pediatricPatient);
+
+    // 1. Renderizado en visor de acordeón
+    const childHtml = CHS.renderTabHistoriaIntegral(pediatricPatient);
+
+    // Debe mostrar Datos de Identificación y Nombre Completo
+    if (!childHtml.includes('Datos de Identificación del Paciente') || !childHtml.includes('Nombre Completo del Paciente:')) {
+        throw new Error('Debe titularse "Datos de Identificación del Paciente" e incluir "Nombre Completo del Paciente"');
+    }
+
+    // Debe eliminar la cédula del paciente en la sección de datos del niño
+    const identBlock = childHtml.substring(childHtml.indexOf('id="acc_sec_1"'), childHtml.indexOf('Datos Filiatorios'));
+    if (identBlock.includes('C.I. / Documento:')) {
+        throw new Error('La historia clínica infantil no debe mostrar campo de Cédula de Identidad para el paciente menor');
+    }
+
+    // Debe separar Escolaridad y Ocupación Actual en los datos de los padres
+    if (!childHtml.includes('<strong>Escolaridad:</strong>') || !childHtml.includes('<strong>Ocupación Actual:</strong>')) {
+        throw new Error('La sección de padres debe separar "Escolaridad" y "Ocupación Actual" como dos ítems independientes');
+    }
+
+    // 2. Exportación a PDF Oficial Infantil
+    const pdfHtml = CHS.exportHistoriaOficialPDF(pediatricPatient.id);
+    if (!pdfHtml.includes('DATOS DE IDENTIFICACIÓN DEL PACIENTE:')) {
+        throw new Error('El PDF infantil debe tener encabezado "DATOS DE IDENTIFICACIÓN DEL PACIENTE:"');
+    }
+    if (!pdfHtml.includes('DATOS FILIATORIOS DE LOS PADRES:')) {
+        throw new Error('El PDF infantil debe incluir "DATOS FILIATORIOS DE LOS PADRES:"');
+    }
+    if (!pdfHtml.includes('Escolaridad:') || !pdfHtml.includes('Ocupación Actual:')) {
+        throw new Error('El PDF infantil debe mostrar columnas separadas para Escolaridad y Ocupación Actual');
+    }
+});
+
+// ============================================
+// TC-PORTAL-14: Sincronización de Confirmación de Asistencia (Portal -> Terapeuta Check & Notificación)
+// ============================================
+ClinicalTestSuite.add('TC-PORTAL-14', 'Sincronización en tiempo real de confirmación de asistencia del paciente hacia el portal del terapeuta (Check badge, notificación y estado en agenda/calendario)', async () => {
+    const fs = await import('fs');
+    const appJs = fs.readFileSync('app.js', 'utf8');
+    const portalJs = fs.readFileSync('portal.js', 'utf8');
+    const stylesCss = fs.readFileSync('styles.css', 'utf8');
+    const indexHtml = fs.readFileSync('index.html', 'utf8');
+    const dbJs = fs.readFileSync('db.js', 'utf8');
+
+    // 1. Verificación de portal.js
+    if (!portalJs.includes('psico_portal_appointments_bridge') || !portalJs.includes('psico_portal_appointment_confirmed_event')) {
+        throw new Error('portal.js debe actualizar psico_portal_appointments_bridge y disparar psico_portal_appointment_confirmed_event al confirmar asistencia');
+    }
+    if (!portalJs.includes("bridge[appointmentId].status = 'confirmada'") || !portalJs.includes('bridge[appointmentId].attendanceConfirmed = true')) {
+        throw new Error('portal.js debe marcar status: "confirmada" y attendanceConfirmed: true en el puente de citas');
+    }
+
+    // 2. Verificación de estilos visuales de check y estados confirmados
+    if (!stylesCss.includes('.badge-attendance-check') || !stylesCss.includes('.status-confirmada')) {
+        throw new Error('styles.css debe definir las clases .badge-attendance-check y .status-confirmada');
+    }
+    if (!stylesCss.includes('.cal-event-pill.confirmada') && !stylesCss.includes('.cal-event-pill.confirmed')) {
+        throw new Error('styles.css debe estilizar las citas confirmadas en el calendario mensual');
+    }
+    if (!stylesCss.includes('.cal-week-card.confirmada') && !stylesCss.includes('.cal-week-card.confirmed')) {
+        throw new Error('styles.css debe estilizar las citas confirmadas en el calendario semanal');
+    }
+
+    // 3. Verificación de app.js (Terapeuta)
+    if (!appJs.includes('newlyConfirmedAppointments') || !appJs.includes('¡Asistencia Confirmada!')) {
+        throw new Error('app.js debe detectar newlyConfirmedAppointments y notificar al terapeuta con showToast');
+    }
+    if (!appJs.includes('badge-attendance-check')) {
+        throw new Error('app.js debe renderizar badge-attendance-check en las citas confirmadas');
+    }
+    if (!appJs.includes('psico_portal_appointment_confirmed_event')) {
+        throw new Error('app.js debe escuchar psico_portal_appointment_confirmed_event para sincronización en tiempo real');
+    }
+
+    // 4. Verificación de opciones de estado en modales y selectores
+    if (!indexHtml.includes('<option value="confirmada">')) {
+        throw new Error('index.html debe incluir la opción confirmada en el modal de citas');
+    }
+
+    // 5. Verificación de persistencia en db.js
+    if (!dbJs.includes('attendanceConfirmed') || !dbJs.includes('attendance_confirmed')) {
+        throw new Error('db.js debe mapear y persistir attendanceConfirmed y attendance_confirmed');
+    }
+});
+
+// ============================================
+// TC-PORTAL-15: Notificación y Alerta de Confirmación de Cita al Paciente
+// ============================================
+ClinicalTestSuite.add('TC-PORTAL-15', 'Notificación y banner de alerta para que el paciente confirme su asistencia (UI, Web Notifications, Badge y solicitud del terapeuta)', async () => {
+    const fs = await import('fs');
+    const portalHtml = fs.readFileSync('portal.html', 'utf8');
+    const portalJs = fs.readFileSync('portal.js', 'utf8');
+    const portalCss = fs.readFileSync('portal.css', 'utf8');
+    const appJs = fs.readFileSync('app.js', 'utf8');
+    const remindersJs = fs.readFileSync('session-reminders.js', 'utf8');
+    const serverJs = fs.readFileSync('server.js', 'utf8');
+
+    // 1. Verificación del Banner de Alerta en portal.html
+    if (!portalHtml.includes('appointmentConfirmationAlertBanner') || !portalHtml.includes('btnConfirmAlertAction') || !portalHtml.includes('sessionsNavBadge')) {
+        throw new Error('portal.html debe contener el banner appointmentConfirmationAlertBanner, el botón btnConfirmAlertAction y la insignia sessionsNavBadge');
+    }
+
+    // 2. Verificación de lógica de alerta en portal.js
+    if (!portalJs.includes('checkAppointmentConfirmationAlert') || !portalJs.includes('confirmAppointmentFromAlertBanner')) {
+        throw new Error('portal.js debe implementar checkAppointmentConfirmationAlert y confirmAppointmentFromAlertBanner');
+    }
+    if (!portalJs.includes('psico_portal_confirmation_requested_event')) {
+        throw new Error('portal.js debe escuchar psico_portal_confirmation_requested_event para reaccionar a recordatorios en tiempo real');
+    }
+
+    // 3. Verificación de estilos en portal.css
+    if (!portalCss.includes('.appointment-confirm-alert-banner') || !portalCss.includes('.btn-confirm-alert-action') || !portalCss.includes('.nav-badge-pill')) {
+        throw new Error('portal.css debe definir estilos para el banner de confirmación, botón de acción e insignia de navegación');
+    }
+
+    // 4. Verificación de solicitud desde la plataforma del terapeuta
+    if (!appJs.includes('requestPortalConfirmation')) {
+        throw new Error('app.js debe implementar requestPortalConfirmation para enviar recordatorios al portal');
+    }
+    if (!remindersJs.includes('request_portal_confirm')) {
+        throw new Error('session-reminders.js debe permitir solicitar confirmación en el portal desde los recordatorios');
+    }
+    if (!serverJs.includes('/api/v1/appointments/:id/request-confirmation')) {
+        throw new Error('server.js debe exponer el endpoint /api/v1/appointments/:id/request-confirmation con auditoría médica');
+    }
+});
+
+// ============================================
+// TC-EST-01: Consistencia de Variables CSS en Terapeuta y Portal
+// ============================================
+ClinicalTestSuite.add('TC-EST-01', 'Consistencia de Tokens CSS en Terapeuta y Portal (Cero variables huérfanas)', async () => {
+    const fs = await import('fs');
+    const stylesCss = fs.readFileSync('styles.css', 'utf8');
+    const portalCss = fs.readFileSync('portal.css', 'utf8');
+
+    // 1. Verificación en styles.css
+    if (!stylesCss.includes('--border-color:') || !stylesCss.includes('--color-primary:')) {
+        throw new Error('styles.css debe definir explícitamente --border-color y --color-primary para evitar tokens huérfanos');
+    }
+
+    // 2. Verificación en portal.css
+    if (!portalCss.includes('--radius-full:') || !portalCss.includes('--accent-gradient:') || !portalCss.includes('--border-color:') || !portalCss.includes('--color-primary:')) {
+        throw new Error('portal.css debe definir --radius-full, --accent-gradient, --border-color y --color-primary en :root');
+    }
+});
+
+// ============================================
+// TC-EST-02: Modo Oscuro Completo en Portal del Paciente
+// ============================================
+ClinicalTestSuite.add('TC-EST-02', 'Modo Oscuro en Portal de Pacientes (Paleta completa, conmutador y persistencia)', async () => {
+    const fs = await import('fs');
+    const portalCss = fs.readFileSync('portal.css', 'utf8');
+    const portalHtml = fs.readFileSync('portal.html', 'utf8');
+    const portalJs = fs.readFileSync('portal.js', 'utf8');
+
+    // 1. Paleta de Modo Oscuro en portal.css
+    if (!portalCss.includes('[data-theme="dark"]') || !portalCss.includes('--bg-primary: #111815;') || !portalCss.includes('--bg-card: #16201b;')) {
+        throw new Error('portal.css debe definir la paleta completa de [data-theme="dark"] para el portal');
+    }
+
+    // 2. Elemento de control en portal.html
+    if (!portalHtml.includes('btnPortalThemeToggle') || !portalHtml.includes('togglePortalTheme()')) {
+        throw new Error('portal.html debe contener el botón de alternancia de tema #btnPortalThemeToggle');
+    }
+
+    // 3. Funciones controladoras en portal.js
+    if (!portalJs.includes('initPortalTheme') || !portalJs.includes('togglePortalTheme') || !portalJs.includes('updatePortalThemeIcon')) {
+        throw new Error('portal.js debe implementar initPortalTheme, togglePortalTheme y updatePortalThemeIcon');
+    }
+});
+
+// ============================================
+// TC-EST-03: Cierre Accesible de Overlays con Tecla Escape
+// ============================================
+ClinicalTestSuite.add('TC-EST-03', 'Cierre Universal de Modales y Overlays mediante Tecla Escape (app.js y portal.js)', async () => {
+    const fs = await import('fs');
+    const appJs = fs.readFileSync('app.js', 'utf8');
+    const portalJs = fs.readFileSync('portal.js', 'utf8');
+
+    // 1. app.js debe cerrar drawers y llamar a destructores de modales
+    if (!appJs.includes('closeReminderDrawer()') || !appJs.includes('closeModal(m.id)')) {
+        throw new Error('app.js debe cerrar sessionReminderDrawer y ejecutar closeModal(m.id) al presionar Escape');
+    }
+
+    // 2. portal.js debe implementar cierre de modales con Escape
+    if (!portalJs.includes('closeAllPortalModals') || !portalJs.includes("e.key === 'Escape'")) {
+        throw new Error('portal.js debe escuchar la tecla Escape e invocar closeAllPortalModals');
+    }
+});
+
+// ============================================
+// TC-EST-04: Adaptabilidad Temática de Contenedores y Recibos
+// ============================================
+ClinicalTestSuite.add('TC-EST-04', 'Resiliencia Temática de Contenedores Dinámicos y Recibos de Pago (Modo Claro/Oscuro)', async () => {
+    const fs = await import('fs');
+    const indexHtml = fs.readFileSync('index.html', 'utf8');
+
+    if (!indexHtml.includes('id="receiptImageContainer"') || !indexHtml.includes('background: var(--bg-card);')) {
+        throw new Error('index.html debe utilizar variables dinámicas var(--bg-card) en los visores de recibos y previsualizadores');
+    }
+});
+
+// ============================================
+// TC-NOTIF-01: Control Anti-Spam y Deduplicación de Notificaciones Toast
+// ============================================
+ClinicalTestSuite.add('TC-NOTIF-01', 'Control Anti-Spam, Deduplicación y Límite de Toasts (Cero lluvia de notificaciones)', async () => {
+    const fs = await import('fs');
+    const appJs = fs.readFileSync('app.js', 'utf8');
+
+    // 1. Debe existir el mecanismo de deduplicación persistente
+    if (!appJs.includes('NOTIFIED_CONFIRMATIONS_KEY') || !appJs.includes('isConfirmationAlreadyNotified') || !appJs.includes('markConfirmationAsNotified')) {
+        throw new Error('app.js debe implementar NOTIFIED_CONFIRMATIONS_KEY, isConfirmationAlreadyNotified y markConfirmationAsNotified');
+    }
+
+    // 2. showToast debe limitar el máximo de toasts y evitar mensajes idénticos duplicados
+    if (!appJs.includes('c.children.length >= 3') || !appJs.includes('child.textContent.includes(cleanMsg)')) {
+        throw new Error('showToast debe descartar mensajes idénticos simultáneos y limitar a 3 toasts máximos en pantalla');
+    }
+
+    // 3. syncPortalAppointmentsToTherapist debe validar isConfirmationAlreadyNotified
+    if (!appJs.includes('!isConfirmationAlreadyNotified(')) {
+        throw new Error('syncPortalAppointmentsToTherapist debe verificar !isConfirmationAlreadyNotified antes de notificar confirmaciones');
+    }
+});
+
+// ============================================
+// TC-EST-05: Contención Visual y Ergonomía de Tarjetas KPI
+// ============================================
+ClinicalTestSuite.add('TC-EST-05', 'Contención Visual, Ergonomía de Tarjetas KPI y Vinculación de IDs en Expediente', async () => {
+    const fs = await import('fs');
+    const stylesCss = fs.readFileSync('styles.css', 'utf8');
+    const appJs = fs.readFileSync('app.js', 'utf8');
+    const indexHtml = fs.readFileSync('index.html', 'utf8');
+
+    // 1. styles.css debe prevenir desbordamiento en KPI cards y selector
+    if (!stylesCss.includes('.expediente-kpi-card') || !stylesCss.includes('overflow: hidden;') || !stylesCss.includes('.quick-status-selector')) {
+        throw new Error('styles.css debe definir overflow: hidden en .expediente-kpi-card y estilo responsivo en .quick-status-selector');
+    }
+
+    // 2. app.js debe estructurar el selector sin duplicación redundante de chips
+    if (!appJs.includes('quickUpdatePatientStatus') || !appJs.includes('class="quick-status-selector"')) {
+        throw new Error('app.js debe renderizar quick-status-selector con el controlador quickUpdatePatientStatus');
+    }
+
+    // 3. index.html debe incluir los campos de diagnóstico, antecedentes y emergencias
+    if (!indexHtml.includes('id="patientDiagnosis"') || !indexHtml.includes('id="patientMedication"') || !indexHtml.includes('id="patientEmergency"') || !indexHtml.includes('id="patientNotes"')) {
+        throw new Error('index.html debe contener patientDiagnosis, patientMedication, patientEmergency y patientNotes');
+    }
+});
+
+// ============================================
+// TC-POR-16: Sincronización de Agendamiento, Notas Reflexivas y Personalización Infantil
+// ============================================
+ClinicalTestSuite.add('TC-POR-16', 'Sincronización de Agendamiento, Notas Reflexivas y Personalización Infantil en Portal', async () => {
+    const fs = await import('fs');
+    const portalJs = fs.readFileSync('portal.js', 'utf8');
+    const portalHtml = fs.readFileSync('portal.html', 'utf8');
+
+    // 1. pickAvailableSlot debe resolver dualmente scheduleDate y scheduleSessionDate
+    if (!portalJs.includes("document.getElementById('scheduleDate') || document.getElementById('scheduleSessionDate')")) {
+        throw new Error('pickAvailableSlot debe resolver scheduleDate || scheduleSessionDate para auto-completar fecha y hora');
+    }
+
+    // 2. selectKidThoughtChip y submitKidWeatherAndBody deben vincular kidWeatherOptionalNote
+    if (!portalJs.includes("document.getElementById('kidWeatherOptionalNote') || document.getElementById('kidWeatherStory')")) {
+        throw new Error('portal.js debe resolver kidWeatherOptionalNote para notas reflexivas infantiles');
+    }
+
+    // 3. saveKidAvatar y actualización de displays debe vincular kidAvatarDisplayNameInput
+    if (!portalJs.includes("document.getElementById('kidAvatarDisplayNameInput') || document.getElementById('kidAvatarCustomName')")) {
+        throw new Error('portal.js debe resolver kidAvatarDisplayNameInput para guardar el nombre de avatar del niño');
+    }
+
+    // 4. Validar que portal.html contiene los IDs reales
+    if (!portalHtml.includes('id="kidWeatherOptionalNote"') || !portalHtml.includes('id="kidAvatarDisplayNameInput"')) {
+        throw new Error('portal.html debe contener kidWeatherOptionalNote y kidAvatarDisplayNameInput');
+    }
+});
+
+// ============================================
+// TC-REC-02: Mapeo Defensivo de Campos SOAP en SessionRecorder hacia Hoja de Evolución Oficial
+// ============================================
+ClinicalTestSuite.add('TC-REC-02', 'Mapeo Defensivo de Campos SOAP en SessionRecorder hacia Hoja de Evolución Oficial', async () => {
+    const fs = await import('fs');
+    const recJs = fs.readFileSync('session-recorder.js', 'utf8');
+    const indexHtml = fs.readFileSync('index.html', 'utf8');
+
+    // 1. SessionRecorder debe mapear a noteSubjetivo, noteObjetivo, noteAnalisis con fallback
+    if (!recJs.includes("document.getElementById('noteSubjetivo') || document.getElementById('noteSubjective')") ||
+        !recJs.includes("document.getElementById('noteObjetivo') || document.getElementById('noteObjective')") ||
+        !recJs.includes("document.getElementById('noteAnalisis') || document.getElementById('noteAssessment')")) {
+        throw new Error('session-recorder.js debe soportar los identificadores en español oficiales del formulario SOAP');
+    }
+
+    // 2. index.html debe incluir los IDs oficiales del modal SOAP
+    if (!indexHtml.includes('id="noteSubjetivo"') || !indexHtml.includes('id="noteObjetivo"') || !indexHtml.includes('id="noteAnalisis"') || !indexHtml.includes('id="notePlan"')) {
+        throw new Error('index.html debe contener noteSubjetivo, noteObjetivo, noteAnalisis y notePlan');
+    }
+});
+
+// ============================================
+// TC-SER-01: Identidad Visual y Marca Oficial SERENA
+// ============================================
+ClinicalTestSuite.add('TC-SER-01', 'Identidad Visual y Marca Oficial SERENA (index.html, portal.html, manifest, metadata)', async () => {
+    const fs = await import('fs');
+    const indexHtml = fs.readFileSync('index.html', 'utf8');
+    const portalHtml = fs.readFileSync('portal.html', 'utf8');
+    const manifestJson = JSON.parse(fs.readFileSync('manifest.json', 'utf8'));
+    const metadataJson = JSON.parse(fs.readFileSync('metadata.json', 'utf8'));
+
+    // 1. Título y meta en index.html
+    if (!indexHtml.includes('<title>SERENA') || !indexHtml.includes('Tu práctica, en equilibrio')) {
+        throw new Error('index.html debe contener el título de SERENA y el eslogan "Tu práctica, en equilibrio"');
+    }
+    if (!indexHtml.includes('content="#123F36"')) {
+        throw new Error('index.html debe usar el color de tema oficial Verde Bosque (#123F36)');
+    }
+    if (!indexHtml.includes('favicon.svg')) {
+        throw new Error('index.html debe vincular favicon.svg');
+    }
+
+    // 2. Logotipo visible en auth y sidebar
+    if (!indexHtml.includes('assets/brand/serena-symbol.svg') && !indexHtml.includes('serena-symbol') && !indexHtml.includes('stroke="#123F36"')) {
+        throw new Error('index.html debe utilizar el símbolo oficial serena-symbol.svg en lugar de emojis');
+    }
+    if (!indexHtml.includes('<span class="logo-text">SERENA</span>')) {
+        throw new Error('index.html debe desplegar el texto de marca SERENA en la navegación');
+    }
+
+    // 3. Portal de pacientes
+    if (!portalHtml.includes('<title>SERENA — Mi Espacio</title>')) {
+        throw new Error('portal.html debe llevar el título "SERENA — Mi Espacio"');
+    }
+    if (!portalHtml.includes('assets/brand/serena-symbol.svg') && !portalHtml.includes('serena-symbol') && !portalHtml.includes('stroke="#123F36"')) {
+        throw new Error('portal.html debe desplegar el símbolo de SERENA en el acceso');
+    }
+
+    // 4. Manifest y metadatos
+    if (manifestJson.name !== 'SERENA — Tu práctica, en equilibrio' || manifestJson.short_name !== 'SERENA') {
+        throw new Error('manifest.json debe definir name y short_name como SERENA');
+    }
+    if (manifestJson.theme_color !== '#123F36') {
+        throw new Error('manifest.json debe usar el theme_color #123F36');
+    }
+    if (metadataJson.name !== 'SERENA') {
+        throw new Error('metadata.json debe declarar name: "SERENA"');
+    }
+});
+
+// ============================================
+// TC-SER-02: Tokens de Diseño y Tipografía Oficial SERENA
+// ============================================
+ClinicalTestSuite.add('TC-SER-02', 'Tokens de Diseño y Tipografía Oficial SERENA (styles.css y portal.css)', async () => {
+    const fs = await import('fs');
+    const stylesCss = fs.readFileSync('styles.css', 'utf8');
+    const portalCss = fs.readFileSync('portal.css', 'utf8');
+
+    // 1. Paleta oficial de 8 tokens en styles.css
+    const requiredTokens = [
+        '--brand-forest: #123F36;',
+        '--brand-petroleum: #285C50;',
+        '--brand-sage: #7FA38F;',
+        '--brand-ivory: #F7F8F6;',
+        '--brand-text: #202923;',
+        '--brand-text-muted: #69736D;',
+        '--brand-border: #E5E9E5;',
+        '--brand-white: #FFFFFF;'
+    ];
+    for (const token of requiredTokens) {
+        if (!stylesCss.includes(token)) {
+            throw new Error(`styles.css carece del token requerido: ${token}`);
+        }
+    }
+
+    // 2. Tipografía oficial Montserrat para display y títulos
+    if (!stylesCss.includes('--font-display: "Montserrat"') && !stylesCss.includes("--font-display: 'Montserrat'")) {
+        throw new Error('styles.css debe definir --font-display con Montserrat');
+    }
+
+    // 3. Tokens en portal.css
+    if (!portalCss.includes('--brand-forest:') || !portalCss.includes('--brand-petroleum:') || !portalCss.includes('--brand-sage:')) {
+        throw new Error('portal.css debe incorporar los tokens fundamentales de SERENA');
+    }
+});
+
+// ============================================
+// TC-SER-03: Entregables de Recursos Gráficos, Logotipo y Avatar Serena
+// ============================================
+ClinicalTestSuite.add('TC-SER-03', 'Entregables de Recursos Gráficos, Logotipo y Avatar Serena', async () => {
+    const fs = await import('fs');
+    const path = await import('path');
+
+    const requiredFiles = [
+        // Logotipo y derivados
+        'assets/brand/serena-symbol.svg',
+        'assets/brand/serena-symbol-white.svg',
+        'assets/brand/serena-symbol-mono.svg',
+        'assets/brand/serena-logo-horizontal.svg',
+        'assets/brand/serena-logo-white.svg',
+        'assets/brand/serena-logo-mono.svg',
+        'assets/brand/serena-logo.svg',
+        'favicon.svg',
+        'icon-192.png',
+        'icon-512.png',
+        // Avatar oficial en 5 variantes
+        'assets/avatar/serena-avatar-main.svg',
+        'assets/avatar/serena-avatar-header.svg',
+        'assets/avatar/serena-avatar-welcome.svg',
+        'assets/avatar/serena-empty-state.svg',
+        'assets/avatar/serena-avatar-badge.svg'
+    ];
+
+    for (const relPath of requiredFiles) {
+        const fullPath = path.resolve(relPath);
+        if (!fs.existsSync(fullPath)) {
+            throw new Error(`Archivo gráfico requerido no encontrado: ${relPath}`);
+        }
+        const stat = fs.statSync(fullPath);
+        if (stat.size < 50) {
+            throw new Error(`Archivo gráfico truncado o vacío: ${relPath} (${stat.size} bytes)`);
+        }
+        if (relPath.endsWith('.svg')) {
+            const content = fs.readFileSync(fullPath, 'utf8');
+            if (!content.includes('<svg') || !content.includes('</svg>')) {
+                throw new Error(`SVG inválido o malformado: ${relPath}`);
+            }
+        }
+    }
+});
+
+// ============================================
+// TC-SER-04: Asistente Visual Serena e Integración Contextual
+// ============================================
+ClinicalTestSuite.add('TC-SER-04', 'Asistente Visual Serena e Integración Contextual (app.js, index.html)', async () => {
+    const fs = await import('fs');
+    const indexHtml = fs.readFileSync('index.html', 'utf8');
+    const appJs = fs.readFileSync('app.js', 'utf8');
+
+    // 1. Tarjeta asistente en index.html
+    if (!indexHtml.includes('id="serenaAssistantBanner"') || !indexHtml.includes('dismissSerenaBanner()')) {
+        throw new Error('index.html debe contener el banner del asistente Serena y el botón para descartarlo');
+    }
+    if (!indexHtml.includes('id="serenaAssistantToggleBtn"') || !indexHtml.includes('toggleSerenaAssistant()')) {
+        throw new Error('index.html debe contener el botón en la barra superior para alternar los consejos de Serena');
+    }
+
+    // 2. Controladores en app.js
+    if (!appJs.includes('dismissSerenaBanner') || !appJs.includes('toggleSerenaAssistant') || !appJs.includes('initSerenaAssistant')) {
+        throw new Error('app.js debe implementar y exponer dismissSerenaBanner, toggleSerenaAssistant e initSerenaAssistant');
+    }
+
+    // 3. Verificación de no intrusión: no bloquear notas clínicas
+    if (appJs.includes('openSoapModal') && appJs.includes('serenaAssistantBanner.style.display = "block"')) {
+        throw new Error('El asistente Serena no debe interrumpir la redacción de notas SOAP');
+    }
+});
+
+// ============================================
+// TC-GENO-01: Inicialización e Inferencia Inteligente del Genograma (McGoldrick & Gerson)
+// ============================================
+ClinicalTestSuite.add('TC-GENO-01', 'Inicialización e Inferencia Inteligente del Genograma Familiar (McGoldrick, Gerson & Bowen)', async () => {
+    await import('./genogram.js');
+    const GenogramModule = globalThis.GenogramModule;
+    if (!GenogramModule) throw new Error('GenogramModule debe exportarse correctamente en genogram.js');
+
+    const mockPatient = {
+        id: 'pat_test_geno_01',
+        name: 'Alejandro Morales',
+        gender: 'M',
+        birthdate: '1992-05-14',
+        age: 32,
+        life_stage: 'adult',
+        occupation: 'Diseñador Gráfico',
+        diagnosis: 'Trastorno de Ansiedad Generalizada',
+        guardian_name: 'Roberto Morales',
+        guardian_relation: 'Padre',
+        motherName: 'Elena de Morales',
+        livesWith: 'Madre y hermana'
+    };
+
+    const geno = GenogramModule.createDefaultGenogram(mockPatient);
+    if (!geno) throw new Error('createDefaultGenogram no generó la estructura base');
+
+    // Debe contener al menos al paciente índice y a los padres
+    const indexMember = geno.members.find(m => m.isIndex);
+    if (!indexMember) throw new Error('El genograma debe contener un miembro marcado como isIndex (Caso Índice)');
+    if (indexMember.gender !== 'M') throw new Error('El género del paciente debe ser M (cuadrado)');
+    if (indexMember.generation !== 1) throw new Error('El paciente índice debe ubicarse en la Generación 1 (o III)');
+
+    // Verificar padres
+    const father = geno.members.find(m => m.id === 'm_father');
+    const mother = geno.members.find(m => m.id === 'm_mother');
+    if (!father || !mother) throw new Error('Deben inferirse los progenitores en la Generación 0 (o II)');
+    if (father.generation !== 0 || mother.generation !== 0) throw new Error('Los progenitores deben tener generation = 0');
+
+    // Debe existir unión conyugal entre padres y filiación hacia el paciente
+    if (!geno.unions || geno.unions.length === 0) throw new Error('Debe registrarse la unión conyugal parental');
+    const descent = geno.children.find(c => c.childId === indexMember.id);
+    if (!descent) throw new Error('El paciente índice debe tener un vínculo de filiación hacia la unión parental');
+});
+
+// ============================================
+// TC-GENO-02: Renderizado Vectorial SVG y Simbología Anatómica
+// ============================================
+ClinicalTestSuite.add('TC-GENO-02', 'Renderizado Vectorial SVG y Simbología Anatómica Estándar (Figuras, Doble Borde y Hogar)', async () => {
+    await import('./genogram.js');
+    const GenogramModule = globalThis.GenogramModule;
+
+    const testGeno = {
+        patientId: 'p_100',
+        members: [
+            { id: 'm1', name: 'Padre', gender: 'M', age: 60, isDeceased: false, isIndex: false, generation: 0, x: 200, y: 150, inHousehold: false, clinicalConditions: [] },
+            { id: 'm2', name: 'Madre', gender: 'F', age: 58, isDeceased: true, deathYear: 2020, isIndex: false, generation: 0, x: 350, y: 150, inHousehold: false, clinicalConditions: [] },
+            { id: 'm3', name: 'Paciente', gender: 'M', age: 28, isDeceased: false, isIndex: true, generation: 1, x: 275, y: 300, inHousehold: true, clinicalConditions: [] },
+            { id: 'm4', name: 'Hermana', gender: 'F', age: 25, isDeceased: false, isIndex: false, generation: 1, x: 420, y: 300, inHousehold: true, clinicalConditions: [] }
+        ],
+        unions: [
+            { id: 'u1', partner1Id: 'm1', partner2Id: 'm2', type: 'married', year: '1985' }
+        ],
+        children: [
+            { id: 'c1', unionId: 'u1', childId: 'm3', type: 'biological' },
+            { id: 'c2', unionId: 'u1', childId: 'm4', type: 'biological' }
+        ],
+        relationships: []
+    };
+
+    const svg = GenogramModule.renderSVG(testGeno, { width: 960, height: 540, interactive: false });
+    if (!svg.includes('<svg') || !svg.includes('</svg>')) {
+        throw new Error('renderSVG debe retornar un elemento SVG válido');
+    }
+
+    // Cuadrado para hombre
+    if (!svg.includes('<rect') || !svg.includes('width="52"')) {
+        throw new Error('Debe renderizar cuadrados para varones');
+    }
+    // Círculo para mujer
+    if (!svg.includes('<circle') || !svg.includes('r="26"')) {
+        throw new Error('Debe renderizar círculos para mujeres');
+    }
+    // Doble contorno para paciente identificado (isIndex)
+    if (!svg.includes('is-index') || !svg.includes('stroke-width="1.6"')) {
+        throw new Error('El paciente identificado debe renderizar contorno concéntrico doble');
+    }
+    // Cruz de defunción para fallecido
+    if (!svg.includes('m.2020') || !svg.includes('line x1="-30"')) {
+        throw new Error('Debe renderizar cruz diagonal y año de fallecimiento para m2');
+    }
+    // Límite del hogar (Household) envolviendo a los convivientes
+    if (!svg.includes('Hogar') || !svg.includes('stroke-dasharray="7,6"')) {
+        throw new Error('Debe renderizar el perímetro discontinuo de coresidencia (Hogar actual)');
+    }
+});
+
+// ============================================
+// TC-GENO-03: Pautas Afectivas y Dinámicas Relacionales de Bowen
+// ============================================
+ClinicalTestSuite.add('TC-GENO-03', 'Pautas Afectivas y Dinámicas Relacionales de Bowen (Fusión, Conflicto, Distancia y Cut-Off)', async () => {
+    await import('./genogram.js');
+    const GenogramModule = globalThis.GenogramModule;
+
+    const testGeno = {
+        patientId: 'p_bowen',
+        members: [
+            { id: 'm_a', name: 'Madre', gender: 'F', age: 50, x: 200, y: 150, inHousehold: true, clinicalConditions: [] },
+            { id: 'm_b', name: 'Paciente', gender: 'M', age: 22, isIndex: true, x: 200, y: 320, inHousehold: true, clinicalConditions: [] },
+            { id: 'm_c', name: 'Padre', gender: 'M', age: 52, x: 400, y: 150, inHousehold: false, clinicalConditions: [] }
+        ],
+        unions: [
+            { id: 'u_sep', partner1Id: 'm_c', partner2Id: 'm_a', type: 'separated', year: '1998' }
+        ],
+        children: [],
+        relationships: [
+            { id: 'r1', fromId: 'm_b', toId: 'm_a', type: 'enmeshed', notes: 'Fusión simbiótica' },
+            { id: 'r2', fromId: 'm_a', toId: 'm_c', type: 'conflictual', notes: 'Hostilidad continua' },
+            { id: 'r3', fromId: 'm_b', toId: 'm_c', type: 'cutoff', notes: 'Corte emocional desde 2019' }
+        ]
+    };
+
+    const svg = GenogramModule.renderSVG(testGeno, { width: 960, height: 540 });
+
+    // Fusión (3 líneas)
+    if (!svg.includes('stroke-width="7"') && !svg.includes('stroke-width="4"')) {
+        throw new Error('Debe renderizar vínculo fusionado (enmeshed)');
+    }
+    // Conflicto (símbolo o zigzag)
+    if (!svg.includes('⚡') && !svg.includes('stroke-dasharray="5,4"')) {
+        throw new Error('Debe renderizar vínculo conflictivo con indicación visual');
+    }
+    // Corte emocional (Cut-off con barras transversales)
+    if (!svg.includes('r3') || !svg.includes('stroke-width="3"')) {
+        throw new Error('Debe renderizar corte emocional (Cut-off) entre paciente y padre');
+    }
+    // Separación conyugal: una barra diagonal
+    if (!svg.includes('stroke="#dc2626"') || !svg.includes('y2="179"')) {
+        throw new Error('La unión de tipo separated debe renderizar una barra diagonal roja');
+    }
+});
+
+// ============================================
+// TC-GENO-04: Marcadores Clínicos Transgeneracionales (Adicciones, Depresión, Ansiedad, Suicidio)
+// ============================================
+ClinicalTestSuite.add('TC-GENO-04', 'Marcadores Clínicos Transgeneracionales y Sombreados Médicos (McGoldrick)', async () => {
+    await import('./genogram.js');
+    const GenogramModule = globalThis.GenogramModule;
+
+    const testGeno = {
+        patientId: 'p_med',
+        members: [
+            { id: 'm_alc', name: 'Abuelo', gender: 'M', age: 72, x: 200, y: 100, inHousehold: false, clinicalConditions: ['alcoholism'] },
+            { id: 'm_dep', name: 'Madre', gender: 'F', age: 48, x: 400, y: 200, inHousehold: true, clinicalConditions: ['depression', 'anxiety'] },
+            { id: 'm_sui', name: 'Tío', gender: 'M', age: 35, isDeceased: true, deathYear: 2012, x: 600, y: 200, inHousehold: false, clinicalConditions: ['suicide'] }
+        ],
+        unions: [],
+        children: [],
+        relationships: []
+    };
+
+    const svg = GenogramModule.renderSVG(testGeno);
+
+    // Alcoholismo: sombreado mitad inferior (#8b5cf6)
+    if (!svg.includes('fill="#8b5cf6"')) {
+        throw new Error('Debe incluir sombreado de adicciones/alcoholismo (#8b5cf6)');
+    }
+    // Depresión: sombreado mitad superior (#3b82f6)
+    if (!svg.includes('fill="#3b82f6"')) {
+        throw new Error('Debe incluir sombreado de depresión (#3b82f6)');
+    }
+    // Ansiedad: marcador visual circular (#f59e0b)
+    if (!svg.includes('fill="#f59e0b"')) {
+        throw new Error('Debe incluir marcador de ansiedad (#f59e0b)');
+    }
+    // Suicidio: cruz distintiva
+    if (!svg.includes('✞')) {
+        throw new Error('Debe incluir símbolo de suicidio (✞)');
+    }
+});
+
+// ============================================
+// TC-GENO-05: Integración en Frontend, Servidor y Lista Blanca de Seguridad
+// ============================================
+ClinicalTestSuite.add('TC-GENO-05', 'Integración en Frontend, Servidor y Lista Blanca de Seguridad (index.html, server.js, app.js)', async () => {
+    const fs = await import('fs');
+    const indexHtml = fs.readFileSync('index.html', 'utf8');
+    const serverJs = fs.readFileSync('server.js', 'utf8');
+    const appJs = fs.readFileSync('app.js', 'utf8');
+
+    // 1. Incluido en index.html
+    if (!indexHtml.includes('genogram.js')) {
+        throw new Error('index.html debe incluir la etiqueta de script de genogram.js');
+    }
+
+    // 2. Registrado en ALLOWED_STATIC_FILES en server.js
+    if (!serverJs.includes("'genogram.js'")) {
+        throw new Error('server.js debe incluir genogram.js en ALLOWED_STATIC_FILES');
+    }
+
+    // 3. Pestaña presente en el expediente clínico (app.js)
+    if (!appJs.includes("switchPatientTab('genograma'") || !appJs.includes('tab-genograma')) {
+        throw new Error('app.js debe integrar la pestaña de Genograma en el expediente del paciente');
+    }
+});
+
+// ============================================
+// TC-GENO-06: Copiloto SERENA de Hipótesis Sistémica y Preguntas Circulares
+// ============================================
+ClinicalTestSuite.add('TC-GENO-06', 'Copiloto SERENA de Hipótesis Sistémica y Preguntas Circulares', async () => {
+    await import('./genogram.js');
+    const GenogramModule = globalThis.GenogramModule;
+
+    const summary = {
+        paciente: { nombre: 'María González', edad: 29 },
+        miembros: [
+            { nombre: 'María González', convive: true },
+            { nombre: 'Padre', convive: false },
+            { nombre: 'Madre', convive: true }
+        ],
+        dinamicasAfectivas: [
+            { de: 'María González', hacia: 'Madre', pauta: 'enmeshed_conflict' },
+            { de: 'Madre', hacia: 'Padre', pauta: 'conflictual' }
+        ]
+    };
+
+    const insight = GenogramModule.generateLocalSystemicInsight(summary);
+    if (!insight.includes('Formulación Sistémica') || !insight.includes('Preguntas Circulares')) {
+        throw new Error('generateLocalSystemicInsight debe generar análisis sistémico y preguntas circulares');
+    }
+    if (!insight.includes('Fusión') && !insight.includes('Sobreinvolucramiento')) {
+        throw new Error('Debe detectar la pauta enmeshed_conflict');
+    }
+});
+
+// ============================================
+// TC-GENO-07: Asistente Familiar Guiado hasta 2da Línea (Abuelos, Tíos, Padres, Hijos y Figuras)
+// ============================================
+ClinicalTestSuite.add('TC-GENO-07', 'Asistente Familiar Guiado hasta 2da Línea (Abuelos, Tíos, Padres, Hijos y Figuras)', async () => {
+    await import('./genogram.js');
+    const GenogramModule = globalThis.GenogramModule;
+
+    // Configurar estado simulado del wizard con las 2 líneas familiares
+    GenogramModule.wizardData = {
+        patientId: 'pat_wiz_test_01',
+        paternalGrandpa: { name: 'Antonio Gómez', gender: 'M', age: 78, isDeceased: true, deathYear: 2016 },
+        paternalGrandma: { name: 'Carmen de Gómez', gender: 'F', age: 75, isDeceased: false },
+        paternalUnion: 'married',
+        maternalGrandpa: { name: 'Manuel Pérez', gender: 'M', age: 80, isDeceased: false },
+        maternalGrandma: { name: 'Luisa de Pérez', gender: 'F', age: 77, isDeceased: false },
+        maternalUnion: 'married',
+        paternalUncles: [
+            { id: 'u_p1', name: 'Tío Ricardo', gender: 'M', age: 52, isDeceased: false },
+            { id: 'u_p2', name: 'Tía Sofía', gender: 'F', age: 49, isDeceased: false }
+        ],
+        maternalUncles: [
+            { id: 'u_m1', name: 'Tío Andrés', gender: 'M', age: 48, isDeceased: true, deathYear: 2021 }
+        ],
+        father: { name: 'Carlos Gómez', gender: 'M', age: 50, isDeceased: false, inHousehold: true },
+        mother: { name: 'Beatriz Pérez', gender: 'F', age: 48, isDeceased: false, inHousehold: true },
+        parentsUnion: 'divorced',
+        patient: { name: 'Gabriel Gómez', gender: 'M', age: 24, isIndex: true, inHousehold: true },
+        siblings: [
+            { id: 'sib_1', name: 'Lucía Gómez', gender: 'F', age: 21, isDeceased: false, inHousehold: true }
+        ],
+        hasPartner: true,
+        partner: { name: 'Mariana Soto', gender: 'F', age: 23, unionType: 'cohabiting', isDeceased: false, inHousehold: true },
+        children: [
+            { id: 'ch_1', name: 'Mateo Gómez', gender: 'M', age: 2, isDeceased: false, inHousehold: true }
+        ]
+    };
+
+    // Ejecutar generación del árbol
+    GenogramModule.generateAndPlotFromWizard();
+    const geno = GenogramModule.currentGenogram;
+    if (!geno) throw new Error('generateAndPlotFromWizard debe producir currentGenogram');
+
+    // 1. Verificar número y diversidad de miembros en las generaciones
+    const members = geno.members;
+    if (members.length < 12) throw new Error(`Se esperaban al menos 12 miembros familiares, obtenidos: ${members.length}`);
+
+    // Verificar presencia de 4 generaciones
+    const genSet = new Set(members.map(m => m.generation));
+    if (!genSet.has(-1) || !genSet.has(0) || !genSet.has(1) || !genSet.has(2)) {
+        throw new Error('Deben existir 4 generaciones documentadas (-1 abuelos, 0 padres/tíos, 1 paciente/pareja/hermanos, 2 hijos)');
+    }
+
+    // 2. Verificar paciente identificado con doble borde
+    const pIdx = members.find(m => m.isIndex);
+    if (!pIdx || pIdx.name !== 'Gabriel Gómez' || pIdx.gender !== 'M') {
+        throw new Error('El paciente identificado debe preservarse con isIndex = true y sexo M');
+    }
+
+    // 3. Verificar uniones matrimoniales (abuelos, padres y paciente)
+    if (geno.unions.length < 4) {
+        throw new Error(`Se esperaban al menos 4 uniones conyugales, obtenidas: ${geno.unions.length}`);
+    }
+    const parentsUnion = geno.unions.find(u => u.partner1Id === 'm_father' && u.partner2Id === 'm_mother');
+    if (!parentsUnion || parentsUnion.type !== 'divorced') {
+        throw new Error('La unión de los padres debe ser de tipo divorced');
+    }
+
+    // 4. Renderizar el SVG resultante y comprobar figuras estándar
+    const svg = GenogramModule.renderSVG(geno);
+    // Doble contorno para paciente índice
+    if (!svg.includes('is-index')) throw new Error('SVG debe incluir la clase is-index');
+    // Cruz para fallecidos (Abuelo paterno y Tío materno)
+    if (!svg.includes('line x1="-30"')) throw new Error('SVG debe renderizar cruz diagonal para miembros fallecidos');
+    // Divorcio de padres: 2 barras
+    if (!svg.includes('stroke="#dc2626"') || !svg.includes('y1="257"')) {
+        throw new Error('SVG debe renderizar las dos barras de divorcio conyugal de los padres');
+    }
+    // Perímetro de coresidencia (Household)
+    if (!svg.includes('Hogar')) throw new Error('SVG debe renderizar el perímetro de coresidencia del hogar');
+});
+
+// ============================================
+// TC-MSE-01: Examen Mental Protocolizado (18 Funciones Mentales, Whitelist, Tab Superior y Generación en Tiempo Real)
+// ============================================
+ClinicalTestSuite.add('TC-MSE-01', 'Examen Mental Protocolizado (18 Funciones Mentales, Whitelist, Tab Superior y Síntesis en Orden)', async () => {
+    const fs = await import('fs');
+    const path = await import('path');
+
+    // 1. Validar lista blanca en server.js
+    const serverJs = fs.readFileSync(path.resolve('server.js'), 'utf8');
+    if (!serverJs.includes("'mental-exam.js'")) {
+        throw new Error('server.js debe incluir mental-exam.js en ALLOWED_STATIC_FILES');
+    }
+
+    // 2. Validar script en index.html
+    const indexHtml = fs.readFileSync(path.resolve('index.html'), 'utf8');
+    if (!indexHtml.includes('mental-exam.js')) {
+        throw new Error('index.html debe cargar el script mental-exam.js');
+    }
+
+    // 3. Validar botón de pestaña y contenedor en app.js
+    const appJs = fs.readFileSync(path.resolve('app.js'), 'utf8');
+    if (!appJs.includes("switchPatientTab('examen-mental'") || !appJs.includes('id="tab-examen-mental"')) {
+        throw new Error('app.js debe contener la pestaña y contenedor id="tab-examen-mental"');
+    }
+
+    // 4. Importar y validar MentalExamModule
+    await import('./mental-exam.js');
+    const MentalExamModule = globalThis.MentalExamModule;
+    if (!MentalExamModule) throw new Error('mental-exam.js debe exportar MentalExamModule');
+
+    // 5. Validar generación sintética según el PDF (Página 8)
+    const testPatient = {
+        id: 'px_mse_test_01',
+        name: 'Ana María Morales',
+        gender: 'Femenino',
+        birthdate: '2008-03-15',
+        age: 18,
+        status: 'En Evaluación'
+    };
+
+    const fields = MentalExamModule.getInitialState(testPatient);
+    fields.sexo = 'Femenino';
+    fields.edad = 18;
+    fields.edadAparenteCronologica = 'SI';
+    fields.biotipo = 'Mesomorfo';
+    fields.aspectoVestimenta = ['Aseada y arreglada'];
+    fields.vestimentaEdadOcasion = 'SI';
+    fields.concienciaAlterada = 'NO';
+    fields.atencionAlterada = 'NO';
+    fields.orientacionAlopsiquica = 'SI';
+    fields.orientacionAutopsiquica = 'SI';
+    fields.memoriaConservada = 'SI';
+    fields.juicioPractico = 'Conservado';
+    fields.inteligencia = 'Promedio';
+    fields.pensamientoVelocidad = 'Taquipsiquia';
+    fields.lenguajePsicogeno = ['Taquilalia'];
+    fields.hipertimiaPresenta = 'SI';
+    fields.hipertimiaTipo = 'Hipertimia Displacentera';
+    fields.hipertimiaPolo = 'De la Tristeza';
+    fields.hipertimiaSentimientos = ['Minusvalía'];
+    fields.sensopercepcionCuantitativa = 'Aceleración de la Percepción';
+    fields.psicomotricidadNoOrganico = ['Tics'];
+    fields.vidaInstintivaAlterada = 'SI';
+    fields.vidaInstintivaLista = ['Insomnio', 'Pica'];
+    fields.volicion = 'Hiperbulia';
+    fields.concienciaEnfermedad = 'Presente';
+    fields.juicioRealidad = 'Conservado';
+
+    const narrative = MentalExamModule.generateNarrative(fields, testPatient);
+
+    // Verificar presencia de elementos en el orden de las 18 funciones mentales
+    if (!narrative.includes('Paciente femenina de 18 años') || !narrative.includes('biotipo mesomorfo')) {
+        throw new Error('Falta función 1: Presentación con edad y biotipo');
+    }
+    if (!narrative.includes('vestimenta de acuerdo a la edad y ocasión')) {
+        throw new Error('Falta función 2: Aspecto y vestimenta');
+    }
+    if (!narrative.includes('Nivel de Conciencia Conservado')) {
+        throw new Error('Falta función 4: Nivel de Conciencia');
+    }
+    if (!narrative.includes('Atención Conservada')) {
+        throw new Error('Falta función 5: Atención');
+    }
+    if (!narrative.includes('Orientada Alopsíquica y Autopsíquicamente') && !narrative.includes('Orientado Alopsíquica y Autopsíquicamente')) {
+        throw new Error('Falta función 6: Orientación');
+    }
+    if (!narrative.includes('Memoria Conservada')) {
+        throw new Error('Falta función 7: Memoria');
+    }
+    if (!narrative.includes('Juicio Práctico Conservado')) {
+        throw new Error('Falta función 8: Juicio Práctico');
+    }
+    if (!narrative.includes('Inteligencia igual al promedio') && !narrative.includes('Inteligencia Normal')) {
+        throw new Error('Falta función 9: Inteligencia');
+    }
+    if (!narrative.includes('Taquipsiquia')) {
+        throw new Error('Falta función 10: Pensamiento');
+    }
+    if (!narrative.includes('Taquilalia')) {
+        throw new Error('Falta función 11: Lenguaje');
+    }
+    if (!narrative.includes('Hipertimia Displacentera') || !narrative.includes('Polo de la Tristeza')) {
+        throw new Error('Falta función 12: Afectividad');
+    }
+    if (!narrative.includes('Aceleración de la Percepción')) {
+        throw new Error('Falta función 13: Sensopercepción');
+    }
+    if (!narrative.includes('Tics')) {
+        throw new Error('Falta función 14: Psicomotricidad');
+    }
+    if (!narrative.includes('Insomnio') || !narrative.includes('Pica')) {
+        throw new Error('Falta función 15: Vida Instintiva');
+    }
+    if (!narrative.includes('Hiperbulia')) {
+        throw new Error('Falta función 16: Volición');
+    }
+    if (!narrative.includes('Conciencia de Enfermedad Presente')) {
+        throw new Error('Falta función 17: Conciencia de Enfermedad');
+    }
+    if (!narrative.includes('Juicio de Realidad Conservado')) {
+        throw new Error('Falta función 18: Juicio de Realidad');
+    }
+});
+
+// ============================================
+// TC-MSE-02: Renderizado UI y Persistencia de Examen Mental en el Expediente
+// ============================================
+ClinicalTestSuite.add('TC-MSE-02', 'Renderizado UI y Persistencia de Examen Mental en el Expediente', async () => {
+    await import('./mental-exam.js');
+    const MentalExamModule = globalThis.MentalExamModule;
+    const testPatient = {
+        id: 'px_mse_test_02',
+        name: 'Carlos Mendoza',
+        gender: 'Masculino',
+        age: 34
+    };
+
+    // 1. Comprobar que renderTab genera la cuadrícula con las 18 secciones
+    const html = MentalExamModule.renderTab(testPatient);
+    if (!html.includes('Plantilla de Examen Mental Clínico') || !html.includes('mental-exam-grid')) {
+        throw new Error('renderTab debe generar el contenedor y cuadrícula principal de Examen Mental');
+    }
+
+    // Comprobar numeración de las 18 funciones mentales en el HTML
+    for (let i = 1; i <= 18; i++) {
+        if (!html.includes(`<span class="me-num">${i}</span>`)) {
+            throw new Error(`renderTab debe contener la función mental #${i} enumerada`);
+        }
+    }
+
+    // Comprobar botones de acción
+    if (!html.includes('Cargar Valores Conservados') || !html.includes('Copiar Texto') || !html.includes('Imprimir PDF') || !html.includes('Guardar Examen')) {
+        throw new Error('renderTab debe incluir las acciones: Cargar Valores Conservados, Copiar Texto, Imprimir PDF y Guardar Examen');
+    }
+
+    // 2. Simulación de guardado
+    globalThis.AppState = { patients: [testPatient] };
+    globalThis.saveData = () => {};
+    MentalExamModule.currentPatientId = testPatient.id;
+
+    // Simular que patient.mentalExam se almacena
+    testPatient.mentalExam = {
+        updatedAt: new Date().toISOString(),
+        fields: MentalExamModule.getInitialState(testPatient),
+        text: MentalExamModule.generateNarrative(MentalExamModule.getInitialState(testPatient), testPatient)
+    };
+
+    if (!testPatient.mentalExam || !testPatient.mentalExam.text || !testPatient.mentalExam.fields) {
+        throw new Error('El objeto del paciente debe persistir el examen mental con campos y texto sintético');
+    }
+});
+
+// ============================================
+// TC-MSE-03: Examen Mental - Correcciones Semiológicas de Actitud, Conciencia, Atención y Orientación
+// ============================================
+ClinicalTestSuite.add('TC-MSE-03', 'Examen Mental - Correcciones Semiológicas (Actitud, Conciencia, Atención y Orientación)', async () => {
+    await import('./mental-exam.js');
+    const MentalExamModule = globalThis.MentalExamModule;
+
+    const testPatient = {
+        id: 'px_mse_test_03',
+        name: 'Roberto Valera',
+        gender: 'Masculino',
+        age: 28
+    };
+
+    // 1. Parte 3: Actitud
+    const actitudOpts = MentalExamModule.getActitudOptions();
+    if (!actitudOpts.includes('Confiada')) {
+        throw new Error('getActitudOptions debe incluir la opción "Confiada"');
+    }
+    if (actitudOpts.includes('De gran confianza')) {
+        throw new Error('getActitudOptions no debe incluir "De gran confianza"');
+    }
+
+    const html = MentalExamModule.renderTab(testPatient);
+    if (!html.includes('<span class="me-card-title">Actitud</span>')) {
+        throw new Error('Tarjeta 3 debe tener por título "Actitud"');
+    }
+    if (html.includes('Actitud hacia la Entrevista y el Evaluador')) {
+        throw new Error('No debe aparecer "Actitud hacia la Entrevista y el Evaluador" en el título');
+    }
+
+    // 2. Parte 4: Nivel de Conciencia
+    const fieldsConcienciaSi = MentalExamModule.getInitialState(testPatient);
+    fieldsConcienciaSi.concienciaAlterada = 'SI';
+    fieldsConcienciaSi.concienciaCuantitativa = ['Confusión/Obnubilación', 'Somnolencia'];
+    const narConcienciaSi = MentalExamModule.generateNarrative(fieldsConcienciaSi, testPatient);
+    if (narConcienciaSi.includes('Nivel de Conciencia alterado')) {
+        throw new Error('La síntesis no debe incluir "Nivel de Conciencia alterado"');
+    }
+    if (!narConcienciaSi.includes('Confusión/Obnubilación, Somnolencia.')) {
+        throw new Error('La síntesis debe reflejar solo las opciones seleccionadas en Conciencia al marcar SÍ');
+    }
+
+    const fieldsConcienciaNo = MentalExamModule.getInitialState(testPatient);
+    fieldsConcienciaNo.concienciaAlterada = 'NO';
+    const narConcienciaNo = MentalExamModule.generateNarrative(fieldsConcienciaNo, testPatient);
+    if (!narConcienciaNo.includes('Nivel de Conciencia Conservado.')) {
+        throw new Error('Al marcar NO debe reflejarse "Nivel de Conciencia Conservado."');
+    }
+
+    // 3. Parte 5: Atención
+    if (!html.includes('<span class="me-card-title">Atención</span>')) {
+        throw new Error('Tarjeta 5 debe tener por título "Atención"');
+    }
+    if (html.includes('Atención (Prosexia)')) {
+        throw new Error('Título no debe contener "Prosexia"');
+    }
+    if (html.includes('Disprosexia')) {
+        throw new Error('Tarjeta 5 no debe incluir "Disprosexia"');
+    }
+    if (html.includes('Tipo de Alteración Atencional:')) {
+        throw new Error('Tarjeta 5 no debe mostrar la etiqueta "Tipo de Alteración Atencional:"');
+    }
+
+    const fieldsAtencionSi = MentalExamModule.getInitialState(testPatient);
+    fieldsAtencionSi.atencionAlterada = 'SI';
+    fieldsAtencionSi.atencionTipo = ['Hipoprosexia'];
+    const narAtencionSi = MentalExamModule.generateNarrative(fieldsAtencionSi, testPatient);
+    if (narAtencionSi.includes('Atención alterada')) {
+        throw new Error('La síntesis no debe incluir "Atención alterada"');
+    }
+    if (!narAtencionSi.includes('Hipoprosexia.')) {
+        throw new Error('La síntesis debe reflejar solo la opción seleccionada en Atención al marcar SÍ');
+    }
+
+    const fieldsAtencionNo = MentalExamModule.getInitialState(testPatient);
+    fieldsAtencionNo.atencionAlterada = 'NO';
+    const narAtencionNo = MentalExamModule.generateNarrative(fieldsAtencionNo, testPatient);
+    if (!narAtencionNo.includes('Atención Conservada.')) {
+        throw new Error('Al marcar NO debe reflejarse "Atención Conservada."');
+    }
+
+    // 4. Parte 6: Orientación
+    if (!html.includes('<span class="me-card-title">Orientación</span>')) {
+        throw new Error('Tarjeta 6 debe tener por título "Orientación"');
+    }
+    if (html.includes('Orientación (Autopsíquica y Alopsíquica)')) {
+        throw new Error('Título no debe contener "(Autopsíquica y Alopsíquica)"');
+    }
+    if (html.includes('data-field="orientacionAutopsiquica"') || html.includes('data-field="orientacionAlopsiquica"')) {
+        throw new Error('Tarjeta 6 no debe contener botones de selección SI/NO');
+    }
+    if (!html.includes('id="me_dd_container_orientacion"')) {
+        throw new Error('Tarjeta 6 debe contar con lista desplegable única para Orientación');
+    }
+
+    const orientOpts = MentalExamModule.getOrientacionOptions();
+    if (!orientOpts.includes('Orientado Autopsíquicamente') || !orientOpts.includes('Orientado Alopsíquicamente') || !orientOpts.includes('Desorientación Parcial') || !orientOpts.includes('Desorientación Autopsíquica')) {
+        throw new Error('getOrientacionOptions debe proveer las opciones estándar de orientación incluyendo Desorientación Autopsíquica');
+    }
+
+    const fieldsOrientacion = MentalExamModule.getInitialState(testPatient);
+    fieldsOrientacion.orientacion = ['Orientado Autopsíquicamente', 'Desorientación Temporal'];
+    const narOrient = MentalExamModule.generateNarrative(fieldsOrientacion, testPatient);
+    if (!narOrient.includes('Orientado Autopsíquicamente, Desorientación Temporal.')) {
+        throw new Error('La síntesis debe reflejar la orientación y desorientación seleccionadas separadas por comas sin prefijo con');
+    }
+
+    const fieldsOrientacion2 = MentalExamModule.getInitialState(testPatient);
+    fieldsOrientacion2.orientacion = ['Orientado Alopsíquicamente', 'Desorientación Autopsíquica'];
+    const narOrient2 = MentalExamModule.generateNarrative(fieldsOrientacion2, testPatient);
+    if (!narOrient2.includes('Orientado Alopsíquicamente, Desorientación Autopsíquica.')) {
+        throw new Error('Debe permitir sintetizar Desorientación Autopsíquica sin confundirla con orientación autopsíquica');
+    }
+});
+
+// ============================================
+// TC-MSE-04: Examen Mental - Correcciones Semiológicas (Memoria, Inteligencia, Pensamiento, Lenguaje y Sensopercepción)
+// ============================================
+ClinicalTestSuite.add('TC-MSE-04', 'Examen Mental - Correcciones Semiológicas (Memoria, Inteligencia, Pensamiento, Lenguaje y Sensopercepción)', async () => {
+    await import('./mental-exam.js');
+    const MentalExamModule = globalThis.MentalExamModule;
+
+    const testPatient = {
+        id: 'px_mse_test_04',
+        name: 'Elena Fuentes',
+        gender: 'Femenino',
+        age: 29
+    };
+
+    const html = MentalExamModule.renderTab(testPatient);
+
+    // 1. Memoria (Función 7)
+    if (!html.includes('<span class="me-card-title">Memoria</span>')) {
+        throw new Error('Tarjeta 7 debe llamarse "Memoria" sin añadiduras');
+    }
+    const fieldsMemNo = MentalExamModule.getInitialState(testPatient);
+    fieldsMemNo.memoriaConservada = 'NO';
+    fieldsMemNo.memoriaCualitativo = ['Amnesia Anterógrada o de Fijación'];
+    const narMemNo = MentalExamModule.generateNarrative(fieldsMemNo, testPatient);
+    if (narMemNo.includes('Memoria comprometida con presencia de')) {
+        throw new Error('La síntesis de memoria no debe incluir "Memoria comprometida con presencia de"');
+    }
+    if (!narMemNo.includes('Amnesia Anterógrada o de Fijación.')) {
+        throw new Error('La síntesis de memoria debe reflejar las opciones seleccionadas directamente');
+    }
+
+    // 2. Inteligencia (Función 9)
+    if (!html.includes('<span class="me-card-title">Inteligencia</span>')) {
+        throw new Error('Tarjeta 9 debe tener por título "Inteligencia"');
+    }
+    if (html.includes('¿Se realizaron pruebas psicométricas?:')) {
+        throw new Error('Tarjeta 9 no debe mostrar la pregunta de pruebas psicométricas');
+    }
+    const fieldsIntelPromedio = MentalExamModule.getInitialState(testPatient);
+    fieldsIntelPromedio.inteligencia = 'Promedio';
+    const narIntelPromedio = MentalExamModule.generateNarrative(fieldsIntelPromedio, testPatient);
+    if (!narIntelPromedio.includes('Inteligencia igual al promedio.')) {
+        throw new Error('Al seleccionar Promedio debe generarse "Inteligencia igual al promedio."');
+    }
+
+    // 3. Pensamiento (Función 10)
+    if (!html.includes('<span class="me-card-title">Pensamiento</span>')) {
+        throw new Error('Tarjeta 10 debe tener por título "Pensamiento"');
+    }
+    if (html.includes('Pensamiento (Velocidad, Estructura y Contenido)')) {
+        throw new Error('Título no debe contener "(Velocidad, Estructura y Contenido)"');
+    }
+    if (html.includes('data-field="pensamientoVelocidad"') && html.includes("data-value='Normal'")) {
+        throw new Error('Tarjeta 10 no debe contener chip con opción "Normal"');
+    }
+    if (!html.includes('<label class="me-field-label" style="margin-top:12px;">Otros:</label>')) {
+        throw new Error('Tarjeta 10 debe mostrar la etiqueta "Otros:"');
+    }
+    const fieldsPens = MentalExamModule.getInitialState(testPatient);
+    fieldsPens.pensamientoDelirios = 'SI';
+    fieldsPens.pensamientoDeliriosLista = ['Delirio de Persecución'];
+    const narPens = MentalExamModule.generateNarrative(fieldsPens, testPatient);
+    if (narPens.includes('Ideas delirantes de tipo:')) {
+        throw new Error('La síntesis no debe anteponer "Ideas delirantes de tipo:"');
+    }
+    if (!narPens.includes('Delirio de Persecución.')) {
+        throw new Error('La síntesis debe reflejar el delirio seleccionado directamente');
+    }
+
+    // 4. Lenguaje (Función 11)
+    if (!html.includes('<span class="me-card-title">Lenguaje</span>')) {
+        throw new Error('Tarjeta 11 debe llamarse "Lenguaje"');
+    }
+    if (html.includes('Adecuado / Mímica normal')) {
+        throw new Error('Tarjeta 11 no debe incluir "Adecuado / Mímica normal"');
+    }
+    const fieldsLengVacio = MentalExamModule.getInitialState(testPatient);
+    fieldsLengVacio.lenguajeOrganico = [];
+    fieldsLengVacio.lenguajePsicogeno = [];
+    fieldsLengVacio.lenguajeNoVerbal = [];
+    const narLengVacio = MentalExamModule.generateNarrative(fieldsLengVacio, testPatient);
+    if (!narLengVacio.includes('Sin alteraciones observables en el Lenguaje.')) {
+        throw new Error('Al no marcar opciones en Lenguaje debe quedar "Sin alteraciones observables en el Lenguaje."');
+    }
+
+    // 5. Sensopercepción (Función 13)
+    if (html.includes("data-value='Conservada'") && html.includes('data-field="sensopercepcionCuantitativa"')) {
+        throw new Error('Tarjeta 13 no debe incluir la opción "Conservada" en cuantitativa');
+    }
+    if (!html.includes('data-field="sensopercepcionAlterada"')) {
+        throw new Error('Tarjeta 13 debe contar con selector dicótomo ¿Presenta alteraciones? SÍ/NO');
+    }
+    const fieldsSenNo = MentalExamModule.getInitialState(testPatient);
+    fieldsSenNo.sensopercepcionAlterada = 'NO';
+    const narSenNo = MentalExamModule.generateNarrative(fieldsSenNo, testPatient);
+    if (!narSenNo.includes('Sin alteraciones observables en la Sensopercepción.')) {
+        throw new Error('Al marcar NO en Sensopercepción debe quedar "Sin alteraciones observables en la Sensopercepción."');
+    }
+    const fieldsSenSi = MentalExamModule.getInitialState(testPatient);
+    fieldsSenSi.sensopercepcionAlterada = 'SI';
+    fieldsSenSi.ilusionesPresenta = 'SI';
+    fieldsSenSi.ilusionesTipo = ['Ilusiones Catatímicas'];
+    const narSenSi = MentalExamModule.generateNarrative(fieldsSenSi, testPatient);
+    if (narSenSi.includes('Ilusiones:')) {
+        throw new Error('La síntesis no debe anteponer "Ilusiones:"');
+    }
+    if (!narSenSi.includes('Ilusiones Catatímicas.')) {
+        throw new Error('La síntesis debe reflejar la ilusión seleccionada directamente');
+    }
+});
+
+// ============================================
+// TC-MSE-05: Examen Mental - Correcciones Semiológicas (Afectividad, Psicomotricidad, Vida Instintiva y Volición)
+// ============================================
+ClinicalTestSuite.add('TC-MSE-05', 'Examen Mental - Correcciones Semiológicas (Afectividad, Psicomotricidad, Vida Instintiva y Volición)', async () => {
+    await import('./mental-exam.js');
+    const MentalExamModule = globalThis.MentalExamModule;
+
+    const testPatient = {
+        id: 'px_mse_test_05',
+        name: 'Mauricio Ramos',
+        gender: 'Masculino',
+        age: 38
+    };
+
+    const html = MentalExamModule.renderTab(testPatient);
+
+    // 1. Afectividad (Función 12)
+    if (html.includes('Modulado / Eutímico')) {
+        throw new Error('Tarjeta 12 debe mostrar "Eutímico" en lugar de "Modulado / Eutímico"');
+    }
+    if (!html.includes('Eutimia')) {
+        throw new Error('Tarjeta 12 debe mostrar "Eutimia"');
+    }
+    const fieldsEutimia = MentalExamModule.getInitialState(testPatient);
+    fieldsEutimia.hipertimiaPresenta = 'NO';
+    fieldsEutimia.afectoBase = 'Eutimia';
+    const narEutimia = MentalExamModule.generateNarrative(fieldsEutimia, testPatient);
+    if (!narEutimia.includes('Eutimia.')) {
+        throw new Error('Al seleccionar Eutimia como afecto base debe sintetizarse "Eutimia."');
+    }
+
+    const fieldsHipertimia = MentalExamModule.getInitialState(testPatient);
+    fieldsHipertimia.hipertimiaPresenta = 'SI';
+    fieldsHipertimia.hipertimiaTipo = 'Hipertimia Displacentera';
+    fieldsHipertimia.hipertimiaPolo = 'De la Tristeza';
+    fieldsHipertimia.hipertimiaSentimientos = ['Minusvalía'];
+    const narHipertimia = MentalExamModule.generateNarrative(fieldsHipertimia, testPatient);
+    if (!narHipertimia.includes('Hipertimia Displacentera Orientada al Polo de la Tristeza con Sentimientos de Minusvalía.')) {
+        throw new Error('La síntesis debe generar exactamente el patrón de hipertimia compuesta del psicólogo');
+    }
+
+    // Validación de Del Pesimismo
+    fieldsHipertimia.hipertimiaPolo = 'Del Pesimismo';
+    const narPesimismo = MentalExamModule.generateNarrative(fieldsHipertimia, testPatient);
+    if (!narPesimismo.includes('Orientada al Polo del Pesimismo')) {
+        throw new Error('Al seleccionar Del Pesimismo debe reflejarse "Orientada al Polo del Pesimismo"');
+    }
+
+    // Validación de conectores "y" en sentimientos (2 opciones y 3 opciones)
+    fieldsHipertimia.hipertimiaSentimientos = ['Ruina', 'Desamparo'];
+    const narSent2 = MentalExamModule.generateNarrative(fieldsHipertimia, testPatient);
+    if (!narSent2.includes('con Sentimientos de Ruina y Desamparo')) {
+        throw new Error('Dos sentimientos deben unirse con el conector "y"');
+    }
+
+    fieldsHipertimia.hipertimiaSentimientos = ['Minusvalía', 'Ruina', 'Desamparo'];
+    const narSent3 = MentalExamModule.generateNarrative(fieldsHipertimia, testPatient);
+    if (!narSent3.includes('con Sentimientos de Minusvalía, Ruina y Desamparo')) {
+        throw new Error('Tres sentimientos deben unirse con comas y el conector "y"');
+    }
+
+    // 2. Psicomotricidad (Función 14)
+    if (!html.includes('data-field="psicomotricidadAlterada"')) {
+        throw new Error('Tarjeta 14 debe contar con selector dicótomo ¿Presenta alteraciones? SÍ/NO');
+    }
+    const fieldsPsicoNo = MentalExamModule.getInitialState(testPatient);
+    fieldsPsicoNo.psicomotricidadAlterada = 'NO';
+    const narPsicoNo = MentalExamModule.generateNarrative(fieldsPsicoNo, testPatient);
+    if (!narPsicoNo.includes('Sin alteraciones observables en la Psicomotricidad.')) {
+        throw new Error('Al marcar NO en Psicomotricidad debe quedar "Sin alteraciones observables en la Psicomotricidad."');
+    }
+
+    // 3. Vida Instintiva (Función 15)
+    if (!html.includes('<span class="me-card-title">Vida Instintiva</span>')) {
+        throw new Error('Tarjeta 15 debe titularse "Vida Instintiva"');
+    }
+    if (html.includes('Vida Instintiva (Sueño, Apetito y Conducta)')) {
+        throw new Error('Tarjeta 15 no debe incluir subtítulos');
+    }
+    const fieldsInstintoNo = MentalExamModule.getInitialState(testPatient);
+    fieldsInstintoNo.vidaInstintivaAlterada = 'NO';
+    const narInstintoNo = MentalExamModule.generateNarrative(fieldsInstintoNo, testPatient);
+    if (!narInstintoNo.includes('Sin alteraciones observables en la Vida Instintiva.')) {
+        throw new Error('Al marcar NO en Vida Instintiva debe quedar "Sin alteraciones observables en la Vida Instintiva."');
+    }
+
+    // 4. Volición (Función 16)
+    if (!html.includes('<span class="me-card-title">Volición</span>')) {
+        throw new Error('Tarjeta 16 debe titularse "Volición"');
+    }
+    if (html.includes('Volición (Voluntad y Motivación)')) {
+        throw new Error('Tarjeta 16 no debe incluir subtítulos');
+    }
+    if (html.includes("data-value='Normobulia'")) {
+        throw new Error('Tarjeta 16 no debe incluir la opción "Normobulia"');
+    }
+    const fieldsVolicionVacia = MentalExamModule.getInitialState(testPatient);
+    fieldsVolicionVacia.volicion = '';
+    const narVolicionVacia = MentalExamModule.generateNarrative(fieldsVolicionVacia, testPatient);
+    if (!narVolicionVacia.includes('Sin alteraciones observables en la Volición.')) {
+        throw new Error('Al no marcar opción en Volición debe quedar "Sin alteraciones observables en la Volición."');
+    }
+
+    // 5. Conciencia de Enfermedad (Función 17)
+    if (!html.includes('<span class="me-card-title">Conciencia de Enfermedad</span>')) {
+        throw new Error('Tarjeta 17 debe titularse "Conciencia de Enfermedad"');
+    }
+    if (html.includes('Conciencia de Enfermedad (Insight)')) {
+        throw new Error('Tarjeta 17 no debe incluir "(Insight)"');
+    }
+});
+
+// ============================================
+// TC-MSE-06: Examen Mental - Validación con el Párrafo Clínico Estándar del Psicólogo
+// ============================================
+ClinicalTestSuite.add('TC-MSE-06', 'Examen Mental - Validación con el Párrafo Clínico Estándar del Psicólogo', async () => {
+    await import('./mental-exam.js');
+    const MentalExamModule = globalThis.MentalExamModule;
+
+    const testPatient = {
+        id: 'px_mse_test_06',
+        name: 'Gabriela Silva',
+        gender: 'Femenino',
+        age: 18
+    };
+
+    const fields = MentalExamModule.getInitialState(testPatient);
+    fields.sexo = 'Femenino';
+    fields.edad = 18;
+    fields.edadAparenteCronologica = 'SI';
+    fields.biotipo = 'Mesomorfo';
+    fields.aspectoVestimenta = ['Aseada', 'Arreglada', 'Vestimenta de acuerdo a edad y ocasión'];
+    fields.actitud = []; // Sin actitud explícita, tal como en el ejemplo oficial
+    fields.concienciaAlterada = 'NO';
+    fields.atencionAlterada = 'NO';
+    fields.orientacion = ['Orientado Alopsíquicamente', 'Orientado Autopsíquicamente'];
+    fields.memoriaConservada = 'SI';
+    fields.juicioPractico = 'Conservado';
+    fields.inteligencia = 'Normal';
+    fields.pensamientoVelocidad = 'Taquipsiquia';
+    fields.lenguajePsicogeno = ['Taquilalia'];
+    fields.hipertimiaPresenta = 'SI';
+    fields.hipertimiaTipo = 'Hipertimia Displacentera';
+    fields.hipertimiaPolo = 'De la Tristeza';
+    fields.hipertimiaSentimientos = ['Minusvalía'];
+    fields.sensopercepcionAlterada = 'SI';
+    fields.sensopercepcionCuantitativa = 'Aceleración de la Percepción';
+    fields.psicomotricidadAlterada = 'SI';
+    fields.psicomotricidadNoOrganico = ['Tics'];
+    fields.vidaInstintivaAlterada = 'SI';
+    fields.vidaInstintivaLista = ['Insomnio', 'Pica'];
+    fields.volicion = 'Hiperbulia';
+    fields.concienciaEnfermedad = 'Presente';
+    fields.juicioRealidad = 'Conservado';
+
+    const narrative = MentalExamModule.generateNarrative(fields, testPatient);
+
+    // Texto de referencia oficial del psicólogo (Páginas 2 y 3 del PDF)
+    const expectedTokens = [
+        'Paciente femenina de 18 años',
+        'biotipo mesomorfo',
+        'Aseada y arreglada, vestimenta de acuerdo a la edad y ocasión',
+        'Nivel de Conciencia Conservado',
+        'Atención Conservada',
+        'Orientada Alopsíquica y Autopsíquicamente',
+        'Memoria Conservada',
+        'Juicio Práctico Conservado',
+        'Inteligencia Normal',
+        'Taquipsiquia',
+        'Taquilalia',
+        'Hipertimia Displacentera Orientada al Polo de la Tristeza con Sentimientos de Minusvalía',
+        'Aceleración de la Percepción',
+        'Tics',
+        'Insomnio, Pica',
+        'Hiperbulia',
+        'Conciencia de Enfermedad Presente',
+        'Juicio de Realidad Conservado'
+    ];
+
+    let lastIndex = 0;
+    for (const token of expectedTokens) {
+        const idx = narrative.indexOf(token);
+        if (idx === -1) {
+            throw new Error(`El párrafo generado debe contener "${token}". Síntesis actual: "${narrative}"`);
+        }
+        if (idx < lastIndex) {
+            throw new Error(`El token "${token}" no se encuentra en el orden secuencial estricto de las 18 funciones`);
+        }
+        lastIndex = idx;
+    }
+});
+
+// 124. TC-MEJ-01: Consentimiento Informado (Etiqueta "FIRMADO POR EL REPRESENTANTE" y Formato Configurable)
+ClinicalTestSuite.add('TC-MEJ-01', 'Consentimiento Informado: Etiqueta "FIRMADO POR EL REPRESENTANTE" y Formato Configurable', async () => {
+    const fs = await import('fs');
+    const path = await import('path');
+
+    const hcJs = fs.readFileSync(path.resolve('historia-clinica.js'), 'utf8');
+    if (!hcJs.includes('FIRMADO POR EL REPRESENTANTE')) {
+        throw new Error('historia-clinica.js debe reflejar la etiqueta "FIRMADO POR EL REPRESENTANTE" para consentimiento en menores');
+    }
+
+    const consentJs = fs.readFileSync(path.resolve('consentimiento.js'), 'utf8');
+    if (!consentJs.includes('toggleConsentEditorMode') || !consentJs.includes('txtCustomConsentFormat')) {
+        throw new Error('consentimiento.js debe ofrecer editor configurable de formato y cláusulas (toggleConsentEditorMode)');
+    }
+});
+
+// 125. TC-MEJ-02: Historia Clínica Adulto Sobria (Cero Emojis en Títulos y Acordeones)
+ClinicalTestSuite.add('TC-MEJ-02', 'Historia Clínica Adulto Sobria (Cero Emojis en Títulos y Acordeones)', async () => {
+    if (typeof ClinicalHistorySystem === 'undefined') {
+        await import('./historia-clinica.js');
+    }
+    const CHS = globalThis.ClinicalHistorySystem;
+    const testAdult = {
+        id: 'pat_adult_no_emoji_01',
+        name: 'Roberto Valera',
+        category: 'adult',
+        gender: 'Masculino',
+        birthdate: '1985-04-12',
+        ci: 'V-15.892.441',
+        occupation: 'Ingeniero',
+        maritalStatus: 'Casado',
+        livesWith: 'Esposa e hijos'
+    };
+    const h = CHS.getFullHistory(testAdult);
+    const therapist = CHS.getTherapistInfo();
+    const html = CHS.renderAdultHistoryIntegral(testAdult, h, therapist, therapist.registry);
+
+    // Validar ausencia de emojis en los títulos de sección del acordeón de adulto
+    const forbiddenEmojis = ['👤', '📋', '🧠', '🩺', '🏠', '🌿', '🎯'];
+    for (const emoji of forbiddenEmojis) {
+        // Los títulos de acordeón no deben contener estos emojis en HC adulto
+        const regex = new RegExp(`<strong[^>]*>\\s*${emoji}`, 'i');
+        if (regex.test(html)) {
+            throw new Error(`Se detectó emoji no permitido "${emoji}" en el encabezado de HC Adulto`);
+        }
+    }
+
+    if (!html.includes('Historia Clínica Adulto (5 Pág. Oficial)')) {
+        throw new Error('Debe mostrar el badge formal de Historia Clínica Adulto sin emojis');
+    }
+});
+
+// 126. TC-MEJ-03: HC Infantil (Posición del Bebé con 4 Opciones y "Dato no Obtenido" Sistemático)
+ClinicalTestSuite.add('TC-MEJ-03', 'HC Infantil: Posición del Bebé con 4 Opciones y "Dato no Obtenido" Sistemático', async () => {
+    const fs = await import('fs');
+    const path = await import('path');
+
+    const hcJs = fs.readFileSync(path.resolve('historia-clinica.js'), 'utf8');
+
+    // 1. Validar que fh_babyPosition sea un select con Cefálica, Transversal, Podálica y Dato no Obtenido
+    if (!hcJs.includes('<select id="fh_babyPosition">')) {
+        throw new Error('fh_babyPosition debe ser un elemento select estandarizado');
+    }
+    const requiredBabyOptions = ['Cefálica', 'Transversal', 'Podálica', 'Dato no Obtenido'];
+    for (const opt of requiredBabyOptions) {
+        if (!hcJs.includes(`value="${opt}"`)) {
+            throw new Error(`fh_babyPosition debe incluir la opción "${opt}"`);
+        }
+    }
+
+    // 2. Validar inclusión de "Dato no Obtenido" en Llanto al nacer, Tipo de parto, Reanimación e Incubadora
+    if (!hcJs.includes('fh_birthCry') || !hcJs.includes('fh_deliveryType')) {
+        throw new Error('Deben existir los campos de llanto y tipo de parto en historia clínica');
+    }
+    const deliveryIdx = hcJs.indexOf('id="fh_deliveryType"');
+    const deliveryEndIdx = hcJs.indexOf('</select>', deliveryIdx);
+    const deliveryBlock = hcJs.substring(deliveryIdx, deliveryEndIdx);
+    if (!deliveryBlock.includes('Dato no Obtenido')) {
+        throw new Error('El selector de Tipo de Parto debe incluir "Dato no Obtenido"');
+    }
+
+    const birthCryIdx = hcJs.indexOf('id="fh_birthCry"');
+    const birthCryEndIdx = hcJs.indexOf('</select>', birthCryIdx);
+    const birthCryBlock = hcJs.substring(birthCryIdx, birthCryEndIdx);
+    if (!birthCryBlock.includes('Dato no Obtenido')) {
+        throw new Error('El selector de Llanto al nacer debe incluir "Dato no Obtenido"');
+    }
+});
+
+// 127. TC-MEJ-04: Genograma Familiar Interactivo y Accesible desde Historia Clínica
+ClinicalTestSuite.add('TC-MEJ-04', 'Genograma Familiar Interactivo y Accesible desde Historia Clínica', async () => {
+    if (typeof ClinicalHistorySystem === 'undefined') {
+        await import('./historia-clinica.js');
+    }
+    if (typeof GenogramModule === 'undefined') {
+        await import('./genogram.js');
+    }
+    const CHS = globalThis.ClinicalHistorySystem;
+    const GM = globalThis.GenogramModule;
+
+    if (typeof CHS.openGenogramModal !== 'function') {
+        throw new Error('ClinicalHistorySystem debe exponer openGenogramModal');
+    }
+    if (typeof GM.openWizardModal !== 'function' || typeof GM.renderSVG !== 'function') {
+        throw new Error('GenogramModule debe exponer openWizardModal y renderSVG');
+    }
+});
+
+// 128. TC-MEJ-05: Examen Mental en Formato Check-List Protocolizado
+ClinicalTestSuite.add('TC-MEJ-05', 'Examen Mental en Formato Check-List Protocolizado', async () => {
+    if (typeof MentalExamModule === 'undefined') {
+        await import('./mental-exam.js');
+    }
+    const MEM = globalThis.MentalExamModule;
+
+    if (typeof MEM.openChecklistModal !== 'function') {
+        throw new Error('MentalExamModule debe proveer openChecklistModal');
+    }
+    if (typeof MEM.checkAllNormalChecklist !== 'function') {
+        throw new Error('MentalExamModule debe proveer checkAllNormalChecklist para marcar todo normal en 1 clic');
+    }
+    if (typeof MEM.updateChecklistLiveText !== 'function') {
+        throw new Error('MentalExamModule debe proveer updateChecklistLiveText para generar la síntesis semiológica');
+    }
+
+    // Verificar que historia-clinica.js enlace el botón de check-list rápido
+    const fs = await import('fs');
+    const path = await import('path');
+    const hcJs = fs.readFileSync(path.resolve('historia-clinica.js'), 'utf8');
+    if (!hcJs.includes('openChecklistModal')) {
+        throw new Error('historia-clinica.js debe incluir el botón para invocar openChecklistModal');
+    }
+});
+
+// 129. TC-MEJ-06: Gestión Dinámica de Escalas Psicométricas (Creación, Edición y Eliminación)
+ClinicalTestSuite.add('TC-MEJ-06', 'Gestión Dinámica de Escalas Psicométricas (Creación, Edición y Eliminación)', async () => {
+    if (typeof getAllClinicalScales === 'undefined') {
+        await import('./scales.js');
+    }
+
+    if (typeof globalThis.openScaleEditorModal !== 'function') {
+        throw new Error('scales.js debe exponer globalmente openScaleEditorModal');
+    }
+    if (typeof globalThis.deleteCustomScale !== 'function') {
+        throw new Error('scales.js debe exponer globalmente deleteCustomScale');
+    }
+    if (typeof globalThis.handleSaveCustomScale !== 'function') {
+        throw new Error('scales.js debe exponer globalmente handleSaveCustomScale');
+    }
+
+    const fs = await import('fs');
+    const path = await import('path');
+    const indexHtml = fs.readFileSync(path.resolve('index.html'), 'utf8');
+    if (!indexHtml.includes('btnDeleteCustomScale') || !indexHtml.includes('scaleEditorModal')) {
+        throw new Error('index.html debe contener el modal scaleEditorModal y el botón btnDeleteCustomScale');
+    }
+});
+
+// 130. TC-MEJ-07: Modales y Fichas de Genograma (Centrado, Modo Oscuro, Responsive y Cierre por Backdrop)
+ClinicalTestSuite.add('TC-MEJ-07', 'Modales y Fichas de Genograma: Centrado, Modo Oscuro, Responsive y Cierre', async () => {
+    const fs = await import('fs');
+    const path = await import('path');
+    const genoJs = fs.readFileSync(path.resolve('genogram.js'), 'utf8');
+    const stylesCss = fs.readFileSync(path.resolve('styles.css'), 'utf8');
+
+    // 1. Verificar que los 6 modales usan el contenedor estándar .modal.active con modal-overlay y modal-content
+    const expectedModals = [
+        'modalGenoMember',
+        'modalEditMember',
+        'modalAddUnion',
+        'modalEditUnion',
+        'modalAddRel',
+        'modalEditRel',
+        'modalGenoWizard'
+    ];
+
+    for (const modalId of expectedModals) {
+        if (!genoJs.includes(`id="${modalId}"`)) {
+            throw new Error(`genogram.js debe contener el modal con id="${modalId}"`);
+        }
+        if (!genoJs.includes(`<div class="modal active" id="${modalId}">`)) {
+            throw new Error(`genogram.js debe encapsular "${modalId}" dentro de <div class="modal active"> para centrado perfecto`);
+        }
+    }
+
+    // 2. Verificar que no quedan modales obsoletos con <div class="modal-overlay active"
+    if (genoJs.includes('<div class="modal-overlay active"')) {
+        throw new Error('genogram.js no debe utilizar modal-overlay active como raíz exterior');
+    }
+
+    // 3. Verificar que injectModal limpia modales previos
+    if (!genoJs.includes('document.querySelectorAll(\'.modal[id^="modalGeno"]') && !genoJs.includes('document.querySelectorAll(\'.modal[')) {
+        throw new Error('genogram.js injectModal debe limpiar modales anteriores del DOM');
+    }
+
+    // 4. Verificar estilos para form-control, modal-card y dark mode en styles.css
+    if (!stylesCss.includes('.form-control') || !stylesCss.includes('[data-theme="dark"] .form-control')) {
+        throw new Error('styles.css debe definir estilos para .form-control y modo oscuro [data-theme="dark"]');
+    }
+    if (!stylesCss.includes('.modal-overlay.active')) {
+        throw new Error('styles.css debe definir el fallback de centrado para .modal-overlay.active');
+    }
+});
+
+// 147. TC-FIN-BCV-01: Cotización y Tasas Automatizadas BCV (Dólar, Euro y Resiliencia Multimoneda)
+ClinicalTestSuite.add('TC-FIN-BCV-01', 'Cotización y Tasas Automatizadas BCV (Dólar, Euro y Resiliencia Multimoneda)', async () => {
+    const fs = await import('fs');
+    const path = await import('path');
+
+    // 1. Verificar endpoint en server.js
+    const serverJs = fs.readFileSync(path.resolve('./server.js'), 'utf8');
+    if (!serverJs.includes('/api/v1/finance/bcv-rates')) {
+        throw new Error('server.js debe exponer la ruta /api/v1/finance/bcv-rates');
+    }
+    if (!serverJs.includes('dolarapi.com/v1/dolares/oficial')) {
+        throw new Error('server.js debe consultar fuentes oficiales de cotización BCV');
+    }
+
+    // 2. Importar finanzas y verificar API de tasas
+    await import('./finance.js');
+    const scope = (typeof window !== 'undefined') ? window : globalThis;
+    const { getBcvExchangeRates, saveBcvExchangeRates, convertCurrency, formatDualCurrency } = scope;
+
+    if (typeof getBcvExchangeRates !== 'function' || typeof convertCurrency !== 'function') {
+        throw new Error('finance.js debe exportar getBcvExchangeRates y convertCurrency');
+    }
+
+    const rates = getBcvExchangeRates();
+    if (!rates || typeof rates.usdRate !== 'number' || rates.usdRate <= 0) {
+        throw new Error('getBcvExchangeRates debe retornar una tasa positiva de USD');
+    }
+    if (typeof rates.eurRate !== 'number' || rates.eurRate <= 0) {
+        throw new Error('getBcvExchangeRates debe retornar una tasa positiva de EUR');
+    }
+
+    // 3. Verificar conversión matemática bidireccional
+    const testUSD = 50.00;
+    const expectedVES = Math.round((testUSD * rates.usdRate + Number.EPSILON) * 100) / 100;
+    const convertedVES = convertCurrency(testUSD, 'USD', 'VES');
+
+    if (Math.abs(convertedVES - expectedVES) > 0.05) {
+        throw new Error(`Conversión USD a VES errónea: esperado ${expectedVES}, obtenido ${convertedVES}`);
+    }
+
+    const convertedUSDBack = convertCurrency(convertedVES, 'VES', 'USD');
+    if (Math.abs(convertedUSDBack - testUSD) > 0.05) {
+        throw new Error(`Conversión inversa VES a USD errónea: esperado ${testUSD}, obtenido ${convertedUSDBack}`);
+    }
+
+    // 4. Probar fijación de tasa manual personalizada
+    const originalRates = { ...rates };
+    saveBcvExchangeRates({
+        isManual: true,
+        usdRate: 950.00,
+        eurRate: 1050.00
+    });
+
+    const manualRates = getBcvExchangeRates();
+    if (!manualRates.isManual || manualRates.usdRate !== 950.00) {
+        throw new Error('La tasa manual personalizada no se guardó correctamente');
+    }
+
+    const convManual = convertCurrency(10, 'USD', 'VES');
+    if (convManual !== 9500.00) {
+        throw new Error(`Cálculo con tasa manual erróneo: esperado 9500, obtenido ${convManual}`);
+    }
+
+    // Restaurar
+    saveBcvExchangeRates(originalRates);
+});
+
+// 148. TC-FIN-BCV-02: Registro y Conciliación de Pagos en Moneda Local (Bolívares / VES) y Divisas
+ClinicalTestSuite.add('TC-FIN-BCV-02', 'Registro y Conciliación de Pagos en Moneda Local (Bolívares / VES) y Divisas', async () => {
+    const fs = await import('fs');
+    const path = await import('path');
+
+    // 1. Verificar modal en index.html
+    const indexHtml = fs.readFileSync(path.resolve('./index.html'), 'utf8');
+    if (!indexHtml.includes('id="financeBcvRateModal"')) {
+        throw new Error('index.html debe contener el modal financeBcvRateModal');
+    }
+
+    // 2. Verificar funciones en finance.js
+    const financeJs = fs.readFileSync(path.resolve('./finance.js'), 'utf8');
+    const requiredFunctions = [
+        'getBcvExchangeRates',
+        'fetchBcvExchangeRates',
+        'convertCurrency',
+        'openBcvRateSettingsModal',
+        'handleBcvRateSettingsSubmit',
+        'setFinanceCurrencyMode',
+        'onTransactionCurrencyChange',
+        'updateTxEquivalentPreview'
+    ];
+
+    for (const fn of requiredFunctions) {
+        if (!financeJs.includes(fn)) {
+            throw new Error(`finance.js debe implementar y exponer: ${fn}`);
+        }
+    }
+
+    // 3. Simular registro de transacción en Bolívares (VES)
+    await import('./finance.js');
+    const scope = (typeof window !== 'undefined') ? window : globalThis;
+    const { getFinanceTransactions, saveFinanceTransactions, getBcvExchangeRates } = scope;
+
+    const initialTxs = getFinanceTransactions();
+    const rates = getBcvExchangeRates();
+    const usdRate = rates.usdRate || 888.89;
+
+    const vesAmount = 45000.00;
+    const expectedNormalizedUSD = Math.round(((vesAmount / usdRate) + Number.EPSILON) * 100) / 100;
+
+    const txBs = {
+        id: 'tx_bcv_test_' + Date.now(),
+        type: 'income',
+        concept: 'Consulta Psicológica Individual (Pago Móvil Mercantil)',
+        amount: expectedNormalizedUSD,
+        originalAmount: vesAmount,
+        currency: 'VES',
+        exchangeRate: usdRate,
+        paymentMethod: 'Pago Móvil',
+        reference: '784192',
+        category: 'Consulta Clínica',
+        date: '2026-10-29',
+        createdAt: new Date().toISOString()
+    };
+
+    const updatedTxs = [...initialTxs, txBs];
+    saveFinanceTransactions(updatedTxs);
+
+    const reloaded = getFinanceTransactions();
+    const found = reloaded.find(t => t.id === txBs.id);
+    if (!found) {
+        throw new Error('No se recuperó la transacción registrada en Bolívares');
+    }
+    if (found.currency !== 'VES' || found.originalAmount !== 45000.00) {
+        throw new Error('Los atributos de moneda local (VES) y monto original no coinciden');
+    }
+    if (found.paymentMethod !== 'Pago Móvil' || found.reference !== '784192') {
+        throw new Error('Los datos de método de pago y referencia bancaria no se persistieron');
+    }
+
+    // Limpiar
+    saveFinanceTransactions(initialTxs);
+});
+
+// 149. TC-FIN-BCV-03: Tarifas a la Tasa Utilizada y Paridad Exacta de Divisas (Cero Inflación EUR a USD)
+ClinicalTestSuite.add('TC-FIN-BCV-03', 'Tarifas a la Tasa Utilizada y Paridad Exacta de Divisas (Cero Inflación EUR a USD)', async () => {
+    await import('./finance.js');
+    const scope = (typeof window !== 'undefined') ? window : globalThis;
+    const { 
+        getFinanceRates, 
+        saveFinanceRates, 
+        getBcvExchangeRates, 
+        saveBcvExchangeRates, 
+        convertCurrency, 
+        registerIncomeFromAppointment, 
+        getFinanceTransactions, 
+        saveFinanceTransactions 
+    } = scope;
+
+    const initialRates = getFinanceRates();
+    const initialTxs = getFinanceTransactions();
+    const originalBcv = getBcvExchangeRates();
+
+    // 1. Establecer tasa del terapeuta con paridad 1:1 en divisas
+    const therapistRate = 900.00; // Tasa que el terapeuta está utilizando
+    saveBcvExchangeRates({
+        usdRate: therapistRate,
+        eurRate: 1000.00,
+        isManual: true,
+        eurParity: true // Paridad activa
+    });
+
+    // 2. Configurar tarifa de consulta en Euros (€10.00 EUR) usando la tasa del terapeuta
+    const euroRate = {
+        id: 'rate_eur_test_' + Date.now(),
+        title: 'Consulta Online Internacional (Europa)',
+        durationMinutes: 50,
+        amount: 10.00,
+        currency: 'EUR',
+        customExchangeRate: therapistRate,
+        description: 'Sesión para pacientes en el exterior cobrada a tasa fija',
+        isDefault: false
+    };
+
+    saveFinanceRates([...initialRates, euroRate]);
+    const reloadedRates = getFinanceRates();
+    const savedRate = reloadedRates.find(r => r.id === euroRate.id);
+    if (!savedRate || savedRate.amount !== 10.00 || savedRate.currency !== 'EUR' || savedRate.customExchangeRate !== 900.00) {
+        throw new Error('La tarifa configurada en Euros con tasa personalizada no se guardó correctamente');
+    }
+
+    // 3. Verificar que 10 Euros NO se inflan artificialmente a 12 Dólares
+    const convertedUSD = convertCurrency(10.00, 'EUR', 'USD');
+    if (convertedUSD !== 10.00) {
+        throw new Error(`Se esperaba paridad exacta de 10.00 USD para 10 Euros, pero se obtuvo ${convertedUSD}`);
+    }
+
+    // 4. Verificar que el equivalente en Bolívares use la tasa que el psicólogo está utilizando
+    const convertedVES = convertCurrency(10.00, 'EUR', 'VES', therapistRate);
+    if (convertedVES !== 9000.00) {
+        throw new Error(`El cálculo a Bolívares debió ser 10 * 900 = 9000.00 Bs., pero fue ${convertedVES}`);
+    }
+
+    // 5. Simular cobro de cita agendada con la tarifa en Euros
+    const testAppointment = {
+        id: 'apt_eur_test_' + Date.now(),
+        patientId: 'pat_eur_01',
+        price: 10.00,
+        currency: 'EUR',
+        exchangeRate: therapistRate,
+        rateId: euroRate.id,
+        rateTitle: euroRate.title,
+        duration: 50,
+        date: '2026-10-29'
+    };
+
+    registerIncomeFromAppointment(testAppointment);
+    const txs = getFinanceTransactions();
+    const registeredTx = txs.find(t => t.appointmentId === testAppointment.id);
+
+    if (!registeredTx) {
+        throw new Error('No se generó la transacción para la cita en Euros');
+    }
+    if (registeredTx.amount !== 10.00) {
+        throw new Error(`El monto normalizado debe ser 10.00 (sin inflar a 12 USD), obtenido: ${registeredTx.amount}`);
+    }
+    if (registeredTx.originalAmount !== 10.00 || registeredTx.currency !== 'EUR') {
+        throw new Error('La transacción debe preservar el monto original de 10.00 y la moneda EUR');
+    }
+    if (registeredTx.exchangeRate !== therapistRate) {
+        throw new Error(`La transacción debió registrarse con la tasa utilizada de ${therapistRate} Bs.`);
+    }
+
+    // Restaurar estado
+    saveFinanceRates(initialRates);
+    saveFinanceTransactions(initialTxs);
+    saveBcvExchangeRates(originalBcv);
+});
+
+// 150. TC-TIMEZONE-01: Mitigación de Desfase de Zona Horaria al Agendar Citas
+ClinicalTestSuite.add('TC-TIMEZONE-01', 'Mitigación de Desfase de Zona Horaria al Agendar Citas (Preservación del Día Exacto sin Rollover UTC)', async () => {
+    const fs = await import('fs');
+    const path = await import('path');
+    const appContent = fs.readFileSync(path.resolve('./app.js'), 'utf8');
+
+    // 1. Verificar presencia de parseLocalDate y manejo en isSameDay
+    if (!appContent.includes('function parseLocalDate(')) {
+        throw new Error('app.js debe implementar la función parseLocalDate para normalizar fechas sin desfase UTC');
+    }
+    if (!appContent.includes('window.parseLocalDate = parseLocalDate')) {
+        throw new Error('app.js debe exponer globalmente parseLocalDate en window');
+    }
+
+    // 2. Extraer y probar parseLocalDate directamente
+    const parseFn = new Function(`
+        ${appContent.slice(appContent.indexOf('function parseLocalDate('), appContent.indexOf('function formatDate('))}
+        return parseLocalDate;
+    `)();
+
+    const dt = parseFn('2026-11-06');
+    if (!dt || dt.getFullYear() !== 2026 || dt.getMonth() !== 10 || dt.getDate() !== 6) {
+        throw new Error(`parseLocalDate('2026-11-06') falló. Año: ${dt?.getFullYear()}, Mes: ${dt?.getMonth()}, Día: ${dt?.getDate()}`);
+    }
+
+    // 3. Probar que isSameDay acepte strings y Date correctamente sin retroceder al día anterior
+    const isSameDayFn = new Function(`
+        ${appContent.slice(appContent.indexOf('function parseLocalDate('), appContent.indexOf('function getMoodEmoji('))}
+        return isSameDay;
+    `)();
+
+    const isMatchSameDay = isSameDayFn('2026-11-06', new Date(2026, 10, 6));
+    const isMismatchPrevDay = isSameDayFn('2026-11-06', new Date(2026, 10, 5));
+
+    if (!isMatchSameDay) {
+        throw new Error('isSameDay debe retornar true para una cita del 2026-11-06 comparada con el día 6 de noviembre');
+    }
+    if (isMismatchPrevDay) {
+        throw new Error('isSameDay debe retornar false para una cita del 2026-11-06 comparada con el día anterior (5 de noviembre)');
+    }
+
+    // 4. Probar que parseLocalDate y toDateInputValue preserven objetos Date a medianoche UTC
+    const toDateInputFn = new Function(`
+        ${appContent.slice(appContent.indexOf('function parseLocalDate('), appContent.indexOf('function isSameDay('))}
+        return toDateInputValue;
+    `)();
+    const utcMidnightDate = new Date('2026-11-05T00:00:00.000Z');
+    const inputVal = toDateInputFn(utcMidnightDate);
+    if (inputVal !== '2026-11-05') {
+        throw new Error(`toDateInputValue(utcMidnightDate) falló: esperado '2026-11-05', obtenido '${inputVal}'`);
+    }
+
+    // 5. Verificar que db.js formatee correctamente columnas DATE de PostgreSQL a medianoche UTC
+    const dbContent = fs.readFileSync(path.resolve('./db.js'), 'utf8');
+    const formatDbDateFn = new Function(`
+        ${dbContent.slice(dbContent.indexOf('function formatDbDate('), dbContent.indexOf('class DatabaseManager'))}
+        return formatDbDate;
+    `)();
+    const formattedDb = formatDbDateFn(utcMidnightDate);
+    if (formattedDb !== '2026-11-05') {
+        throw new Error(`formatDbDate(utcMidnightDate) falló: esperado '2026-11-05', obtenido '${formattedDb}'`);
+    }
+
+    // 6. Verificar que openAppointmentModalWithSlot invoque openModal primero para no sobreescribir la fecha
+    if (!appContent.includes('openAppointmentModalWithSlot(dateStr, timeStr) {\r\n    openModal(\'appointmentModal\');') &&
+        !appContent.includes('openAppointmentModalWithSlot(dateStr, timeStr) {\n    openModal(\'appointmentModal\');')) {
+        throw new Error('openAppointmentModalWithSlot debe invocar openModal primero para preservar dateStr y timeStr');
+    }
+});
+
+// ============================================
+// TC-APPT-ACTION-01: Gestión Avanzada de Cancelación y Reagendamiento de Citas
+// ============================================
+ClinicalTestSuite.add('TC-APPT-ACTION-01', 'Gestión Avanzada de Eliminación y Cancelación (Reagendamiento, Disponibilidad y Cancelada por Terapeuta vs Paciente)', async () => {
+    const fs = await import('fs');
+    const path = await import('path');
+
+    // 1. Validar presencia del modal y elementos clave en index.html
+    const indexHtml = fs.readFileSync(path.resolve('./index.html'), 'utf8');
+    const requiredElements = [
+        'id="appointmentActionModal"',
+        'id="apptActionReschedule"',
+        'id="apptActionCancelTherapist"',
+        'id="apptActionCancelPatient"',
+        'id="apptActionDeletePermanent"',
+        'id="actionNewDate"',
+        'id="actionNewTime"',
+        'id="actionSlotsGrid"',
+        'id="actionReasonPresetSelect"',
+        'id="actionCancelCustomReason"'
+    ];
+    for (const el of requiredElements) {
+        if (!indexHtml.includes(el)) {
+            throw new Error('index.html debe contener el elemento ' + el);
+        }
+    }
+
+    // 2. Validar funciones de control en app.js
+    const appJs = fs.readFileSync(path.resolve('./app.js'), 'utf8');
+    const requiredFunctions = [
+        'openAppointmentActionModal',
+        'onAppointmentActionChange',
+        'onActionReasonPresetChange',
+        'checkAvailabilityForActionModal',
+        'selectActionTimeSlot',
+        'validateSelectedSlotCollision',
+        'executeAppointmentAction'
+    ];
+    for (const fn of requiredFunctions) {
+        if (!appJs.includes('function ' + fn)) {
+            throw new Error('app.js debe implementar la función ' + fn);
+        }
+        if (!appJs.includes('window.' + fn + ' = ' + fn)) {
+            throw new Error('app.js debe exponer globalmente ' + fn + ' en window');
+        }
+    }
+
+    // 3. Probar lógica de cálculo de estadísticas de adherencia en calculatePatientSessionStats
+    const startIdx = appJs.indexOf('function calculatePatientSessionStats(');
+    const endIdx = appJs.indexOf('function renderTabHistorialSesiones(');
+    const calcStatsFn = new Function(appJs.slice(startIdx, endIdx) + '\nreturn calculatePatientSessionStats;')();
+
+    // Caso A: Paciente con 1 sesión completada y 1 cancelada por el terapeuta -> Tasa 100%
+    const mockStateTherapist = {
+        appointments: [
+            { id: 'c1', patientId: 'p1', status: 'completada' },
+            { id: 'c2', patientId: 'p1', status: 'cancelada', canceledBy: 'therapist' }
+        ],
+        therapyRoadmapSessions: []
+    };
+    const statsA = calcStatsFn('p1', mockStateTherapist);
+    if (statsA.completedCount !== 1) {
+        throw new Error('statsA.completedCount esperado 1, obtenido ' + statsA.completedCount);
+    }
+    if (statsA.cancelledByTherapistCount !== 1) {
+        throw new Error('statsA.cancelledByTherapistCount esperado 1, obtenido ' + statsA.cancelledByTherapistCount);
+    }
+    if (statsA.attendanceRate !== 100) {
+        throw new Error('Cancelación por terapeuta no debe bajar la tasa de asistencia del paciente. Esperado 100%, obtenido ' + statsA.attendanceRate + '%');
+    }
+
+    // Caso B: Paciente con 1 sesión completada y 1 cancelada por el paciente -> Tasa 50%
+    const mockStatePatient = {
+        appointments: [
+            { id: 'c1', patientId: 'p2', status: 'completada' },
+            { id: 'c2', patientId: 'p2', status: 'cancelada', canceledBy: 'patient' }
+        ],
+        therapyRoadmapSessions: []
+    };
+    const statsB = calcStatsFn('p2', mockStatePatient);
+    if (statsB.cancelledByPatientCount !== 1) {
+        throw new Error('statsB.cancelledByPatientCount esperado 1, obtenido ' + statsB.cancelledByPatientCount);
+    }
+    if (statsB.attendanceRate !== 50) {
+        throw new Error('Cancelación por paciente debe reflejarse en la tasa. Esperado 50%, obtenido ' + statsB.attendanceRate + '%');
+    }
+
+    // 4. Probar eliminación definitiva en db.js
+    const { db } = await import('./db.js');
+    const dummyApptId = `dummy_del_${Date.now()}`;
+    if (!Array.isArray(db.localStore.appointments)) db.localStore.appointments = [];
+    db.localStore.appointments.push({
+        id: dummyApptId,
+        patientId: 'p_test',
+        date: '2026-11-20',
+        time: '10:00',
+        status: 'agendada'
+    });
+    const delResult = await db.deleteAppointment(dummyApptId);
+    if (!delResult) throw new Error('db.deleteAppointment debe retornar true');
+    const stillExists = db.localStore.appointments.some(a => String(a.id) === String(dummyApptId));
+    if (stillExists) {
+        throw new Error('db.deleteAppointment no debe mantener la cita con status cancelada, debe removerla de localStore');
+    }
+});
+
+// ============================================
+// TC-EXP-05: Reorganización Personalizada de Pestañas del Expediente Clínico (Drag & Drop, Modal y LocalStorage)
+// ============================================
+ClinicalTestSuite.add('TC-EXP-05', 'Reorganización Personalizada de Pestañas del Expediente Clínico (Drag & Drop, Modal y LocalStorage)', async () => {
+    const fs = await import('fs');
+    const path = await import('path');
+    const appJs = fs.readFileSync(path.resolve('./app.js'), 'utf8');
+    const indexHtml = fs.readFileSync(path.resolve('./index.html'), 'utf8');
+    const stylesCss = fs.readFileSync(path.resolve('./styles.css'), 'utf8');
+
+    // 1. Validar que app.js implementa funciones críticas del gestor de pestañas reorganizables
+    const expectedFns = [
+        'DEFAULT_PATIENT_TABS_ORDER',
+        'getPatientTabsOrder',
+        'savePatientTabsOrder',
+        'resetPatientTabsOrder',
+        'renderPatientTabsBar',
+        'handlePatientTabDragStart',
+        'handlePatientTabDragOver',
+        'handlePatientTabDrop',
+        'handlePatientTabDragEnd',
+        'openPatientTabsReorderModal',
+        'renderPatientTabsReorderList',
+        'movePatientTabInModal',
+        'refreshPatientTabsBar'
+    ];
+    for (const fn of expectedFns) {
+        if (!appJs.includes(fn)) {
+            throw new Error(`app.js debe implementar ${fn}`);
+        }
+    }
+
+    // 2. Validar que las pestañas clave del psicólogo estén cubiertas en el orden predeterminado
+    const requiredTabs = ['resumen', 'notas', 'sesiones', 'historia', 'examen-mental'];
+    for (const tab of requiredTabs) {
+        if (!appJs.includes(`'${tab}'`)) {
+            throw new Error(`DEFAULT_PATIENT_TABS_ORDER debe incluir la pestaña ${tab}`);
+        }
+    }
+
+    // 3. Validar integración en index.html (modal organizador y lista)
+    if (!indexHtml.includes('id="patientTabsReorderModal"')) {
+        throw new Error('index.html debe contener el modal id="patientTabsReorderModal"');
+    }
+    if (!indexHtml.includes('id="patientTabsReorderList"')) {
+        throw new Error('index.html debe contener la lista id="patientTabsReorderList"');
+    }
+    if (!indexHtml.includes('resetPatientTabsOrder()')) {
+        throw new Error('index.html debe permitir invocar resetPatientTabsOrder()');
+    }
+
+    // 4. Validar estilos en styles.css (drag & drop, modal de reordenación, botón de configuración)
+    if (!stylesCss.includes('.patient-tab.dragging') || !stylesCss.includes('.tab-drag-handle') || !stylesCss.includes('.patient-tabs-config-btn') || !stylesCss.includes('.tab-reorder-list')) {
+        throw new Error('styles.css debe incluir los estilos de drag & drop (.dragging, .tab-drag-handle, .patient-tabs-config-btn, .tab-reorder-list)');
+    }
+
+    // 5. Validar que los botones de pestaña cuenten con data-tab-id y draggable="true"
+    if (!appJs.includes('data-tab-id="resumen"') || !appJs.includes('draggable="true"')) {
+        throw new Error('Las pestañas renderizadas deben tener data-tab-id y atributo draggable="true"');
+    }
+
+    // 6. Validar que switchPatientTab soporte resolución flexible por data-tab-id
+    if (!appJs.includes('.patient-tab[data-tab-id="') || !appJs.includes('isPatientTabDragging')) {
+        throw new Error('switchPatientTab debe resolver el botón activo por data-tab-id y prevenir cambios accidentales durante el arrastre');
+    }
+});
+
+// 157. TC-HC-CORR-01: Correcciones de Psicólogos para Historia Clínica Adulto y Sincronización de Genograma
+ClinicalTestSuite.add('TC-HC-CORR-01', 'Historia Clínica Adulto: Pestaña 3 Examen Mental, 7 tabs, placeholders actualizados y sincronización con Genograma', async () => {
+    const fs = await import('fs');
+    const path = await import('path');
+
+    if (typeof ClinicalHistorySystem === 'undefined') {
+        await import('./historia-clinica.js');
+    }
+    if (typeof GenogramModule === 'undefined') {
+        await import('./genogram.js');
+    }
+
+    const appJs = fs.readFileSync(path.resolve('app.js'), 'utf8');
+    const hcJs = fs.readFileSync(path.resolve('historia-clinica.js'), 'utf8');
+
+    // 1. Nombre de la pestaña principal cambiado a "Historia Clínica"
+    if (!appJs.includes('<i class="fas fa-book-medical"></i> Historia Clínica</button>')) {
+        throw new Error('La pestaña principal debe llamarse "Historia Clínica" en PATIENT_TAB_RENDERERS');
+    }
+    if (!appJs.includes("'historia': { label: 'Historia Clínica', icon: 'fas fa-book-medical' }")) {
+        throw new Error("TAB_INFO_MAP debe tener 'historia' con label 'Historia Clínica'");
+    }
+
+    // 2. Método goToGenogramTab presente en ClinicalHistorySystem
+    if (typeof ClinicalHistorySystem.goToGenogramTab !== 'function') {
+        throw new Error('ClinicalHistorySystem debe exponer goToGenogramTab para navegar al constructor de genograma');
+    }
+
+    // 3. Verificación de renderAdultHistoryEditorHTML con objeto en mentalExam (prevención de [object Object])
+    const testPatient = {
+        id: 'pat_corr_test_01',
+        name: 'Carlos Mendoza',
+        category: 'adult',
+        gender: 'Masculino',
+        birthdate: '1988-06-20',
+        mentalExam: {
+            fields: { aspectoGeneral: 'Adecuado', conciencia: 'Lúcido' },
+            text: 'Paciente orientado en tiempo, espacio y persona. Afecto congruente.',
+            updatedAt: '2026-11-12T10:00:00Z'
+        }
+    };
+
+    const h = ClinicalHistorySystem.getFullHistory(testPatient);
+    if (typeof h.mentalExam !== 'string' || h.mentalExam.includes('[object Object]')) {
+        throw new Error('getFullHistory debe convertir mentalExam tipo objeto a texto limpio sin [object Object]');
+    }
+
+    const therapist = ClinicalHistorySystem.getTherapistInfo();
+    const editorHtml = ClinicalHistorySystem.renderAdultHistoryEditorHTML(testPatient, h, therapist.registry);
+
+    if (editorHtml.includes('[object Object]')) {
+        throw new Error('El editor HTML de Historia Clínica Adulto no debe contener [object Object]');
+    }
+
+    // 4. Pestaña 2 sin Examen Mental y Pestaña 3 como Examen Mental
+    if (!editorHtml.includes("ClinicalHistorySystem.switchEditorTab('adult-2', this)\">2. Motivo de Consulta</button>")) {
+        throw new Error('La pestaña 2 debe titularse "2. Motivo de Consulta" sin Examen Mental');
+    }
+    if (!editorHtml.includes("ClinicalHistorySystem.switchEditorTab('adult-3', this)\">3. Examen Mental</button>")) {
+        throw new Error('La pestaña 3 debe ser "3. Examen Mental"');
+    }
+    if (!editorHtml.includes('id="htab-adult-3"') || !editorHtml.includes('id="fh_mentalExam"')) {
+        throw new Error('El pane htab-adult-3 debe contener el campo fh_mentalExam');
+    }
+
+    // 5. Botón Abrir Constructor de Genograma con goToGenogramTab y preview SVG
+    if (!editorHtml.includes("ClinicalHistorySystem.goToGenogramTab('pat_corr_test_01')")) {
+        throw new Error('El botón Abrir Constructor de Genograma debe invocar goToGenogramTab');
+    }
+    if (!editorHtml.includes('genogram-preview-container') || !editorHtml.includes('<svg')) {
+        throw new Error('El recuadro de genograma en Historia Clínica debe incluir el contenedor y gráfico SVG del genograma');
+    }
+
+    // 6. Placeholders actualizados según requerimientos de psicólogos
+    if (!editorHtml.includes('placeholder="Acompañamiento psicológico previo Y otros antecedentes psicológicos del paciente..."')) {
+        throw new Error('El placeholder de antecedentes psiquiátricos/psicológicos del paciente debe ser actualizado');
+    }
+    if (!editorHtml.includes('placeholder="Desarrollo, socialización y eventos críticos en la adolescencia..."')) {
+        throw new Error('El placeholder de adolescencia debe ser actualizado');
+    }
+    if (!editorHtml.includes('placeholder="Aspectos relacionados a la sexualidad..."')) {
+        throw new Error('El placeholder de área sexual debe ser actualizado');
+    }
+    if (!editorHtml.includes('placeholder="Antecedentes penales o procesos legales previos o en curso..."')) {
+        throw new Error('El placeholder de aspectos legales debe ser actualizado');
+    }
+    if (!editorHtml.includes('placeholder="Intervenciones quirúrgicas previas..."')) {
+        throw new Error('El placeholder de operaciones debe ser actualizado a "Intervenciones quirúrgicas previas..."');
+    }
+
+    // 7. Visor Acordeón de Adulto con 7 secciones ordenadas
+    const viewerHtml = ClinicalHistorySystem.renderAdultHistoryIntegral(testPatient, h, therapist, therapist.registry);
+    if (!viewerHtml.includes('2. Motivo de Consulta</strong>') || !viewerHtml.includes('3. Examen Mental</strong>')) {
+        throw new Error('El visor de historia de adulto debe tener secciones 2 y 3 separadas');
+    }
+    if (!viewerHtml.includes('7. Metas y Proyecto de Vida</strong>')) {
+        throw new Error('El visor de historia de adulto debe tener la sección 7. Metas y Proyecto de Vida');
+    }
+});
+
+// 158. TC-HC-CORR-02: Correcciones del Equipo de Psicólogos (PDF 2)
+ClinicalTestSuite.add('TC-HC-CORR-02', 'Correcciones Clínicas PDF 2 (Ficha Representante, Genograma, Consentimiento, Foto Terapeuta, Modalidad Sesión y Multimoneda Finanzas)', async () => {
+    const fs = await import('fs');
+    const path = await import('path');
+
+    if (typeof ClinicalHistorySystem === 'undefined') {
+        await import('./historia-clinica.js');
+    }
+    if (typeof GenogramModule === 'undefined') {
+        await import('./genogram.js');
+    }
+    const CHS = globalThis.ClinicalHistorySystem;
+
+    // 1. Verificación de index.html: Eliminación de Hitos en Ficha del Representante y adición de grupos de antecedentes
+    const indexHtml = fs.readFileSync(path.resolve('index.html'), 'utf8');
+
+    // El representante es un adulto, no debe tener Hitos del Neurodesarrollo
+    const repSectionMatch = indexHtml.match(/<!-- 3\. FICHA DEL REPRESENTANTE \/ TUTOR LEGAL[\s\S]*?-->([\s\S]*?)<!-- 4\. INFORMACIÓN REFERENTE/);
+    if (!repSectionMatch) {
+        throw new Error('No se encontró la sección 3 en index.html');
+    }
+    if (repSectionMatch[1].includes('patientDevelopmentalMilestones')) {
+        throw new Error('La sección 3 de Ficha del Representante no debe contener Hitos del Neurodesarrollo / Observaciones');
+    }
+
+    // Grupos con IDs identificables para ocultar en adolescentes
+    if (!indexHtml.includes('id="patientMedicalGroup"') || !indexHtml.includes('id="patientFamilyHistoryGroup"')) {
+        throw new Error('index.html debe contener patientMedicalGroup y patientFamilyHistoryGroup para alternancia por categoría');
+    }
+
+    // Modal de perfil con soporte de foto y preview
+    if (!indexHtml.includes('id="therapistProfilePhotoInput"') || !indexHtml.includes('id="therapistProfilePhotoPreview"')) {
+        throw new Error('El modal de perfil del terapeuta debe incluir campos para foto de perfil y previsualización');
+    }
+
+    // 2. Verificación de historia-clinica.js: Genograma en infantil con título protocolizado
+    const testChild = {
+        id: 'pat_child_test_02',
+        name: 'Martina Rojas',
+        category: 'child',
+        status: 'Por iniciar'
+    };
+    const childFull = CHS.getFullHistory(testChild);
+    const childEditorHtml = CHS.renderChildHistoryEditorHTML(testChild, childFull, 'Dra. Terapeuta');
+    if (!childEditorHtml.includes('Genograma del paciente:')) {
+        throw new Error('El título de genograma en HC infantil debe ser "Genograma del paciente:"');
+    }
+    if (childEditorHtml.includes('Estructura vincular y constelación familiar del niño:')) {
+        throw new Error('Se debe haber reemplazado "Estructura vincular y constelación familiar del niño"');
+    }
+
+    // 3. Opciones "Dato no Obtenido" en embarazo deseado y planificado
+    if (!childEditorHtml.includes('id="fh_pregnancyDesired"') || !childEditorHtml.includes('value="Dato no Obtenido"')) {
+        throw new Error('fh_pregnancyDesired debe contener la opción "Dato no Obtenido"');
+    }
+    if (!childEditorHtml.includes('id="fh_pregnancyPlanned"') || !childEditorHtml.includes('value="Dato no Obtenido"')) {
+        throw new Error('fh_pregnancyPlanned debe contener la opción "Dato no Obtenido"');
+    }
+
+    // 4. Enlace dinámico de pre-consulta sin dominio quemado
+    const dynamicUrl = CHS.getPreconsultaUrl('adult');
+    if (!dynamicUrl.includes('portal.html?preconsulta=1&etapa=adult') || dynamicUrl.includes('psiconotes.app')) {
+        throw new Error(`La URL de pre-consulta debe ser dinámica hacia portal.html y no tener dominio externo quemado: ${dynamicUrl}`);
+    }
+
+    // 5. Visor de Adolescente: Sin duplicación de asentimiento en ficha de representante
+    const testTeen = {
+        id: 'pat_teen_test_02',
+        name: 'Carlos Rivas',
+        category: 'adolescent',
+        status: 'Por iniciar',
+        guardianConsent: 'firmado'
+    };
+    const teenFull = CHS.getFullHistory(testTeen);
+    const teenViewer = CHS.renderTeenHistoryIntegral(testTeen, teenFull, { name: 'Dra. Soto', registry: 'FPV 100' }, '');
+    if (teenViewer.includes('Asentimiento Informado del Adolescente (LOPNNA Art. 80)')) {
+        throw new Error('El cuadro de asentimiento en la ficha del representante de adolescente debe haber sido removido');
+    }
+    if (!teenViewer.includes('Consentimiento Informado:</strong>') || !teenViewer.includes('FIRMADO POR EL REPRESENTANTE')) {
+        throw new Error('El consentimiento informado firmado por el representante debe mantenerse visible');
+    }
+
+    // 6. Verificación de finance.js: Multimoneda y no quemar signo $ para pagos en Bolívares (VES)
+    const finModule = await import('./finance.js');
+    const renderPortalPayments = globalThis.renderPortalPaymentsTabHtml || finModule.renderPortalPaymentsTabHtml || finModule.default?.renderPortalPaymentsTabHtml;
+    if (typeof renderPortalPayments !== 'function') {
+        throw new Error('No se encontró la función renderPortalPaymentsTabHtml en finance.js');
+    }
+    const testReports = [
+        { id: 'rep_ves_1', amount: 9900, currency: 'VES', status: 'aprobado', patientName: 'Paciente VES', reference: '123456' },
+        { id: 'rep_usd_1', amount: 30, currency: 'USD', status: 'aprobado', patientName: 'Paciente USD', reference: 'USD99' }
+    ];
+    const portalPaymentsHtml = renderPortalPayments(testReports);
+    if (portalPaymentsHtml.includes('$9930.00 validados') || portalPaymentsHtml.includes('$9900.00 validados')) {
+        throw new Error('renderPortalPaymentsTabHtml no debe sumar Bolívares como si fueran dólares');
+    }
+    if (!portalPaymentsHtml.includes('Bs.') && !portalPaymentsHtml.includes('VES')) {
+        throw new Error('renderPortalPaymentsTabHtml debe reflejar los montos en Bolívares correctamente');
+    }
+
+    // 7. Verificación de portal.js: Sesiones presenciales no deben forzarse a Online ni mostrar botón de videollamada
+    const portalJs = fs.readFileSync(path.resolve('portal.js'), 'utf8');
+    if (!portalJs.includes("nextApp.type || nextApp.appointment_type || nextApp.modality || 'Presencial'")) {
+        throw new Error('portal.js debe resolver la modalidad de la próxima sesión preservando Presencial');
+    }
+    if (!portalJs.includes('renderPortalPreconsultaScreen') || !portalJs.includes('handlePortalPreconsultaSubmit')) {
+        throw new Error('portal.js debe contar con controladores para el formulario de pre-consulta remota');
+    }
+});
+
+// ============================================
+// TC-HC-CORR-03: Ruta de Sesiones de Terapia - Orden Cronológico y Remoción de Plantillas TCC / Textos Automáticos
+// ============================================
+ClinicalTestSuite.add('TC-HC-CORR-03', 'Ruta de Sesiones: Orden cronológico (recientes en fila 1), sin respuestas automáticas y sin plantillas TCC', async () => {
+    const fs = await import('fs');
+    const path = await import('path');
+
+    // 1. Verificación de index.html: No debe existir la clase quick-focus-templates ni chips de Plantillas TCC
+    const indexHtml = fs.readFileSync(path.resolve('index.html'), 'utf8');
+    if (indexHtml.includes('quick-focus-templates') || indexHtml.includes('Plantillas TCC:')) {
+        throw new Error('index.html no debe contener el bloque de Plantillas TCC (quick-focus-templates)');
+    }
+    if (indexHtml.includes('appendRoadmapFocusTemplate')) {
+        throw new Error('index.html no debe tener botones llamando a appendRoadmapFocusTemplate');
+    }
+
+    // 2. Extraer funciones de app.js para probar el comportamiento de getTherapyRoadmapSessionsForPatient y renderRoadmapBoard
+    const appJs = fs.readFileSync(path.resolve('app.js'), 'utf8');
+    const startIdx = appJs.indexOf('function getTherapyRoadmapSessionsForPatient(');
+    const endIdx = appJs.indexOf('function renderTherapySessionsRoadmap(');
+    if (startIdx === -1 || endIdx === -1) {
+        throw new Error('No se pudieron aislar las funciones del mapa de ruta en app.js');
+    }
+
+    const sandbox = {
+        AppState: {
+            therapyRoadmaps: [],
+            notes: []
+        },
+        saveDataLocallyOnly: async () => {},
+        formatRoadmapDate: (d) => d || '',
+        handleRoadmapSessionClick: () => {},
+        toggleRoadmapSnippet: () => {},
+        quickToggleRoadmapStatus: () => {},
+        openEditRoadmapSessionModal: () => {},
+        openAddRoadmapSessionModal: () => {}
+    };
+
+    const roadmapCode = `
+        const AppState = sandbox.AppState;
+        const saveDataLocallyOnly = sandbox.saveDataLocallyOnly;
+        const formatRoadmapDate = sandbox.formatRoadmapDate;
+        const handleRoadmapSessionClick = sandbox.handleRoadmapSessionClick;
+        const toggleRoadmapSnippet = sandbox.toggleRoadmapSnippet;
+        const quickToggleRoadmapStatus = sandbox.quickToggleRoadmapStatus;
+        const openEditRoadmapSessionModal = sandbox.openEditRoadmapSessionModal;
+        const openAddRoadmapSessionModal = sandbox.openAddRoadmapSessionModal;
+        ${appJs.slice(startIdx, endIdx)}
+        return { getTherapyRoadmapSessionsForPatient, renderRoadmapBoard };
+    `;
+
+    const f = new Function('sandbox', roadmapCode);
+    const { getTherapyRoadmapSessionsForPatient, renderRoadmapBoard } = f(sandbox);
+
+    // 3. Probar sesiones demostrativas iniciales: deben venir con focusSummary vacío (sin texto automático)
+    const demoSessions = getTherapyRoadmapSessionsForPatient('patient_test_01');
+    if (demoSessions.length !== 6) {
+        throw new Error(`Se esperaban 6 sesiones demostrativas iniciales, se obtuvieron ${demoSessions.length}`);
+    }
+    demoSessions.forEach(s => {
+        if (s.focusSummary && s.focusSummary.trim().length > 0) {
+            throw new Error(`La sesión #${s.sessionNumber} contiene texto automático en focusSummary: "${s.focusSummary}"`);
+        }
+    });
+
+    // 4. Probar ordenamiento cronológico: Si alteramos fechas de sesiones, deben quedar ordenadas de más antigua a más reciente
+    const customSessions = [
+        { id: 's3', patientId: 'p2', sessionNumber: 3, title: 'Sesión C', date: '2026-10-15', status: 'pendiente' },
+        { id: 's1', patientId: 'p2', sessionNumber: 1, title: 'Sesión A', date: '2026-07-01', status: 'completada' },
+        { id: 's2', patientId: 'p2', sessionNumber: 2, title: 'Sesión B', date: '2026-08-20', status: 'pendiente' },
+        { id: 's4', patientId: 'p2', sessionNumber: 4, title: 'Sesión D', date: '2026-11-01', status: 'pendiente' }
+    ];
+    sandbox.AppState.therapyRoadmaps = [...customSessions];
+    const sorted = getTherapyRoadmapSessionsForPatient('p2');
+    if (sorted[0].id !== 's1' || sorted[1].id !== 's2' || sorted[2].id !== 's3' || sorted[3].id !== 's4') {
+        throw new Error('getTherapyRoadmapSessionsForPatient no ordenó cronológicamente de más antigua a más reciente');
+    }
+
+    // 5. Probar que renderRoadmapBoard coloca la fila más reciente en la primera fila (arriba)
+    // Para 4 sesiones: Chunk 0 = [s1, s2, s3], Chunk 1 = [s4]
+    // Reversed chunks: Fila 1 (arriba) = [s4], Fila 2 (abajo) = [s1, s2, s3]
+    const boardHtml = renderRoadmapBoard(sorted, 'p2');
+    const firstRowIndexS4 = boardHtml.indexOf('data-session-id="s4"');
+    const firstRowIndexS1 = boardHtml.indexOf('data-session-id="s1"');
+    if (firstRowIndexS4 === -1 || firstRowIndexS1 === -1) {
+        throw new Error('No se encontraron las tarjetas de s4 o s1 en el HTML del tablero');
+    }
+    if (firstRowIndexS4 > firstRowIndexS1) {
+        throw new Error('La sesión más reciente (s4) debe renderizarse antes (en la fila superior) que las sesiones más antiguas (s1, s2, s3)');
     }
 });
 

@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, viewport-fit=cover">
-    <title>Psico Notes - Gestión Clínica Avanzada</title>
+    <title>SERENA — Tu práctica, en equilibrio | Gestión Clínica</title>
     <script>
         if (window.location.protocol === 'http:' || window.location.protocol === 'https:') {
             var manifestLink = document.createElement('link');
@@ -12,28 +12,30 @@
             document.head.appendChild(manifestLink);
         }
     </script>
-    <meta name="theme-color" content="#1e5a52">
+    <meta name="theme-color" content="#123F36">
     <meta name="mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="default">
+    <link rel="icon" type="image/svg+xml" href="favicon.svg">
+    <link rel="alternate icon" href="favicon.ico">
     <link rel="apple-touch-icon" href="icon-192.png">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Playfair+Display:wght@500;600;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Montserrat:wght@400;500;600;700;800&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <link rel="stylesheet" href="styles.css?v=6.8.5">
+    <link rel="stylesheet" href="styles.css?v=7.1.0-serena">
 </head>
 <body>
 
 <!-- FILE PROTOCOL ADVISORY BANNER -->
-<div id="fileProtocolNotice" style="display:none; background: linear-gradient(135deg, #0f766e 0%, #1e3a8a 100%); color: #ffffff; padding: 10px 16px; font-size: 13px; line-height: 1.4; border-bottom: 2px solid #38bdf8; position: sticky; top: 0; z-index: 99999;">
+<div id="fileProtocolNotice" style="display:none; background: linear-gradient(135deg, #123F36 0%, #285C50 100%); color: #ffffff; padding: 10px 16px; font-size: 13px; line-height: 1.4; border-bottom: 2px solid #7FA38F; position: sticky; top: 0; z-index: 99999;">
     <div style="max-width: 1200px; margin: 0 auto; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 8px;">
         <div style="display: flex; align-items: center; gap: 8px;">
-            <span style="font-size: 18px;">💡</span>
+            <span style="font-size: 16px;"><i class="fas fa-info-circle"></i></span>
             <span><strong>Modo Local Activo (file:///):</strong> Para habilitar el Service Worker offline y la sincronización multi-dispositivo en la nube, abre la versión en línea en Render o inicia el servidor local (<code>npm start</code>).</span>
         </div>
         <div style="display: flex; align-items: center; gap: 8px;">
-            <a href="https://psico-notes-clinical.onrender.com/" target="_blank" rel="noopener" style="background: #38bdf8; color: #0f172a; font-weight: 700; padding: 5px 12px; border-radius: 6px; text-decoration: none; font-size: 12px; display: inline-flex; align-items: center; gap: 5px;">
+            <a href="https://psico-notes-clinical.onrender.com/" target="_blank" rel="noopener" style="background: #7FA38F; color: #123F36; font-weight: 700; padding: 5px 12px; border-radius: 6px; text-decoration: none; font-size: 12px; display: inline-flex; align-items: center; gap: 5px;">
                 <i class="fas fa-external-link-alt"></i> Ir a la Nube Oficial
             </a>
             <button onclick="document.getElementById('fileProtocolNotice').style.display='none'" style="background: rgba(255,255,255,0.25); border: none; color: white; border-radius: 4px; padding: 4px 8px; cursor: pointer; font-size: 13px;">✕</button>
@@ -53,10 +55,10 @@
 <div class="auth-screen hidden" id="authScreen">
     <div class="auth-card">
         <div class="auth-logo">
-            <span class="logo-icon">🧠</span>
-            <span class="logo-text">Psico Notes Clinical</span>
+            <span class="logo-icon"><img src="assets/brand/serena-symbol.svg" alt="SERENA" width="40" height="40"></span>
+            <span class="logo-text">SERENA</span>
         </div>
-        <p class="auth-subtitle">Espacio clínico privado para profesionales de la salud mental</p>
+        <p class="auth-subtitle">Tu práctica, en equilibrio · Gestión clínica para psicólogos</p>
         <form id="loginForm">
             <h3 class="auth-title">Iniciar sesión</h3>
             <div class="form-group">
@@ -218,8 +220,8 @@
 <aside class="sidebar" id="sidebar">
     <div class="sidebar-header">
         <div class="logo">
-            <span class="logo-icon">🧠</span>
-            <span class="logo-text">Psico Notes</span>
+            <span class="logo-icon"><img src="assets/brand/serena-symbol.svg" alt="SERENA" width="28" height="28"></span>
+            <span class="logo-text">SERENA</span>
         </div>
         <button class="sidebar-toggle" id="sidebarToggle" title="Plegar menú">
             <i class="fas fa-chevron-left"></i>
@@ -309,7 +311,7 @@
             </button>
         </div>
         <div class="user-info" onclick="openTherapistProfileModal()" style="cursor:pointer;" title="Click para editar nombre, especialidad y colegiatura">
-            <div class="user-avatar" id="sidebarUserAvatar">🩺</div>
+            <div class="user-avatar" id="sidebarUserAvatar" style="width:38px;height:38px;min-width:38px;max-width:38px;border-radius:50%;overflow:hidden;flex-shrink:0;"><img src="assets/avatar/serena-avatar.jpg?v=7.2.0" alt="Terapeuta" style="width:38px;height:38px;border-radius:50%;object-fit:cover;display:block;"></div>
             <div class="user-details">
                 <div class="user-name" id="sidebarUserName">Terapeuta</div>
                 <div class="user-role" id="sidebarUserEmail">Psicología Clínica</div>
@@ -351,6 +353,9 @@
                 <i class="fas fa-bell"></i>
                 <span class="reminder-badge" id="sessionReminderBadge" style="display:none;">0</span>
             </button>
+            <button class="btn-icon" id="serenaAssistantToggleBtn" onclick="toggleSerenaAssistant()" title="Asistente Serena" style="display:inline-flex;align-items:center;justify-content:center;padding:3px;">
+                <img src="assets/avatar/serena-avatar.jpg?v=7.2.0" alt="Serena" style="width:24px;height:24px;border-radius:50%;object-fit:cover;">
+            </button>
             <button class="btn-icon" id="themeToggle" title="Cambiar tema">
                 <i class="fas fa-moon"></i>
             </button>
@@ -360,7 +365,7 @@
     <!-- BANNER DE CRISIS EN TIEMPO REAL -->
     <div id="crisisLiveBanner" class="crisis-live-banner" style="display:none;">
         <div class="crisis-live-content">
-            <span class="crisis-beacon">🚨</span>
+            <span class="crisis-beacon"><i class="fas fa-exclamation-triangle"></i></span>
             <span id="crisisLiveText"><strong>ALERTA CLÍNICA:</strong> Un paciente ha registrado indicadores de crisis en su portal.</span>
             <button type="button" style="background:#e16259;color:white;border:none;border-radius:4px;padding:4px 10px;font-size:12px;font-weight:600;cursor:pointer;" onclick="openActiveCrisisProtocol()">Atender Ahora</button>
             <button type="button" class="btn-icon" onclick="dismissCrisisBanner()"><i class="fas fa-times"></i></button>
@@ -381,9 +386,25 @@
                     <div class="date-full" id="currentDate"></div>
                 </div>
             </div>
+            <!-- ASISTENTE VISUAL SERENA -->
+            <div id="serenaAssistantBanner" class="serena-assistant-card" role="region" aria-label="Asistente Serena">
+                <div class="serena-assistant-avatar">
+                    <img src="assets/avatar/serena-avatar.jpg?v=7.2.0" alt="Serena" width="52" height="52" style="width:52px;height:52px;border-radius:50%;object-fit:cover;">
+                </div>
+                <div class="serena-assistant-body">
+                    <div class="serena-assistant-title">
+                        <span>Serena</span>
+                        <span style="font-size:11px;font-weight:600;color:var(--brand-sage);background:var(--bg-secondary);padding:2px 8px;border-radius:10px;">Tu práctica, en equilibrio</span>
+                    </div>
+                    <p class="serena-assistant-text" id="serenaContextualTip">¡Bienvenido a SERENA! Organiza tu consulta, documenta sesiones con notas SOAP protocolizadas y gestiona la evolución de tus pacientes con tranquilidad.</p>
+                </div>
+                <button type="button" class="serena-assistant-dismiss" onclick="dismissSerenaBanner()" aria-label="Ocultar asistente Serena" title="Cerrar">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
             <div class="summary-cards">
                 <div class="summary-card">
-                    <div class="summary-icon">🗓️</div>
+                    <div class="summary-icon"><i class="fas fa-calendar-alt"></i></div>
                     <div class="summary-info">
                         <h3>Sesiones hoy</h3>
                         <div class="summary-value" id="todaySessions">0</div>
@@ -391,7 +412,7 @@
                     </div>
                 </div>
                 <div class="summary-card priority">
-                    <div class="summary-icon">❤️</div>
+                    <div class="summary-icon"><i class="fas fa-heartbeat"></i></div>
                     <div class="summary-info">
                         <h3>Prioritarios</h3>
                         <div class="summary-value" id="priorityPatients">0</div>
@@ -399,7 +420,7 @@
                     </div>
                 </div>
                 <div class="summary-card" onclick="openMonthlyGoalsModal()" style="cursor:pointer;" title="Click para configurar u editar los objetivos del mes">
-                    <div class="summary-icon">🎯</div>
+                    <div class="summary-icon"><i class="fas fa-bullseye"></i></div>
                     <div class="summary-info">
                         <div style="display:flex;justify-content:space-between;align-items:center;">
                             <h3>Objetivos del mes</h3>
@@ -410,7 +431,7 @@
                     </div>
                 </div>
                 <div class="summary-card">
-                    <div class="summary-icon">😊</div>
+                    <div class="summary-icon"><i class="fas fa-chart-line"></i></div>
                     <div class="summary-info">
                         <h3>Ánimo promedio</h3>
                         <div class="summary-value" id="avgMood">—</div>
@@ -432,7 +453,7 @@
                 <h2 class="section-title"><i class="fas fa-bell"></i> Alertas Clínicas</h2>
                 <div class="clinical-alerts" id="clinicalAlerts">
                     <div class="empty-state">
-                        <div class="empty-icon">✅</div>
+                        <div class="empty-icon"><i class="fas fa-check-circle"></i></div>
                         <p>Sin alertas pendientes</p>
                     </div>
                 </div>
@@ -462,7 +483,7 @@
                 <h2 class="section-title"><i class="fas fa-calendar-day"></i> Agenda del Día</h2>
                 <div class="contextual-agenda" id="contextualAgenda">
                     <div class="empty-state">
-                        <div class="empty-icon">📅</div>
+                        <div class="empty-icon"><i class="fas fa-calendar-check"></i></div>
                         <p>No hay sesiones hoy</p>
                         <button class="btn-primary" onclick="openModal('appointmentModal')">Agendar cita</button>
                     </div>
@@ -492,27 +513,24 @@
                     </button>
                 </div>
             </div>
-            <!-- Etapas del Ciclo Vital: Niñez, Adolescencia, Adultez -->
+            <!-- Etapas del Ciclo Vital: Infantil, Adolescente, Adulto -->
             <div class="population-filter-tabs" id="populationFilterTabs">
                 <button class="population-tab-btn active" id="tabPopAll" onclick="setPatientCategoryFilter('all')">
                     <span class="tab-pop-label">Todos</span>
                     <span class="tab-pop-count" id="countAllPatients">0</span>
                 </button>
                 <button class="population-tab-btn" id="tabPopChild" onclick="setPatientCategoryFilter('child')">
-                    <span class="tab-pop-icon">🧒</span>
-                    <span class="tab-pop-label">Niñez</span>
+                    <span class="tab-pop-label">Infantil</span>
                     <span class="tab-pop-hint">(&lt;12a)</span>
                     <span class="tab-pop-count badge-child-count" id="countChildPatients">0</span>
                 </button>
                 <button class="population-tab-btn" id="tabPopAdolescent" onclick="setPatientCategoryFilter('adolescent')">
-                    <span class="tab-pop-icon">🧑</span>
-                    <span class="tab-pop-label">Adolescencia</span>
+                    <span class="tab-pop-label">Adolescente</span>
                     <span class="tab-pop-hint">(12-17a)</span>
                     <span class="tab-pop-count badge-adolescent-count" id="countAdolescentPatients">0</span>
                 </button>
                 <button class="population-tab-btn" id="tabPopAdult" onclick="setPatientCategoryFilter('adult')">
-                    <span class="tab-pop-icon">👤</span>
-                    <span class="tab-pop-label">Adultez</span>
+                    <span class="tab-pop-label">Adulto</span>
                     <span class="tab-pop-hint">(18+a)</span>
                     <span class="tab-pop-count badge-adult-count" id="countAdultPatients">0</span>
                 </button>
@@ -657,7 +675,7 @@
             </div>
             <div class="search-results" id="searchResults">
                 <div class="empty-state">
-                    <div class="empty-icon">🔍</div>
+                    <div class="empty-icon"><i class="fas fa-search"></i></div>
                     <p>Escriba para buscar...</p>
                 </div>
             </div>
@@ -673,28 +691,28 @@
             </div>
             <div class="stats-grid">
                 <div class="stat-card">
-                    <div class="stat-icon">👥</div>
+                    <div class="stat-icon"><i class="fas fa-users"></i></div>
                     <div class="stat-info">
                         <h3>Activos</h3>
                         <div class="stat-value" id="activePatients">0</div>
                     </div>
                 </div>
                 <div class="stat-card">
-                    <div class="stat-icon">📅</div>
+                    <div class="stat-icon"><i class="fas fa-calendar-alt"></i></div>
                     <div class="stat-info">
                         <h3>Sesiones / Mes</h3>
                         <div class="stat-value" id="monthAppointments">0</div>
                     </div>
                 </div>
                 <div class="stat-card">
-                    <div class="stat-icon">📝</div>
+                    <div class="stat-icon"><i class="fas fa-clipboard-list"></i></div>
                     <div class="stat-info">
                         <h3>Notas SOAP</h3>
                         <div class="stat-value" id="totalNotes">0</div>
                     </div>
                 </div>
                 <div class="stat-card">
-                    <div class="stat-icon">⏱️</div>
+                    <div class="stat-icon"><i class="fas fa-user-clock"></i></div>
                     <div class="stat-info">
                         <h3>Horas clínicas</h3>
                         <div class="stat-value" id="consultationHours">0</div>
@@ -777,20 +795,20 @@
                 <div class="form-group">
                     <label>Estatus del Paciente *</label>
                     <select id="patientStatus" required onchange="onPatientStatusChange()">
-                        <option value="Por iniciar">🟡 Por iniciar</option>
-                        <option value="En Evaluación">🔍 En Evaluación</option>
-                        <option value="Plan de Intervención">🎯 Plan de Intervención</option>
-                        <option value="Seguimiento">🔄 Seguimiento</option>
-                        <option value="Alta">✅ Alta</option>
-                        <option value="Inactivo">⏸️ Inactivo</option>
+                        <option value="Por iniciar">Por iniciar</option>
+                        <option value="En Evaluación">En Evaluación</option>
+                        <option value="Plan de Intervención">Plan de Intervención</option>
+                        <option value="Seguimiento">Seguimiento</option>
+                        <option value="Alta">Alta</option>
+                        <option value="Inactivo">Inactivo</option>
                     </select>
                 </div>
                 <div class="form-group">
                     <label>Etapa del Ciclo Vital *</label>
                     <select id="patientCategory" onchange="onPatientCategoryChange()">
-                        <option value="adult">👤 Adultez (18+ años)</option>
-                        <option value="adolescent">🧑 Adolescencia (12 a 17 años)</option>
-                        <option value="child">🧒 Niñez / Infancia (&lt; 12 años)</option>
+                        <option value="adult">Adulto (18+ años)</option>
+                        <option value="adolescent">Adolescente (12 a 17 años)</option>
+                        <option value="child">Infantil (&lt; 12 años)</option>
                     </select>
                 </div>
                 <div class="form-group">
@@ -850,8 +868,22 @@
                 </div>
             </div>
 
-            <!-- Datos Específicos de Adulto: Ocupación, Estado Civil, Deseabilidad Social, Motivación Propia y Domicilio -->
+            <!-- Datos Específicos de Adulto: C.I., Nacimiento, Religión, Ocupación, Estado Civil, Deseabilidad Social, Motivación Propia y Domicilio -->
             <div id="adultSpecificSection">
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>Cédula de Identidad (C.I.)</label>
+                        <input type="text" id="patientCI" placeholder="Ej: V-12.345.678">
+                    </div>
+                    <div class="form-group">
+                        <label>Lugar de Nacimiento</label>
+                        <input type="text" id="patientBirthPlace" placeholder="Ej: Caracas, Dto. Capital">
+                    </div>
+                    <div class="form-group">
+                        <label>Religión</label>
+                        <input type="text" id="patientReligion" placeholder="Ej: Católica, Cristiana, Ninguna...">
+                    </div>
+                </div>
                 <div class="form-row">
                     <div class="form-group">
                         <label>Ocupación Actual</label>
@@ -913,6 +945,18 @@
                 <div class="form-group" id="patientPhoneWrapper">
                     <label>Teléfono de Contacto</label>
                     <input type="tel" id="patientPhone" placeholder="Teléfono de contacto">
+                </div>
+            </div>
+
+            <!-- Contacto de Emergencia (Adulto y Adolescente) -->
+            <div class="form-row" id="patientEmergencyRow">
+                <div class="form-group" style="flex: 2;">
+                    <label><i class="fas fa-phone-square-alt"></i> Contacto de Emergencia</label>
+                    <input type="text" id="patientEmergency" placeholder="Nombre y teléfono de contacto de emergencia">
+                </div>
+                <div class="form-group" style="flex: 1;">
+                    <label>Parentesco / Vínculo</label>
+                    <input type="text" id="patientEmergencyRelation" placeholder="Ej: Cónyuge, Madre, Amigo">
                 </div>
             </div>
 
@@ -987,11 +1031,16 @@
                     <div class="form-group">
                         <label>Consentimiento Informado *</label>
                         <select id="patientGuardianConsent">
-                            <option value="firmado">✅ Consentimiento Informado Firmado</option>
-                            <option value="pendiente">⏳ Pendiente de firma</option>
+                            <option value="firmado">Consentimiento Informado Firmado</option>
+                            <option value="pendiente">Pendiente de firma</option>
                             <option value="no-aplica">No aplica / Mayoría de edad</option>
                         </select>
                     </div>
+                </div>
+
+                <div class="form-group">
+                    <label>Nombre de la Escuela / Colegio</label>
+                    <input type="text" id="patientSchoolName" placeholder="Nombre de la institución educativa">
                 </div>
             </div>
 
@@ -1040,6 +1089,42 @@
                     <label id="patientGoalsLabel">Objetivos del Paciente *</label>
                     <textarea id="patientGoals" rows="2" placeholder="Expectativas y metas expresadas para el proceso terapéutico..."></textarea>
                 </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>Metas a Mediano Plazo</label>
+                        <textarea id="patientMediumTermGoals" rows="2" placeholder="Objetivos y cambios esperados a mediano plazo..."></textarea>
+                    </div>
+                    <div class="form-group">
+                        <label>Metas a Largo Plazo</label>
+                        <textarea id="patientLongTermGoals" rows="2" placeholder="Proyecto de vida y metas a largo plazo..."></textarea>
+                    </div>
+                </div>
+
+                <!-- Diagnóstico y Tratamiento Farmacológico / Clínico -->
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>Diagnóstico Principal (DSM-5 / CIE-11)</label>
+                        <input type="text" id="patientDiagnosis" placeholder="Ej: F41.1 Trastorno de Ansiedad Generalizada">
+                    </div>
+                    <div class="form-group">
+                        <label>Diagnóstico Secundario / Comorbilidad</label>
+                        <input type="text" id="patientDiagnosis2" placeholder="Ej: F32.1 Episodio Depresivo Moderado">
+                    </div>
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>Tratamiento Farmacológico / Medicación</label>
+                        <input type="text" id="patientMedication" placeholder="Fármacos, dosis y médico tratante si aplica">
+                    </div>
+                    <div class="form-group" id="patientMedicalGroup">
+                        <label>Antecedentes Médicos / Orgánicos</label>
+                        <input type="text" id="patientMedical" placeholder="Enfermedades crónicas, intervenciones, alergias...">
+                    </div>
+                </div>
+                <div class="form-group" id="patientFamilyHistoryGroup">
+                    <label>Antecedentes Familiares Psiquiátricos / Psicológicos</label>
+                    <input type="text" id="patientFamilyHistory" placeholder="Historial familiar relevante...">
+                </div>
 
                 <!-- Hipótesis Biopsicosociales y Factores Clínicos (Universal para Niño, Adolescente y Adulto) -->
                 <div id="clinicalHypothesisSection">
@@ -1066,6 +1151,10 @@
                     <div class="form-group">
                         <label>Factores de Protección</label>
                         <textarea id="patientProtectiveFactors" rows="2" placeholder="Fortalezas personales, recursos adaptativos, vínculos seguros y factores de resiliencia..."></textarea>
+                    </div>
+                    <div class="form-group">
+                        <label>Notas Clínicas Adicionales / Observaciones Generales</label>
+                        <textarea id="patientNotes" rows="2" placeholder="Observaciones generales o notas privadas del terapeuta..."></textarea>
                     </div>
                 </div>
             </div>
@@ -1125,6 +1214,37 @@
             </button>
         </div>
         <div class="patient-detail" id="patientDetail"></div>
+    </div>
+</div>
+
+<!-- PATIENT TABS REORDER MODAL -->
+<div class="modal" id="patientTabsReorderModal">
+    <div class="modal-overlay" onclick="closeModal('patientTabsReorderModal')"></div>
+    <div class="modal-content" style="max-width: 540px;">
+        <div class="modal-header">
+            <h2 style="display:flex;align-items:center;gap:8px;font-size:18px;">
+                <i class="fas fa-sliders-h" style="color:var(--brand-deep);"></i> Organizar Pestañas del Expediente
+            </h2>
+            <button class="btn-icon" onclick="closeModal('patientTabsReorderModal')">
+                <i class="fas fa-times"></i>
+            </button>
+        </div>
+        <div class="modal-body" style="padding: 16px 20px;">
+            <p style="font-size:13px;color:var(--text-secondary);margin-bottom:12px;line-height:1.5;">
+                Reordena las pestañas según tu preferencia y flujo clínico diario. También puedes <strong>arrastrarlas directamente</strong> con el ratón o tacto en la barra superior del expediente.
+            </p>
+            <div id="patientTabsReorderList" class="tab-reorder-list">
+                <!-- Se puebla dinámicamente -->
+            </div>
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-top:16px;padding-top:12px;border-top:1px solid var(--border-secondary);">
+                <button type="button" class="btn-secondary btn-sm" onclick="resetPatientTabsOrder()" title="Restablecer el orden original predeterminado">
+                    <i class="fas fa-undo"></i> Restablecer predeterminado
+                </button>
+                <button type="button" class="btn-primary btn-sm" onclick="closeModal('patientTabsReorderModal')">
+                    <i class="fas fa-check"></i> Listo
+                </button>
+            </div>
+        </div>
     </div>
 </div>
 
@@ -1199,10 +1319,12 @@
             <div class="form-group">
                 <label>Estado de la Cita *</label>
                 <select id="appointmentStatus">
-                    <option value="agendada" selected>📅 Agendada / Programada</option>
-                    <option value="completada">✅ Completada</option>
-                    <option value="reprogramada">🔄 Reprogramada</option>
-                    <option value="cancelada">❌ Cancelada</option>
+                    <option value="agendada" selected>Agendada / Programada</option>
+                    <option value="confirmada">Confirmada (Asistencia validada)</option>
+                    <option value="completada">Completada / Asistió</option>
+                    <option value="reprogramada">Reprogramada</option>
+                    <option value="cancelada">Cancelada</option>
+                    <option value="no_asistio">No Asistió / Inasistencia</option>
                 </select>
             </div>
             <div class="form-group">
@@ -1216,6 +1338,150 @@
                 </button>
             </div>
         </form>
+    </div>
+</div>
+
+<!-- APPOINTMENT ACTION MODAL (CANCELAR / REAGENDAR) -->
+<div class="modal" id="appointmentActionModal">
+    <div class="modal-overlay" onclick="closeModal('appointmentActionModal')"></div>
+    <div class="modal-content" style="max-width: 550px; padding: 24px; border-radius: var(--radius-lg); background: var(--bg-card); box-shadow: var(--shadow-lg);">
+        <div class="modal-header" style="margin-bottom: 14px; padding-bottom: 12px; border-bottom: 1px solid var(--border-color); display: flex; justify-content: space-between; align-items: flex-start;">
+            <div>
+                <h2 id="appointmentActionModalTitle" style="font-size: 18px; font-weight: 700; color: var(--text-primary); margin: 0; display: flex; align-items: center; gap: 8px;">
+                    <i class="fas fa-calendar-check" style="color: var(--accent-primary);"></i>
+                    Gestionar Cita — Cancelar o Reagendar
+                </h2>
+                <div id="actionModalAppDetails" style="font-size: 13px; color: var(--text-secondary); margin-top: 4px;">
+                    Paciente: <strong id="actionAppPatientName">—</strong> · Fecha actual: <strong id="actionAppCurrentDate">—</strong> a las <strong id="actionAppCurrentTime">—</strong>
+                </div>
+            </div>
+            <button class="btn-icon" type="button" onclick="closeModal('appointmentActionModal')" title="Cerrar">
+                <i class="fas fa-times"></i>
+            </button>
+        </div>
+
+        <input type="hidden" id="actionAppointmentId">
+
+        <div style="margin-bottom: 16px;">
+            <label style="display: block; font-size: 13px; font-weight: 600; color: var(--text-primary); margin-bottom: 8px;">
+                ¿Qué acción deseas realizar con esta cita?
+            </label>
+            <div style="display: flex; flex-direction: column; gap: 8px;">
+                
+                <!-- 1. Reagendar Cita -->
+                <label class="action-card-option" style="display: flex; align-items: flex-start; gap: 12px; padding: 12px 14px; border: 2px solid var(--border-color); border-radius: var(--radius-md); cursor: pointer; background: var(--bg-primary); transition: all 0.2s;">
+                    <input type="radio" name="appointmentActionRadio" id="apptActionReschedule" value="reprogramar" onchange="onAppointmentActionChange('reprogramar')" checked style="margin-top: 3px;">
+                    <div style="flex: 1;">
+                        <div style="font-size: 14px; font-weight: 700; color: var(--text-primary); display: flex; align-items: center; gap: 6px;">
+                            <i class="fas fa-sync-alt" style="color: #0284c7;"></i> Reagendar / Reprogramar Cita
+                        </div>
+                        <div style="font-size: 12px; color: var(--text-secondary); margin-top: 2px;">
+                            Seleccionar nueva fecha y hora consultando disponibilidad en tiempo real.
+                        </div>
+                    </div>
+                </label>
+
+                <!-- 2. Cancelada por el Terapeuta -->
+                <label class="action-card-option" style="display: flex; align-items: flex-start; gap: 12px; padding: 12px 14px; border: 2px solid var(--border-color); border-radius: var(--radius-md); cursor: pointer; background: var(--bg-primary); transition: all 0.2s;">
+                    <input type="radio" name="appointmentActionRadio" id="apptActionCancelTherapist" value="cancel_therapist" onchange="onAppointmentActionChange('cancel_therapist')" style="margin-top: 3px;">
+                    <div style="flex: 1;">
+                        <div style="font-size: 14px; font-weight: 700; color: var(--text-primary); display: flex; align-items: center; gap: 6px;">
+                            <i class="fas fa-user-md" style="color: #6366f1;"></i> Cancelada por el Terapeuta
+                        </div>
+                        <div style="font-size: 12px; color: var(--text-secondary); margin-top: 2px;">
+                            Cancelación profesional (imprevisto o fuerza mayor). <strong>No penaliza</strong> la adherencia del paciente.
+                        </div>
+                    </div>
+                </label>
+
+                <!-- 3. Cancelada por el Paciente -->
+                <label class="action-card-option" style="display: flex; align-items: flex-start; gap: 12px; padding: 12px 14px; border: 2px solid var(--border-color); border-radius: var(--radius-md); cursor: pointer; background: var(--bg-primary); transition: all 0.2s;">
+                    <input type="radio" name="appointmentActionRadio" id="apptActionCancelPatient" value="cancel_patient" onchange="onAppointmentActionChange('cancel_patient')" style="margin-top: 3px;">
+                    <div style="flex: 1;">
+                        <div style="font-size: 14px; font-weight: 700; color: var(--text-primary); display: flex; align-items: center; gap: 6px;">
+                            <i class="fas fa-user-times" style="color: #ef4444;"></i> Cancelada por el Paciente
+                        </div>
+                        <div style="font-size: 12px; color: var(--text-secondary); margin-top: 2px;">
+                            El paciente canceló o solicitó suspenderla. Se computa en su historial y adherencia.
+                        </div>
+                    </div>
+                </label>
+
+                <!-- 4. Eliminar del Registro -->
+                <label class="action-card-option" style="display: flex; align-items: flex-start; gap: 12px; padding: 10px 14px; border: 1px dashed var(--border-color); border-radius: var(--radius-md); cursor: pointer; background: var(--bg-primary); opacity: 0.85;">
+                    <input type="radio" name="appointmentActionRadio" id="apptActionDeletePermanent" value="delete_permanent" onchange="onAppointmentActionChange('delete_permanent')" style="margin-top: 3px;">
+                    <div style="flex: 1;">
+                        <div style="font-size: 13px; font-weight: 600; color: var(--accent-danger); display: flex; align-items: center; gap: 6px;">
+                            <i class="fas fa-trash-alt"></i> Eliminar definitivamente (Borrar)
+                        </div>
+                        <div style="font-size: 11.5px; color: var(--text-tertiary);">
+                            Borrar completamente del registro si fue un error o duplicado.
+                        </div>
+                    </div>
+                </label>
+
+            </div>
+        </div>
+
+        <!-- SECCIÓN DINÁMICA: REAGENDAR (NUEVA FECHA Y DISPONIBILIDAD) -->
+        <div id="sectionReagendar" style="display: block; background: var(--bg-secondary); padding: 14px 16px; border-radius: var(--radius-md); margin-bottom: 16px; border: 1px solid var(--border-color);">
+            <div style="font-size: 13px; font-weight: 700; color: var(--text-primary); margin-bottom: 10px; display: flex; align-items: center; gap: 6px;">
+                <i class="fas fa-calendar-day" style="color: var(--accent-primary);"></i>
+                Definir Nueva Fecha y Verificar Disponibilidad
+            </div>
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 10px;">
+                <div class="form-group" style="margin-bottom: 0;">
+                    <label style="font-size: 12px; font-weight: 600; color: var(--text-secondary); margin-bottom: 4px; display: block;">Nueva Fecha *</label>
+                    <input type="date" id="actionNewDate" style="width: 100%; font-size: 13px;" onchange="checkAvailabilityForActionModal()">
+                </div>
+                <div class="form-group" style="margin-bottom: 0;">
+                    <label style="font-size: 12px; font-weight: 600; color: var(--text-secondary); margin-bottom: 4px; display: block;">Nueva Hora *</label>
+                    <input type="time" id="actionNewTime" style="width: 100%; font-size: 13px;" value="09:00" onchange="validateSelectedSlotCollision()">
+                </div>
+            </div>
+
+            <!-- Panel de disponibilidad de horarios del día -->
+            <div id="actionAvailabilityContainer" style="margin-top: 8px; margin-bottom: 10px;">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
+                    <span style="font-size: 11.5px; font-weight: 600; color: var(--text-secondary);">
+                        <i class="fas fa-clock"></i> Disponibilidad en la fecha seleccionada:
+                    </span>
+                    <button type="button" class="btn-secondary btn-sm" onclick="checkAvailabilityForActionModal()" style="font-size: 11px; padding: 2px 8px;">
+                        <i class="fas fa-redo"></i> Actualizar
+                    </button>
+                </div>
+                <div id="actionSlotsGrid" style="display: flex; flex-wrap: wrap; gap: 6px; max-height: 120px; overflow-y: auto; padding: 4px 0;">
+                    <!-- Se puebla dinámicamente con chips de turnos libres y ocupados -->
+                </div>
+                <div id="actionSlotCollisionNotice" style="font-size: 12px; color: #dc2626; margin-top: 6px; display: none;"></div>
+            </div>
+
+            <div class="form-group" style="margin-bottom: 0;">
+                <label style="font-size: 12px; font-weight: 600; color: var(--text-secondary); margin-bottom: 4px; display: block;">Motivo de la reprogramación</label>
+                <input type="text" id="actionRescheduleReason" placeholder="Ej: Ajuste de horario acordado, viaje del paciente..." style="width: 100%; font-size: 13px;">
+            </div>
+        </div>
+
+        <!-- SECCIÓN DINÁMICA: CANCELACIÓN (TERAPEUTA O PACIENTE) -->
+        <div id="sectionCancelacion" style="display: none; background: var(--bg-secondary); padding: 14px 16px; border-radius: var(--radius-md); margin-bottom: 16px; border: 1px solid var(--border-color);">
+            <div id="cancelSectionHeading" style="font-size: 13px; font-weight: 700; color: var(--text-primary); margin-bottom: 10px; display: flex; align-items: center; gap: 6px;">
+                <i class="fas fa-comment-dots"></i> Motivo de la Cancelación
+            </div>
+            <div class="form-group" style="margin-bottom: 8px;">
+                <label style="font-size: 12px; font-weight: 600; color: var(--text-secondary); margin-bottom: 4px; display: block;">Motivo habitual (predeterminado):</label>
+                <select id="actionReasonPresetSelect" onchange="onActionReasonPresetChange()" style="width: 100%; font-size: 13px; margin-bottom: 8px;">
+                    <!-- Opciones dinámicas -->
+                </select>
+                <textarea id="actionCancelCustomReason" rows="2" placeholder="Detalle adicional o justificación clínica..." style="width: 100%; font-size: 13px;"></textarea>
+            </div>
+        </div>
+
+        <div class="modal-actions" style="margin-top: 16px; display: flex; justify-content: flex-end; gap: 10px;">
+            <button type="button" class="btn-secondary" onclick="closeModal('appointmentActionModal')">Cancelar</button>
+            <button type="button" id="btnConfirmAppointmentAction" class="btn-primary" onclick="executeAppointmentAction()">
+                <i class="fas fa-sync-alt"></i> Reagendar Cita
+            </button>
+        </div>
     </div>
 </div>
 
@@ -1319,17 +1585,22 @@
                 <div style="background: linear-gradient(135deg, rgba(13,148,136,0.12) 0%, rgba(99,102,241,0.08) 100%); border: 1px dashed var(--accent-primary); border-radius: 8px; padding: 12px; margin-bottom: 14px; display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px;">
                     <div>
                         <strong style="color:var(--accent-primary); font-size:13px; display:flex; align-items:center; gap:6px;">
-                            <i class="fas fa-wand-magic-sparkles"></i> Copiloto Clínico IA: Síntesis SOAP
+                            <i class="fas fa-wand-magic-sparkles"></i> Copiloto Clínico IA: Síntesis y Grabación de Sesión
                         </strong>
-                        <small style="color:var(--text-secondary); display:block; margin-top:2px;">Dicta por voz o escribe apuntes libres y Gemini estructurará S, O, A, P automáticamente.</small>
+                        <small style="color:var(--text-secondary); display:block; margin-top:2px;">Graba la sesión ambiental completa o dicta apuntes libres para estructurar en segundos con Gemini.</small>
                     </div>
-                    <button type="button" class="btn-sm btn-primary" onclick="openSoapAiModal()" style="font-size:12px; font-weight:700;">
-                        <i class="fas fa-sparkles"></i> ✨ Dictar / Sintetizar con IA
-                    </button>
+                    <div style="display:flex; gap:8px; flex-wrap:wrap;">
+                        <button type="button" class="btn-sm btn-secondary" onclick="startAmbientSessionRecording()" style="font-size:12px; font-weight:700; gap:5px;">
+                            <i class="fas fa-record-vinyl" style="color:#ef4444;"></i> Grabar Sesión
+                        </button>
+                        <button type="button" class="btn-sm btn-primary" onclick="openSoapAiModal()" style="font-size:12px; font-weight:700; gap:5px;">
+                            <i class="fas fa-sparkles"></i> Sintetizar con IA
+                        </button>
+                    </div>
                 </div>
 
                 <div class="form-group">
-                    <label>📋 Cargar Plantilla Clínica</label>
+                    <label>Cargar Plantilla Clínica</label>
                     <select onchange="applySoapTemplate(this.value)">
                         <option value="">— Seleccionar modelo teórico —</option>
                         <option value="tcc">TCC (Terapia Cognitivo-Conductual)</option>
@@ -1378,7 +1649,7 @@
                 </div>
             </div>
             <div class="form-group">
-                <label>📋 Tareas Intersesión (Se sincronizan con el portal del paciente)</label>
+                <label>Tareas Intersesión (Se sincronizan con el portal del paciente)</label>
                 <div id="intersessionTasksEditor"></div>
                 <button type="button" class="btn-secondary" onclick="addIntersessionTask()" style="margin-top:8px;">
                     <i class="fas fa-plus"></i> Añadir tarea
@@ -1388,34 +1659,34 @@
                 <div class="form-group">
                     <label>Evaluación de Riesgo</label>
                     <select id="noteRisk">
-                        <option value="bajo">🟢 Bajo</option>
-                        <option value="medio">🟡 Medio</option>
-                        <option value="alto">🔴 Alto (Activa Protocolo)</option>
+                        <option value="bajo">Bajo</option>
+                        <option value="medio">Medio</option>
+                        <option value="alto">Alto (Activa Protocolo)</option>
                     </select>
                 </div>
                 <div class="form-group">
                     <label>Afecto Predominante</label>
                     <select id="noteMood">
                         <option value="">Seleccionar</option>
-                        <option value="muy-bueno">😊 Eutímico</option>
-                        <option value="bueno">🙂 Estable</option>
-                        <option value="neutral">😐 Aplanado</option>
-                        <option value="bajo">😔 Ansioso</option>
-                        <option value="muy-bajo">😞 Depresivo</option>
+                        <option value="muy-bueno">Eutímico</option>
+                        <option value="bueno">Estable</option>
+                        <option value="neutral">Aplanado</option>
+                        <option value="bajo">Ansioso</option>
+                        <option value="muy-bajo">Depresivo</option>
                     </select>
                 </div>
             </div>
             <div class="form-group">
                 <label class="checkbox-label">
-                    <input type="checkbox" id="noteConfidential"> 🔒 Confidencial / Nota reservada
+                    <input type="checkbox" id="noteConfidential"> Confidencial / Nota reservada
                 </label>
             </div>
             <div class="form-row" style="background:var(--bg-secondary);padding:10px;border-radius:8px;margin-bottom:12px;">
                 <div class="form-group" style="margin:0;">
                     <label style="font-size:12px;font-weight:700;">Estado del Documento (CLI-005)</label>
                     <select id="noteStatus" style="font-size:12.5px;padding:6px;">
-                        <option value="borrador">📝 Borrador (En redacción / Modificable)</option>
-                        <option value="firmada">✍️ Firmada (Inmutable - Cierre Oficial)</option>
+                        <option value="borrador">Borrador (En redacción / Modificable)</option>
+                        <option value="firmada">Firmada (Inmutable - Cierre Oficial)</option>
                     </select>
                 </div>
                 <div class="form-group" style="margin:0;">
@@ -1427,7 +1698,7 @@
             <!-- SECCIÓN DE ADENDUMS PARA NOTAS FIRMADAS (CLI-005) -->
             <div id="noteAddendumsSection" style="display:none;margin-bottom:14px;background:var(--bg-secondary);border:1px solid var(--border-color);border-left:4px solid var(--accent-primary);padding:12px;border-radius:8px;">
                 <div style="font-size:13px;font-weight:700;color:var(--text-primary);margin-bottom:6px;">
-                    📜 Historial de Anexos y Adendums Clínicos (Inmutabilidad del registro firmado)
+                    Historial de Anexos y Adendums Clínicos (Inmutabilidad del registro firmado)
                 </div>
                 <div id="noteAddendumsList" style="font-size:12px;color:var(--text-secondary);margin-bottom:10px;"></div>
                 <div class="form-group" style="margin:0;">
@@ -1482,7 +1753,7 @@
     <div class="modal-overlay" onclick="closeModal('backupModal')"></div>
     <div class="modal-content">
         <div class="modal-header">
-            <h2 id="backupModalTitle">💾 Centro de Backups</h2>
+            <h2 id="backupModalTitle">Centro de Backups</h2>
             <button class="btn-icon" onclick="closeModal('backupModal')">
                 <i class="fas fa-times"></i>
             </button>
@@ -1561,10 +1832,10 @@
 
         <div class="drawer-filter-bar">
             <span class="drawer-filter-pill active" data-cat="all" onclick="filterReminderDrawerCategory('all')">Todos</span>
-            <span class="drawer-filter-pill" data-cat="no_note" onclick="filterReminderDrawerCategory('no_note')">📝 Sin Nota</span>
-            <span class="drawer-filter-pill" data-cat="starting_soon" onclick="filterReminderDrawerCategory('starting_soon')">⏰ En Breve</span>
-            <span class="drawer-filter-pill" data-cat="unconfirmed" onclick="filterReminderDrawerCategory('unconfirmed')">📲 Sin Confirmar</span>
-            <span class="drawer-filter-pill" data-cat="custom" onclick="filterReminderDrawerCategory('custom')">📌 Personalizados</span>
+            <span class="drawer-filter-pill" data-cat="no_note" onclick="filterReminderDrawerCategory('no_note')">Sin Nota</span>
+            <span class="drawer-filter-pill" data-cat="starting_soon" onclick="filterReminderDrawerCategory('starting_soon')">En Breve</span>
+            <span class="drawer-filter-pill" data-cat="unconfirmed" onclick="filterReminderDrawerCategory('unconfirmed')">Sin Confirmar</span>
+            <span class="drawer-filter-pill" data-cat="custom" onclick="filterReminderDrawerCategory('custom')">Personalizados</span>
         </div>
 
         <div class="reminder-drawer-body" id="reminderDrawerList"></div>
@@ -1602,7 +1873,7 @@
         <div class="ai-tab-content active" id="aiTabCopilot">
             <div class="ai-chat-box" id="aiChatBox">
                 <div class="ai-msg bot">
-                    <div class="ai-avatar">🤖</div>
+                    <div class="ai-avatar"><i class="fas fa-brain"></i></div>
                     <div class="ai-bubble">
                         ¡Hola! Soy tu <strong>Copiloto Clínico</strong> impulsado por Gemini AI. Puedo ayudarte a formular hipótesis, consultar técnicas basadas en evidencia (TCC, ACT, DBT) o preparar intervenciones para tus pacientes. ¿En qué te puedo asistir hoy?
                     </div>
@@ -1624,7 +1895,7 @@
             </div>
             <div class="ai-diag-output" id="aiDiagOutput">
                 <div class="empty-state">
-                    <div class="empty-icon">🧠</div>
+                    <div class="empty-icon"><i class="fas fa-brain"></i></div>
                     <p>Selecciona un paciente para analizar su historial, test aplicados y notas clínicas.</p>
                 </div>
             </div>
@@ -1651,13 +1922,13 @@
     <div class="modal-overlay" onclick="closeModal('apiKeyModal')"></div>
     <div class="modal-content" style="max-width: 480px;">
         <div class="modal-header">
-            <h2>🤖 Estado de IA Clínica (Gemini API)</h2>
+            <h2><i class="fas fa-robot"></i> Estado de IA Clínica (Gemini API)</h2>
             <button class="btn-icon" onclick="closeModal('apiKeyModal')"><i class="fas fa-times"></i></button>
         </div>
         <div style="padding:16px 0;">
             <div style="background:rgba(59, 130, 246, 0.08);border:1px solid rgba(59, 130, 246, 0.2);border-radius:var(--radius-md);padding:14px;margin-bottom:14px;font-size:13px;line-height:1.5;">
                 <p style="margin:0 0 8px 0;font-weight:600;color:var(--text-primary);">
-                    🔒 Arquitectura Segura con Proxy Centralizado
+                    <i class="fas fa-shield-alt"></i> Arquitectura Segura con Proxy Centralizado
                 </p>
                 <p style="margin:0;color:var(--text-secondary);font-size:12px;">
                     Conforme a normativas médicas (HIPAA) y estándares OWASP, las claves privadas de API se administran <strong>exclusivamente en el servidor</strong> (variable <code>GEMINI_API_KEY</code>). Los navegadores clientes no almacenan ni transmiten claves privadas.
@@ -1747,6 +2018,23 @@
             <p style="font-size:13px;color:var(--text-secondary);margin-bottom:14px;line-height:1.4;">
                 Los datos ingresados se estamparán de forma dinámica en los <strong>membretes de Historias Clínicas Oficiales, Hojas de Evolución, Consentimientos Informados, firmas digitales y mensajes de WhatsApp</strong> enviados a los pacientes.
             </p>
+            <div style="display:flex;align-items:center;gap:16px;margin-bottom:16px;padding:12px;background:var(--bg-secondary);border-radius:10px;border:1px solid var(--border-color);">
+                <div style="position:relative;width:64px;height:64px;border-radius:50%;overflow:hidden;border:2px solid var(--accent-primary);flex-shrink:0;">
+                    <img id="therapistProfilePhotoPreview" src="assets/avatar/serena-avatar.jpg?v=7.2.0" alt="Foto de Perfil" style="width:100%;height:100%;object-fit:cover;display:block;">
+                </div>
+                <div style="flex:1;">
+                    <label style="font-weight:600;font-size:13px;display:block;margin-bottom:4px;">Foto de Perfil del Profesional</label>
+                    <div style="display:flex;gap:8px;flex-wrap:wrap;">
+                        <input type="file" id="therapistProfilePhotoInput" accept="image/*" style="display:none;" onchange="handleTherapistPhotoSelected(event)">
+                        <button type="button" class="btn-secondary btn-sm" onclick="document.getElementById('therapistProfilePhotoInput').click()">
+                            <i class="fas fa-camera"></i> Subir Foto
+                        </button>
+                        <button type="button" class="btn-secondary btn-sm" style="color:var(--text-tertiary);" onclick="removeTherapistPhoto()">
+                            <i class="fas fa-trash-alt"></i> Quitar
+                        </button>
+                    </div>
+                </div>
+            </div>
             <div class="form-group">
                 <label>Nombre Completo con Título Profesional *</label>
                 <input type="text" id="therapistProfileName" required placeholder="Ej. Dr. Carlos Mendoza / Dra. Elena Soto / Lic. Roberto Gil">
@@ -1777,7 +2065,7 @@
             </div>
             <div class="form-group" style="margin-top:14px; border-top:1px solid var(--border-primary); padding-top:14px;">
                 <label style="font-weight:600; display:flex; justify-content:space-between; align-items:center;">
-                    <span>✍️ Firma Digitalizada del Terapeuta (Para Hojas Oficiales y PDF):</span>
+                    <span><i class="fas fa-file-signature"></i> Firma Digitalizada del Terapeuta (Para Hojas Oficiales y PDF):</span>
                     <button type="button" class="btn-secondary btn-sm" onclick="clearTherapistSignaturePad()">Limpiar</button>
                 </label>
                 <div style="border: 2px dashed var(--color-primary); border-radius: var(--radius-md); background: #ffffff; overflow: hidden; margin-top: 6px;">
@@ -1787,11 +2075,101 @@
                     Dibuja tu firma. Se estampará automáticamente en informes de derivación, epicrisis, certificados y hojas de evolución SOAP.
                 </small>
             </div>
+            <div style="margin-top: 14px; padding: 12px 14px; background: rgba(99, 102, 241, 0.08); border: 1px solid rgba(99, 102, 241, 0.2); border-radius: 8px; display: flex; justify-content: space-between; align-items: center; gap: 12px;">
+                <div>
+                    <strong style="display:block; font-size:13px; color:var(--text-primary);"><i class="fas fa-credit-card" style="color:var(--accent-primary);"></i> Formas de Pago para el Portal Paciente</strong>
+                    <span style="font-size:12px; color:var(--text-secondary);">Configura Pago Móvil, Zelle, cuentas bancarias y Binance Pay que verán tus pacientes.</span>
+                </div>
+                <button type="button" class="btn-secondary btn-sm" onclick="openPortalPaymentMethodsModal()" style="white-space:nowrap;">
+                    <i class="fas fa-cog"></i> Configurar
+                </button>
+            </div>
             <div class="modal-actions" style="margin-top:16px;display:flex;justify-content:flex-end;gap:10px;">
                 <button type="button" class="btn-secondary" onclick="closeModal('therapistProfileModal')">Cancelar</button>
                 <button type="submit" class="btn-primary"><i class="fas fa-save"></i> Guardar Credenciales y Firma</button>
             </div>
         </form>
+    </div>
+</div>
+
+<!-- MODAL DE CONFIGURACIÓN DE FORMAS DE PAGO DEL PORTAL -->
+<div class="modal" id="portalPaymentMethodsModal">
+    <div class="modal-overlay" onclick="closeModal('portalPaymentMethodsModal')"></div>
+    <div class="modal-content modal-large" style="max-width: 780px; max-height: 90vh; display: flex; flex-direction: column;">
+        <div class="modal-header" style="flex-shrink: 0;">
+            <div style="display: flex; align-items: center; gap: 12px;">
+                <div style="width: 40px; height: 40px; border-radius: 10px; background: rgba(99, 102, 241, 0.15); color: #6366f1; display: flex; align-items: center; justify-content: center; font-size: 18px;"><i class="fas fa-credit-card"></i></div>
+                <div>
+                    <h2 style="margin: 0; font-size: 17px; font-weight: 700;">Formas de Pago — Portal del Paciente</h2>
+                    <p style="margin: 2px 0 0 0; font-size: 12px; color: var(--text-secondary);">Personaliza los métodos de pago y datos bancarios que verán tus pacientes al reportar transferencias o abonar sus sesiones.</p>
+                </div>
+            </div>
+            <button class="btn-icon" onclick="closeModal('portalPaymentMethodsModal')">
+                <i class="fas fa-times"></i>
+            </button>
+        </div>
+        <form id="portalPaymentMethodsForm" onsubmit="handleSavePortalPaymentMethods(event)" style="display: flex; flex-direction: column; overflow: hidden; flex: 1;">
+            <div class="modal-body" style="padding: 20px 24px; overflow-y: auto; flex: 1;">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; flex-wrap: wrap; gap: 10px;">
+                    <div style="font-size: 13px; color: var(--text-secondary);">
+                        Puedes activar/desactivar métodos, cambiar bancos o correos y agregar cuentas adicionales:
+                    </div>
+                    <div style="display: flex; gap: 8px;">
+                        <button type="button" class="btn-secondary btn-sm" onclick="addNewPaymentMethodRow()">
+                            <i class="fas fa-plus"></i> Agregar Método
+                        </button>
+                        <button type="button" class="btn-secondary btn-sm" onclick="resetDefaultPaymentMethods()" title="Restablecer métodos estándar">
+                            <i class="fas fa-undo"></i> Predeterminados
+                        </button>
+                    </div>
+                </div>
+
+                <div id="portalPaymentMethodsList" style="display: flex; flex-direction: column; gap: 16px;">
+                    <!-- Renderizado dinámico de tarjetas de cada método de pago -->
+                </div>
+            </div>
+            <div class="modal-actions" style="padding: 16px 24px; border-top: 1px solid var(--border-color); display: flex; justify-content: flex-end; gap: 10px; flex-shrink: 0; background: var(--bg-card);">
+                <button type="button" class="btn-secondary" onclick="closeModal('portalPaymentMethodsModal')">Cancelar</button>
+                <button type="submit" class="btn-primary"><i class="fas fa-save"></i> Guardar Formas de Pago</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- MODAL DE VISUALIZACIÓN DE COMPROBANTE DE PAGO -->
+<div class="modal" id="paymentReceiptModal">
+    <div class="modal-overlay" onclick="closeModal('paymentReceiptModal')"></div>
+    <div class="modal-content modal-large" style="max-width: 680px; max-height: 90vh; display: flex; flex-direction: column;">
+        <div class="modal-header" style="flex-shrink: 0;">
+            <div style="display: flex; align-items: center; gap: 12px;">
+                <div style="width: 40px; height: 40px; border-radius: 10px; background: rgba(13, 148, 136, 0.15); color: #0d9488; display: flex; align-items: center; justify-content: center; font-size: 18px;"><i class="fas fa-file-invoice-dollar"></i></div>
+                <div>
+                    <h2 style="margin: 0; font-size: 17px; font-weight: 700;" id="receiptModalTitle">Comprobante de Pago</h2>
+                    <p style="margin: 2px 0 0 0; font-size: 12px; color: var(--text-secondary);" id="receiptModalSubtitle">Verificación de comprobante bancario del paciente</p>
+                </div>
+            </div>
+            <button class="btn-icon" onclick="closeModal('paymentReceiptModal')">
+                <i class="fas fa-times"></i>
+            </button>
+        </div>
+        <div class="modal-body" style="padding: 20px 24px; overflow-y: auto; flex: 1;">
+            <div id="receiptMetaDetails" style="margin-bottom: 16px; padding: 12px 16px; background: var(--bg-secondary); border-radius: 8px; font-size: 13px; display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 10px;">
+                <!-- Detalles dinámicos: Paciente, Monto, Referencia, Método, Fecha -->
+            </div>
+            <div id="receiptImageContainer" style="background: var(--bg-card); border-radius: 12px; border: 1.5px solid var(--border-color); padding: 12px; text-align: center; box-shadow: 0 4px 20px rgba(0,0,0,0.06); min-height: 200px; display: flex; align-items: center; justify-content: center;">
+                <!-- Imagen o iframe del comprobante -->
+            </div>
+        </div>
+        <div class="modal-actions" style="padding: 16px 24px; border-top: 1px solid var(--border-color); display: flex; justify-content: space-between; align-items: center; flex-shrink: 0; background: var(--bg-card); flex-wrap: wrap; gap: 10px;">
+            <div id="receiptModalSecondaryActions">
+                <button type="button" class="btn-secondary" id="receiptDownloadBtn">
+                    <i class="fas fa-download"></i> Descargar Comprobante
+                </button>
+            </div>
+            <div style="display: flex; gap: 10px;" id="receiptModalMainActions">
+                <button type="button" class="btn-secondary" onclick="closeModal('paymentReceiptModal')">Cerrar</button>
+            </div>
+        </div>
     </div>
 </div>
 
@@ -1825,9 +2203,7 @@
     <div class="modal-content modal-large" style="max-width: 720px;">
         <div class="modal-header">
             <div style="display:flex; align-items:center; gap:12px;">
-                <div style="width: 40px; height: 40px; border-radius: 10px; background: rgba(255, 184, 76, 0.2); color: #d97706; display: flex; align-items: center; justify-content: center; font-size: 20px;">
-                    🎨
-                </div>
+                <div style="width: 40px; height: 40px; border-radius: 10px; background: rgba(255, 184, 76, 0.2); color: #d97706; display: flex; align-items: center; justify-content: center; font-size: 18px;"><i class="fas fa-palette"></i></div>
                 <div>
                     <h2 style="margin:0; font-size:17px; font-weight:700;">Lienzo Infantil — Expresión Gráfica</h2>
                     <p style="margin:2px 0 0 0; font-size:12px; color:var(--text-secondary);" id="kidDrawingPreviewDate">Dibujo del paciente</p>
@@ -1838,7 +2214,7 @@
             </button>
         </div>
         <div class="modal-body" style="padding: 20px 24px; text-align: center;">
-            <div style="background: #ffffff; border-radius: 12px; border: 1.5px solid var(--border-color); padding: 12px; display: inline-block; max-width: 100%; box-shadow: 0 4px 20px rgba(0,0,0,0.06);">
+            <div style="background: var(--bg-card); border-radius: 12px; border: 1.5px solid var(--border-color); padding: 12px; display: inline-block; max-width: 100%; box-shadow: 0 4px 20px rgba(0,0,0,0.06);">
                 <img id="kidDrawingPreviewImage" src="" alt="Dibujo del menor" style="max-width: 100%; max-height: 60vh; object-fit: contain; border-radius: 8px; display: block; margin: 0 auto;" />
             </div>
             <div style="margin-top: 18px; display: flex; justify-content: flex-end; gap: 10px;">
@@ -1858,7 +2234,7 @@
 <!-- OVERLAY DE BLOQUEO DE PANTALLA POR PRIVACIDAD (HIPAA / GDPR) -->
 <div id="screenLockOverlay" class="screen-lock-overlay" style="display: none;">
     <div class="screen-lock-card" style="background: var(--bg-primary, #0e1524); border: 1px solid var(--border-primary, #1e293b); border-radius: 16px; box-shadow: 0 25px 60px -15px rgba(0, 0, 0, 0.7); max-width: 440px; width: 100%; padding: 36px 32px; text-align: center; margin: auto; position: relative; z-index: 10000000; box-sizing: border-box;">
-        <div class="lock-avatar-orb" style="width: 72px; height: 72px; border-radius: 50%; background: linear-gradient(135deg, #0d9488, #0284c7); color: white; font-size: 32px; display: flex; align-items: center; justify-content: center; margin: 0 auto 16px auto; box-shadow: 0 10px 25px rgba(13, 148, 136, 0.35);">🔒</div>
+        <div class="lock-avatar-orb" style="width: 72px; height: 72px; border-radius: 50%; background: linear-gradient(135deg, #0d9488, #0284c7); color: white; font-size: 32px; display: flex; align-items: center; justify-content: center; margin: 0 auto 16px auto; box-shadow: 0 10px 25px rgba(13, 148, 136, 0.35);"><i class="fas fa-lock"></i></div>
         <h2 class="lock-title" style="font-size: 20px; font-weight: 700; color: var(--text-primary, #f8fafc); margin: 0 0 4px 0;">Expedientes Protegidos</h2>
         <p class="lock-subtitle" id="lockTherapistName" style="font-size: 13px; font-weight: 600; color: var(--color-primary, #2dd4bf); margin: 0 0 12px 0;">Lic. en Psicología Clínica</p>
         <p class="lock-desc" style="font-size: 12.5px; color: var(--text-secondary, #94a3b8); line-height: 1.5; margin: 0 0 24px 0;">
@@ -1881,7 +2257,7 @@
     <div class="modal-overlay" onclick="closeModal('qrModal')"></div>
     <div class="modal-content" style="max-width: 440px;">
         <div class="modal-header">
-            <h2>📱 Código QR para el Paciente</h2>
+            <h2><i class="fas fa-qrcode"></i> Código QR para el Paciente</h2>
             <button class="btn-icon" onclick="closeModal('qrModal')"><i class="fas fa-times"></i></button>
         </div>
         <div class="modal-body" id="qrModalBody">
@@ -1895,7 +2271,7 @@
     <div class="modal-overlay" onclick="closeModal('monthlyGoalsModal')"></div>
     <div class="modal-content" style="max-width: 520px;">
         <div class="modal-header">
-            <h2>🎯 Configurar Objetivos del Mes</h2>
+            <h2><i class="fas fa-bullseye"></i> Configurar Objetivos del Mes</h2>
             <button class="btn-icon" onclick="closeModal('monthlyGoalsModal')"><i class="fas fa-times"></i></button>
         </div>
         <form id="monthlyGoalsForm" class="modal-form" onsubmit="handleMonthlyGoalsSubmit(event)">
@@ -1929,7 +2305,7 @@
     <div class="modal-overlay" onclick="closeModal('scaleEditorModal')"></div>
     <div class="modal-content modal-large" style="max-width: 680px;">
         <div class="modal-header">
-            <h2 id="scaleEditorModalTitle">🧪 Crear / Editar Escala o Test Psicológico</h2>
+            <h2 id="scaleEditorModalTitle"><i class="fas fa-vial"></i> Crear / Editar Escala o Test Psicológico</h2>
             <button class="btn-icon" onclick="closeModal('scaleEditorModal')"><i class="fas fa-times"></i></button>
         </div>
         <form id="scaleEditorForm" class="modal-form" onsubmit="handleSaveCustomScale(event)">
@@ -1984,9 +2360,139 @@
                     <input type="number" id="scaleCutoffSev" value="13">
                 </div>
             </div>
-            <div class="modal-actions">
-                <button type="button" class="btn-secondary" onclick="closeModal('scaleEditorModal')">Cancelar</button>
-                <button type="submit" class="btn-primary"><i class="fas fa-check-circle"></i> Guardar Escala</button>
+            <div class="modal-actions" style="display:flex;justify-content:space-between;align-items:center;">
+                <button type="button" id="btnDeleteCustomScale" class="btn-danger-outline" style="display:none;" onclick="deleteCustomScale(document.getElementById('customScaleEditId').value)">
+                    <i class="fas fa-trash-alt"></i> Eliminar Escala
+                </button>
+                <div style="display:flex;gap:10px;margin-left:auto;">
+                    <button type="button" class="btn-secondary" onclick="closeModal('scaleEditorModal')">Cancelar</button>
+                    <button type="submit" class="btn-primary"><i class="fas fa-check-circle"></i> Guardar Escala</button>
+                </div>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- MODAL DE CONFIGURACIÓN DE TASA BCV / DIVISAS -->
+<div class="modal" id="financeBcvRateModal">
+    <div class="modal-overlay" onclick="closeModal('financeBcvRateModal')"></div>
+    <div class="modal-content" style="max-width: 520px;">
+        <div class="modal-header">
+            <h2><i class="fas fa-coins"></i> Cotización y Tasas BCV</h2>
+            <button class="btn-icon" onclick="closeModal('financeBcvRateModal')"><i class="fas fa-times"></i></button>
+        </div>
+        <div class="modal-body" id="financeBcvRateModalBody"></div>
+    </div>
+</div>
+
+<!-- ROADMAP SESSION MODAL -->
+<div class="modal" id="roadmapSessionModal">
+    <div class="modal-overlay" onclick="closeModal('roadmapSessionModal')"></div>
+    <div class="modal-content modal-roadmap-dialog">
+        <div class="modal-header modal-header-roadmap">
+            <div class="roadmap-modal-header-info">
+                <div class="roadmap-modal-header-icon">
+                    <i class="fas fa-route"></i>
+                </div>
+                <div>
+                    <h2 id="roadmapSessionModalTitle">Planificar Sesión de Terapia</h2>
+                    <p class="roadmap-modal-subtitle">Mapa de ruta longitudinal y objetivos terapéuticos</p>
+                </div>
+            </div>
+            <button type="button" class="btn-icon btn-modal-close" onclick="closeModal('roadmapSessionModal')" title="Cerrar ventana">
+                <i class="fas fa-times"></i>
+            </button>
+        </div>
+
+        <!-- Pestañas internas del Modal -->
+        <div class="modal-subtabs-nav">
+            <button type="button" class="modal-subtab-btn active" onclick="switchRoadmapModalTab('encuadre', this)">
+                <i class="fas fa-calendar-alt"></i> <span>1. Encuadre & Fecha</span>
+            </button>
+            <button type="button" class="modal-subtab-btn" onclick="switchRoadmapModalTab('foco', this)">
+                <i class="fas fa-wand-magic-sparkles"></i> <span>2. Foco & Objetivos</span>
+            </button>
+            <button type="button" class="modal-subtab-btn" onclick="switchRoadmapModalTab('reporte', this)">
+                <i class="fas fa-file-signature"></i> <span>3. Reporte Clínico</span>
+            </button>
+        </div>
+
+        <form id="roadmapSessionForm" class="modal-form roadmap-modal-form" onsubmit="handleSaveRoadmapSession(event)">
+            <input type="hidden" id="roadmapSessionId">
+            <input type="hidden" id="roadmapPatientId">
+
+            <!-- Pestaña 1: Encuadre & Fecha -->
+            <div id="roadmapModalTab-encuadre" class="roadmap-modal-tab-content active">
+                <div class="form-row">
+                    <div class="form-group" style="flex:0 0 110px;">
+                        <label><i class="fas fa-hashtag"></i> Nº Sesión</label>
+                        <input type="number" id="roadmapSessionNumber" min="1" required class="input-clinical-styled">
+                    </div>
+                    <div class="form-group" style="flex:1;">
+                        <label><i class="fas fa-heading"></i> Título de la Sesión</label>
+                        <input type="text" id="roadmapSessionTitle" placeholder="Ej: Sesión 10 - Prevención de Recaídas" required class="input-clinical-styled">
+                    </div>
+                </div>
+
+                <div class="quick-title-suggestions">
+                    <span class="quick-title-label">Sugerencias:</span>
+                    <button type="button" class="chip-suggestion" onclick="applyRoadmapTitleSuggestion('Evaluación Inicial y Encuadre')">Evaluación Inicial</button>
+                    <button type="button" class="chip-suggestion" onclick="applyRoadmapTitleSuggestion('Psicoeducación y Modelo Cognitivo')">Psicoeducación</button>
+                    <button type="button" class="chip-suggestion" onclick="applyRoadmapTitleSuggestion('Reestructuración Cognitiva')">Reestructuración</button>
+                    <button type="button" class="chip-suggestion" onclick="applyRoadmapTitleSuggestion('Prevención de Recaídas')">Prevención Recaídas</button>
+                </div>
+
+                <div class="form-row" style="margin-top:14px;">
+                    <div class="form-group" style="flex:1;">
+                        <label><i class="far fa-calendar-alt"></i> Fecha de la Sesión</label>
+                        <input type="date" id="roadmapSessionDate" required class="input-clinical-styled">
+                    </div>
+                    <div class="form-group" style="flex:1;">
+                        <label><i class="fas fa-tag"></i> Estado Clínico</label>
+                        <select id="roadmapSessionStatus" class="input-clinical-styled">
+                            <option value="pendiente">Pendiente (Por realizar)</option>
+                            <option value="completada">Completada (Realizada con éxito)</option>
+                            <option value="agendada">En Curso / Agendada</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Pestaña 2: Foco & Objetivos -->
+            <div id="roadmapModalTab-foco" class="roadmap-modal-tab-content">
+                <div class="form-group">
+                    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;">
+                        <label style="margin:0;"><i class="fas fa-wand-magic-sparkles" style="color:#7c3aed;"></i> Foco Clínico / Resumen Terapéutico</label>
+                        <span style="font-size:11.5px;color:var(--text-tertiary);">Visible en la tarjeta de ruta</span>
+                    </div>
+                    <textarea id="roadmapSessionFocus" rows="4" placeholder="Detalle los objetivos, foco clínico o intervenciones aplicadas en esta sesión..." class="input-clinical-styled textarea-clinical"></textarea>
+                </div>
+            </div>
+
+            <!-- Pestaña 3: Reporte Clínico -->
+            <div id="roadmapModalTab-reporte" class="roadmap-modal-tab-content">
+                <div class="roadmap-report-bridge-box">
+                    <div class="report-bridge-icon"><i class="fas fa-file-medical-alt"></i></div>
+                    <div class="report-bridge-info">
+                        <h4>Integración con Notas de Evolución SOAP</h4>
+                        <p>Puedes evolucionar esta sesión directamente a un Reporte de Atención oficial con membrete profesional y firma digitalizada.</p>
+                    </div>
+                </div>
+                <div style="text-align:center;margin:18px 0 6px;">
+                    <button type="button" class="btn-cta-evolve" onclick="jumpToReporteAtencionFromModal()">
+                        <i class="fas fa-file-signature"></i> Abrir Formulario de Reporte de Atención (SOAP)
+                    </button>
+                </div>
+            </div>
+
+            <div class="modal-actions roadmap-modal-actions">
+                <button type="button" class="btn-cancel-styled" onclick="closeModal('roadmapSessionModal')">Cancelar</button>
+                <button type="button" id="btnDeleteRoadmapSession" class="btn-danger-outline" style="display:none;" onclick="handleDeleteRoadmapSession()">
+                    <i class="fas fa-trash-alt"></i> Eliminar
+                </button>
+                <button type="submit" class="btn-save-roadmap">
+                    <i class="fas fa-check-circle"></i> Guardar Sesión
+                </button>
             </div>
         </form>
     </div>
@@ -1994,23 +2500,38 @@
 
 <script src="phi-anonymizer.js"></script>
 <script src="voice-dictation.js"></script>
-<script src="ai-clinical.js"></script>
-<script src="psychoed.js"></script>
-<script src="reports.js"></script>
-<script src="vademecum.js"></script>
-<script src="app.js?v=6.8.7"></script>
-<script src="scales.js?v=6.8.7"></script>
-<script src="finance.js?v=6.8.7"></script>
-<script src="adm.js?v=6.8.7"></script>
-<script src="session-reminders.js?v=6.8.7"></script>
-<script src="backup.js?v=6.8.7"></script>
-<script src="crisis-protocol.js?v=6.8.7"></script>
-<script src="consentimiento.js?v=6.8.7"></script>
-<script src="historia-clinica.js?v=6.8.7"></script>
+<script src="session-recorder.js?v=7.1.0-serena"></script>
+<script src="ai-clinical.js?v=7.1.0-serena"></script>
+<script src="psychoed.js?v=7.1.0-serena"></script>
+<script src="reports.js?v=7.1.0-serena"></script>
+<script src="vademecum.js?v=7.1.0-serena"></script>
+<script src="app.js?v=7.1.0-serena"></script>
+<script src="scales.js?v=7.1.0-serena"></script>
+<script src="finance.js?v=7.1.0-serena"></script>
+<script src="adm.js?v=7.1.0-serena"></script>
+<script src="session-reminders.js?v=7.1.0-serena"></script>
+<script src="backup.js?v=7.1.0-serena"></script>
+<script src="crisis-protocol.js?v=7.1.0-serena"></script>
+<script src="consentimiento.js?v=7.1.0-serena"></script>
+<script src="historia-clinica.js?v=7.1.0-serena"></script>
+<script src="genogram.js?v=7.1.0-serena"></script>
+<script src="mental-exam.js?v=7.1.0-serena"></script>
 <script>
+if ('caches' in window) {
+    caches.keys().then(names => {
+        names.forEach(name => {
+            if (name.includes('psico') || (name.startsWith('serena-') && name !== 'serena-v7.1.0')) {
+                caches.delete(name);
+            }
+        });
+    });
+}
 if ('serviceWorker' in navigator && (window.location.protocol === 'http:' || window.location.protocol === 'https:')) {
-    navigator.serviceWorker.register('/sw.js?v=6.8.7')
-        .then(() => console.log('✅ ServiceWorker registrado'))
+    navigator.serviceWorker.register('/sw.js?v=7.1.0-serena')
+        .then(reg => {
+            console.log('ServiceWorker SERENA registrado');
+            reg.update();
+        })
         .catch(err => console.log('SW Error:', err));
 }
 </script>

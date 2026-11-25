@@ -165,7 +165,7 @@ Notación: **ID** · funcionalidad esperada · **criterio de aceptación** (lo q
 | F-40 | Importar Google Forms | Pegar respuestas tabuladas → parser mapea campos a la historia y permite guardar | ⚠️ |
 | F-41 | PDF de historia oficial | Exportar → PDF con membrete, colegiatura y datos completos; sin caracteres corruptos | ✅ |
 | F-42 | PDF de hoja de evolución | Exportar nota existente → PDF con la hoja protocolizada | ✅ |
-| F-43 | Consentimiento reflejado | Consentimiento parental/asentimiento firmado se muestra como "Firmado" en la ficha y en el PDF de historia | ⚠️ |
+| F-43 | Consentimiento reflejado | Consentimiento Informado/asentimiento firmado se muestra como "Firmado" en la ficha y en el PDF de historia | ⚠️ |
 | F-44 | Inferencia de etapa vital | Fechas de nacimiento límite (<12, 12-17, ≥18) mapean a la etapa correcta | ✅ |
 
 ### M06 — Reportes de Atención / SOAP (12)
@@ -478,7 +478,7 @@ P3 → backlog
 | RG-08 | Teleconsulta: tercero público (Jitsi) y sala adivinable; grabación de sesión no controlada | Confirmado (PF-06) | Secreto profesional; consentimiento de teleconsulta | **P0** |
 | RG-09 | IA: PHI hacia Google sin proxy ni contrato de tratamiento; el paciente acepta "anonimización" (`consentimiento.js:242`) que depende de `PhiAnonymizer` en cliente | Parcial | Transferencia internacional de datos sensibles | **P1** |
 | RG-10 | Auditoría de accesos inexistente en UI y sin retención (`audit_logs` limitado a 500 en `db.js:713`) | Parcial | Trazabilidad de acceso a PHI (HIPAA-like) | **P2** |
-| RG-11 | Menores: consentimiento parental y asentimiento existen en UI y PDF, pero `guardianConsent` puede ser sobrescrito por el `<select>` del paciente (`app.js:2303`) | Sospecha (Confianza Media) | LOPNNA / protección de la infancia | **P1** |
+| RG-11 | Menores: Consentimiento Informado y asentimiento existen en UI y PDF, pero `guardianConsent` puede ser sobrescrito por el `<select>` del paciente (`app.js:2303`) | Sospecha (Confianza Media) | LOPNNA / protección de la infancia | **P1** |
 | RG-12 | Backup descargable en claro (JSON con PHI sin cifrar) | Confirmado | Custodia de copias de respaldo | **P2** |
 
 ---
